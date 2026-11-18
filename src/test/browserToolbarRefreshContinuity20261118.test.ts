@@ -77,12 +77,12 @@ describe("SIGAPRO — F5 same-document vs native browser toolbar",()=>{
     dispose();
   });
   it("não transforma Ctrl+F5 em atualização de dados, preservando o hard reload", () => {
-    const { refresh, stop } = navigationHarness();
+    const { refresh, dispose } = harness();
     const ev = new KeyboardEvent("keydown", { key: "F5", ctrlKey: true, cancelable: true });
     window.dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(false);
     expect(refresh).not.toHaveBeenCalled();
-    stop();
+    dispose();
   });
 
 });
