@@ -50,7 +50,20 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
           activated.departmentId !== assignment.departmentId) {
         throw new Error("O banco confirmou um vínculo diferente do solicitado.");
       }
-      // Do not navigate/show a new role until the backend and store agree.
+      // Confirm the active context through a second authenticated database read.
+      // An RPC response alone is not enough: a revoked/mismatched assignment
+      // must never appear as a successful role switch in the topbar.
+      const verified = getMunicipalAssignmentForAccount(
+        await listRemoteMunicipalStaffAssignments(), session.id, municipalityId,
+      );
+      const active = verified.filter((item) => item.isCurrent);
+      if (active.length !== 1 || active[0].id !== assignment.id ||
+          active[0].role !== activated.role ||
+          active[0].departmentId !== activated.departmentId) {
+        throw new Error("O departamento ativo não foi confirmado pelo banco. Atualize os vínculos e tente novamente.");
+      }
+      // Refresh canonical profile, permissions and process scopes BEFORE
+      // navigating or advertising the activated context.
       await refreshRemoteStore();
       window.dispatchEvent(new CustomEvent("sigapro-platform-session-updated", {
         detail: {
