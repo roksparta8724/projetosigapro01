@@ -72,7 +72,9 @@ describe("SIGAPRO — root do portal persistente, sem duas interfaces por troca"
     expect(frame).not.toContain("getLastAuthorizedAvatarRuntimeSource");
     expect(cache).not.toContain("lastVerifiedSource");
     expect(auth).not.toContain("if (getAuthorizedAvatarRuntimeUrl(owner, raw)) return;");
-    expect(refresh).toContain('event.userInitiated === false');
+    expect(refresh).not.toContain('event.userInitiated === false');
+    expect(refresh).toContain('event.navigationType !== "reload"');
+    expect(refresh).toContain("Date.now() < nativeHardReloadUntil");
     expect(refresh).not.toContain("nativeHardReloadUntil");
   });
 

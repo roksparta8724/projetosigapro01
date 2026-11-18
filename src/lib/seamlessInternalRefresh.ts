@@ -50,6 +50,10 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
   const navigation = (window as unknown as { navigation?: ReloadNavigation }).navigation;
   let inFlight = false;
   let disposed = false;
+  // A atualização comum pode manter o documento. Já Shift+F5,
+  // Ctrl+Shift+R e Shift+clique no botão do navegador devem continuar
+  // sendo recargas reais, sem interceptação da Navigation API.
+  let nativeHardReloadUntil = 0;
 
   const shouldHandle = () =>
     !disposed &&
@@ -75,8 +79,7 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
     if (
       !shouldHandle() ||
       event.navigationType !== "reload" ||
-      // Nunca bloquear recarregamento deliberado do próprio aplicativo.
-      event.userInitiated === false
+      Date.now() < nativeHardReloadUntil
     ) return;
 
     // The Navigation API uses a serialized URL; compare normalized URLs
@@ -95,6 +98,10 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
     }
     if (!sameDocument) return;
 
+    // Alguns navegadores sinalizam o clique na toolbar como
+    // userInitiated=false. Esse valor não serve para decidir se o mesmo
+    // documento pode ser revalidado sem teardown; a decisão exige
+    // sessão autorizada, frame já montado e URL exatamente igual.
     // Preferir interceptação de navegação sem reconstrução do documento.
     if (event.canIntercept && event.intercept) {
       try {
@@ -123,7 +130,21 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    const key = event.key.toLowerCase();
+    const refreshKey =
+      key === "f5" ||
+      (key === "r" && (event.ctrlKey || event.metaKey));
+
+    // O gesto de atualização forçada inclui Shift. Alguns navegadores
+    // recebem Shift+clique na toolbar como um navigate posterior, sem os
+    // modificadores originais. Guardamos o gesto por um intervalo curto.
+    if (key === "shift" || (refreshKey && event.shiftKey)) {
+      nativeHardReloadUntil = Date.now() + 1800;
+      if (event.shiftKey || key === "shift") return;
+    }
+
     if (
+      !refreshKey ||
       !shouldHandle() ||
       document.visibilityState === "hidden" ||
       event.repeat ||
@@ -133,12 +154,6 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
       event.isComposing
     ) return;
 
-    const key = event.key.toLowerCase();
-    const refreshKey =
-      key === "f5" ||
-      (key === "r" && (event.ctrlKey || event.metaKey));
-
-    if (!refreshKey) return;
     event.preventDefault();
     void refreshInPlace();
   };
