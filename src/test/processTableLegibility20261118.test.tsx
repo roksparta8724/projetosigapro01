@@ -41,7 +41,7 @@ describe("SIGAPRO — tabela de processos sem dados cortados (940–1120px)", ()
     expect(row?.querySelector(".sig-process-due-chip")).toHaveTextContent("30/10/2026");
     expect(row?.querySelector(".sig-process-responsible-name")).toBeInTheDocument();
     expect(row?.querySelector(".sig-process-actions")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Abrir processo/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir processo/i })).toBeInTheDocument();
   });
 
   it("redistribui oito colunas sem cortar Etapa, Pendências ou Assunto", () => {
