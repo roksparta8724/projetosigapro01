@@ -11,6 +11,7 @@ import "@/styles/sigapro-process-workspace.css";
 import "@/styles/sigapro-reference-layout.css";
 import "@/styles/sigapro-unified-process-workspace.css";
 import "@/styles/sigapro-process-table-legibility.css";
+import "@/styles/sigapro-active-filter-contrast.css";
 
 type RegistryProps = ComponentProps<typeof CompactProcessRegistry>;
 type PremiumProcessRegistryProps = RegistryProps & {
