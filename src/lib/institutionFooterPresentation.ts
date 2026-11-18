@@ -3,6 +3,8 @@ export function formatInstitutionPhone(raw: string): string {
   const value = raw.trim();
   if (!value || /não informado|nao informado|não cadastrado|nao cadastrado/i.test(value)) return value;
   const digits = value.replace(/\D/g, "");
+  // Non-geographic numbers do not have a two-digit area code.
+  if (/^(0800|0300|0500|0900)/.test(digits)) return value;
   const national = digits.startsWith("55") && (digits.length === 12 || digits.length === 13)
     ? digits.slice(2)
     : digits;
