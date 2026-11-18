@@ -42,7 +42,7 @@ describe("SIGAPRO — rodapé institucional premium", () => {
   });
 
   it("distribui logo, Secretaria, endereço e contato em quatro áreas independentes", () => {
-    expect(portal).toContain('data-sig-footer-design="premium-v2"');
+    expect(portal).toContain('data-sig-footer-design="premium-v3"');
     expect(portal).toContain('data-sig-footer-grid="true"');
     for (const column of ["secretaria","endereco","contato"]) {
       expect(portal).toContain(`data-sig-footer-column="${column}"`);
@@ -55,12 +55,25 @@ describe("SIGAPRO — rodapé institucional premium", () => {
     expect(portal).toContain("{institutionFooterSignature}");
   });
 
+  it("não permite que regras legadas forcem colunas iguais ou centralizem o brasão", () => {
+    const legacy = readFileSync("src/styles/surface-polarity.css", "utf8");
+    expect(legacy).not.toContain('html body #root .sig-page-footer [data-sig-footer-grid="true"]');
+    expect(legacy).toContain('.sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-grid="true"]');
+    expect(legacy).toContain('.sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-logo-cell="true"]');
+    expect(css).toContain('align-items: start;');
+    expect(css).toContain('justify-content: flex-start;');
+    expect(css).toContain('width: 116px !important;');
+    expect(css).toContain('height: 116px !important;');
+    expect(css).not.toContain('repeat(auto-fit');
+    expect(portal).toContain('data-sig-footer-design="premium-v3"');
+  });
+
   it("usa grid proporcional e responsividade conforme a largura útil do conteúdo", () => {
     expect(css).toContain("container: sigapro-footer / inline-size");
-    expect(css).toContain("grid-template-columns: minmax(120px, 146px)");
-    expect(css).toContain("@container sigapro-footer (max-width: 1080px)");
-    expect(css).toContain("@container sigapro-footer (max-width: 730px)");
-    expect(css).toContain("@container sigapro-footer (max-width: 500px)");
+    expect(css).toContain("grid-template-columns: 116px minmax(0, 1.48fr) minmax(0, 1.46fr) minmax(0, .82fr)");
+    expect(css).toContain("@container sigapro-footer (max-width: 1050px)");
+    expect(css).toContain("@container sigapro-footer (max-width: 710px)");
+    expect(css).toContain("@container sigapro-footer (max-width: 430px)");
     expect(css).toContain('data-sig-footer-primary="true"');
     expect(entry).toContain('import "./styles/sigapro-premium-footer.css"');
   });
