@@ -244,7 +244,7 @@ export function CompactProcessRegistry({
 
   return (
     <section data-sei-process-registry="true" data-sigapro-process-control="premium-table"
-      data-sigapro-responsive-layout="container" data-has-selection={selectable ? "true" : "false"}
+      data-sigapro-responsive-layout="container" data-sigapro-table-legibility="v2" data-has-selection={selectable ? "true" : "false"}
       className="sig-process-registry min-w-0 w-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.075)] dark:border-slate-700 dark:bg-slate-950">
       <div className="sig-process-content min-w-0 w-full">
           <div className="sig-process-head min-h-11 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
