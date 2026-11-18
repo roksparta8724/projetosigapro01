@@ -20,6 +20,7 @@ describe("municipal process registry", () => {
     "utf8",
   );
   const platform = readFileSync(resolve(process.cwd(), "src/lib/platform.ts"), "utf8");
+  const topbarDestination = readFileSync(resolve(process.cwd(), "src/lib/topbarProcessDestination.ts"), "utf8");
 
   it("keeps the process list compact and linked to the existing process detail", () => {
     expect(registry).toContain("CompactProcessRegistry");
@@ -66,7 +67,8 @@ describe("municipal process registry", () => {
     expect(page).toContain("Processos da Prefeitura");
     expect(page).toContain("matchesOperationalScope");
     expect(page).toContain("isInternalRole");
-    expect(frame).toContain('"/prefeitura/processos"');
+    expect(frame).toContain("resolveTopbarProcessDestination(session.role)");
+    expect(topbarDestination).toContain('return "/prefeitura/processos"');
     expect(platform).toContain("Leitura/acompanhamento municipal é transversal");
     expect(platform).toContain("return true;");
   });
