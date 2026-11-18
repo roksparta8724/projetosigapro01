@@ -2593,22 +2593,22 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
       </div>
 
       <footer className="mt-0 pt-0" aria-label="Rodapé institucional">
-        <div data-sig-footer-design="premium-v2"
+        <div data-sig-footer-design="premium-v3"
           className="sig-page-footer overflow-hidden border-t shadow-[0_-8px_24px_rgba(15,42,68,0.08)]"
           style={{
             borderColor: withAlpha(primaryColor, "0.2"),
             backgroundColor: "var(--sig-footer)",
           }}
         >
-          <div data-sig-footer-content="true" className="mx-auto w-full max-w-[1520px] px-5 py-7 lg:px-8 lg:py-8">
-            <div data-sig-footer-grid="true" className="grid min-w-0 items-center gap-x-7 gap-y-6">
+          <div data-sig-footer-content="true" className="mx-auto w-full max-w-[1520px] px-5 py-6 lg:px-7 lg:py-6">
+            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-5 gap-y-5">
               <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-start">
                 <InstitutionalLogo
                   branding={stableFooterBranding}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   contextScope={isMasterUser ? "master" : "municipality"}
-                  className="!m-0 !h-[120px] !w-[120px] !max-h-[120px] !max-w-[120px] !shrink-0"
+                  className="!m-0 !h-[116px] !w-[116px] !min-h-[116px] !min-w-[116px] !max-h-[116px] !max-w-[116px] !shrink-0"
                 />
               </div>
 
