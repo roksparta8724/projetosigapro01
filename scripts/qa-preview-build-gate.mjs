@@ -105,6 +105,7 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/premiumUnifiedProcessControl20261116.test.tsx",
     "src/test/premiumBlueContrast20261117.test.ts",
     "src/test/premiumCardHierarchy20261117.test.tsx",
+    "src/test/premiumInstitutionFooter20261118.test.ts",
     "src/test/protocolRegistrationSource20261117.test.ts",
     "src/test/processPersonalUnitFilters20261117.test.tsx",
     "src/test/unifiedMunicipalProcessWorkspace20261117.test.tsx",
