@@ -132,7 +132,7 @@ html body [data-landing-demo-modal="contact"] [data-landing-demo-contact-form="t
   font-size: 14px;
 }
 html body [data-landing-demo-modal="contact"] [data-landing-demo-contact-form="true"] :is(input,textarea)::placeholder {
-  color: #617b8c !important;
+  color: #596f82 !important;
   opacity: 1 !important;
 }
 html body [data-landing-demo-modal="contact"] [data-landing-demo-contact-form="true"] :is(input,textarea):focus-visible {
