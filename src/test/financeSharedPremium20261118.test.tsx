@@ -90,6 +90,12 @@ describe("SIGAPRO — cabeçalhos e navegação premium compartilhados", () => {
     expect(financeDesk).toContain("buildProcessPath(process, \"financeiro\")");
     expect(financeCss).toContain("overflow-wrap: anywhere");
     expect(financeCss).toContain('[data-finance-guide-list="premium-v2"]');
+    // A sidebar may make the content narrow even at a 2xl viewport.
+    expect(financeCss).toContain("container: sigapro-finance-guide-ledger / inline-size");
+    expect(financeCss).toContain("@container sigapro-finance-guide-ledger (max-width: 1159px)");
+    expect(financeDesk).toContain('data-finance-guide-header="wide"');
+    expect(financeDesk).toContain('data-finance-guide-compact-metadata="true"');
+    expect(financeDesk.match(/data-finance-guide-wide-only="true"/g)).toHaveLength(5);
   });
 
   it("corrige tipografia de indicadores e amplia o padrão aos demais departamentos sem alterar fluxos", () => {

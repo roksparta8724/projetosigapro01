@@ -225,3 +225,23 @@ html body #root .sig-main-shell [data-finance-guide-row="true"]:focus-visible {
     font-size: 12px;
   }
 }
+
+/* Responsive DAM ledger: viewport width is not usable panel width. At desktop
+ * zoom or with a wider sidebar, switch to the complete compact metadata row
+ * rather than squeeze the eight-column header and hide payment references. */
+html body #root .sig-main-shell [data-finance-guide-list="premium-v2"] {
+  container: sigapro-finance-guide-ledger / inline-size;
+}
+@container sigapro-finance-guide-ledger (max-width: 1159px) {
+  html body #root .sig-main-shell [data-finance-guide-header="wide"],
+  html body #root .sig-main-shell [data-finance-guide-wide-only="true"] {
+    display: none !important;
+  }
+  html body #root .sig-main-shell [data-finance-guide-row="true"] {
+    grid-template-columns: 42px minmax(0, 1fr) 22px !important;
+    gap: 12px !important;
+  }
+  html body #root .sig-main-shell [data-finance-guide-compact-metadata="true"] {
+    display: flex !important;
+  }
+}

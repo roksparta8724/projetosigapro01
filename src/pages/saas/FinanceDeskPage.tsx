@@ -851,7 +851,7 @@ export function FinanceDeskPage() {
                       A sequência municipal nasce somente após a compensação da guia inicial. Pré-protocolos ainda não pagos aparecem como PRE e não consomem número de processo.
                     </p>
                   </div>
-                  <div className="hidden min-h-9 grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 2xl:grid">
+                  <div data-finance-guide-header="wide" className="hidden min-h-9 grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 2xl:grid">
                     <span>Seq.</span>
                     <span>Guia</span>
                     <span>Processo</span>
@@ -939,7 +939,7 @@ export function FinanceDeskPage() {
                               </p>
                             ) : null}
 
-                            <div className="mt-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-[11px] leading-4 text-slate-600 dark:text-slate-300 2xl:hidden">
+                            <div data-finance-guide-compact-metadata="true" className="mt-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-[11px] leading-4 text-slate-600 dark:text-slate-300 2xl:hidden">
                               <span>{processDisplayLabel}</span>
                               <span>Emissão: {issuedLabel}</span>
                               <span>Venc.: {guide.dueDate || "Não informado"}</span>
@@ -948,7 +948,7 @@ export function FinanceDeskPage() {
                             </div>
                           </div>
 
-                          <div className="hidden min-w-0 2xl:block">
+                          <div data-finance-guide-wide-only="true" className="hidden min-w-0 2xl:block">
                             <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
                               {processDisplayLabel}
                             </p>
@@ -957,19 +957,19 @@ export function FinanceDeskPage() {
                             </p>
                           </div>
 
-                          <span className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
+                          <span data-finance-guide-wide-only="true" className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
                             {issuedLabel}
                           </span>
 
-                          <span className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
+                          <span data-finance-guide-wide-only="true" className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
                             {guide.dueDate || "Não informado"}
                           </span>
 
-                          <span className="hidden truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
+                          <span data-finance-guide-wide-only="true" className="hidden truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
                             {isProtocolGuide ? "Baixa operacional: Protocolo" : "Controle: Financeiro"}
                           </span>
 
-                          <span className="hidden text-right text-xs font-black text-slate-950 dark:text-white 2xl:block">
+                          <span data-finance-guide-wide-only="true" className="hidden text-right text-xs font-black text-slate-950 dark:text-white 2xl:block">
                             {formatCurrency(guide.amount)}
                           </span>
 
