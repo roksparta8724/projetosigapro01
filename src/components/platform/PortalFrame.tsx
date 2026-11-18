@@ -71,6 +71,7 @@ import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { formatInstitutionPhone, hasInstitutionEmail, shouldRepeatInstitutionLocality } from "@/lib/institutionFooterPresentation";
+import { resolveTopbarProcessDestination } from "@/lib/topbarProcessDestination";
 import { buildProcessPath, can, canAccessMunicipalArea,
   getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
@@ -972,22 +973,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     };
   }, [loading, session.id, location.pathname, activeInstitutionId, inverseMainTheme]);
 
-  const processShortcutPath =
-    isMasterUser
-      ? "/dashboard/processos"
-      : isExternalProfessionalRole(session.role)
-        ? "/externo/controle"
-        : session.role === "proprietario_consulta" || session.role === "property_owner"
-          ? "/proprietario"
-          : isInternalRole(session.role)
-            ? canAccessMunicipalArea(session, "analise")
-              ? "/prefeitura/analise?secao=fila"
-              : canAccessMunicipalArea(session, "protocolos")
-                ? "/prefeitura/protocolos"
-                : canAccessMunicipalArea(session, "financeiro")
-                  ? "/prefeitura/financeiro"
-                  : "/prefeitura/processos"
-            : "/prefeitura/protocolos";
+  const processShortcutPath = resolveTopbarProcessDestination(session.role);
 
   const resetMarkerEditor = () => {
     setEditingMarkerId(null);
@@ -1459,9 +1445,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
             style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
             data-topbar-actions-viewport="mobile"
           >
-              <button
-                type="button"
-                onClick={() => navigate(processShortcutPath)}
+              <Link
+                to={processShortcutPath}
+                data-topbar-process-shortcut="mobile"
                 className={cn(
                   "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
@@ -1470,7 +1456,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                 title="Processos"
               >
                 <ScrollText className="h-[18px] w-[18px] text-white/92" />
-              </button>
+              </Link>
               {showMunicipalOrganogramShortcut ? (
                 <button
                   type="button"
@@ -1646,9 +1632,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
               </div>
 
             <div className="sig-topbar-group sig-topbar-utility-group flex items-center gap-1.5 rounded-[18px] px-1.5 py-1.5">
-                <button
-                  type="button"
-                  onClick={() => navigate(processShortcutPath)}
+                <Link
+                  to={processShortcutPath}
+                  data-topbar-process-shortcut="desktop"
                   className={cn(
                     "sig-topbar-process-button relative",
                     topbarUtilityButtonClass,
@@ -1658,7 +1644,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                   title="Processos"
                 >
                   <ScrollText className={topbarUtilityIconClass} aria-hidden="true" />
-                </button>
+                </Link>
                 {showMunicipalOrganogramShortcut ? (
                   <button
                     type="button"
