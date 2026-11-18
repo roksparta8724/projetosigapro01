@@ -44,13 +44,14 @@ export function PageHeader({
       data-surface="adaptive-card"
       data-premium-surface="header"
       data-premium-role-blue="header"
+      data-sigapro-operational-header="premium-v3"
       className={cn(
         "sig-page-header relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.06)] md:p-5",
         className,
       )}
     >
-      <div className="relative flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0 flex-1">
+      <div data-sigapro-header-layout="true" className="relative flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div data-sigapro-header-copy="true" className="min-w-0 flex-1">
           {breadcrumb ? <div className="mb-2.5">{breadcrumb}</div> : null}
           <div className="flex items-start gap-3">
             {Icon ? (
@@ -58,7 +59,7 @@ export function PageHeader({
                 <AppIcon icon={Icon} className="h-5 w-5" />
               </div>
             ) : null}
-            <div className="min-w-0 sig-text-wrap">
+            <div data-sigapro-header-text="true" className="min-w-0 flex-1 sig-text-wrap">
               {eyebrow ? <p className="sig-section-label">{eyebrow}</p> : null}
               <h1 className="sig-page-title mt-1 max-w-full text-balance" title={title}>
                 {title}
@@ -72,7 +73,7 @@ export function PageHeader({
           </div>
         </div>
         {actions ? (
-          <div className="sig-header-actions flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+          <div data-sigapro-header-actions="true" className="sig-header-actions flex min-w-0 shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
             {actions}
           </div>
         ) : null}
