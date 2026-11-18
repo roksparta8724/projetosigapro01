@@ -1056,7 +1056,7 @@ export function FinanceDeskPage() {
                   <p className="sig-finance-ledger__notice">
                     Cada processo oficial ocupa uma única posição na sequência. Guias adicionais aparecem vinculadas abaixo,
                     sem receber nova numeração. Pré-protocolos aparecem como PRE e não ocupam posição oficial.
-                    Concluir na unidade não altera guias nem o status do processo.
+                    Concluir na unidade não altera guias nem o status oficial.
                   </p>
 
                   {conflictingOfficialSequences.length > 0 ? (
