@@ -456,7 +456,7 @@ export function FinanceProtocolsPage() {
       eyebrow="FINANCEIRO MUNICIPAL"
       title="Controle financeiro por processo"
     >
-      <PageShell>
+      <PageShell className="sig-finance-workspace sig-finance-protocols-workspace">
         <PageHero
           eyebrow="Livro financeiro municipal"
           title="Protocolos, lançamentos e conciliação por processo"
