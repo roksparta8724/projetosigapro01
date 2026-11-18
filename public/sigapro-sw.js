@@ -15,7 +15,7 @@ const ASSET_CACHE = `${CACHE_VERSION}:assets`;
 const NAVIGATION_CACHE = `${CACHE_VERSION}:public-html`;
 const DOCUMENT_URL = new URL("/index.html", self.location.origin).href;
 const DOCUMENT_SIGNATURE = 'name="sigapro-static-app-document"';
-const IS_SIGAPRO_PREVIEW = /^projetosigapro01-[a-z0-9-]+\\.vercel\\.app$/i.test(self.location.hostname);
+const IS_SIGAPRO_PREVIEW = /^projetosigapro01-[a-z0-9-]+\.vercel\.app$/i.test(self.location.hostname);
 // Only a branch alias (git-*) changes its content after a new Vercel deploy.
 // Immutable deployment hostnames are pinned to one build; their verified
 // public HTML is safe to serve from the local cache on F5.

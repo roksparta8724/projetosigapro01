@@ -239,4 +239,41 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     expect(await next.response.text()).toContain("release-B");
     await Promise.all(next.background);
   });
+  it("ativa navigation preload na homologação móvel e usa HTML de rede pré-carregado", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const h = harness(qaOrigin);
+    await h.install();
+    await h.activate();
+    expect(h.navigationPreloadEnable).toHaveBeenCalledTimes(1);
+    const before = h.fetcher.mock.calls.length;
+    const result = await h.navigate(qaOrigin + "/prefeitura", Promise.resolve(appHtml("release-B")));
+    expect(await result.response.text()).toContain("release-B");
+    expect(h.fetcher).toHaveBeenCalledTimes(before);
+    await Promise.all(result.background);
+    expect(await h.stores.get("sigapro-enterprise-v9:public-html")?.get(qaOrigin + "/index.html")?.text()).toContain("release-B");
+  });
+
+  it("reutiliza HTML validado em hostname imutável sem aguardar rede travada", async () => {
+    const fixedOrigin = "https://projetosigapro01-b2w3ez88h-roksparta8724s-projects.vercel.app";
+    const h = harness(fixedOrigin);
+    await h.install();
+    await h.activate();
+    expect(h.navigationPreloadEnable).not.toHaveBeenCalled();
+    h.fetcher.mockImplementation(async () => new Promise<TestResponse>(() => undefined));
+    const result = await h.navigate(fixedOrigin + "/prefeitura");
+    expect(await result.response.text()).toContain("release-A");
+    // A eventual revalidação em background nunca atrasa a primeira pintura.
+  });
+
+  it("não confunde host imutável com branch alias que pode trocar de commit", async () => {
+    const alias = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const h = harness(alias);
+    await h.install();
+    h.fetcher.mockImplementation(async () => appHtml("release-C"));
+    const result = await h.navigate(alias + "/prefeitura");
+    expect(await result.response.text()).toContain("release-C");
+    await Promise.all(result.background);
+    expect(await h.stores.get("sigapro-enterprise-v9:public-html")?.get(alias + "/index.html")?.text()).toContain("release-C");
+  });
+
 });
