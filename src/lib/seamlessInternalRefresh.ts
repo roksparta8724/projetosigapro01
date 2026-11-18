@@ -50,6 +50,10 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
   const navigation = (window as unknown as { navigation?: ReloadNavigation }).navigation;
   let inFlight = false;
   let disposed = false;
+  // O usuário pode exigir explicitamente recarga real de arquivos com
+  // Shift+F5/Ctrl+Shift+R. A Navigation API não expõe os modificadores
+  // durante o evento "navigate", então preservar essa intenção brevemente.
+  let nativeHardReloadUntil = 0;
 
   const shouldHandle = () =>
     !disposed &&
@@ -75,9 +79,14 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
     if (
       !shouldHandle() ||
       event.navigationType !== "reload" ||
-      // Nunca bloquear recarregamento deliberado do próprio aplicativo.
-      event.userInitiated === false
+      Date.now() < nativeHardReloadUntil
     ) return;
+
+    // O clique no botão "Atualizar" do próprio navegador pode informar
+    // userInitiated=false embora tenha origem humana. Ignorar esse campo
+    // causava precisamente a desmontagem completa do documento e o flash
+    // claro visto no vídeo. Só interceptar quando a rota/identidade estão
+    // montadas, e sempre respeitar o hard reload explícito.
 
     // The Navigation API uses a serialized URL; compare normalized URLs
     // instead of a strict string (which can vary in encoding/hash notation).
@@ -123,22 +132,28 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    const key = event.key.toLowerCase();
+    const refreshKey =
+      key === "f5" ||
+      (key === "r" && (event.ctrlKey || event.metaKey));
+    if (!refreshKey) return;
+
+    // Shift+F5/Ctrl+Shift+R são recargas reais deliberadas: manter sem
+    // interceptação, inclusive no evento Navigation API que vier depois.
+    if (event.shiftKey) {
+      nativeHardReloadUntil = Date.now() + 2000;
+      return;
+    }
+
     if (
       !shouldHandle() ||
       document.visibilityState === "hidden" ||
       event.repeat ||
       event.defaultPrevented ||
-      event.shiftKey ||
       event.altKey ||
       event.isComposing
     ) return;
 
-    const key = event.key.toLowerCase();
-    const refreshKey =
-      key === "f5" ||
-      (key === "r" && (event.ctrlKey || event.metaKey));
-
-    if (!refreshKey) return;
     event.preventDefault();
     void refreshInPlace();
   };

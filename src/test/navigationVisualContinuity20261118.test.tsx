@@ -98,6 +98,60 @@ describe("SIGAPRO — continuidade sem pulso entre módulos", () => {
     expect(revoke).toHaveBeenCalledOnce();
   });
 
+
+  it("captura atualização pela barra do navegador quando Navigation API marca userInitiated=false", async () => {
+    const { installSeamlessInternalRefresh } = await import("@/lib/seamlessInternalRefresh");
+    const listeners = new Map<string, (event: Record<string, unknown>) => void>();
+    const navigation = {
+      addEventListener: vi.fn((name: string, fn: (event: Record<string, unknown>) => void) => {
+        listeners.set(name, fn);
+      }),
+      removeEventListener: vi.fn((name: string) => { listeners.delete(name); }),
+    };
+    Object.defineProperty(window, "navigation", { configurable: true, value: navigation });
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const teardown = installSeamlessInternalRefresh({
+      isAuthenticated: () => true,
+      refresh,
+    });
+    let handler: (() => Promise<void>) | undefined;
+    const navigateEvent = {
+      navigationType: "reload", userInitiated: false, canIntercept: true,
+      destination: { url: window.location.href },
+      intercept: vi.fn((args: { handler: () => Promise<void> }) => { handler = args.handler; }),
+    };
+    listeners.get("navigate")?.(navigateEvent);
+    expect(navigateEvent.intercept).toHaveBeenCalledOnce();
+    expect(handler).toBeTypeOf("function");
+    await handler?.();
+    expect(refresh).toHaveBeenCalledOnce();
+    teardown();
+    Object.defineProperty(window, "navigation", { configurable: true, value: undefined });
+  });
+
+  it("mantém Shift+F5 como recarga completa sem tocar em dados protegidos", async () => {
+    const { installSeamlessInternalRefresh } = await import("@/lib/seamlessInternalRefresh");
+    const listeners = new Map<string, (event: Record<string, unknown>) => void>();
+    Object.defineProperty(window, "navigation", { configurable: true, value: {
+      addEventListener: (name: string, fn: (event: Record<string, unknown>) => void) => listeners.set(name, fn),
+      removeEventListener: (name: string) => listeners.delete(name),
+    } });
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const teardown = installSeamlessInternalRefresh({ isAuthenticated: () => true, refresh });
+    const key = new KeyboardEvent("keydown", { key: "F5", shiftKey: true, cancelable: true });
+    window.dispatchEvent(key);
+    expect(key.defaultPrevented).toBe(false);
+    const intercept = vi.fn();
+    listeners.get("navigate")?.({
+      navigationType: "reload", userInitiated: true, canIntercept: true,
+      destination: { url: window.location.href }, intercept,
+    });
+    expect(intercept).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    teardown();
+    Object.defineProperty(window, "navigation", { configurable: true, value: undefined });
+  });
+
   it("usa bitmap de avatar pequeno sem escalonar o frame e mantém isenção do shell artificial", () => {
     expect(avatarSource).toContain('decoding="sync"');
     expect(portalSource).toContain("getLastAuthorizedAvatarRuntimeSource(authenticatedAvatarOwnerId)");
