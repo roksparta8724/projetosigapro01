@@ -157,8 +157,8 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
  * original PermissionRoute and session checks remain solely authoritative.
  */
 function isWorkspaceBootPath(pathname: string): boolean {
-  if (/\\/processos\\/[^/]+\\/documentos\\/[^/]+\\/(visualizar|analisar)$/.test(pathname)) return false;
-  return /^\\/(dashboard(?:\\/|$)|prefeitura(?:\\/|$)|master(?:\\/|$)|processos(?:\\/|$)|externo(?:\\/|$)|proprietario(?:\\/|$)|perfil(?:\\/|$)|configuracoes(?:\\/|$)|notificacoes(?:\\/|$)|historico(?:\\/|$)|buscar(?:\\/|$)|legislacoes(?:\\/|$)|zoneamento(?:\\/|$))/.test(pathname);
+  if (/\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname)) return false;
+  return /^\/(dashboard(?:\/|$)|prefeitura(?:\/|$)|master(?:\/|$)|processos(?:\/|$)|externo(?:\/|$)|proprietario(?:\/|$)|perfil(?:\/|$)|configuracoes(?:\/|$)|notificacoes(?:\/|$)|historico(?:\/|$)|buscar(?:\/|$)|legislacoes(?:\/|$)|zoneamento(?:\/|$))/.test(pathname);
 }
 
 if (typeof window !== "undefined") {
