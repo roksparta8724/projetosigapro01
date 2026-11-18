@@ -842,7 +842,7 @@ export function FinanceDeskPage() {
                   Nenhuma guia emitida encontrada.
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-950/45">
+                <div data-finance-guide-list="premium-v2" className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-950/45">
                   <div className="border-b border-sky-100 bg-sky-50/70 px-4 py-3 dark:border-sky-500/20 dark:bg-sky-950/20">
                     <p className="text-xs font-bold text-sky-900 dark:text-sky-100">
                       Ordem oficial dos processos
@@ -851,7 +851,7 @@ export function FinanceDeskPage() {
                       A sequência municipal nasce somente após a compensação da guia inicial. Pré-protocolos ainda não pagos aparecem como PRE e não consomem número de processo.
                     </p>
                   </div>
-                  <div className="hidden min-h-9 grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
+                  <div className="hidden min-h-9 grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 2xl:grid">
                     <span>Seq.</span>
                     <span>Guia</span>
                     <span>Processo</span>
@@ -888,7 +888,8 @@ export function FinanceDeskPage() {
                         <Link
                           key={`${process.id}-${guide.kind}-${guide.code}`}
                           to={`${buildProcessPath(process, "financeiro")}&guia=${encodeURIComponent(guide.code)}#guia-selecionada`}
-                          className="group grid min-h-[62px] grid-cols-[42px_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2.5 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 lg:grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] lg:gap-3"
+                          data-finance-guide-row="true"
+                          className="group grid min-h-[68px] min-w-0 max-w-full grid-cols-[42px_minmax(0,1fr)_22px] items-center gap-3 px-3 py-3 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 2xl:grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] 2xl:gap-3"
                         >
                           <span
                             className={
@@ -906,9 +907,9 @@ export function FinanceDeskPage() {
                           </span>
 
                           <div className="min-w-0">
-                            <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                               <span
-                                className="truncate text-xs font-black text-slate-950 group-hover:text-sky-800 dark:text-white dark:group-hover:text-sky-300"
+                                className="min-w-0 break-words [overflow-wrap:anywhere] text-xs font-extrabold leading-5 text-slate-950 group-hover:text-sky-800 dark:text-white dark:group-hover:text-sky-300"
                                 title={displayGuideCode}
                               >
                                 {displayGuideCode}
@@ -926,19 +927,19 @@ export function FinanceDeskPage() {
                                 {guideFinancialEvidenceLabel(guide)}
                               </Badge>
                             </div>
-                            <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400" title={guide.label}>
+                            <p className="mt-0.5 break-words text-[11px] font-medium leading-4 text-slate-600 dark:text-slate-400" title={guide.label}>
                               {guide.label}
                             </p>
                             {keepsOriginalPreprotocolCode ? (
                               <p
-                                className="mt-0.5 truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500"
+                                className="mt-0.5 break-words text-[10px] font-semibold leading-4 text-slate-500 dark:text-slate-400"
                                 title={guide.code}
                               >
                                 Guia paga no pré-protocolo: {guide.code}
                               </p>
                             ) : null}
 
-                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400 lg:hidden">
+                            <div className="mt-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-[11px] leading-4 text-slate-600 dark:text-slate-300 2xl:hidden">
                               <span>{processDisplayLabel}</span>
                               <span>Emissão: {issuedLabel}</span>
                               <span>Venc.: {guide.dueDate || "Não informado"}</span>
@@ -946,7 +947,7 @@ export function FinanceDeskPage() {
                             </div>
                           </div>
 
-                          <div className="hidden min-w-0 lg:block">
+                          <div className="hidden min-w-0 2xl:block">
                             <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
                               {processDisplayLabel}
                             </p>
@@ -955,19 +956,19 @@ export function FinanceDeskPage() {
                             </p>
                           </div>
 
-                          <span className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 lg:block">
+                          <span className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
                             {issuedLabel}
                           </span>
 
-                          <span className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 lg:block">
+                          <span className="hidden text-[11px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
                             {guide.dueDate || "Não informado"}
                           </span>
 
-                          <span className="hidden truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300 lg:block">
+                          <span className="hidden truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300 2xl:block">
                             {isProtocolGuide ? "Baixa operacional: Protocolo" : "Controle: Financeiro"}
                           </span>
 
-                          <span className="hidden text-right text-xs font-black text-slate-950 dark:text-white lg:block">
+                          <span className="hidden text-right text-xs font-black text-slate-950 dark:text-white 2xl:block">
                             {formatCurrency(guide.amount)}
                           </span>
 
