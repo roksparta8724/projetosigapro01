@@ -59,6 +59,7 @@ import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { readCachedProfileAvatar } from "@/lib/profileAvatarCache";
+import { getLastAuthorizedAvatarRuntimeSource } from "@/lib/authorizedAvatarRuntimeCache";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -817,7 +818,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
   // A foto cadastrada é a identidade visual da conta em toda a plataforma.
   // Cadastros antigos podem ter useAvatarInHeader=false mesmo com foto R2
   // válida; esse campo legado não deve ocultar uma imagem já salva.
-  const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(displayProfile) || null;
   // Só uma leitura REMOTA já confirmada para a conta atual pode remover a
   // imagem existente. Lacunas de hidratação/refresh não equivalem a "foto
   // excluída" e não podem fazer o cabeçalho trocar para iniciais.
@@ -828,6 +828,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     !profileHasAvatar &&
     !cachedHasAvatar
   );
+  // A URL de origem já autorizada continua disponível em memória durante
+  // mudanças de página, inclusive se o perfil vier momentaneamente parcial.
+  // Nunca é usada para uma conta diferente ou após exclusão confirmada.
+  const lastVerifiedAccountAvatarSource = topbarPhotoRemovalConfirmed
+    ? ""
+    : getLastAuthorizedAvatarRuntimeSource(authenticatedAvatarOwnerId);
+  const topbarAvatarImageUrl =
+    resolveProfileAvatarDisplayUrl(displayProfile) || lastVerifiedAccountAvatarSource || null;
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
     return {

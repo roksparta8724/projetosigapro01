@@ -11,6 +11,7 @@ const cached = new Map<string, AuthorizedAvatarUrl>();
 const pending = new Map<string, Promise<string>>();
 let generation = 0;
 let activeOwner = "";
+let lastVerifiedSource = "";
 const MAX_CACHED_IMAGES = 8;
 
 function validOwner(value: string): string {
@@ -24,6 +25,7 @@ function cacheId(owner: string, source: string) {
 export function clearAuthorizedAvatarRuntimeCache(): void {
   generation += 1;
   activeOwner = "";
+  lastVerifiedSource = "";
   for (const entry of cached.values()) entry.revoke();
   cached.clear();
   pending.clear();
@@ -38,6 +40,14 @@ export function getAuthorizedAvatarRuntimeUrl(ownerId: string, source: string): 
   return cached.get(cacheId(owner, source))?.url || "";
 }
 
+// Retorna apenas uma origem cujo raster PRIVADO já passou pela autorização
+// do backend nesta sessão/conta. Não persiste URLs privadas ou tokens.
+export function getLastAuthorizedAvatarRuntimeSource(ownerId: string): string {
+  const owner = validOwner(ownerId);
+  if (!owner || owner !== activeOwner || !lastVerifiedSource) return "";
+  return cached.has(cacheId(owner, lastVerifiedSource)) ? lastVerifiedSource : "";
+}
+
 export async function loadAuthorizedAvatarRuntimeUrl(ownerId: string, source: string): Promise<string> {
   const owner = validOwner(ownerId);
   if (!owner || !privateAvatarObjectKey(source)) return "";
@@ -46,7 +56,7 @@ export async function loadAuthorizedAvatarRuntimeUrl(ownerId: string, source: st
   activeOwner = owner;
   const id = cacheId(owner, source);
   const already = cached.get(id);
-  if (already) return already.url;
+  if (already) { lastVerifiedSource = source; return already.url; }
   const fetching = pending.get(id);
   if (fetching) return fetching;
 
@@ -61,9 +71,11 @@ export async function loadAuthorizedAvatarRuntimeUrl(ownerId: string, source: st
       if (oldest) {
         cached.get(oldest)?.revoke();
         cached.delete(oldest);
+        if (oldest === cacheId(owner, lastVerifiedSource)) lastVerifiedSource = "";
       }
     }
     cached.set(id, asset);
+    lastVerifiedSource = source;
     return asset.url;
   }).finally(() => {
     if (pending.get(id) === task) pending.delete(id);

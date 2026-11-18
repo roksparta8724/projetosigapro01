@@ -288,7 +288,7 @@ function UserAvatarPresentation({
           <img
             src={resolvedImageUrl || undefined}
             alt={name || "Usuario"}
-            decoding="async"
+            decoding="sync"
             className={cn(
               "sig-user-avatar-image absolute block max-w-none bg-white",
               cropGeometry ? "" : "inset-0 h-full w-full object-cover object-center",

@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { lazy, Suspense, useEffect, useLayoutEffect } from "react";
+import { lazy, Suspense, useDeferredValue, useEffect, useLayoutEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -178,9 +178,31 @@ const App = () => {
 
 export default App;
 
+function isOperationalNavigationPath(pathname: string): boolean {
+  return !["/", "/inicio", "/apresentacao", "/planos-publicos", "/acesso",
+    "/criar-conta", "/recuperar-senha", "/verificar-assinatura"].includes(pathname)
+    && !pathname.startsWith("/cliente/")
+    && !pathname.startsWith("/v/")
+    && !/\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname);
+}
+
 const AppRoutes = () => {
   const bootstrap = useAppBootstrap();
   const location = useLocation();
+  // React mantém o conteúdo da rota anterior enquanto o próximo módulo lazy
+  // baixa/é preparado. Isso evita o fallback vazio que desmontava o painel e
+  // fazia topbar, barra lateral e foto "pulsarem" a cada troca de departamento.
+  // Não conservar rotas entre contas: logout/entrada e páginas públicas usam
+  // sempre a location real, sem postergação da autorização.
+  const deferredLocation = useDeferredValue(location);
+  const authenticatedInternalRoute =
+    bootstrap.authResolved &&
+    Boolean(bootstrap.authUserId) &&
+    bootstrap.isReady &&
+    !bootstrap.loading &&
+    isOperationalNavigationPath(location.pathname) &&
+    isOperationalNavigationPath(deferredLocation.pathname);
+  const visibleRouteLocation = authenticatedInternalRoute ? deferredLocation : location;
   const canShowPublicLanding = shouldShowPublicLanding(bootstrap.resolution);
   const pathname = location.pathname;
 
@@ -240,7 +262,7 @@ const AppRoutes = () => {
   // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
   return (
     <Suspense fallback={<SecureRoutePending surface="route" title="Abrindo módulo do SIGAPRO" detail="Aguardando validação da página solicitada." />}>
-      <Routes>
+      <Routes location={visibleRouteLocation}>
         <Route
           path="/"
           element={canShowPublicLanding ? <LandingPage /> : <Navigate to="/acesso" replace />}
