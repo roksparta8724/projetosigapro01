@@ -2755,7 +2755,10 @@ export function resolveSessionOperationalArea(
   // O papel canônico é usado somente quando não existe um departamento explícito.
   if (session.role === "setor_intersetorial") return "protocolos";
   if (session.role === "analista") return "analise";
-  if (session.role === "financeiro" || session.role === "fiscal") return "financeiro";
+  if (session.role === "financeiro") return "financeiro";
+  // Fiscalização de obras pertence à área técnica, como a rota oficial /prefeitura/analise.
+  // Antes o fallback enviava fiscais antigos sem lotação para Financeiro e bloqueava sua fila.
+  if (session.role === "fiscal") return "analise";
   return "";
 }
 
