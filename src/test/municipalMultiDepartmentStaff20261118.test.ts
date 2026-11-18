@@ -65,4 +65,21 @@ describe("SIGAPRO — um login, múltiplas lotações com permissão real",()=>{
     expect(editor).toContain("dark:text-white");
     expect(sql).toContain("É necessário manter ao menos uma lotação ativa");
   });
+  it("confirma o setor ativo no backend antes de mudar perfil e rota", () => {
+    const readBack = switcher.indexOf("const verified = getMunicipalAssignmentForAccount(");
+    const checkCurrent = switcher.indexOf("const active = verified.filter((item) => item.isCurrent);");
+    const verifyRole = switcher.indexOf("active[0].role !== activated.role");
+    const refresh = switcher.indexOf("await refreshRemoteStore();");
+    const publish = switcher.indexOf('window.dispatchEvent(new CustomEvent("sigapro-platform-session-updated"');
+    const navigateAfter = switcher.indexOf("navigate(getRoleLandingPath(activated.role)");
+    expect(readBack).toBeGreaterThan(-1);
+    expect(switcher).toContain("await listRemoteMunicipalStaffAssignments(), session.id, municipalityId");
+    expect(checkCurrent).toBeGreaterThan(readBack);
+    expect(verifyRole).toBeGreaterThan(checkCurrent);
+    expect(refresh).toBeGreaterThan(verifyRole);
+    expect(publish).toBeGreaterThan(refresh);
+    expect(navigateAfter).toBeGreaterThan(publish);
+    expect(switcher).toContain("O departamento ativo não foi confirmado pelo banco");
+  });
+
 });
