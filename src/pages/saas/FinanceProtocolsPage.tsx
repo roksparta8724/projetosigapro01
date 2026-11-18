@@ -570,7 +570,7 @@ export function FinanceProtocolsPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+                <div data-finance-process-summary="premium-v4" className="sig-finance-process-summary flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
                   <p className="text-xs font-semibold text-slate-600 dark:text-slate-200">Processos do Financeiro · {visibleLedgers.length.toLocaleString("pt-BR")} registro(s)</p>
                   <Button type="button" variant="outline" size="sm" className="rounded-lg border-slate-300 bg-white text-slate-900"
                     onClick={() => setProcessListView((current) => current === "tabela" ? "detalhes" : "tabela")}>

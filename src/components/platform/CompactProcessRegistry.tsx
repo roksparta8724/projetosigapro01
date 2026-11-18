@@ -307,6 +307,7 @@ export function CompactProcessRegistry({
               const selected = selectedSet.has(process.id);
               return (
                 <div role="listitem" key={process.id} data-sei-process-row="true"
+                  data-selected={selected ? "true" : "false"}
                   className={cn(
                     "sig-process-row group min-w-0 transition-colors",
                     index % 2 === 0 ? "bg-white dark:bg-slate-950" : "bg-slate-50/55 dark:bg-slate-900/65",

@@ -885,3 +885,165 @@ html.dark body #root .sig-main-shell .sig-finance-ledger__search > svg {
   color: #c6ddeb !important;
   stroke: currentColor !important;
 }
+
+
+/* SIGAPRO | Financeiro screenshot contrast v6 — official DAM sequence */
+/* Screenshot regression: previous parent card text-fill values reached the
+   blue sequence marker, creating muted numerals on navy. Explicit foreground
+   and text fill are REQUIRED on the marker itself in all three theme modes. */
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__sequence[data-official-sequence="true"],
+html body #root .sig-main-shell .sig-finance-ledger__row:hover .sig-finance-ledger__sequence[data-official-sequence="true"],
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"] .sig-finance-ledger__sequence[data-official-sequence="true"] {
+  background: #123f5b !important;
+  border: 1px solid #123f5b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+  font-weight: 850 !important;
+  min-width: 35px;
+  min-height: 29px;
+  letter-spacing: .015em;
+  box-shadow: 0 2px 5px rgba(9, 57, 88, .14);
+}
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__sequence[data-official-sequence="false"],
+html body #root .sig-main-shell .sig-finance-ledger__row:hover .sig-finance-ledger__sequence[data-official-sequence="false"] {
+  background: #fff3da !important;
+  border-color: #d5a34f !important;
+  color: #744b0b !important;
+  -webkit-text-fill-color: #744b0b !important;
+  opacity: 1 !important;
+  font-weight: 850 !important;
+}
+/* DAM number and its corresponding official process remain readable within
+   a dense 25/50/100-record table. Full reference is never ellipsized. */
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__reference {
+  color: #105278 !important;
+  -webkit-text-fill-color: #105278 !important;
+  font-size: 12.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__guide-type,
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__original-reference {
+  color: #475e71 !important;
+  -webkit-text-fill-color: #475e71 !important;
+  opacity: 1 !important;
+  line-height: 1.5 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__process-column strong,
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__value {
+  color: #153950 !important;
+  -webkit-text-fill-color: #153950 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:nth-child(even):not([data-selected="true"]) {
+  background: #f4f8fc !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:nth-child(odd):not([data-selected="true"]) {
+  background: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:hover:not([data-selected="true"]) {
+  background: #e8f3fa !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover {
+  background: #d4e8f5 !important;
+  box-shadow: inset 3px 0 #0a628b !important;
+}
+/* Financeiro / Controle por processo: refined total-record banner replaces
+   the washed-out grey capsule shown immediately above Controle de Processos. */
+html body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] {
+  min-height: 47px;
+  margin-bottom: 0;
+  padding: 10px 13px !important;
+  border: 1px solid #c3d9e8 !important;
+  border-left: 3px solid #217da8 !important;
+  border-radius: 12px !important;
+  background: #f0f7fb !important;
+  color: #173b55 !important;
+  box-shadow: 0 3px 11px rgba(12, 66, 102, .06);
+}
+html body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > p {
+  margin: 0 !important;
+  color: #254e68 !important;
+  -webkit-text-fill-color: #254e68 !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button {
+  background: #ffffff !important;
+  border-color: #adcbdc !important;
+  color: #164761 !important;
+  -webkit-text-fill-color: #164761 !important;
+  font-weight: 750;
+}
+html body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button:hover {
+  background: #e1f0f9 !important;
+  color: #11405a !important;
+  -webkit-text-fill-color: #11405a !important;
+}
+/* Respect inverse-main even when html.dark is not present. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:nth-child(even):not([data-selected="true"]),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:nth-child(even):not([data-selected="true"]) {
+  background: #1b374b !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:nth-child(odd):not([data-selected="true"]),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:nth-child(odd):not([data-selected="true"]) {
+  background: #132d40 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:hover:not([data-selected="true"]),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:hover:not([data-selected="true"]) {
+  background: #204b64 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover {
+  background: #215472 !important;
+  box-shadow: inset 3px 0 #89cce9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__reference,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__process-column strong,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__value,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__reference,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__process-column strong,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__value {
+  color: #f5fbff !important;
+  -webkit-text-fill-color: #f5fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row :is(.sig-finance-ledger__guide-type,.sig-finance-ledger__original-reference),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row :is(.sig-finance-ledger__guide-type,.sig-finance-ledger__original-reference) {
+  color: #bfd9e8 !important;
+  -webkit-text-fill-color: #bfd9e8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"],
+html.dark body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] {
+  background: #1b3c53 !important;
+  border-color: #52778e !important;
+  border-left-color: #6fc0e5 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > p,
+html.dark body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > p {
+  color: #e7f5ff !important;
+  -webkit-text-fill-color: #e7f5ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button,
+html.dark body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button {
+  background: #234f68 !important;
+  border-color: #6d9ab3 !important;
+  color: #f5fbff !important;
+  -webkit-text-fill-color: #f5fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button:hover,
+html.dark body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button:hover {
+  background: #28617f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
