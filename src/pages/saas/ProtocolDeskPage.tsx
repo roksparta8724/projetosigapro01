@@ -58,6 +58,7 @@ import {
 import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
 import { isFinancialTestGuide, protocolPaymentEvidenceLabel } from "@/lib/qaPaymentEvidence";
 import { classifyProtocolRegistrationSource } from "@/lib/protocolRegistrationSource";
+import "@/styles/sigapro-protocol-section-nav.css";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -420,16 +421,19 @@ export function ProtocolDeskPage() {
     [dispatchRows],
   );
 
+  // Short, deliberate labels: these are navigation titles, not descriptions.
+  // Full operational meaning is carried by the helper text and destination.
+  // Each item stays tied to the same section id and query parameter.
   const navItems = [
-    { value: "visao-geral", label: "Resumo", helper: "Prioridades e situação do setor" },
-    { value: "todos", label: "Todos os protocolos", helper: "Acompanhamento e rastreabilidade do Protocolo" },
-    { value: "fila", label: "Fila de triagem", helper: "Operação principal do protocolo" },
-    { value: "entradas", label: "Entradas", helper: "Separação por canal de recebimento" },
-    { value: "documentos", label: "Documentos pendentes", helper: "Bloqueios, exigências e regularização" },
-    { value: "pagamentos", label: "Pagamento do protocolo", helper: "Conferência e baixa da guia inicial" },
-    { value: "balcao", label: "Atendimento balcão", helper: "Recepção presencial e apoio assistido" },
-    { value: "online", label: "Atendimento online", helper: "Entrada digital e despacho inicial" },
-    { value: "historico", label: "Histórico", helper: "Últimos registros e rastreabilidade" },
+    { value: "visao-geral", label: "Resumo", helper: "Indicadores e prioridades" },
+    { value: "todos", label: "Todos os protocolos", helper: "Consulta e rastreabilidade" },
+    { value: "fila", label: "Fila de triagem", helper: "Processos da unidade" },
+    { value: "entradas", label: "Entradas", helper: "Origem dos registros" },
+    { value: "documentos", label: "Pendências", helper: "Documentos e exigências" },
+    { value: "pagamentos", label: "Pagamentos", helper: "Guias e confirmações" },
+    { value: "balcao", label: "Balcão", helper: "Atendimento assistido" },
+    { value: "online", label: "Portal externo", helper: "Recebimentos digitais" },
+    { value: "historico", label: "Histórico", helper: "Eventos e movimentações" },
   ] as const;
 
   const persistFinishedProcesses = (ids: Set<string>) => {
@@ -1269,6 +1273,7 @@ export function ProtocolDeskPage() {
         </section>
 
         <InternalTabs
+          className="sig-protocol-section-nav"
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as ProtocolSection)}
