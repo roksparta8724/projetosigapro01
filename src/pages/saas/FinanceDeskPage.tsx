@@ -71,6 +71,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import "@/styles/sigapro-finance-premium.css";
 
 type FinanceSection =
   | "visao-geral"
@@ -529,7 +530,7 @@ export function FinanceDeskPage() {
 
   return (
     <PortalFrame eyebrow="FINANCEIRO MUNICIPAL" title="Controle financeiro, guias e arrecadação">
-      <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
+      <PageShell className={section === "visao-geral" ? "sig-module-summary-active sig-finance-workspace" : "sig-finance-workspace"}>
         <PageHeader
           eyebrow="Operação financeira"
           title="Guias, pagamentos e conciliação"
@@ -549,6 +550,7 @@ export function FinanceDeskPage() {
         />
 
         <InternalTabs
+          className="sig-finance-section-nav"
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as FinanceSection)}
