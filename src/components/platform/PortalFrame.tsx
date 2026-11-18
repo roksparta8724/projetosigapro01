@@ -70,6 +70,7 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
+import { formatInstitutionPhone, hasInstitutionEmail, shouldRepeatInstitutionLocality } from "@/lib/institutionFooterPresentation";
 import { buildProcessPath, can, canAccessMunicipalArea,
   getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
@@ -912,6 +913,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     : tenantSettings?.diretoriaEmail || "E-mail não informado";
   const institutionFooterSignature =
     officialFooterText || "SIGAPRO — Plataforma institucional para aprovação de projetos";
+  const institutionFooterState =
+    municipality?.state || ("state" in (activeInstitution ?? {}) ? activeInstitution?.state : undefined);
+  const footerAddress = tenantSettings?.endereco?.trim() || "";
+  const showFooterLocality = shouldRepeatInstitutionLocality(footerAddress, institutionFooterCity);
+  const footerPhoneDisplay = formatInstitutionPhone(institutionFooterPhone);
+  const footerEmailDisplay = hasInstitutionEmail(institutionFooterEmail)
+    ? institutionFooterEmail.trim()
+    : "";
   const activeThemePreset =
     availableThemePresets.find(
       (preset) =>
@@ -2583,88 +2592,86 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
         </main>
       </div>
 
-      <footer className="mt-0 pt-0">
-        <div
-          className={cn(
-            "sig-page-footer overflow-hidden border-t shadow-[0_-8px_24px_rgba(15,42,68,0.08)]",
-          )}
+      <footer className="mt-0 pt-0" aria-label="Rodapé institucional">
+        <div data-sig-footer-design="premium-v2"
+          className="sig-page-footer overflow-hidden border-t shadow-[0_-8px_24px_rgba(15,42,68,0.08)]"
           style={{
             borderColor: withAlpha(primaryColor, "0.2"),
             backgroundColor: "var(--sig-footer)",
           }}
         >
-          <div className="px-8 py-8 lg:px-12 lg:py-10">
-            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-6 gap-y-8 sm:grid-cols-2 2xl:grid-cols-4">
-              <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-center 2xl:justify-start 2xl:pl-3">
+          <div data-sig-footer-content="true" className="mx-auto w-full max-w-[1520px] px-5 py-7 lg:px-8 lg:py-8">
+            <div data-sig-footer-grid="true" className="grid min-w-0 items-center gap-x-7 gap-y-6">
+              <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-start">
                 <InstitutionalLogo
                   branding={stableFooterBranding}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   contextScope={isMasterUser ? "master" : "municipality"}
-                  className="!m-0 !shrink-0"
+                  className="!m-0 !h-[120px] !w-[120px] !max-h-[120px] !max-w-[120px] !shrink-0"
                 />
               </div>
 
-              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:pl-2">
-                <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
-                  <Building2 className="h-5 w-5 text-white" />
-                </div>
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Secretaria</p>
-                  <p className="max-w-[560px] text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
+              <section data-sig-footer-column="secretaria" aria-label="Secretaria responsável"
+                className="flex min-w-0 items-start gap-3">
+                <span data-sig-footer-icon="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/20 bg-white/10">
+                  <Building2 className="h-[17px] w-[17px] text-[#e4f5ff]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p data-sig-footer-label="true">Secretaria</p>
+                  <p data-sig-footer-primary="true" title={institutionFooterTitle}>
                     {institutionFooterTitle}
                   </p>
-                  <p className="text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    {tenantSettings?.diretoriaResponsavel || "Diretoria de Urbanismo"}
-                  </p>
+                  {tenantSettings?.diretoriaResponsavel?.trim() ? (
+                    <p data-sig-footer-secondary="true">{tenantSettings.diretoriaResponsavel}</p>
+                  ) : null}
                 </div>
-              </div>
+              </section>
 
-              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:justify-center">
-                <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
-                  <MapPin className="h-5 w-5 text-white" />
-                </div>
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Endereço</p>
-                  <p
-                    className="min-w-0 max-w-full whitespace-normal break-words text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]"
-                    title={tenantSettings?.endereco || "Endereço não informado"}
-                  >
-                    {tenantSettings?.endereco || "Endereço não informado"}
+              <section data-sig-footer-column="endereco" aria-label="Endereço institucional"
+                className="flex min-w-0 items-start gap-3">
+                <span data-sig-footer-icon="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/20 bg-white/10">
+                  <MapPin className="h-[17px] w-[17px] text-[#e4f5ff]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p data-sig-footer-label="true">Endereço</p>
+                  <p data-sig-footer-primary="true" title={footerAddress || "Endereço não informado"}>
+                    {footerAddress || "Endereço não informado"}
                   </p>
-                  <p className="text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    {institutionFooterCity}
-                    {(municipality?.state || ("state" in (activeInstitution ?? {}) ? activeInstitution?.state : undefined))
-                      ? ` / ${municipality?.state || ("state" in (activeInstitution ?? {}) ? activeInstitution?.state : "")}`
-                      : ""}
-                  </p>
+                  {showFooterLocality ? (
+                    <p data-sig-footer-secondary="true">
+                      {institutionFooterCity}
+                      {institutionFooterState ? ` / ${institutionFooterState}` : ""}
+                    </p>
+                  ) : null}
                 </div>
-              </div>
+              </section>
 
-              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:justify-end">
-                <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
-                  <Phone className="h-5 w-5 text-white" />
+              <section data-sig-footer-column="contato" aria-label="Contato institucional"
+                className="flex min-w-0 items-start gap-3">
+                <span data-sig-footer-icon="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/20 bg-white/10">
+                  <Phone className="h-[17px] w-[17px] text-[#e4f5ff]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p data-sig-footer-label="true">Contato</p>
+                  <p data-sig-footer-primary="true" className="tabular-nums">{footerPhoneDisplay}</p>
+                  {footerEmailDisplay ? (
+                    <div data-sig-footer-secondary="true" className="flex min-w-0 items-start gap-2">
+                      <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#a7cadf]" aria-hidden="true" />
+                      <a href={`mailto:${footerEmailDisplay}`} className="min-w-0 break-all hover:underline" title={footerEmailDisplay}>
+                        {footerEmailDisplay}
+                      </a>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Contato</p>
-                  <p className="text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
-                    {institutionFooterPhone}
-                  </p>
-                  <div className="flex min-w-0 items-center gap-2 text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    <Mail className="h-4 w-4 shrink-0 text-white/72" />
-                    <span className="sig-fit-copy block min-w-0 max-w-full whitespace-normal break-words text-[#D6E7F4]" title={institutionFooterEmail}>
-                      {institutionFooterEmail}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              </section>
             </div>
           </div>
 
-          <div className="border-t border-white/10 bg-black/[0.06] px-6 py-3 lg:px-8">
-            <div className="flex items-center justify-center text-center">
-              <p className="text-xs font-normal text-[#D6E6F2]">{institutionFooterSignature}</p>
-            </div>
+          <div data-sig-footer-bottom="true" className="border-t border-white/10 px-5 py-3">
+            <p className="mx-auto max-w-[1520px] text-center text-[11px] leading-5 text-[#bed7e8]">
+              {institutionFooterSignature}
+            </p>
           </div>
         </div>
       </footer>
