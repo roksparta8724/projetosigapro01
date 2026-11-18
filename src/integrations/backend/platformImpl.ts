@@ -1,5 +1,6 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
+import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments } from "@/lib/municipalStaffAssignments";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
@@ -3553,6 +3554,68 @@ export async function assignRemoteProfileDepartment(input: {
     municipality_id: string;
     department_id: string | null;
     department_name: string | null;
+  };
+}
+
+
+export type MunicipalStaffAssignmentRecord = {
+  id: string;
+  municipalityId: string;
+  profileId: string;
+  departmentId: string;
+  departmentName: string;
+  departmentCode: string;
+  role: "analista" | "financeiro" | "fiscal" | "setor_intersetorial";
+  isCurrent: boolean;
+  isActive: boolean;
+};
+
+export async function listRemoteMunicipalStaffAssignments(profileId?: string | null) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("list_municipal_staff_assignments_v1", {
+    _profile_id: profileId ?? null,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar as lotações autorizadas.");
+  return parseMunicipalStaffAssignments(data);
+}
+
+export async function setRemoteMunicipalStaffDepartment(input: {
+  municipalityId: string;
+  profileId: string;
+  departmentId: string;
+  enabled: boolean;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("set_municipal_staff_department_v1", {
+    _municipality_id: input.municipalityId,
+    _profile_id: input.profileId,
+    _department_id: input.departmentId,
+    _enabled: input.enabled,
+  });
+  if (error) throw new Error(error.message || "Não foi possível salvar o vínculo com a unidade.");
+  if (!data || data.ok !== true || String(data.profileId) !== input.profileId ||
+      String(data.municipalityId) !== input.municipalityId) {
+    throw new Error("O banco não confirmou a alteração da lotação.");
+  }
+  return data as { ok: true; profileId: string; municipalityId: string };
+}
+
+export async function activateRemoteMunicipalStaffAssignment(assignmentId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("activate_municipal_staff_assignment_v1", {
+    _assignment_id: assignmentId,
+  });
+  if (error) throw new Error(error.message || "A troca de departamento foi negada pelo banco.");
+  if (!data || data.ok !== true ||
+      !isSwitchableMunicipalStaffRole(String(data.role || ""))) {
+    throw new Error("O banco não confirmou o novo contexto operacional.");
+  }
+  return {
+    profileId: String(data.profileId),
+    municipalityId: String(data.municipalityId),
+    departmentId: String(data.departmentId),
+    departmentName: String(data.departmentName),
+    role: data.role as MunicipalStaffAssignmentRecord["role"],
   };
 }
 
