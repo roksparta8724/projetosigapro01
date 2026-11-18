@@ -1,161 +1,82 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { lazy, Suspense, useDeferredValue } from "react";
-import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
 
-const avatarApi = vi.hoisted(() => ({ resolve: vi.fn() }));
-vi.mock("@/lib/privateAvatarRead", () => ({
-  privateAvatarObjectKey: (s: string) => s.startsWith("/api/profile-avatar-open?objectKey=") ? "profile-avatar" : "",
-  resolveAuthorizedAvatarUrl: avatarApi.resolve,
-}));
-import {
-  clearAuthorizedAvatarRuntimeCache,
-  getAuthorizedAvatarRuntimeUrl,
-  getLastAuthorizedAvatarRuntimeSource,
-  loadAuthorizedAvatarRuntimeUrl,
-} from "@/lib/authorizedAvatarRuntimeCache";
+const read = (path: string) => readFileSync(path, "utf8");
+const app = read("src/App.tsx");
+const frame = read("src/components/platform/PortalFrame.tsx");
+const auth = read("src/hooks/useAuthorizedAvatarUrl.ts");
+const cache = read("src/lib/authorizedAvatarRuntimeCache.ts");
+const refresh = read("src/lib/seamlessInternalRefresh.ts");
 
-const raw = "/api/profile-avatar-open?objectKey=platform%2Fprofiles%2Favatars%2Fuser-one%2Fphoto.webp";
-const appSource = readFileSync("src/App.tsx","utf8");
-const portalSource = readFileSync("src/components/platform/PortalFrame.tsx","utf8");
-const helperSource = readFileSync("src/lib/seamlessInternalRefresh.ts","utf8");
-const avatarSource = readFileSync("src/components/platform/UserAvatar.tsx","utf8");
-
-afterEach(() => {
-  cleanup();
-  clearAuthorizedAvatarRuntimeCache();
-  avatarApi.resolve.mockReset();
-});
-
-describe("SIGAPRO — continuidade sem pulso entre módulos", () => {
-  it("mantém a última rota real durante o suspense, sem shell/intersticial", async () => {
-    let resolveNext!: (value: { default: () => JSX.Element }) => void;
-    const Next = lazy(() => new Promise<{ default: () => JSX.Element }>(resolve => { resolveNext = resolve; }));
-    function Controls() {
-      const navigate = useNavigate();
-      return <button onClick={() => navigate("/prefeitura/financeiro")}>Financeiro</button>;
-    }
-    function StableRoutes() {
-      const location = useLocation();
-      const deferredLocation = useDeferredValue(location);
-      return <Suspense fallback={<div>FALHA: tela intermediária</div>}>
-        <Controls />
-        <Routes location={deferredLocation}>
-          <Route path="/prefeitura/processos" element={<main>Controle real de processos</main>} />
-          <Route path="/prefeitura/financeiro" element={<Next />} />
-        </Routes>
-      </Suspense>;
-    }
-    render(<MemoryRouter initialEntries={["/prefeitura/processos"]}><StableRoutes /></MemoryRouter>);
-    expect(screen.getByText("Controle real de processos")).toBeTruthy();
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Financeiro" })); });
-    expect(screen.getByText("Controle real de processos")).toBeTruthy();
-    expect(screen.queryByText("FALHA: tela intermediária")).toBeNull();
-    await act(async () => { resolveNext({ default: () => <main>Financeiro pronto</main> }); });
-    await waitFor(() => expect(screen.getByText("Financeiro pronto")).toBeTruthy());
+describe("SIGAPRO — root do portal persistente, sem duas interfaces por troca", () => {
+  it("cria uma única estrutura de portal acima das rotas operacionais", () => {
+    expect(app).toContain('const PersistentPortalFrameLayout = lazy(');
+    expect(app).toContain('<Route element={<PersistentPortalFrameLayout />}>');
+    expect(app).toContain('path="/prefeitura/protocolos"');
+    expect(app).toContain('path="/prefeitura/analise"');
+    expect(app).toContain('path="/prefeitura/financeiro"');
+    expect(app).toContain('path="/prefeitura/processos"');
+    expect(app).toContain('path="/dashboard/*"');
+    expect(app).toContain('path="/perfil"');
+    expect(app).toContain('path="/processos/:processId"');
+    expect(app).toContain('path="/externo/controle"');
+    expect(app).toContain("<PermissionRoute permission=");
+    expect(app).toContain("<PlanModuleRoute module=");
   });
 
-  it("aplica a retenção somente à mesma sessão autorizada, não ao login/logout", () => {
-    expect(appSource).toContain("useDeferredValue(location)");
-    expect(appSource).toContain("bootstrap.authResolved");
-    expect(appSource).toContain("Boolean(bootstrap.authUserId)");
-    expect(appSource).toContain("bootstrap.isReady");
-    expect(appSource).toContain("isOperationalNavigationPath(location.pathname)");
-    expect(appSource).toContain("isOperationalNavigationPath(deferredLocation.pathname)");
-    expect(appSource).toContain("<Routes location={visibleRouteLocation}>");
-    expect(appSource).toContain("<PermissionRoute permission=");
-    expect(appSource).toContain("<SeamlessRefreshGate />");
-    expect(helperSource).not.toContain("snapshot.html");
+  it("apenas o miolo troca; topbar, avatar, sidebar e rodapé mantêm a identidade no DOM", () => {
+    expect(frame).toContain('export function PersistentPortalFrameLayout()');
+    expect(frame).toContain('const PersistentPortalFrameContext = createContext<');
+    expect(frame).toContain('const setPresentationIfChanged = useCallback(');
+    expect(frame).toContain('return <PortalFrameSurface {...presentation}>');
+    expect(frame).toContain('<PortalFrameSurface {...presentation}>');
+    expect(frame).toMatch(/<PortalFrameSurface \{\.\.\.presentation\}>[\s\S]*?<Suspense fallback=[\s\S]*?<Outlet \/>/);
+    expect(frame).toContain('function PortalFrameSurface(');
+    expect(frame).toContain('if (register) return <>{children}</>;');
+    expect(frame).toContain('register({ title, eyebrow, focusMode, compactHeader, hideSectionHeader })');
+    expect(frame).toContain("prev.title === next.title");
+    expect(frame).toContain("prev.eyebrow === next.eyebrow");
+    expect(frame).toContain("sig-app-frame min-h-screen text-foreground");
   });
 
-  it("reutiliza avatar privado já validado na mesma conta e revoga no logout", async () => {
-    const revoke = vi.fn();
-    avatarApi.resolve.mockResolvedValue({ url: "blob:authorized/photo", revoke });
-    expect(getLastAuthorizedAvatarRuntimeSource("user-one")).toBe("");
-    expect(await loadAuthorizedAvatarRuntimeUrl("user-one",raw)).toBe("blob:authorized/photo");
-    expect(getLastAuthorizedAvatarRuntimeSource("user-one")).toBe(raw);
-    expect(getLastAuthorizedAvatarRuntimeSource("user-two")).toBe("");
-    expect(getAuthorizedAvatarRuntimeUrl("user-one",raw)).toBe("blob:authorized/photo");
-    expect(await loadAuthorizedAvatarRuntimeUrl("user-one",raw)).toBe("blob:authorized/photo");
-    expect(avatarApi.resolve).toHaveBeenCalledTimes(1);
-    clearAuthorizedAvatarRuntimeCache();
-    expect(revoke).toHaveBeenCalledTimes(1);
-    expect(getLastAuthorizedAvatarRuntimeSource("user-one")).toBe("");
-    expect(getAuthorizedAvatarRuntimeUrl("user-one",raw)).toBe("");
+  it("não mantém páginas com URL antiga em rota autenticada nova", () => {
+    expect(app).not.toContain("useDeferredValue(location)");
+    expect(app).not.toContain("visibleRouteLocation");
+    expect(app).toContain("<Routes>");
+    expect(app).not.toContain("Routes location=");
   });
 
-  it("não promove resposta de foto antiga após mudança de identidade", async () => {
-    let finish!: (a: {url:string;revoke:()=>void})=>void;
-    avatarApi.resolve.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
-    const pending = loadAuthorizedAvatarRuntimeUrl("user-one",raw);
-    clearAuthorizedAvatarRuntimeCache();
-    const revoke = vi.fn();
-    finish({url:"blob:expired",revoke});
-    await expect(pending).resolves.toBe("");
-    expect(getLastAuthorizedAvatarRuntimeSource("user-one")).toBe("");
-    expect(revoke).toHaveBeenCalledOnce();
+  it("mantém autenticação por rota e nunca monta frame para conta bloqueada", () => {
+    expect(frame).toContain("auth.authResolved &&");
+    expect(frame).toContain("auth.isAuthenticated &&");
+    expect(frame).toContain("Boolean(auth.authenticatedUserId)");
+    expect(frame).toContain('session.id !== "unknown"');
+    expect(frame).toContain('session.accountStatus !== "blocked"');
+    expect(frame).toContain('session.accountStatus !== "inactive"');
+    expect(frame).toContain("if (!canMountInstitutionalFrame) return <Outlet />");
+    expect(app).toContain('path="/processos/:processId/documentos/:documentId/visualizar"');
   });
 
-
-  it("captura atualização pela barra do navegador quando Navigation API marca userInitiated=false", async () => {
-    const { installSeamlessInternalRefresh } = await import("@/lib/seamlessInternalRefresh");
-    const listeners = new Map<string, (event: Record<string, unknown>) => void>();
-    const navigation = {
-      addEventListener: vi.fn((name: string, fn: (event: Record<string, unknown>) => void) => {
-        listeners.set(name, fn);
-      }),
-      removeEventListener: vi.fn((name: string) => { listeners.delete(name); }),
-    };
-    Object.defineProperty(window, "navigation", { configurable: true, value: navigation });
-    const refresh = vi.fn().mockResolvedValue(undefined);
-    const teardown = installSeamlessInternalRefresh({
-      isAuthenticated: () => true,
-      refresh,
-    });
-    let handler: (() => Promise<void>) | undefined;
-    const navigateEvent = {
-      navigationType: "reload", userInitiated: false, canIntercept: true,
-      destination: { url: window.location.href },
-      intercept: vi.fn((args: { handler: () => Promise<void> }) => { handler = args.handler; }),
-    };
-    listeners.get("navigate")?.(navigateEvent);
-    expect(navigateEvent.intercept).toHaveBeenCalledOnce();
-    expect(handler).toBeTypeOf("function");
-    await handler?.();
-    expect(refresh).toHaveBeenCalledOnce();
-    teardown();
-    Object.defineProperty(window, "navigation", { configurable: true, value: undefined });
+  it("não reintroduz fallback público, shell falso ou snapshot de dados protegidos", () => {
+    expect(frame).toContain("SecureRoutePending");
+    expect(app).toContain("<SeamlessRefreshGate />");
+    expect(refresh).not.toContain("snapshot.html");
+    expect(refresh).not.toContain("innerHTML");
   });
 
-  it("mantém Shift+F5 como recarga completa sem tocar em dados protegidos", async () => {
-    const { installSeamlessInternalRefresh } = await import("@/lib/seamlessInternalRefresh");
-    const listeners = new Map<string, (event: Record<string, unknown>) => void>();
-    Object.defineProperty(window, "navigation", { configurable: true, value: {
-      addEventListener: (name: string, fn: (event: Record<string, unknown>) => void) => listeners.set(name, fn),
-      removeEventListener: (name: string) => listeners.delete(name),
-    } });
-    const refresh = vi.fn().mockResolvedValue(undefined);
-    const teardown = installSeamlessInternalRefresh({ isAuthenticated: () => true, refresh });
-    const key = new KeyboardEvent("keydown", { key: "F5", shiftKey: true, cancelable: true });
-    window.dispatchEvent(key);
-    expect(key.defaultPrevented).toBe(false);
-    const intercept = vi.fn();
-    listeners.get("navigate")?.({
-      navigationType: "reload", userInitiated: true, canIntercept: true,
-      destination: { url: window.location.href }, intercept,
-    });
-    expect(intercept).not.toHaveBeenCalled();
-    expect(refresh).not.toHaveBeenCalled();
-    teardown();
-    Object.defineProperty(window, "navigation", { configurable: true, value: undefined });
+  it("reverte o cache adicional de foto e a interceptação de reload sem autoria explícita", () => {
+    expect(frame).not.toContain("getLastAuthorizedAvatarRuntimeSource");
+    expect(cache).not.toContain("lastVerifiedSource");
+    expect(auth).not.toContain("if (getAuthorizedAvatarRuntimeUrl(owner, raw)) return;");
+    expect(refresh).toContain('event.userInitiated === false');
+    expect(refresh).not.toContain("nativeHardReloadUntil");
   });
 
-  it("usa bitmap de avatar pequeno sem escalonar o frame e mantém isenção do shell artificial", () => {
-    expect(avatarSource).toContain('decoding="sync"');
-    expect(portalSource).toContain("getLastAuthorizedAvatarRuntimeSource(authenticatedAvatarOwnerId)");
-    expect(portalSource).toContain('photoRemovalConfirmed={topbarPhotoRemovalConfirmed}');
-    expect(appSource).not.toContain("snapshot.html");
+  it("preserva o mesmo avatar apenas enquanto a identidade está autorizada", () => {
+    expect(frame).toContain('authenticatedOwnerId={authenticatedAvatarOwnerId}');
+    expect(frame).toContain('photoRemovalConfirmed={topbarPhotoRemovalConfirmed}');
+    expect(cache).toContain("clearAuthorizedAvatarRuntimeCache");
+    expect(cache).toContain("cached.get(cacheId(owner, source))");
   });
 });

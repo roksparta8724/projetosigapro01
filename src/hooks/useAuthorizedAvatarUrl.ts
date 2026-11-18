@@ -25,9 +25,6 @@ export function useAuthorizedAvatarUrl(
   useEffect(() => {
     if (!objectKey) return;
     if (owner) {
-      // Navegação não deve refazer request/estado de carregamento quando a
-      // imagem privada já está autorizada e no cache da mesma identidade.
-      if (getAuthorizedAvatarRuntimeUrl(owner, raw)) return;
       let active = true;
       void loadAuthorizedAvatarRuntimeUrl(owner, raw).then((url) => {
         if (active) setLoaded({ source: raw, owner, url });

@@ -33,9 +33,12 @@
   Flag,
   X,
 } from "@/components/platform/PremiumIcons";
-import { useEffect, useMemo, useState } from "react";
+import {
+  createContext, Suspense, useCallback, useContext, useEffect,
+  useLayoutEffect, useMemo, useState,
+} from "react";
 import { Network, RefreshCw } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -59,7 +62,6 @@ import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { readCachedProfileAvatar } from "@/lib/profileAvatarCache";
-import { getLastAuthorizedAvatarRuntimeSource } from "@/lib/authorizedAvatarRuntimeCache";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -79,6 +81,7 @@ import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
 
 interface PortalFrameProps {
@@ -290,7 +293,72 @@ function resolveBrandingLogoUrl(
     : branding.headerLogoUrl ?? branding.logoUrl ?? "";
 }
 
-export function PortalFrame({ title, eyebrow, children, focusMode = false, compactHeader = true, hideSectionHeader = false }: PortalFrameProps) {
+type PortalFramePresentation = Omit<PortalFrameProps, "children">;
+
+// A single mounted institutional shell owns topbar, profile, sidebar and footer.
+// Pages only publish their header title/section and provide their actual content.
+// This eliminates the unmount/remount cycle caused by each routed page creating
+// an entirely new PortalFrame (including avatar/network hooks).
+const PersistentPortalFrameContext = createContext<
+  ((presentation: PortalFramePresentation) => void) | null
+>(null);
+
+export function PersistentPortalFrameLayout() {
+  const auth = useAuthGateway();
+  const { session } = usePlatformSession();
+  const [presentation, setPresentation] = useState<PortalFramePresentation>({
+    title: "SIGAPRO", eyebrow: "Ambiente institucional",
+    focusMode: false, compactHeader: true, hideSectionHeader: false,
+  });
+  const setPresentationIfChanged = useCallback((next: PortalFramePresentation) => {
+    setPresentation((prev) =>
+      prev.title === next.title &&
+      prev.eyebrow === next.eyebrow &&
+      Boolean(prev.focusMode) === Boolean(next.focusMode) &&
+      (prev.compactHeader ?? true) === (next.compactHeader ?? true) &&
+      Boolean(prev.hideSectionHeader) === Boolean(next.hideSectionHeader)
+        ? prev : next,
+    );
+  }, []);
+
+  // Unauthorized bootstrap and logout never acquire a privileged frame:
+  // route-level PermissionRoute continues to make every authorization decision.
+  const canMountInstitutionalFrame = auth.authResolved &&
+    auth.isAuthenticated &&
+    Boolean(auth.authenticatedUserId) &&
+    session.id !== "unknown" && Boolean(session.role) &&
+    session.accountStatus !== "blocked" &&
+    session.accountStatus !== "inactive" && !session.deletedAt;
+
+  if (!canMountInstitutionalFrame) return <Outlet />;
+
+  return (
+    <PersistentPortalFrameContext.Provider value={setPresentationIfChanged}>
+      <PortalFrameSurface {...presentation}>
+        {/* Only the page BODY suspends. The institutional topbar, menu, avatar
+            and footer never suspend or unmount while a lazy route downloads. */}
+        <Suspense fallback={<SecureRoutePending surface="route" title="Abrindo módulo do SIGAPRO" />}>
+          <Outlet />
+        </Suspense>
+      </PortalFrameSurface>
+    </PersistentPortalFrameContext.Provider>
+  );
+}
+
+// Backward compatible page API. Outside the persistent route layout (e.g.
+// isolated legacy pages/tests) the component still renders the full frame.
+export function PortalFrame({ children, ...presentation }: PortalFrameProps) {
+  const register = useContext(PersistentPortalFrameContext);
+  const { title, eyebrow, focusMode, compactHeader, hideSectionHeader } = presentation;
+  useLayoutEffect(() => {
+    if (!register) return;
+    register({ title, eyebrow, focusMode, compactHeader, hideSectionHeader });
+  }, [register, title, eyebrow, focusMode, compactHeader, hideSectionHeader]);
+  if (register) return <>{children}</>;
+  return <PortalFrameSurface {...presentation}>{children}</PortalFrameSurface>;
+}
+
+function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compactHeader = true, hideSectionHeader = false }: PortalFrameProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
@@ -818,6 +886,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
   // A foto cadastrada é a identidade visual da conta em toda a plataforma.
   // Cadastros antigos podem ter useAvatarInHeader=false mesmo com foto R2
   // válida; esse campo legado não deve ocultar uma imagem já salva.
+  const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(displayProfile) || null;
   // Só uma leitura REMOTA já confirmada para a conta atual pode remover a
   // imagem existente. Lacunas de hidratação/refresh não equivalem a "foto
   // excluída" e não podem fazer o cabeçalho trocar para iniciais.
@@ -828,14 +897,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     !profileHasAvatar &&
     !cachedHasAvatar
   );
-  // A URL de origem já autorizada continua disponível em memória durante
-  // mudanças de página, inclusive se o perfil vier momentaneamente parcial.
-  // Nunca é usada para uma conta diferente ou após exclusão confirmada.
-  const lastVerifiedAccountAvatarSource = topbarPhotoRemovalConfirmed
-    ? ""
-    : getLastAuthorizedAvatarRuntimeSource(authenticatedAvatarOwnerId);
-  const topbarAvatarImageUrl =
-    resolveProfileAvatarDisplayUrl(displayProfile) || lastVerifiedAccountAvatarSource || null;
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
     return {
