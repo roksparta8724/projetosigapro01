@@ -1,0 +1,154 @@
+/*
+ * SIGAPRO | Rodapé institucional premium 2026.
+ * A distribuição acompanha a largura real do conteúdo (sidebar incluída),
+ * e não apenas a largura do viewport. Preserva o brasão e a identidade do
+ * município e não substitui nem fabrica contatos.
+ */
+.sig-page-footer[data-sig-footer-design="premium-v2"] {
+  color: #eff7fd;
+  background-image: linear-gradient(125deg, rgba(3, 34, 56, .15), rgba(10, 51, 76, .05));
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-content="true"] {
+  min-width: 0;
+  container: sigapro-footer / inline-size;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-grid="true"] {
+  display: grid;
+  grid-template-columns: minmax(120px, 146px) minmax(245px, 1.4fr) minmax(260px, 1.35fr) minmax(177px, .9fr);
+  align-items: center;
+  column-gap: clamp(16px, 2.1vw, 30px);
+  row-gap: 21px;
+  width: 100%;
+  min-width: 0;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-column] {
+  align-self: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: 12px;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-logo-cell="true"] {
+  min-width: 0;
+  align-self: center;
+  justify-content: flex-start;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-logo-cell="true"] .sig-institution-logo-surface {
+  border-radius: 16px !important;
+  box-shadow: 0 8px 20px rgba(0, 17, 35, .17) !important;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-icon="true"] {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  flex: 0 0 36px;
+  box-shadow: none;
+  align-self: flex-start;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-label="true"] {
+  margin: 0 0 7px;
+  color: #bcddef !important;
+  -webkit-text-fill-color: #bcddef !important;
+  font-size: 10.5px !important;
+  font-weight: 750 !important;
+  line-height: 1.25 !important;
+  letter-spacing: .085em !important;
+  text-transform: uppercase;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-primary="true"] {
+  margin: 0;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: clamp(12.5px, 1vw, 14px) !important;
+  font-weight: 670 !important;
+  line-height: 1.55 !important;
+  letter-spacing: -.006em !important;
+  word-spacing: normal !important;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+  opacity: 1 !important;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-secondary="true"] {
+  margin: 7px 0 0;
+  color: #c5dbea !important;
+  -webkit-text-fill-color: #c5dbea !important;
+  font-size: 12.5px !important;
+  font-weight: 470 !important;
+  line-height: 1.5 !important;
+  letter-spacing: 0 !important;
+  word-spacing: normal;
+  overflow-wrap: break-word;
+  opacity: 1 !important;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-secondary="true"] a {
+  color: #c7e8fc !important;
+  -webkit-text-fill-color: #c7e8fc !important;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-secondary="true"] a:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-secondary="true"] a:focus-visible {
+  outline: 2px solid #9cdcf8;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-bottom="true"] {
+  border-top: 1px solid rgba(206, 231, 245, .13);
+  background: rgba(0, 22, 38, .14);
+}
+.sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-bottom="true"] p {
+  color: #bfd9e8 !important;
+  -webkit-text-fill-color: #bfd9e8 !important;
+  font-size: 11px;
+  font-weight: 470;
+  line-height: 1.5;
+  letter-spacing: .005em;
+}
+
+/* Workspace sizes are affected by the fixed sidebar. A container query
+ * prevents all four fields being squeezed merely because the desktop
+ * viewport is very wide. */
+@container sigapro-footer (max-width: 1080px) {
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-grid="true"] {
+    grid-template-columns: minmax(115px, 140px) repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 20px;
+  }
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-column="contato"] {
+    grid-column: 2 / 4;
+  }
+}
+@container sigapro-footer (max-width: 730px) {
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-grid="true"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 18px;
+  }
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-logo-cell="true"] {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-column="contato"] {
+    grid-column: 1 / -1;
+  }
+}
+@container sigapro-footer (max-width: 500px) {
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-grid="true"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-logo-cell="true"],
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-column="contato"] {
+    grid-column: 1;
+  }
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-column] {
+    padding-bottom: 13px;
+    border-bottom: 1px solid rgba(225, 239, 249, .12);
+  }
+  .sig-page-footer[data-sig-footer-design="premium-v2"] [data-sig-footer-column="contato"] {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+}
