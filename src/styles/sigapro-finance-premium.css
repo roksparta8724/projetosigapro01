@@ -1,0 +1,176 @@
+/*
+ * SIGAPRO | Financeiro premium. Only changes presentation; never payment
+ * status, financial accounting, bank evidences, authorizations or actions.
+ */
+html body #root .sig-main-shell .sig-finance-workspace {
+  min-width: 0;
+  max-width: 100%;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stats-row {
+  grid-template-columns: repeat(4,minmax(0,1fr)) !important;
+  gap: 12px !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-stat-card[data-premium-role-blue="metric"] {
+  min-width: 0;
+  min-height: 138px !important;
+  padding: 15px !important;
+  border-radius: 15px !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-stat-card .sig-stat-value {
+  max-width: 100% !important;
+  height: auto !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.18 !important;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(18px,1.75vw,24px) !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-stat-card :is(.sig-fit-title,.sig-fit-copy) {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  max-height: none !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  line-height: 1.45 !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-stat-card .sig-stat-icon {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-section-card :is(.sig-section-title,.sig-subtitle),
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-ui-card :is(.sig-section-title,.sig-subtitle) {
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  hyphens: none !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+[data-finance-unverified-settlement="true"],
+html body #root .sig-main-shell .sig-finance-workspace
+[data-finance-synthetic-guides="true"] {
+  min-height: 0 !important;
+  max-width: 100%;
+  white-space: normal !important;
+  line-height: 1.55 !important;
+  overflow-wrap: break-word !important;
+}
+@media (max-width: 1250px) {
+  html body #root .sig-main-shell .sig-finance-workspace .sig-stats-row {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+  }
+}
+@media (max-width: 650px) {
+  html body #root .sig-main-shell .sig-finance-workspace .sig-stats-row {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+}
+
+/* Finance tab cards: fixed width with accessible horizontal scroll and an
+   active card whose ink always matches its background. No squeezed words. */
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 9px !important;
+  border: 1px solid #c8dbe8 !important;
+  border-radius: 17px !important;
+  background: #eef5fa !important;
+  box-shadow: 0 5px 15px rgba(14, 59, 91, .07) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav > div {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: #a5bfd0 #edf4f8;
+  gap: 9px !important;
+  padding: 1px 1px 8px !important;
+  min-width: 0;
+  width: 100%;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item {
+  display: flex !important;
+  flex: 0 0 174px !important;
+  width: 174px !important;
+  min-width: 174px !important;
+  max-width: 174px !important;
+  min-height: 100px !important;
+  height: auto !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+  padding: 14px 13px 12px !important;
+  gap: 2px;
+  border: 1px solid #c6d8e5 !important;
+  border-radius: 13px !important;
+  background: #ffffff !important;
+  color: #173a53 !important;
+  -webkit-text-fill-color: #173a53 !important;
+  box-shadow: 0 2px 6px rgba(20, 61, 88, .045) !important;
+  scroll-snap-align: start;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item[data-nav-active="true"] {
+  background: linear-gradient(145deg,#e2f2fb 0%,#d5eaf6 100%) !important;
+  border-color: #4594b7 !important;
+  color: #123e5c !important;
+  -webkit-text-fill-color: #123e5c !important;
+  box-shadow: inset 0 3px 0 #11759e,0 5px 14px rgba(18, 84, 118, .11) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item[data-nav-active="false"]:hover {
+  background: #f5fbff !important;
+  border-color: #8cbdd4 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item :is(.sig-nav-item-label,.sig-nav-item-helper) {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden !important;
+  max-width: 100%;
+  min-width: 0;
+  text-overflow: clip !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  hyphens: none !important;
+  white-space: normal !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item .sig-nav-item-label {
+  color: #143a54 !important;
+  -webkit-text-fill-color: #143a54 !important;
+  font-size: 13px !important;
+  font-weight: 740 !important;
+  line-height: 1.35 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item .sig-nav-item-helper {
+  color: #526b7d !important;
+  -webkit-text-fill-color: #526b7d !important;
+  font-size: 11.3px !important;
+  line-height: 1.45 !important;
+  margin-top: 5px !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item:focus-visible {
+  outline: 3px solid #3b97c4 !important;
+  outline-offset: -3px;
+}
