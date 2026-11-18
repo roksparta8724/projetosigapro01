@@ -82,6 +82,7 @@ import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { MunicipalDepartmentSwitcher } from "@/components/platform/MunicipalDepartmentSwitcher";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
 
@@ -2353,6 +2354,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   </p>
                 </div>
 
+                <MunicipalDepartmentSwitcher dark={darkTopbar} />
                 <div className="mt-2 space-y-1">
                   <DropdownMenuItem
                     className={cn(

@@ -28,6 +28,8 @@ import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
+import { MunicipalStaffAssignmentsEditor } from "@/components/platform/MunicipalStaffAssignmentsEditor";
+import { isSwitchableMunicipalStaffRole } from "@/lib/municipalStaffAssignments";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
 import { isMunicipalOverviewSubpagePath, municipalOverviewSubpageFromPath } from "@/lib/municipalOverviewSubpages";
@@ -1101,6 +1103,17 @@ export function TenantAdminPage() {
             </div>
           ) : null}
 
+          {session.role === "prefeitura_admin" && effectiveScopeId &&
+            isSwitchableMunicipalStaffRole(user.role) ? (
+              <MunicipalStaffAssignmentsEditor
+                key={user.id}
+                profileId={user.id}
+                municipalityId={effectiveScopeId}
+                currentDepartment={user.department || ""}
+                departments={activeDepartments}
+                onChanged={refreshRemoteStore}
+              />
+            ) : null}
           <div className="grid gap-4 xl:grid-cols-[minmax(250px,0.9fr)_minmax(0,1.5fr)]">
             <div
               data-municipal-user-lotation="true"
