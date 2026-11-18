@@ -28,8 +28,7 @@ describe("SIGAPRO F5 — first paint and real route, without a fake shell", () =
       app.indexOf('pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage")'),
     );
     expect(app).toContain('void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);');
-    expect(app).toContain('import { PersistentPortalFrameLayout } from "@/components/platform/PortalFrame";');
-    expect(app).not.toContain('const PersistentPortalFrameLayout = lazy(');
+    expect(app).toContain('void import("@/components/platform/PortalFrame").catch(() => undefined);');
     expect(app).toContain('<PermissionRoute permission="view_collection_settings">');
     expect(app).toContain('<PlanModuleRoute module="Configurações">');
     expect(app).toContain("<CollectionSettingsPage />");

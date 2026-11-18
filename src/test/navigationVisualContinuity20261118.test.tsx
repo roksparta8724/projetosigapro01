@@ -11,8 +11,7 @@ const refresh = read("src/lib/seamlessInternalRefresh.ts");
 
 describe("SIGAPRO — root do portal persistente, sem duas interfaces por troca", () => {
   it("cria uma única estrutura de portal acima das rotas operacionais", () => {
-    expect(app).toContain('import { PersistentPortalFrameLayout } from "@/components/platform/PortalFrame";');
-    expect(app).not.toContain('const PersistentPortalFrameLayout = lazy(');
+    expect(app).toContain('const PersistentPortalFrameLayout = lazy(');
     expect(app).toContain('<Route element={<PersistentPortalFrameLayout />}>');
     expect(app).toContain('path="/prefeitura/protocolos"');
     expect(app).toContain('path="/prefeitura/analise"');

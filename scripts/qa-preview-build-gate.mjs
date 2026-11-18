@@ -117,7 +117,6 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/navigationVisualContinuity20261118.test.tsx",
     "src/test/browserToolbarRefreshContinuity20261118.test.ts",
     "src/test/privateFrameFirstPaintPrefetch20261118.test.ts",
-    "src/test/eagerInstitutionalFirstPaint20261118.test.ts",
     "src/test/refreshAuthHydrationF5Regression.test.tsx",
     "src/test/avatarF5SessionContinuity20261116.test.tsx",
     "src/test/verifiedAvatarRetentionAcrossRefresh.test.tsx",

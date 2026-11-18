@@ -18,7 +18,6 @@ import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
-import { PersistentPortalFrameLayout } from "@/components/platform/PortalFrame";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 
@@ -78,9 +77,13 @@ function preloadCurrentPublicRoute(pathname: string): Promise<unknown> | null {
   return null;
 }
 
-// The real institutional frame is part of the initial React module graph.
-// It must NEVER suspend after the app mounts on an authenticated F5.
-// Operational page bodies remain lazy and keep their authorization guards.
+// Keep the institutional frame code-split out of the anonymous landing/login;
+// when authenticated it stays mounted across all ordinary SIGAPRO modules.
+const PersistentPortalFrameLayout = lazy(() =>
+  import("@/components/platform/PortalFrame").then((module) => ({
+    default: module.PersistentPortalFrameLayout,
+  })),
+);
 
 // Lazy import isolates heavy analytics, PDFs and operational pages from /acesso.
 // Component identity stays stable: never define lazy routes inside AppRoutes.
@@ -147,9 +150,11 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
 
 /**
  * First real paint on a full document navigation:
- * The real institutional frame is imported synchronously with App to remove
- * its own post-mount Suspense gap. Only the actual page content is prefetched;
- * no protected user/process data or permission decision is cached here.
+ * Page chunks were prefetched but the shared institutional layout was NOT.
+ * That layout was downloaded only when React reached the lazy protected route,
+ * producing a second serialized idle interval with a pale empty root.
+ * Fetch only the public JavaScript module, never user/process data. The
+ * original PermissionRoute and session checks remain solely authoritative.
  */
 function isWorkspaceBootPath(pathname: string): boolean {
   if (/\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname)) return false;
@@ -157,10 +162,11 @@ function isWorkspaceBootPath(pathname: string): boolean {
 }
 
 if (typeof window !== "undefined") {
-  // The genuine, authorized layout is already in App's initial graph.
-  // Fetch only the current page chunk, without a screenshot or fake shell.
+  // Import the REAL persistent frame and REAL route in parallel; no fake shell,
+  // DOM snapshot, cached protected state or change to routing/authorization.
   const initialPath = window.location.pathname;
   if (isWorkspaceBootPath(initialPath)) {
+    void import("@/components/platform/PortalFrame").catch(() => undefined);
     void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);
   } else {
     void preloadCurrentPublicRoute(initialPath)?.catch(() => undefined);
