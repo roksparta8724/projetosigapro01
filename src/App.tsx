@@ -148,11 +148,29 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   return null;
 }
 
+/**
+ * First real paint on a full document navigation:
+ * Page chunks were prefetched but the shared institutional layout was NOT.
+ * That layout was downloaded only when React reached the lazy protected route,
+ * producing a second serialized idle interval with a pale empty root.
+ * Fetch only the public JavaScript module, never user/process data. The
+ * original PermissionRoute and session checks remain solely authoritative.
+ */
+function isWorkspaceBootPath(pathname: string): boolean {
+  if (/\\/processos\\/[^/]+\\/documentos\\/[^/]+\\/(visualizar|analisar)$/.test(pathname)) return false;
+  return /^\\/(dashboard(?:\\/|$)|prefeitura(?:\\/|$)|master(?:\\/|$)|processos(?:\\/|$)|externo(?:\\/|$)|proprietario(?:\\/|$)|perfil(?:\\/|$)|configuracoes(?:\\/|$)|notificacoes(?:\\/|$)|historico(?:\\/|$)|buscar(?:\\/|$)|legislacoes(?:\\/|$)|zoneamento(?:\\/|$))/.test(pathname);
+}
+
 if (typeof window !== "undefined") {
-  // Kick off route download during App module evaluation, before auth effects
-  // begin. Browser module caching deduplicates the subsequent React.lazy import.
-  void preloadCurrentInternalRoute(window.location.pathname)?.catch(() => undefined);
-  void preloadCurrentPublicRoute(window.location.pathname)?.catch(() => undefined);
+  // Import the REAL persistent frame and REAL route in parallel; no fake shell,
+  // DOM snapshot, cached protected state or change to routing/authorization.
+  const initialPath = window.location.pathname;
+  if (isWorkspaceBootPath(initialPath)) {
+    void import("@/components/platform/PortalFrame").catch(() => undefined);
+    void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);
+  } else {
+    void preloadCurrentPublicRoute(initialPath)?.catch(() => undefined);
+  }
 }
 
 const App = () => {

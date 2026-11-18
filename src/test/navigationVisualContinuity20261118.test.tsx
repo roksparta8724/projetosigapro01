@@ -68,16 +68,12 @@ describe("SIGAPRO — root do portal persistente, sem duas interfaces por troca"
     expect(refresh).not.toContain("innerHTML");
   });
 
-  it("mantém avatar privado seguro e atualiza a toolbar apenas sob as condições do workspace", () => {
+  it("reverte o cache adicional de foto e a interceptação de reload sem autoria explícita", () => {
     expect(frame).not.toContain("getLastAuthorizedAvatarRuntimeSource");
     expect(cache).not.toContain("lastVerifiedSource");
     expect(auth).not.toContain("if (getAuthorizedAvatarRuntimeUrl(owner, raw)) return;");
-    expect(refresh).not.toContain('event.userInitiated === false');
-    expect(refresh).toContain('event.navigationType !== "reload"');
-    expect(refresh).toContain("Date.now() < nativeHardReloadUntil");
-    expect(refresh).toContain("nativeHardReloadUntil");
-    expect(refresh).toContain("Shift+F5");
-    expect(refresh).toContain("if (!sameDocument) return;");
+    expect(refresh).toContain('event.userInitiated === false');
+    expect(refresh).not.toContain("nativeHardReloadUntil");
   });
 
   it("preserva o mesmo avatar apenas enquanto a identidade está autorizada", () => {
