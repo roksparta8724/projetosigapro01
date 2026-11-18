@@ -944,6 +944,7 @@ export function FinanceDeskPage() {
                               <span>Emissão: {issuedLabel}</span>
                               <span>Venc.: {guide.dueDate || "Não informado"}</span>
                               <span>{formatCurrency(guide.amount)}</span>
+                              <span>{guideResponsibility(guide.kind)}</span>
                             </div>
                           </div>
 
