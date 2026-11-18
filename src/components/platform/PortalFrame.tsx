@@ -62,6 +62,7 @@ import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { readCachedProfileAvatar } from "@/lib/profileAvatarCache";
+import { hasValidRefreshContinuity, readCachedSessionIdentity } from "@/lib/refreshContinuity";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -323,12 +324,21 @@ export function PersistentPortalFrameLayout() {
 
   // Unauthorized bootstrap and logout never acquire a privileged frame:
   // route-level PermissionRoute continues to make every authorization decision.
-  const canMountInstitutionalFrame = auth.authResolved &&
-    auth.isAuthenticated &&
-    Boolean(auth.authenticatedUserId) &&
-    session.id !== "unknown" && Boolean(session.role) &&
+  const admissibleSession = session.id !== "unknown" && Boolean(session.role) &&
     session.accountStatus !== "blocked" &&
     session.accountStatus !== "inactive" && !session.deletedAt;
+  const verifiedSession = auth.authResolved && auth.isAuthenticated &&
+    Boolean(auth.authenticatedUserId) && admissibleSession;
+  // On a same-tab F5, PermissionRoute already knows the exact owner/route
+  // snapshot and can temporarily present that account while auth hydrates.
+  // Mount the SAME persistent frame immediately instead of first mounting a
+  // temporary page-owned shell and then replacing it once auth resolves.
+  // The snapshot is never authorization: each child still passes PermissionRoute.
+  const cachedSessionIdentity = readCachedSessionIdentity();
+  const sameAccountRefresh = !auth.authResolved &&
+    admissibleSession && cachedSessionIdentity?.id === session.id &&
+    hasValidRefreshContinuity();
+  const canMountInstitutionalFrame = verifiedSession || sameAccountRefresh;
 
   if (!canMountInstitutionalFrame) return <Outlet />;
 

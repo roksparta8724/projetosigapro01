@@ -48,12 +48,15 @@ describe("SIGAPRO — root do portal persistente, sem duas interfaces por troca"
   });
 
   it("mantém autenticação por rota e nunca monta frame para conta bloqueada", () => {
-    expect(frame).toContain("auth.authResolved &&");
-    expect(frame).toContain("auth.isAuthenticated &&");
+    expect(frame).toContain("auth.authResolved && auth.isAuthenticated &&");
     expect(frame).toContain("Boolean(auth.authenticatedUserId)");
     expect(frame).toContain('session.id !== "unknown"');
     expect(frame).toContain('session.accountStatus !== "blocked"');
     expect(frame).toContain('session.accountStatus !== "inactive"');
+    expect(frame).toContain('cachedSessionIdentity?.id === session.id');
+    expect(frame).toContain("hasValidRefreshContinuity()");
+    expect(frame).toContain("!auth.authResolved &&");
+    expect(frame).toContain("verifiedSession || sameAccountRefresh");
     expect(frame).toContain("if (!canMountInstitutionalFrame) return <Outlet />");
     expect(app).toContain('path="/processos/:processId/documentos/:documentId/visualizar"');
   });
