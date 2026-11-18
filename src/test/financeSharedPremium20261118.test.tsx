@@ -168,6 +168,50 @@ describe("SIGAPRO — cabeçalhos e navegação premium compartilhados", () => {
     expect(v5).toContain('.sig-finance-ledger__unit-action:not(:disabled)');
   });
 
+
+  it("preserva o contraste dos controles internos da tabela quando o tema inverso está ativo", () => {
+    const inverse = financeCss.split("/* SIGAPRO FINANCE CONTRAST CONTRACT v5 — inverse nested surfaces */")[1];
+    expect(inverse).toBeTruthy();
+    for (const control of [
+      ".sig-finance-ledger__counter", ".sig-finance-ledger__header-icon",
+      '.sig-finance-ledger__sequence[data-official-sequence="false"]',
+      ".sig-finance-ledger__open", ".sig-finance-ledger__empty",
+      ".sig-finance-ledger__feedback", ".sig-finance-ledger__page-controls button",
+    ]) expect(inverse).toContain(control);
+    expect(inverse).toContain('[data-layout-mode="inverse-main"]');
+    expect(inverse).toContain("html.dark");
+    expect(inverse).toContain("-webkit-text-fill-color: #edf8ff !important");
+    expect(inverse).toContain("-webkit-text-fill-color: #805512 !important");
+  });
+
+  it("mantém pares de cores de texto e fundo acima de 4,5:1 no Financeiro", () => {
+    const luminance = (hex: string) => {
+      const normalized = hex.replace("#", "");
+      const [r,g,b] = [0,2,4].map(offset => parseInt(normalized.slice(offset, offset+2),16) / 255)
+        .map(value => value <= 0.04045 ? value/12.92 : ((value+0.055)/1.055)**2.4);
+      return 0.2126*r+0.7152*g+0.0722*b;
+    };
+    const contrast = (foreground: string, background: string) => {
+      const top = Math.max(luminance(foreground), luminance(background));
+      const bottom = Math.min(luminance(foreground), luminance(background));
+      return (top + 0.05)/(bottom + 0.05);
+    };
+    for (const [ink, surface] of [
+      ["#ffffff","#104f75"], ["#eaf6ff","#104f75"],
+      ["#15364d","#f7fbff"], ["#435e73","#ffffff"],
+      ["#ffffff","#0c567c"], ["#ffffff","#1d6384"],
+      ["#edf8ff","#0f2d43"], ["#bfd9e8","#0f2d43"],
+      ["#f5fbff","#204d66"], ["#805512","#fff3da"],
+      ["#1c6742","#e7f5ec"], ["#7b5417","#fff5df"],
+      ["#225978","#eaf3fa"], ["#d1ffe6","#174431"],
+      ["#d6efff","#173f57"], ["#fff0c8","#57421c"],
+    ]) {
+      expect(contrast(ink,surface), `${ink} / ${surface}`).toBeGreaterThanOrEqual(4.5);
+      expect(financeCss).toContain(ink);
+      expect(financeCss).toContain(surface);
+    }
+  });
+
   it("corrige tipografia de indicadores e amplia o padrão aos demais departamentos sem alterar fluxos", () => {
     expect(financeDesk).toContain("sig-finance-workspace");
     expect(financeLedger).toContain("sig-finance-workspace sig-finance-protocols-workspace");

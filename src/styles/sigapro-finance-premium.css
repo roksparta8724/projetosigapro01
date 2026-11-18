@@ -804,3 +804,84 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-l
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__select-all {
   color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
 }
+
+/* SIGAPRO FINANCE CONTRAST CONTRACT v5 — inverse nested surfaces */
+/* Light chips and controls nested in a dark ledger cannot inherit white ink. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__counter,
+html.dark body #root .sig-main-shell .sig-finance-ledger__counter {
+  background: #21475d !important;
+  border-color: #547b92 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__counter :is(strong,span),
+html.dark body #root .sig-main-shell .sig-finance-ledger__counter :is(strong,span) {
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__header-icon,
+html.dark body #root .sig-main-shell .sig-finance-ledger__header-icon {
+  background: #1b506a !important;
+  color: #edf8ff !important;
+  border-color: #5f8ca6 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__header-icon svg,
+html.dark body #root .sig-main-shell .sig-finance-ledger__header-icon svg {
+  color: #edf8ff !important;
+  stroke: currentColor !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__sequence[data-official-sequence="false"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__sequence[data-official-sequence="false"] {
+  background: #fff3da !important;
+  color: #805512 !important;
+  -webkit-text-fill-color: #805512 !important;
+  border-color: #e0b760 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__open,
+html.dark body #root .sig-main-shell .sig-finance-ledger__open {
+  background: #1b506a !important;
+  border-color: #6b9bb5 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__open:hover,
+html.dark body #root .sig-main-shell .sig-finance-ledger__open:hover {
+  background: #285f7b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__open svg,
+html.dark body #root .sig-main-shell .sig-finance-ledger__open svg {
+  stroke: currentColor !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__empty,
+html.dark body #root .sig-main-shell .sig-finance-ledger__empty {
+  background: #153043 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__feedback,
+html.dark body #root .sig-main-shell .sig-finance-ledger__feedback {
+  background: #4e3718 !important;
+  border-color: #96723a !important;
+  color: #fff0c8 !important;
+  -webkit-text-fill-color: #fff0c8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__page-controls button,
+html.dark body #root .sig-main-shell .sig-finance-ledger__page-controls button {
+  background: #234d65 !important;
+  border-color: #648ba1 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__page-controls button:disabled,
+html.dark body #root .sig-main-shell .sig-finance-ledger__page-controls button:disabled {
+  background: #1a3b51 !important;
+  color: #c6ddeb !important;
+  -webkit-text-fill-color: #c6ddeb !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__search > svg,
+html.dark body #root .sig-main-shell .sig-finance-ledger__search > svg {
+  color: #c6ddeb !important;
+  stroke: currentColor !important;
+}
