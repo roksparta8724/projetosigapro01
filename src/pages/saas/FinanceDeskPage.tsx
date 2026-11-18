@@ -1,5 +1,6 @@
 ﻿import {
   ArrowRight,
+  Archive,
   Banknote,
   CheckCircle2,
   Building2,
@@ -14,7 +15,7 @@
   Wallet,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { FeeTableManager } from "@/components/platform/FeeTableManager";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -88,6 +89,7 @@ type FinanceSection =
 
 export function FinanceDeskPage() {
   const { session } = usePlatformSession();
+  const navigate = useNavigate();
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
   const {
     processes: allProcesses,
@@ -116,6 +118,10 @@ export function FinanceDeskPage() {
   const [section, setSection] = useState<FinanceSection>("guias");
   const [guideSearch, setGuideSearch] = useState("");
   const [guidePage, setGuidePage] = useState(1);
+  const [guidePageSize, setGuidePageSize] = useState<25 | 50 | 100>(25);
+  const [guideFilter, setGuideFilter] = useState<"todas" | "pendentes" | "compensadas" | "simulacoes" | "pre">("todas");
+  const [selectedGuideProcessIds, setSelectedGuideProcessIds] = useState<string[]>([]);
+  const [guideListFeedback, setGuideListFeedback] = useState("");
   const [feeStatus, setFeeStatus] = useState("");
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [constructionGuideStatus, setConstructionGuideStatus] = useState("");
@@ -439,34 +445,98 @@ export function FinanceDeskPage() {
     });
   }, [controlGuides]);
 
-  // Busca somente dentro do município já autorizado e mantém a sequência
-  // original da listagem. A paginação limita a densidade visual sem alterar
-  // guias, pagamentos, numeração oficial ou a ordem dos registros.
+
+  // O livro conserva a ordem oficial e o histórico financeiro integral.
+  // Filtros e paginação são apenas de consulta; nenhuma guia ou status muda.
   const filteredIssuedGuideRows = useMemo(() => {
     const query = guideSearch.trim().toLocaleLowerCase("pt-BR");
-    if (!query) return issuedGuideRows;
     return issuedGuideRows.filter(({ process, guide }) => {
-      const reference = getPaymentGuideDisplayReference(process, guide);
-      const fields = [
-        reference,
-        guide.code,
-        guide.label,
-        process.protocol,
-        process.preProtocol,
-        process.ownerName,
-        process.title,
+      if (guideFilter === "pendentes" && !isPendingFinancialGuide(guide)) return false;
+      if (guideFilter === "compensadas" &&
+          (!isReportedCompensatedGuide(guide) || isFinancialTestGuide(guide))) return false;
+      if (guideFilter === "simulacoes" && !isFinancialTestGuide(guide)) return false;
+      if (guideFilter === "pre" && Boolean(getOfficialProcessSequence(process))) return false;
+      if (!query) return true;
+      const searchableFields = [
+        getPaymentGuideDisplayReference(process, guide), guide.code,
+        guide.label, process.protocol, process.preProtocol,
+        process.ownerName, process.title,
       ];
-      return fields.some((field) =>
-        String(field ?? "").toLocaleLowerCase("pt-BR").includes(query),
-      );
+      return searchableFields.some(value => String(value ?? "")
+        .toLocaleLowerCase("pt-BR").includes(query));
     });
-  }, [guideSearch, issuedGuideRows]);
-  const guidePageCount = Math.max(1, Math.ceil(filteredIssuedGuideRows.length / 12));
+  }, [issuedGuideRows, guideSearch, guideFilter]);
+  const guideFilterOptions = [
+    { value: "todas", label: "Todas", count: issuedGuideRows.length },
+    { value: "pendentes", label: "Pendentes", count: issuedGuideRows.filter(({ guide }) => isPendingFinancialGuide(guide)).length },
+    { value: "compensadas", label: "Compensação registrada", count: issuedGuideRows.filter(({ guide }) => isReportedCompensatedGuide(guide) && !isFinancialTestGuide(guide)).length },
+    { value: "simulacoes", label: "Simulações", count: issuedGuideRows.filter(({ guide }) => isFinancialTestGuide(guide)).length },
+    { value: "pre", label: "Pré-protocolos", count: issuedGuideRows.filter(({ process }) => !getOfficialProcessSequence(process)).length },
+  ] as const;
+  const guidePageCount = Math.max(1, Math.ceil(filteredIssuedGuideRows.length / guidePageSize));
   const currentGuidePage = Math.min(guidePage, guidePageCount);
   const paginatedIssuedGuideRows = filteredIssuedGuideRows.slice(
-    (currentGuidePage - 1) * 12,
-    currentGuidePage * 12,
+    (currentGuidePage - 1) * guidePageSize,
+    currentGuidePage * guidePageSize,
   );
+  const canRequestUnitCompletion =
+    session.role !== "prefeitura_admin" &&
+    resolveSessionOperationalArea(session) === "financeiro";
+  const selectablePageProcessIds = Array.from(new Set(
+    paginatedIssuedGuideRows
+      .filter(({ process }) => process.isOfficial !== false && Boolean(getOfficialProcessSequence(process)))
+      .map(({ process }) => process.id),
+  ));
+  const allVisibleGuideProcessesSelected =
+    selectablePageProcessIds.length > 0 &&
+    selectablePageProcessIds.every(id => selectedGuideProcessIds.includes(id));
+  const toggleGuideProcessSelection = (processId: string, checked: boolean) => {
+    if (!canRequestUnitCompletion) return;
+    if (!checked) {
+      setSelectedGuideProcessIds(current => current.filter(id => id !== processId));
+      return;
+    }
+    if (selectedGuideProcessIds.includes(processId)) return;
+    if (selectedGuideProcessIds.length >= 25) {
+      setGuideListFeedback("O fluxo oficial permite concluir até 25 processos por operação.");
+      return;
+    }
+    setSelectedGuideProcessIds(current => Array.from(new Set([...current, processId])).slice(0, 25));
+    setGuideListFeedback("");
+  };
+  const toggleGuidePageSelection = (checked: boolean) => {
+    if (!canRequestUnitCompletion) return;
+    if (!checked) {
+      const pageIds = new Set(selectablePageProcessIds);
+      setSelectedGuideProcessIds(current => current.filter(id => !pageIds.has(id)));
+      return;
+    }
+    setSelectedGuideProcessIds(current =>
+      Array.from(new Set([...current, ...selectablePageProcessIds])).slice(0, 25),
+    );
+    setGuideListFeedback(
+      selectablePageProcessIds.length + selectedGuideProcessIds.length > 25
+        ? "Selecionados até 25 processos distintos. Continue em outra operação para os demais."
+        : "",
+    );
+  };
+  const requestUnitCompletionFromGuideLedger = () => {
+    if (!canRequestUnitCompletion || !selectedGuideProcessIds.length) return;
+    const eligible = new Set(issuedGuideRows
+      .filter(({ process }) => process.isOfficial !== false && Boolean(getOfficialProcessSequence(process)))
+      .map(({ process }) => process.id));
+    const processIds = selectedGuideProcessIds.filter(id => eligible.has(id)).slice(0, 25);
+    if (!processIds.length) {
+      setGuideListFeedback("Selecione processos oficiais para concluir o atendimento nesta unidade.");
+      return;
+    }
+    // A consulta financeira NÃO grava arquivamento nem baixa.
+    // O registro da unidade confirma identidade, município, vínculo e
+    // sincronização no Neon e exige confirmação no diálogo oficial.
+    navigate("/prefeitura/processos", {
+      state: { sigaproProcessBatchRequest: { action: "concluir", processIds } },
+    });
+  };
 
   const feeTable: MunicipalFeeTable = {
     id: `fee-table-${scopeId ?? "platform"}`,
@@ -878,145 +948,240 @@ export function FinanceDeskPage() {
                 </div>
               ) : (
 
-                <div data-finance-guide-list="premium-v3" className="sig-finance-ledger">
-                  <header className="sig-finance-ledger__header">
+
+                <section data-finance-guide-list="premium-v4" data-finance-register="process-style" className="sig-finance-ledger">
+                  <div className="sig-finance-ledger__header">
                     <div className="sig-finance-ledger__heading-group">
                       <span className="sig-finance-ledger__header-icon" aria-hidden="true">
-                        <ReceiptText className="h-5 w-5" />
+                        <ReceiptText className="h-4 w-4" />
                       </span>
                       <div className="sig-finance-ledger__heading-copy">
-                        <span className="sig-finance-ledger__eyebrow">LIVRO DE GUIAS MUNICIPAIS</span>
+                        <span className="sig-finance-ledger__eyebrow">REGISTRO MUNICIPAL • CONSULTA FINANCEIRA</span>
                         <h3 className="sig-finance-ledger__title">Ordem oficial dos processos</h3>
-                        <p className="sig-finance-ledger__subtitle">Referências, situação e histórico financeiro em uma única consulta.</p>
+                        <p className="sig-finance-ledger__subtitle">Guias vinculadas aos processos, ordenadas pela numeração oficial.</p>
                       </div>
                     </div>
                     <div className="sig-finance-ledger__counter">
-                      <strong>{issuedGuideRows.length}</strong>
+                      <strong>{issuedGuideRows.length.toLocaleString("pt-BR")}</strong>
                       <span>{issuedGuideRows.length === 1 ? "guia registrada" : "guias registradas"}</span>
                     </div>
-                  </header>
+                  </div>
 
                   <div className="sig-finance-ledger__toolbar">
-                    <p className="sig-finance-ledger__notice">
-                      <span className="sig-finance-ledger__notice-dot" aria-hidden="true" />
-                      A sequência municipal é atribuída após a compensação da guia inicial. <strong>PRE</strong> identifica pré-protocolo ainda sem numeração oficial.
-                    </p>
                     <label className="sig-finance-ledger__search">
                       <Search className="h-4 w-4" aria-hidden="true" />
-                      <span className="sr-only">Buscar guias por referência, número de processo ou requerente</span>
+                      <span className="sr-only">Buscar guia, processo ou requerente</span>
                       <Input
                         aria-label="Buscar guia ou processo"
                         type="search"
                         value={guideSearch}
-                        onChange={(event) => {
-                          setGuideSearch(event.target.value);
-                          setGuidePage(1);
-                        }}
-                        placeholder="Buscar guia, processo, requerente..."
+                        onChange={event => { setGuideSearch(event.target.value); setGuidePage(1); setSelectedGuideProcessIds([]); }}
+                        placeholder="Pesquisar nº, guia ou requerente..."
                       />
                     </label>
+                    <div className="sig-finance-ledger__filters" role="group" aria-label="Filtrar guias municipais">
+                      {guideFilterOptions.map(option => (
+                        <button
+                          key={option.value} type="button"
+                          className="sig-finance-ledger__filter"
+                          data-active={guideFilter === option.value ? "true" : "false"}
+                          aria-pressed={guideFilter === option.value}
+                          onClick={() => {
+                            setGuideFilter(option.value);
+                            setGuidePage(1);
+                            setSelectedGuideProcessIds([]);
+                            setGuideListFeedback("");
+                          }}
+                        >
+                          {option.label}<span>{option.count.toLocaleString("pt-BR")}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="sig-finance-ledger__rows">
-                    {filteredIssuedGuideRows.length === 0 ? (
-                      <div className="sig-finance-ledger__empty" role="status">
-                        Nenhuma guia corresponde à busca. Confira a referência ou o número do processo.
+                  <div className="sig-finance-ledger__actions">
+                    <label className="sig-finance-ledger__select-all">
+                      <input type="checkbox" aria-label="Selecionar processos desta página"
+                        checked={allVisibleGuideProcessesSelected}
+                        disabled={!canRequestUnitCompletion || selectablePageProcessIds.length === 0}
+                        onChange={event => toggleGuidePageSelection(event.target.checked)}
+                      />
+                      <span>{selectedGuideProcessIds.length} processo(s) selecionado(s)</span>
+                    </label>
+                    <div className="sig-finance-ledger__action-buttons">
+                      <Button
+                        type="button" variant="outline" size="sm"
+                        className="sig-finance-ledger__unit-action"
+                        disabled={!canRequestUnitCompletion || selectedGuideProcessIds.length === 0}
+                        onClick={requestUnitCompletionFromGuideLedger}
+                        title="Abre confirmação no Controle de Processos, com validação de vínculo e permissão no Neon"
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> Concluir nesta unidade
+                      </Button>
+                      <Button asChild type="button" variant="outline" size="sm" className="sig-finance-ledger__archive-action">
+                        <Link to="/prefeitura/processos">
+                          <Archive className="h-4 w-4" /> Arquivo da unidade
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                  {guideListFeedback ? (
+                    <p role="status" className="sig-finance-ledger__feedback">{guideListFeedback}</p>
+                  ) : null}
+                  <p className="sig-finance-ledger__notice">
+                    A sequência municipal é atribuída após a compensação da guia inicial.
+                    Pré-protocolos ainda não pagos aparecem como PRE e não consomem número de processo.
+                    Concluir na unidade não altera guias nem o status oficial.
+                  </p>
+
+                  <div role="table" aria-label="Ordem oficial das guias financeiras" className="sig-finance-ledger__table">
+                    <div role="rowgroup" className="sig-finance-ledger__table-head">
+                      <div role="row" className="sig-finance-ledger__grid sig-finance-ledger__column-titles">
+                        <span role="columnheader" className="sig-finance-ledger__selection-column">Sel.</span>
+                        <span role="columnheader" className="sig-finance-ledger__guide-column">Guia / referência</span>
+                        <span role="columnheader" className="sig-finance-ledger__process-column">Processo / interessado</span>
+                        <span role="columnheader" className="sig-finance-ledger__dates-column">Emissão / vencimento</span>
+                        <span role="columnheader" className="sig-finance-ledger__status-column">Situação</span>
+                        <span role="columnheader" className="sig-finance-ledger__amount-column">Valor</span>
+                        <span role="columnheader" className="sig-finance-ledger__open-column">Abrir</span>
                       </div>
-                    ) : (
-                      paginatedIssuedGuideRows.map(({ process, guide }) => {
+                    </div>
+                    <div role="rowgroup" className="sig-finance-ledger__rows">
+                      {filteredIssuedGuideRows.length === 0 ? (
+                        <div className="sig-finance-ledger__empty" role="status">
+                          Nenhuma guia corresponde aos filtros escolhidos. Experimente buscar pelo número do processo.
+                        </div>
+                      ) : paginatedIssuedGuideRows.map(({ process, guide }) => {
                         const isProtocolGuide = guide.kind === "protocolo";
-                        const issuedLabel = guide.issuedAt
-                          ? new Date(guide.issuedAt).toLocaleDateString("pt-BR")
+                        const issuedDate = guide.issuedAt ? new Date(guide.issuedAt) : null;
+                        const issuedLabel = issuedDate && Number.isFinite(issuedDate.getTime())
+                          ? issuedDate.toLocaleDateString("pt-BR")
                           : "Não informada";
                         const sequence = getOfficialProcessSequence(process);
-                        const sequenceLabel = sequence
-                          ? String(sequence.number).padStart(2, "0")
-                          : "PRE";
+                        const sequenceLabel = sequence ? String(sequence.number).padStart(2, "0") : "PRE";
                         const displayGuideCode = getPaymentGuideDisplayReference(process, guide);
                         const keepsOriginalPreprotocolCode =
-                          isProtocolGuide &&
-                          Boolean(guide.officialProcessReference) &&
+                          isProtocolGuide && Boolean(guide.officialProcessReference) &&
                           guide.officialProcessReference !== guide.code;
                         const processDisplayLabel = sequence
                           ? formatOfficialProcessNumber(process.protocol)
                           : "Pré-protocolo " + (process.preProtocol || process.protocol);
-                        const evidenceTone = isFinancialTestGuide(guide)
-                          ? "simulation"
-                          : isReportedCompensatedGuide(guide)
-                            ? "reported"
-                            : "pending";
-
+                        const guideLink = buildProcessPath(process, "financeiro") +
+                          "&guia=" + encodeURIComponent(guide.code) + "#guia-selecionada";
+                        const canSelect = canRequestUnitCompletion && process.isOfficial !== false && Boolean(sequence);
+                        const selected = selectedGuideProcessIds.includes(process.id);
+                        const evidenceTone = isFinancialTestGuide(guide) ? "simulation"
+                          : isReportedCompensatedGuide(guide) ? "reported" : "pending";
                         return (
-                          <Link
+                          <div
+                            role="row"
                             key={process.id + ":" + guide.kind + ":" + guide.code}
-                            to={buildProcessPath(process, "financeiro") + "&guia=" + encodeURIComponent(guide.code) + "#guia-selecionada"}
-                            aria-label={"Abrir a guia " + displayGuideCode + " do processo " + processDisplayLabel}
                             data-finance-guide-row="true"
-                            className="sig-finance-ledger__row group"
+                            data-selected={selected ? "true" : "false"}
+                            className="sig-finance-ledger__grid sig-finance-ledger__row"
                           >
-                            <span className="sig-finance-ledger__sequence" data-official-sequence={sequence ? "true" : "false"} title={sequence ? "Sequência oficial do processo" : "Pré-protocolo sem numeração oficial"}>
-                              <small>SEQ.</small>
-                              <strong>{sequenceLabel}</strong>
-                            </span>
-
-                            <div className="sig-finance-ledger__body">
-                              <div className="sig-finance-ledger__reference-line">
-                                <strong className="sig-finance-ledger__reference" title={displayGuideCode}>
-                                  {displayGuideCode}
-                                </strong>
-                                <Badge variant="outline" data-finance-evidence={evidenceTone} className="sig-finance-ledger__status">
-                                  {guideFinancialEvidenceLabel(guide)}
-                                </Badge>
-                              </div>
-                              <p className="sig-finance-ledger__guide-type" title={guide.label}>{guide.label}</p>
-                              {keepsOriginalPreprotocolCode ? (
-                                <p className="sig-finance-ledger__original-reference" title={guide.code}>
-                                  Guia paga no pré-protocolo: {guide.code}
-                                </p>
-                              ) : null}
-                              <div className="sig-finance-ledger__metadata">
-                                <span><small>PROCESSO</small><strong>{processDisplayLabel}</strong></span>
-                                <span><small>EMISSÃO</small><strong>{issuedLabel}</strong></span>
-                                <span><small>VENCIMENTO</small><strong>{guide.dueDate || "Não informado"}</strong></span>
-                              </div>
-                              <div className="sig-finance-ledger__footer-details">
-                                <span title={process.ownerName}>Requerente: <strong>{process.ownerName || "Não informado"}</strong></span>
-                                <span>{isProtocolGuide ? "Baixa operacional: Protocolo" : "Controle: Financeiro"}</span>
-                              </div>
+                            <div role="cell" className="sig-finance-ledger__selection-column">
+                              <input type="checkbox"
+                                aria-label={"Selecionar processo " + processDisplayLabel + " para concluir na unidade"}
+                                title={!canSelect ? "Pré-protocolo sem sequência ou perfil somente consulta" : "Selecionar processo"}
+                                disabled={!canSelect}
+                                checked={selected && canSelect}
+                                onChange={event => toggleGuideProcessSelection(process.id, event.target.checked)}
+                              />
                             </div>
-
-                            <div className="sig-finance-ledger__value-column">
-                              <span className="sig-finance-ledger__value-label">VALOR DA GUIA</span>
-                              <strong className="sig-finance-ledger__value">{formatCurrency(guide.amount)}</strong>
-                              <span className="sig-finance-ledger__open">
-                                Abrir processo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                            <div role="cell" className="sig-finance-ledger__guide-column">
+                              <div className="sig-finance-ledger__reference-line">
+                                <span className="sig-finance-ledger__sequence" data-official-sequence={sequence ? "true" : "false"}
+                                  title={sequence ? "Sequência oficial " + sequenceLabel : "Pré-protocolo sem sequência oficial"}>
+                                  {sequenceLabel}
+                                </span>
+                                <Link to={guideLink} className="sig-finance-ledger__reference" title={displayGuideCode}>
+                                  {displayGuideCode}
+                                </Link>
+                              </div>
+                              <span className="sig-finance-ledger__guide-type" title={guide.label}>{guide.label}</span>
+                              {keepsOriginalPreprotocolCode ? (
+                                <span className="sig-finance-ledger__original-reference" title={guide.code}>
+                                  Guia paga no pré-protocolo: {guide.code}
+                                </span>
+                              ) : null}
+                              <div className="sig-finance-ledger__mobile-details">
+                                <strong>{processDisplayLabel}</strong>
+                                <span>{process.ownerName || "Requerente não informado"}</span>
+                                <span>Emissão: {issuedLabel} • Venc.: {guide.dueDate || "Não informado"}</span>
+                              </div>
+                              <Badge variant="outline" data-finance-evidence={evidenceTone}
+                                className="sig-finance-ledger__status sig-finance-ledger__mobile-status">
+                                {guideFinancialEvidenceLabel(guide)}
+                              </Badge>
+                            </div>
+                            <div role="cell" className="sig-finance-ledger__process-column">
+                              <strong title={processDisplayLabel}>{processDisplayLabel}</strong>
+                              <span title={process.ownerName}>{process.ownerName || "Requerente não informado"}</span>
+                            </div>
+                            <div role="cell" className="sig-finance-ledger__dates-column">
+                              <strong>{issuedLabel}</strong>
+                              <span>Venc. {guide.dueDate || "Não informado"}</span>
+                            </div>
+                            <div role="cell" className="sig-finance-ledger__status-column">
+                              <Badge variant="outline" data-finance-evidence={evidenceTone} className="sig-finance-ledger__status">
+                                {guideFinancialEvidenceLabel(guide)}
+                              </Badge>
+                              <span className="sig-finance-ledger__responsibility">
+                                {isProtocolGuide ? "Baixa: Protocolo" : "Controle: Financeiro"}
                               </span>
                             </div>
-                          </Link>
+                            <div role="cell" className="sig-finance-ledger__amount-column">
+                              <strong className="sig-finance-ledger__value">{formatCurrency(guide.amount)}</strong>
+                            </div>
+                            <div role="cell" className="sig-finance-ledger__open-column">
+                              <Link to={guideLink} className="sig-finance-ledger__open"
+                                aria-label={"Abrir guia " + displayGuideCode + " do " + processDisplayLabel}
+                                title="Conferir guia no processo">
+                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                              </Link>
+                            </div>
+                          </div>
                         );
-                      })
-                    )}
+                      })}
+                    </div>
                   </div>
 
                   <footer className="sig-finance-ledger__pagination">
                     <span>
-                      {filteredIssuedGuideRows.length === 0
-                        ? "Nenhum registro encontrado"
-                        : "Exibindo " + ((currentGuidePage - 1) * 12 + 1) + "–" + Math.min(currentGuidePage * 12, filteredIssuedGuideRows.length) + " de " + filteredIssuedGuideRows.length + " guias"}
+                      {filteredIssuedGuideRows.length === 0 ? "Nenhum registro encontrado"
+                        : "Exibindo " + ((currentGuidePage - 1) * guidePageSize + 1) + "–" +
+                          Math.min(currentGuidePage * guidePageSize, filteredIssuedGuideRows.length) + " de " +
+                          filteredIssuedGuideRows.length.toLocaleString("pt-BR") + " guias"}
                     </span>
-                    {guidePageCount > 1 ? (
-                      <nav className="sig-finance-ledger__page-controls" aria-label="Paginação das guias financeiras">
-                        <Button type="button" variant="outline" size="sm" onClick={() => setGuidePage(Math.max(1, currentGuidePage - 1))} disabled={currentGuidePage === 1}>
-                          <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Anterior
-                        </Button>
-                        <span aria-live="polite">{currentGuidePage} / {guidePageCount}</span>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setGuidePage(Math.min(guidePageCount, currentGuidePage + 1))} disabled={currentGuidePage === guidePageCount}>
-                          Próxima <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </nav>
-                    ) : null}
+                    <div className="sig-finance-ledger__page-controls">
+                      <label>
+                        Por página
+                        <select aria-label="Guias por página" value={guidePageSize}
+                          onChange={event => {
+                            setGuidePageSize(Number(event.target.value) as 25 | 50 | 100);
+                            setGuidePage(1);
+                            setSelectedGuideProcessIds([]);
+                          }}>
+                          <option value={25}>25</option><option value={50}>50</option><option value={100}>100</option>
+                        </select>
+                      </label>
+                      <Button type="button" variant="outline" size="sm"
+                        aria-label="Página anterior"
+                        disabled={currentGuidePage <= 1}
+                        onClick={() => setGuidePage(Math.max(1, currentGuidePage - 1))}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span aria-live="polite">{currentGuidePage} / {guidePageCount}</span>
+                      <Button type="button" variant="outline" size="sm"
+                        aria-label="Próxima página"
+                        disabled={currentGuidePage >= guidePageCount}
+                        onClick={() => setGuidePage(Math.min(guidePageCount, currentGuidePage + 1))}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </footer>
-                </div>
+                </section>
               )}
             </div>
           </TableCard>

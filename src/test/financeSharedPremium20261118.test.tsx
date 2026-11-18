@@ -81,18 +81,19 @@ describe("SIGAPRO — cabeçalhos e navegação premium compartilhados", () => {
   });
 
   it("reconstrói o livro de guias com referência íntegra, evidência e valor destacados", () => {
-    expect(financeDesk).toContain('data-finance-guide-list="premium-v3"');
+    expect(financeDesk).toContain('data-finance-guide-list="premium-v4"');
     expect(financeDesk).toContain('data-finance-guide-row="true"');
     expect(financeDesk).toContain('sig-finance-ledger__reference');
     expect(financeDesk).toContain('sig-finance-ledger__value');
     expect(financeDesk).toContain('sig-finance-ledger__status');
+    expect(financeDesk).toContain('data-finance-register="process-style"');
     expect(financeDesk).toContain("guideFinancialEvidenceLabel(guide)");
     expect(financeDesk).toContain("getPaymentGuideDisplayReference");
     expect(financeDesk).toContain('data-official-sequence={sequence ? "true" : "false"}');
     expect(financeDesk).toContain('buildProcessPath(process, "financeiro")');
     expect(financeDesk).toContain('keepsOriginalPreprotocolCode');
-    expect(financeCss).toContain("container: sigapro-guide-ledger / inline-size");
-    expect(financeCss).toContain("@container sigapro-guide-ledger (max-width: 740px)");
+    expect(financeCss).toContain("container: finance-guides / inline-size");
+    expect(financeCss).toContain("@container finance-guide-table (max-width: 650px)");
     expect(financeCss).toContain("html.dark body #root .sig-main-shell .sig-finance-ledger__row");
     expect(financeDesk).not.toContain('data-finance-guide-header="wide"');
   });
@@ -101,14 +102,42 @@ describe("SIGAPRO — cabeçalhos e navegação premium compartilhados", () => {
     expect(financeDesk).toContain('aria-label="Buscar guia ou processo"');
     expect(financeDesk).toContain("filteredIssuedGuideRows");
     expect(financeDesk).toContain("paginatedIssuedGuideRows");
-    expect(financeDesk).toContain("currentGuidePage * 12");
+    expect(financeDesk).toContain("currentGuidePage * guidePageSize");
     expect(financeDesk).toContain("setGuidePage(1)");
-    expect(financeDesk).toContain('aria-label="Paginação das guias financeiras"');
+    expect(financeDesk).toContain('aria-label="Guias por página"');
     expect(financeDesk).toContain('onClick={() => setGuidePage(Math.max(1, currentGuidePage - 1))}');
     expect(financeDesk).toContain('onClick={() => setGuidePage(Math.min(guidePageCount, currentGuidePage + 1))}');
     expect(financeDesk).toContain("getVisibleProcessesByScope");
     expect(financeDesk).toContain("financeLedgerProcesses");
     expect(financeDesk).toContain("markGuideAsPaid");
+  });
+
+
+  it("espelha o registro compacto dos processos com filtros, 25–100 registros e contraste ativo", () => {
+    expect(financeDesk).toContain('role="table" aria-label="Ordem oficial das guias financeiras"');
+    expect(financeDesk).toContain('role="columnheader"');
+    expect(financeDesk).toContain('role="row"');
+    expect(financeDesk).toContain('value: "pendentes"');
+    expect(financeDesk).toContain('value: "pre"');
+    expect(financeDesk).toContain('<option value={25}>25</option><option value={50}>50</option><option value={100}>100</option>');
+    expect(financeDesk).toContain('data-selected={selected ? "true" : "false"}');
+    expect(financeCss).toContain('.sig-finance-ledger__filter[data-active="true"]');
+    expect(financeCss).toContain('.sig-finance-ledger__row[data-selected="true"]');
+    expect(financeCss).toContain('html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"]');
+    expect(financeCss).toContain('grid-template-columns:30px minmax(0,1fr) 105px 31px');
+  });
+
+  it("encaminha somente processos oficiais à conclusão da unidade com confirmação na mesa central", () => {
+    expect(financeDesk).toContain('const canRequestUnitCompletion');
+    expect(financeDesk).toContain('session.role !== "prefeitura_admin"');
+    expect(financeDesk).toContain('resolveSessionOperationalArea(session) === "financeiro"');
+    expect(financeDesk).toContain('process.isOfficial !== false && Boolean(getOfficialProcessSequence(process))');
+    expect(financeDesk).toContain('const processIds = selectedGuideProcessIds.filter(id => eligible.has(id)).slice(0, 25)');
+    expect(financeDesk).toContain('sigaproProcessBatchRequest: { action: "concluir", processIds }');
+    expect(financeDesk).toContain('to="/prefeitura/processos"');
+    expect(financeDesk).toContain('Concluir nesta unidade');
+    expect(financeDesk).toContain('Concluir na unidade não altera guias nem o status oficial.');
+    expect(financeDesk).not.toContain('setMyUnitProcessCompletion(');
   });
 
   it("corrige tipografia de indicadores e amplia o padrão aos demais departamentos sem alterar fluxos", () => {
