@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS public.municipal_staff_assignments (
 CREATE INDEX IF NOT EXISTS idx_municipal_staff_assignments_profile
  ON public.municipal_staff_assignments(profile_id,municipality_id) WHERE is_active;
 ALTER TABLE public.municipal_staff_assignments ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.municipal_staff_assignments FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.municipal_staff_assignments FROM PUBLIC, authenticated;
 
 CREATE TABLE IF NOT EXISTS public.municipal_staff_assignment_audit (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.municipal_staff_assignment_audit (
 CREATE INDEX IF NOT EXISTS idx_staff_assignment_audit_target
  ON public.municipal_staff_assignment_audit(profile_id,created_at DESC);
 ALTER TABLE public.municipal_staff_assignment_audit ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.municipal_staff_assignment_audit FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.municipal_staff_assignment_audit FROM PUBLIC, authenticated;
 
 -- Idêntica categorização operacional que o SIGAPRO usa no organograma.
 -- O administrador escolhe a unidade, nunca inventa permissões por string.
@@ -53,7 +53,7 @@ BEGIN
   RETURN 'setor_intersetorial';
 END;
 $$;
-REVOKE ALL ON FUNCTION public._staff_role_for_department_v1(text) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public._staff_role_for_department_v1(text) FROM PUBLIC,authenticated;
 
 -- Privado: troca o contexto canônico lido pela RLS e pelo cliente.
 -- ATENÇÃO: invocável somente pelas duas funções autenticadas abaixo.
@@ -103,7 +103,7 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public._apply_staff_context_v1(uuid,uuid,uuid,text)
- FROM PUBLIC,anon,authenticated;
+ FROM PUBLIC,authenticated;
 
 -- Vínculo principal existente: preservar sua função e departamento.
 INSERT INTO public.municipal_staff_assignments(
@@ -159,7 +159,7 @@ BEGIN
  RETURN v_result;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.list_municipal_staff_assignments_v1(uuid) FROM PUBLIC,anon;
+REVOKE ALL ON FUNCTION public.list_municipal_staff_assignments_v1(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.list_municipal_staff_assignments_v1(uuid) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.set_municipal_staff_department_v1(
@@ -247,7 +247,7 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public.set_municipal_staff_department_v1(uuid,uuid,uuid,boolean)
- FROM PUBLIC,anon;
+ FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.set_municipal_staff_department_v1(uuid,uuid,uuid,boolean)
  TO authenticated;
 
@@ -296,7 +296,7 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public.activate_municipal_staff_assignment_v1(uuid)
- FROM PUBLIC,anon;
+ FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.activate_municipal_staff_assignment_v1(uuid) TO authenticated;
 
 COMMIT;
