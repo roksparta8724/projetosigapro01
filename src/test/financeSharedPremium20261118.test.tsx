@@ -101,10 +101,10 @@ describe("SIGAPRO — cabeçalhos e navegação premium compartilhados", () => {
   it("inclui busca e paginação sem filtrar município nem modificar situação financeira", () => {
     expect(financeDesk).toContain('aria-label="Buscar guia ou processo"');
     expect(financeDesk).toContain("filteredIssuedGuideRows");
-    expect(financeDesk).toContain("paginatedIssuedGuideRows");
+    expect(financeDesk).toContain("paginatedIssuedProcessGroups");
     expect(financeDesk).toContain("currentGuidePage * guidePageSize");
     expect(financeDesk).toContain("setGuidePage(1)");
-    expect(financeDesk).toContain('aria-label="Guias por página"');
+    expect(financeDesk).toContain('aria-label="Processos por página"');
     expect(financeDesk).toContain('onClick={() => setGuidePage(Math.max(1, currentGuidePage - 1))}');
     expect(financeDesk).toContain('onClick={() => setGuidePage(Math.min(guidePageCount, currentGuidePage + 1))}');
     expect(financeDesk).toContain("getVisibleProcessesByScope");

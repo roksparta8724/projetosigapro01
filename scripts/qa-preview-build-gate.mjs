@@ -113,6 +113,7 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/landingDemoPremiumContrast20261118.test.tsx",
     "src/test/financeSharedPremium20261118.test.tsx",
     "src/test/financeScreenshotContrast20261118.test.tsx",
+    "src/test/financeOfficialProcessLedger20261118.test.ts",
     "src/test/protocolRegistrationSource20261117.test.ts",
     "src/test/processPersonalUnitFilters20261117.test.tsx",
     "src/test/unifiedMunicipalProcessWorkspace20261117.test.tsx",

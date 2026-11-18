@@ -76,6 +76,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { groupFinancialGuidesByProcess, findOfficialProcessSequenceConflicts } from "@/lib/financeOfficialProcessLedger";
 import "@/styles/sigapro-finance-premium.css";
 
 type FinanceSection =
@@ -466,6 +467,29 @@ export function FinanceDeskPage() {
         .toLocaleLowerCase("pt-BR").includes(query));
     });
   }, [issuedGuideRows, guideSearch, guideFilter]);
+  // A sequência é do PROCESSO, nunca da guia. Exibir DAM, ISSQN e Habite-se
+  // sob a mesma posição oficial, inclusive ao paginar por milhares de pastas.
+  // A busca por uma guia não muda o identificador persistido do processo.
+  const groupedIssuedProcessRows = useMemo(
+    () => groupFinancialGuidesByProcess(filteredIssuedGuideRows),
+    [filteredIssuedGuideRows],
+  );
+  const issuedProcessCount = useMemo(
+    () => groupFinancialGuidesByProcess(issuedGuideRows).length,
+    [issuedGuideRows],
+  );
+  // Duas pastas diferentes NÃO podem ser tratadas como uma só por partilharem
+  // o mesmo identificador oficial: sinalizar possível colisão sem renumerar.
+  const conflictingOfficialSequences = useMemo(
+    () => findOfficialProcessSequenceConflicts(
+      issuedGuideRows,
+      (process) => {
+        const official = getOfficialProcessSequence(process);
+        return official ? official.year + "/" + official.number : null;
+      },
+    ),
+    [issuedGuideRows],
+  );
   const guideFilterOptions = [
     { value: "todas", label: "Todas", count: issuedGuideRows.length },
     { value: "pendentes", label: "Pendentes", count: issuedGuideRows.filter(({ guide }) => isPendingFinancialGuide(guide)).length },
@@ -473,9 +497,9 @@ export function FinanceDeskPage() {
     { value: "simulacoes", label: "Simulações", count: issuedGuideRows.filter(({ guide }) => isFinancialTestGuide(guide)).length },
     { value: "pre", label: "Pré-protocolos", count: issuedGuideRows.filter(({ process }) => !getOfficialProcessSequence(process)).length },
   ] as const;
-  const guidePageCount = Math.max(1, Math.ceil(filteredIssuedGuideRows.length / guidePageSize));
+  const guidePageCount = Math.max(1, Math.ceil(groupedIssuedProcessRows.length / guidePageSize));
   const currentGuidePage = Math.min(guidePage, guidePageCount);
-  const paginatedIssuedGuideRows = filteredIssuedGuideRows.slice(
+  const paginatedIssuedProcessGroups = groupedIssuedProcessRows.slice(
     (currentGuidePage - 1) * guidePageSize,
     currentGuidePage * guidePageSize,
   );
@@ -483,7 +507,7 @@ export function FinanceDeskPage() {
     session.role !== "prefeitura_admin" &&
     resolveSessionOperationalArea(session) === "financeiro";
   const selectablePageProcessIds = Array.from(new Set(
-    paginatedIssuedGuideRows
+    paginatedIssuedProcessGroups
       .filter(({ process }) => process.isOfficial !== false && Boolean(getOfficialProcessSequence(process)))
       .map(({ process }) => process.id),
   ));
@@ -958,12 +982,13 @@ export function FinanceDeskPage() {
                       <div className="sig-finance-ledger__heading-copy">
                         <span className="sig-finance-ledger__eyebrow">REGISTRO MUNICIPAL • CONSULTA FINANCEIRA</span>
                         <h3 className="sig-finance-ledger__title">Ordem oficial dos processos</h3>
-                        <p className="sig-finance-ledger__subtitle">Guias vinculadas aos processos, ordenadas pela numeração oficial.</p>
+                        <p className="sig-finance-ledger__subtitle">Uma sequência por processo. DAM, ISSQN e Habite-se vinculados à mesma pasta.</p>
                       </div>
                     </div>
                     <div className="sig-finance-ledger__counter">
-                      <strong>{issuedGuideRows.length.toLocaleString("pt-BR")}</strong>
-                      <span>{issuedGuideRows.length === 1 ? "guia registrada" : "guias registradas"}</span>
+                      <strong>{issuedProcessCount.toLocaleString("pt-BR")}</strong>
+                      <span>{issuedProcessCount === 1 ? "processo" : "processos"}</span>
+                      <small>{issuedGuideRows.length.toLocaleString("pt-BR")} guias</small>
                     </div>
                   </div>
 
@@ -1029,11 +1054,17 @@ export function FinanceDeskPage() {
                     <p role="status" className="sig-finance-ledger__feedback">{guideListFeedback}</p>
                   ) : null}
                   <p className="sig-finance-ledger__notice">
-                    A sequência municipal é atribuída após a compensação da guia inicial.
-                    Pré-protocolos ainda não pagos aparecem como PRE e não consomem número de processo.
-                    Concluir na unidade não altera guias nem o status oficial.
+                    Cada processo oficial ocupa uma única posição na sequência. Guias adicionais aparecem vinculadas abaixo,
+                    sem receber nova numeração. Pré-protocolos aparecem como PRE e não ocupam posição oficial.
+                    Concluir na unidade não altera guias nem o status do processo.
                   </p>
 
+                  {conflictingOfficialSequences.length > 0 ? (
+                    <p role="alert" data-finance-sequence-conflict="true" className="sig-finance-ledger__sequence-warning">
+                      Atenção: {conflictingOfficialSequences.length} numeração(ões) oficial(is) vinculada(s) a processos distintos.
+                      Confirme o cadastro antes de certificar a sequência; nenhuma numeração foi alterada.
+                    </p>
+                  ) : null}
                   <div role="table" aria-label="Ordem oficial das guias financeiras" className="sig-finance-ledger__table">
                     <div role="rowgroup" className="sig-finance-ledger__table-head">
                       <div role="row" className="sig-finance-ledger__grid sig-finance-ledger__column-titles">
@@ -1046,12 +1077,18 @@ export function FinanceDeskPage() {
                         <span role="columnheader" className="sig-finance-ledger__open-column">Abrir</span>
                       </div>
                     </div>
-                    <div role="rowgroup" className="sig-finance-ledger__rows">
+                    <div className="sig-finance-ledger__rows">
                       {filteredIssuedGuideRows.length === 0 ? (
                         <div className="sig-finance-ledger__empty" role="status">
                           Nenhuma guia corresponde aos filtros escolhidos. Experimente buscar pelo número do processo.
                         </div>
-                      ) : paginatedIssuedGuideRows.map(({ process, guide }) => {
+                      ) : paginatedIssuedProcessGroups.map(({ process, guides }) => (
+                        <div role="rowgroup" key={process.id}
+                          data-finance-process-group="true"
+                          aria-label={"Processo " + (getOfficialProcessSequence(process) ? formatOfficialProcessNumber(process.protocol) : (process.preProtocol || process.protocol)) + " com " + guides.length + " guia(s) exibida(s)"}
+                          className="sig-finance-ledger__process-group">
+                          {guides.map((guide, guideIndex) => {
+                        const isPrimaryProcessGuide = guideIndex === 0;
                         const isProtocolGuide = guide.kind === "protocolo";
                         const issuedDate = guide.issuedAt ? new Date(guide.issuedAt) : null;
                         const issuedLabel = issuedDate && Number.isFinite(issuedDate.getTime())
@@ -1077,36 +1114,47 @@ export function FinanceDeskPage() {
                             role="row"
                             key={process.id + ":" + guide.kind + ":" + guide.code}
                             data-finance-guide-row="true"
+                            data-guide-group-position={isPrimaryProcessGuide ? "first" : "linked"}
                             data-selected={selected ? "true" : "false"}
                             className="sig-finance-ledger__grid sig-finance-ledger__row"
                           >
                             <div role="cell" className="sig-finance-ledger__selection-column">
-                              <input type="checkbox"
-                                aria-label={"Selecionar processo " + processDisplayLabel + " para concluir na unidade"}
-                                title={!canSelect ? "Pré-protocolo sem sequência ou perfil somente consulta" : "Selecionar processo"}
-                                disabled={!canSelect}
-                                checked={selected && canSelect}
-                                onChange={event => toggleGuideProcessSelection(process.id, event.target.checked)}
-                              />
+                              {isPrimaryProcessGuide ? (
+                                <input type="checkbox"
+                                  aria-label={"Selecionar processo " + processDisplayLabel + " para concluir na unidade"}
+                                  title={!canSelect ? "Pré-protocolo sem sequência ou perfil somente consulta" : "Selecionar processo"}
+                                  disabled={!canSelect}
+                                  checked={selected && canSelect}
+                                  onChange={event => toggleGuideProcessSelection(process.id, event.target.checked)}
+                                />
+                              ) : (
+                                <span className="sig-finance-ledger__linked-selection" aria-hidden="true" />
+                              )}
                             </div>
                             <div role="cell" className="sig-finance-ledger__guide-column">
                               <div className="sig-finance-ledger__reference-line">
-                                <span className="sig-finance-ledger__sequence" data-official-sequence={sequence ? "true" : "false"}
-                                  title={sequence ? "Sequência oficial " + sequenceLabel : "Pré-protocolo sem sequência oficial"}>
-                                  {sequenceLabel}
-                                </span>
+                                {isPrimaryProcessGuide ? (
+                                  <span className="sig-finance-ledger__sequence" data-official-sequence={sequence ? "true" : "false"}
+                                    title={sequence ? "Sequência oficial do processo " + processDisplayLabel : "Pré-protocolo sem sequência oficial"}>
+                                    {sequenceLabel}
+                                  </span>
+                                ) : (
+                                  <span className="sig-finance-ledger__linked-guide-marker" aria-label={"Guia vinculada ao mesmo processo " + processDisplayLabel} title="Guia adicional do mesmo processo">↳</span>
+                                )}
                                 <Link to={guideLink} className="sig-finance-ledger__reference" title={displayGuideCode}>
                                   {displayGuideCode}
                                 </Link>
                               </div>
-                              <span className="sig-finance-ledger__guide-type" title={guide.label}>{guide.label}</span>
+                              <span className="sig-finance-ledger__guide-type" title={guide.label}>
+                                {guide.label}{guides.length > 1 ? " · Guia " + (guideIndex + 1) + " de " + guides.length : ""}
+                              </span>
                               {keepsOriginalPreprotocolCode ? (
                                 <span className="sig-finance-ledger__original-reference" title={guide.code}>
                                   Guia paga no pré-protocolo: {guide.code}
                                 </span>
                               ) : null}
                               <div className="sig-finance-ledger__mobile-details">
-                                <strong>{processDisplayLabel}</strong>
+                                <strong>{isPrimaryProcessGuide ? processDisplayLabel : "Guia vinculada · " + processDisplayLabel}</strong>
                                 <span>{process.ownerName || "Requerente não informado"}</span>
                                 <span>Emissão: {issuedLabel} • Venc.: {guide.dueDate || "Não informado"}</span>
                               </div>
@@ -1116,7 +1164,7 @@ export function FinanceDeskPage() {
                               </Badge>
                             </div>
                             <div role="cell" className="sig-finance-ledger__process-column">
-                              <strong title={processDisplayLabel}>{processDisplayLabel}</strong>
+                              <strong title={processDisplayLabel}>{isPrimaryProcessGuide ? processDisplayLabel : "Mesma pasta · " + processDisplayLabel}</strong>
                               <span title={process.ownerName}>{process.ownerName || "Requerente não informado"}</span>
                             </div>
                             <div role="cell" className="sig-finance-ledger__dates-column">
@@ -1143,21 +1191,24 @@ export function FinanceDeskPage() {
                             </div>
                           </div>
                         );
-                      })}
+                          })}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   <footer className="sig-finance-ledger__pagination">
                     <span>
-                      {filteredIssuedGuideRows.length === 0 ? "Nenhum registro encontrado"
-                        : "Exibindo " + ((currentGuidePage - 1) * guidePageSize + 1) + "–" +
-                          Math.min(currentGuidePage * guidePageSize, filteredIssuedGuideRows.length) + " de " +
-                          filteredIssuedGuideRows.length.toLocaleString("pt-BR") + " guias"}
+                      {groupedIssuedProcessRows.length === 0 ? "Nenhum processo encontrado"
+                        : "Processos " + ((currentGuidePage - 1) * guidePageSize + 1) + "–" +
+                          Math.min(currentGuidePage * guidePageSize, groupedIssuedProcessRows.length) + " de " +
+                          groupedIssuedProcessRows.length.toLocaleString("pt-BR") + " · " +
+                          filteredIssuedGuideRows.length.toLocaleString("pt-BR") + " guia(s) nos filtros"}
                     </span>
                     <div className="sig-finance-ledger__page-controls">
                       <label>
                         Por página
-                        <select aria-label="Guias por página" value={guidePageSize}
+                        <select aria-label="Processos por página" value={guidePageSize}
                           onChange={event => {
                             setGuidePageSize(Number(event.target.value) as 25 | 50 | 100);
                             setGuidePage(1);
