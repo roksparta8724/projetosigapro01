@@ -1,0 +1,44 @@
+/*
+ * SIGAPRO — active municipal process filters.
+ * Selected filters darken in the SEI-style toolbar. The ink must switch to
+ * high-contrast white, including SVG labels and on hover/focus, regardless
+ * of legacy role-specific color selectors and browser text fill.
+ *
+ * Inactive filters keep their own dark-on-light semantic palettes.
+ */
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip.is-active:not(:disabled),
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip[aria-pressed="true"]:not(:disabled),
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip.is-active:not(:disabled):hover,
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip.is-active:not(:disabled):focus-visible {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip.is-active:not(:disabled) svg,
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip[aria-pressed="true"]:not(:disabled) svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+/* Also enforce white for children if a base "sig-fit-title"/"text-*"
+   selector from other layout layers tries to force dark ink on the badge. */
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip.is-active:not(:disabled) :is(span, strong, small, b),
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip[aria-pressed="true"]:not(:disabled) :is(span, strong, small, b) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+/* Explicit focus ring remains visible on a saturated active filter. */
+html body #root .sig-workspace-shell .sig-workspace-filters
+.sig-workspace-chip.is-active:focus-visible {
+  outline: 3px solid #91cef5 !important;
+  outline-offset: 2px !important;
+}

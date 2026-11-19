@@ -1,0 +1,1169 @@
+/*
+ * SIGAPRO | Financeiro premium. Only changes presentation; never payment
+ * status, financial accounting, bank evidences, authorizations or actions.
+ */
+html body #root .sig-main-shell .sig-finance-workspace {
+  min-width: 0;
+  max-width: 100%;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stats-row {
+  grid-template-columns: repeat(4,minmax(0,1fr)) !important;
+  gap: 12px !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-stat-card[data-premium-role-blue="metric"] {
+  min-width: 0;
+  min-height: 138px !important;
+  padding: 15px !important;
+  border-radius: 15px !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-stat-card .sig-stat-value {
+  max-width: 100% !important;
+  height: auto !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.18 !important;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(18px,1.75vw,24px) !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-stat-card :is(.sig-fit-title,.sig-fit-copy) {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  max-height: none !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  line-height: 1.45 !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-stat-card .sig-stat-icon {
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-section-card :is(.sig-section-title,.sig-subtitle),
+html body #root .sig-main-shell .sig-finance-workspace
+.sig-ui-card :is(.sig-section-title,.sig-subtitle) {
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  hyphens: none !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace
+[data-finance-unverified-settlement="true"],
+html body #root .sig-main-shell .sig-finance-workspace
+[data-finance-synthetic-guides="true"] {
+  min-height: 0 !important;
+  max-width: 100%;
+  white-space: normal !important;
+  line-height: 1.55 !important;
+  overflow-wrap: break-word !important;
+}
+@media (max-width: 1250px) {
+  html body #root .sig-main-shell .sig-finance-workspace .sig-stats-row {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+  }
+}
+@media (max-width: 650px) {
+  html body #root .sig-main-shell .sig-finance-workspace .sig-stats-row {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+}
+
+/* Finance tab cards: fixed width with accessible horizontal scroll and an
+   active card whose ink always matches its background. No squeezed words. */
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 9px !important;
+  border: 1px solid #c8dbe8 !important;
+  border-radius: 17px !important;
+  background: #eef5fa !important;
+  box-shadow: 0 5px 15px rgba(14, 59, 91, .07) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav > div {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: #a5bfd0 #edf4f8;
+  gap: 9px !important;
+  padding: 1px 1px 8px !important;
+  min-width: 0;
+  width: 100%;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item {
+  display: flex !important;
+  flex: 0 0 174px !important;
+  width: 174px !important;
+  min-width: 174px !important;
+  max-width: 174px !important;
+  min-height: 100px !important;
+  height: auto !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+  padding: 14px 13px 12px !important;
+  gap: 2px;
+  border: 1px solid #c6d8e5 !important;
+  border-radius: 13px !important;
+  background: #ffffff !important;
+  color: #173a53 !important;
+  -webkit-text-fill-color: #173a53 !important;
+  box-shadow: 0 2px 6px rgba(20, 61, 88, .045) !important;
+  scroll-snap-align: start;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item[data-nav-active="true"] {
+  background: linear-gradient(145deg,#e2f2fb 0%,#d5eaf6 100%) !important;
+  border-color: #4594b7 !important;
+  color: #123e5c !important;
+  -webkit-text-fill-color: #123e5c !important;
+  box-shadow: inset 0 3px 0 #11759e,0 5px 14px rgba(18, 84, 118, .11) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item[data-nav-active="false"]:hover {
+  background: #f5fbff !important;
+  border-color: #8cbdd4 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item :is(.sig-nav-item-label,.sig-nav-item-helper) {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden !important;
+  max-width: 100%;
+  min-width: 0;
+  text-overflow: clip !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  hyphens: none !important;
+  white-space: normal !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item .sig-nav-item-label {
+  color: #143a54 !important;
+  -webkit-text-fill-color: #143a54 !important;
+  font-size: 13px !important;
+  font-weight: 740 !important;
+  line-height: 1.35 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item .sig-nav-item-helper {
+  color: #526b7d !important;
+  -webkit-text-fill-color: #526b7d !important;
+  font-size: 11.3px !important;
+  line-height: 1.45 !important;
+  margin-top: 5px !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav
+.sig-nav-item:focus-visible {
+  outline: 3px solid #3b97c4 !important;
+  outline-offset: -3px;
+}
+
+
+
+/* SIGAPRO — Livro de Guias versão 4, densidade e semântica do registro SEI.
+ * Scoping estrito no Financeiro; nenhum estilo altera número, baixa ou RPC.
+ */
+html body #root .sig-main-shell .sig-finance-ledger {
+  container: finance-guides / inline-size;
+  min-width: 0; width: 100%; max-width: 100%; overflow: hidden;
+  border: 1px solid #cbd9e5; border-radius: 16px;
+  background: #fff; color: #17354a; overflow-wrap: normal;
+  box-shadow: 0 7px 23px rgba(19,56,78,.055);
+}
+html body #root .sig-main-shell .sig-finance-ledger__header {
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  min-width:0; padding:15px 18px; background:#f7fafc;
+  border-bottom:1px solid #dce6ee;
+}
+html body #root .sig-main-shell .sig-finance-ledger__heading-group {
+  display:flex; align-items:center; gap:12px; min-width:0;
+}
+html body #root .sig-main-shell .sig-finance-ledger__heading-copy { min-width:0; }
+html body #root .sig-main-shell .sig-finance-ledger__header-icon {
+  display:flex; flex:0 0 38px; align-items:center; justify-content:center;
+  height:38px; border:1px solid #c7ddeb; border-radius:11px;
+  background:#e9f3f9; color:#116189;
+}
+html body #root .sig-main-shell .sig-finance-ledger__eyebrow {
+  color:#517184; display:block; font-size:10px; font-weight:760; letter-spacing:.095em;
+}
+html body #root .sig-main-shell .sig-finance-ledger__title {
+  margin:3px 0 2px; font-size:17px; line-height:1.27; font-weight:790;
+  letter-spacing:-.02em; color:#173a50 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__subtitle {
+  font-size:11.5px; line-height:1.4; color:#587487 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__counter {
+  display:flex; flex:0 0 auto; align-items:center; gap:7px;
+  padding:7px 11px; border:1px solid #d0e1eb; border-radius:10px;
+  background:#eaf3f8; color:#1d536e;
+}
+html body #root .sig-main-shell .sig-finance-ledger__counter strong {
+  font-size:17px; line-height:1.1; font-weight:800; font-variant-numeric:tabular-nums;
+}
+html body #root .sig-main-shell .sig-finance-ledger__counter span {
+  font-size:10.5px; line-height:1.2; font-weight:700;
+}
+html body #root .sig-main-shell .sig-finance-ledger__toolbar {
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+  padding:11px 14px; background:#fff; border-bottom:1px solid #e1e9f0;
+}
+html body #root .sig-main-shell .sig-finance-ledger__search {
+  display:flex; flex:1 1 260px; max-width:430px;
+  min-width:210px; position:relative; align-items:center; color:#668394;
+}
+html body #root .sig-main-shell .sig-finance-ledger__search > svg {
+  position:absolute; left:11px; z-index:1; pointer-events:none;
+}
+html body #root .sig-main-shell .sig-finance-ledger__search input {
+  width:100%; height:37px; padding:0 11px 0 36px;
+  border:1px solid #c7d7e5; border-radius:9px;
+  background:#fff; color:#183f57; font-size:12px; font-weight:500;
+}
+html body #root .sig-main-shell .sig-finance-ledger__search input::placeholder { color:#678195; opacity:1; }
+html body #root .sig-main-shell .sig-finance-ledger__search input:focus-visible { outline:2px solid #177eac; outline-offset:1px; }
+html body #root .sig-main-shell .sig-finance-ledger__filters {
+  display:flex; flex:1 1 350px; align-items:center;
+  flex-wrap:nowrap; gap:6px; min-width:0; padding-bottom:3px;
+  overflow-x:auto; scrollbar-width:thin; scrollbar-color:#b8cbd9 transparent;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter {
+  display:inline-flex; flex:0 0 auto; align-items:center; gap:6px;
+  min-height:32px; padding:5px 10px; border:1px solid #dae4eb;
+  border-radius:8px; background:#f8fafc; color:#3a586c;
+  font-size:11px; font-weight:700; white-space:nowrap;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter > span {
+  padding:2px 5px; border-radius:6px; background:#e9f0f5;
+  font-size:10px; color:#506c7e; font-variant-numeric:tabular-nums;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter:hover {
+  background:#eaf5fc; color:#165777; border-color:#83b4d0;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"] {
+  background:#145c80; color:#fff; border-color:#145c80;
+  box-shadow:0 2px 7px rgba(21,89,125,.13);
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"] > span {
+  color:#fff; background:rgba(255,255,255,.19);
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter:focus-visible { outline:2px solid #207eae; outline-offset:2px; }
+html body #root .sig-main-shell .sig-finance-ledger__actions {
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  flex-wrap:wrap; padding:9px 14px; background:#f5f9fc;
+  border-bottom:1px solid #dce8ef;
+}
+html body #root .sig-main-shell .sig-finance-ledger__select-all {
+  display:flex; align-items:center; gap:9px; min-height:32px;
+  color:#395e74; font-size:11px; font-weight:750;
+}
+html body #root .sig-main-shell .sig-finance-ledger__select-all input,
+html body #root .sig-main-shell .sig-finance-ledger__selection-column input {
+  width:16px; height:16px; cursor:pointer; accent-color:#176a96;
+}
+html body #root .sig-main-shell .sig-finance-ledger__select-all input:disabled,
+html body #root .sig-main-shell .sig-finance-ledger__selection-column input:disabled { cursor:not-allowed; opacity:.45; }
+html body #root .sig-main-shell .sig-finance-ledger__action-buttons {
+  display:flex; flex-wrap:wrap; align-items:center; gap:7px;
+}
+html body #root .sig-main-shell .sig-finance-ledger__action-buttons > * {
+  display:inline-flex; align-items:center; gap:6px;
+  height:33px; border-radius:8px; padding:0 11px;
+  font-size:11px; font-weight:760; white-space:nowrap;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled) {
+  background:#165f84; border-color:#165f84; color:#fff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled):hover {
+  background:#104d70; color:#fff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:disabled {
+  background:#e7edf1; border-color:#d6e1e8; color:#576b77;
+}
+html body #root .sig-main-shell .sig-finance-ledger__archive-action {
+  background:#fff; color:#244c63 !important; border:1px solid #bed2e0;
+}
+html body #root .sig-main-shell .sig-finance-ledger__archive-action:hover {
+  background:#e4f2fa; color:#114d6b !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__feedback {
+  padding:8px 14px; border-bottom:1px solid #dfc9a0;
+  background:#fff8e6; color:#805612; font-size:11px; font-weight:740;
+}
+html body #root .sig-main-shell .sig-finance-ledger__notice {
+  margin:0; padding:8px 14px; border-bottom:1px solid #dce8ef;
+  background:#eff6fb; color:#3a5f74 !important; font-size:10.5px; line-height:1.45;
+}
+html body #root .sig-main-shell .sig-finance-ledger__table { container: finance-guide-table / inline-size; min-width:0; }
+html body #root .sig-main-shell .sig-finance-ledger__grid {
+  display:grid; grid-template-columns:36px minmax(205px,1.65fr) minmax(165px,1.25fr) 128px 142px 110px 34px;
+  column-gap:11px; align-items:center; min-width:0;
+}
+html body #root .sig-main-shell .sig-finance-ledger__table-head {
+  position:sticky; top:0; z-index:1; background:#eef3f7;
+  border-bottom:1px solid #d4e0e9;
+}
+html body #root .sig-main-shell .sig-finance-ledger__column-titles {
+  padding:10px 14px; color:#3e5d70; font-size:10px;
+  font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+}
+html body #root .sig-main-shell .sig-finance-ledger__column-titles > span { min-width:0; }
+html body #root .sig-main-shell .sig-finance-ledger__row {
+  min-height:70px; padding:9px 14px; border-bottom:1px solid #e5edf3;
+  background:#fff; color:#1a3e55;
+  transition:background-color .14s ease;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:nth-child(even) { background:#f8fafc; }
+html body #root .sig-main-shell .sig-finance-ledger__row:hover { background:#ecf6fc; }
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"] {
+  background:#dcecf7; box-shadow:inset 3px 0 #177eaa;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row > [role="cell"] {
+  min-width:0; overflow-wrap:normal; word-break:normal;
+}
+html body #root .sig-main-shell .sig-finance-ledger__selection-column {
+  display:flex; align-items:center; justify-content:center;
+}
+html body #root .sig-main-shell .sig-finance-ledger__reference-line {
+  display:flex; align-items:center; min-width:0; gap:9px;
+}
+html body #root .sig-main-shell .sig-finance-ledger__sequence {
+  display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center;
+  min-width:30px; min-height:27px; padding:3px 5px;
+  border-radius:7px; background:#163f58; color:#fff;
+  font-size:10px; font-weight:820; font-variant-numeric:tabular-nums;
+}
+html body #root .sig-main-shell .sig-finance-ledger__sequence[data-official-sequence="false"] {
+  border:1px solid #e0b760; background:#fff3da; color:#805512;
+}
+html body #root .sig-main-shell .sig-finance-ledger__reference {
+  display:block; min-width:0; max-width:100%;
+  color:#125a83 !important; font-size:12px; font-weight:820;
+  line-height:1.4; text-decoration:none !important;
+  overflow-wrap:anywhere; word-break:normal;
+}
+html body #root .sig-main-shell .sig-finance-ledger__reference:hover { color:#06436b !important; text-decoration:underline !important; }
+html body #root .sig-main-shell .sig-finance-ledger__guide-type {
+  display:block; padding-left:39px; margin-top:3px;
+  color:#607687 !important; font-size:10.5px; line-height:1.35; font-weight:600;
+}
+html body #root .sig-main-shell .sig-finance-ledger__original-reference {
+  display:block; padding-left:39px; margin-top:3px;
+  color:#61798b !important; font-size:10px; line-height:1.4; overflow-wrap:anywhere;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-column,
+html body #root .sig-main-shell .sig-finance-ledger__dates-column {
+  display:flex; flex-direction:column; gap:4px; min-width:0;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-column strong,
+html body #root .sig-main-shell .sig-finance-ledger__dates-column strong {
+  display:block; overflow-wrap:anywhere; color:#244257 !important;
+  font-size:11.5px; font-weight:750; line-height:1.35;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-column span,
+html body #root .sig-main-shell .sig-finance-ledger__dates-column span {
+  color:#5c7689 !important; font-size:10.5px; line-height:1.4; overflow-wrap:anywhere;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status-column { display:flex; flex-direction:column; gap:5px; align-items:flex-start; }
+html body #root .sig-main-shell .sig-finance-ledger__status {
+  display:inline-flex; align-items:center; max-width:100%; width:max-content;
+  padding:5px 8px; min-height:23px; height:auto !important;
+  background:#fff5df; border:1px solid #e1c586; border-radius:7px;
+  color:#7b5417 !important; font-size:10px; line-height:1.3; font-weight:800;
+  white-space:normal; overflow-wrap:normal; word-break:normal;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="reported"] {
+  background:#e7f5ec; border-color:#b6d9c4; color:#1c6742 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="simulation"] {
+  background:#eaf3fa; border-color:#bbd5e5; color:#225978 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__responsibility {
+  color:#617c8e !important; font-size:9.5px; line-height:1.25;
+}
+html body #root .sig-main-shell .sig-finance-ledger__amount-column { text-align:right; }
+html body #root .sig-main-shell .sig-finance-ledger__value {
+  font-size:12px; font-weight:850; line-height:1.35; white-space:nowrap;
+  color:#113e57 !important; font-variant-numeric:tabular-nums;
+}
+html body #root .sig-main-shell .sig-finance-ledger__open-column { display:flex; justify-content:flex-end; }
+html body #root .sig-main-shell .sig-finance-ledger__open {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:31px; height:31px; border-radius:8px;
+  border:1px solid #bcd6e8; background:#e9f3fa; color:#11638a !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__open:hover { background:#d4eaf8; color:#094464 !important; }
+html body #root .sig-main-shell .sig-finance-ledger__open:focus-visible { outline:2px solid #176c9b; outline-offset:2px; }
+html body #root .sig-main-shell .sig-finance-ledger__mobile-details,
+html body #root .sig-main-shell .sig-finance-ledger__mobile-status { display:none; }
+html body #root .sig-main-shell .sig-finance-ledger__empty {
+  padding:25px 15px; text-align:center; color:#4b697c;
+  background:#fff; font-size:12px;
+}
+html body #root .sig-main-shell .sig-finance-ledger__pagination {
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
+  gap:10px; padding:11px 14px; color:#4d6c80; font-size:11px;
+  border-top:1px solid #dae5ed; background:#f8fafc;
+}
+html body #root .sig-main-shell .sig-finance-ledger__page-controls {
+  display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+}
+html body #root .sig-main-shell .sig-finance-ledger__page-controls label { display:flex; align-items:center; gap:7px; font-weight:700; }
+html body #root .sig-main-shell .sig-finance-ledger__page-controls select {
+  height:31px; padding:4px 8px; border:1px solid #bbd0df;
+  border-radius:7px; color:#214d66; background:#fff; font-size:11px; font-weight:700;
+}
+html body #root .sig-main-shell .sig-finance-ledger__page-controls button { height:31px; width:34px; padding:0; border-radius:7px; }
+html body #root .sig-main-shell .sig-finance-ledger__page-controls > span { min-width:41px; text-align:center; font-weight:760; }
+@container finance-guide-table (max-width: 1050px) {
+  html body #root .sig-main-shell .sig-finance-ledger__grid {
+    grid-template-columns:32px minmax(0,1.4fr) minmax(110px,.75fr) 114px 32px;
+    column-gap:9px;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__process-column,
+  html body #root .sig-main-shell .sig-finance-ledger__dates-column { display:none; }
+  html body #root .sig-main-shell .sig-finance-ledger__mobile-details {
+    display:flex; flex-wrap:wrap; gap:3px 12px; padding-left:39px;
+    margin-top:5px; color:#597386; font-size:10px; line-height:1.35;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__mobile-details strong { color:#294f65; }
+}
+@container finance-guide-table (max-width: 650px) {
+  html body #root .sig-main-shell .sig-finance-ledger__grid {
+    grid-template-columns:30px minmax(0,1fr) 105px 31px;
+    column-gap:8px;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__status-column { display:none; }
+  html body #root .sig-main-shell .sig-finance-ledger__mobile-status { display:inline-flex; margin:5px 0 0 39px; }
+  html body #root .sig-main-shell .sig-finance-ledger__guide-type { padding-left:39px; }
+  html body #root .sig-main-shell .sig-finance-ledger__row { padding:10px; min-height:75px; }
+  html body #root .sig-main-shell .sig-finance-ledger__column-titles { padding:10px; }
+}
+@container finance-guide-table (max-width: 470px) {
+  html body #root .sig-main-shell .sig-finance-ledger__grid {
+    grid-template-columns:27px minmax(0,1fr) 30px; gap:7px;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__amount-column {
+    grid-column:2; grid-row:2; text-align:left; padding-left:39px;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__open-column {
+    grid-column:3; grid-row:1 / span 2;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__column-titles .sig-finance-ledger__amount-column { display:none; }
+  html body #root .sig-main-shell .sig-finance-ledger__column-titles .sig-finance-ledger__open-column { grid-column:3; grid-row:1; }
+  html body #root .sig-main-shell .sig-finance-ledger__header { padding:12px; }
+  html body #root .sig-main-shell .sig-finance-ledger__counter span { display:none; }
+  html body #root .sig-main-shell .sig-finance-ledger__toolbar,
+  html body #root .sig-main-shell .sig-finance-ledger__actions { padding:9px 10px; }
+  html body #root .sig-main-shell .sig-finance-ledger__search { min-width:0; }
+  html body #root .sig-main-shell .sig-finance-ledger__status { max-width:100%; }
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger {
+  background:#122a3b; border-color:#36566c; color:#e3f2fb;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__header,
+html.dark body #root .sig-main-shell .sig-finance-ledger__toolbar,
+html.dark body #root .sig-main-shell .sig-finance-ledger__actions,
+html.dark body #root .sig-main-shell .sig-finance-ledger__pagination {
+  background:#1a3549; border-color:#395569;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__title,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row,
+html.dark body #root .sig-main-shell .sig-finance-ledger__reference,
+html.dark body #root .sig-main-shell .sig-finance-ledger__process-column strong,
+html.dark body #root .sig-main-shell .sig-finance-ledger__dates-column strong,
+html.dark body #root .sig-main-shell .sig-finance-ledger__value { color:#f1faff !important; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__eyebrow,
+html.dark body #root .sig-main-shell .sig-finance-ledger__subtitle,
+html.dark body #root .sig-main-shell .sig-finance-ledger__process-column span,
+html.dark body #root .sig-main-shell .sig-finance-ledger__dates-column span,
+html.dark body #root .sig-main-shell .sig-finance-ledger__mobile-details,
+html.dark body #root .sig-main-shell .sig-finance-ledger__guide-type,
+html.dark body #root .sig-main-shell .sig-finance-ledger__responsibility { color:#b8d1df !important; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__row,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:nth-child(even) {
+  background:#153043; border-color:#36536a;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:hover,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"] { background:#204d66; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__table-head,
+html.dark body #root .sig-main-shell .sig-finance-ledger__notice { background:#213f53; border-color:#446176; color:#d0e6f2 !important; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__column-titles { color:#c7dfec; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__mobile-details strong { color:#e0f1fb; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__search input,
+html.dark body #root .sig-main-shell .sig-finance-ledger__page-controls select {
+  background:#10283a; border-color:#54738a; color:#edf8ff;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter { background:#173b50; border-color:#4c7087; color:#d9eefb; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter > span { background:#295268; color:#e7f4fd; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"] { background:#c9e9fa; border-color:#c9e9fa; color:#123b53; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"] > span { background:#a5d0e8; color:#173f58; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled) { background:#d4efff; color:#0f415d !important; border-color:#d4efff; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__archive-action { background:#234d65; border-color:#648ca4; color:#f1faff !important; }
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="reported"] {
+  background:#174431; border-color:#457d61; color:#d1ffe6 !important;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="simulation"] {
+  background:#173f57; border-color:#467a9b; color:#d6efff !important;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="pending"] {
+  background:#57421c; border-color:#947a45; color:#fff0c8 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html body #root .sig-main-shell .sig-finance-ledger__row { transition:none; }
+}
+
+
+/* SIGAPRO FINANCE CONTRAST CONTRACT v5 */
+/* Effective hierarchy: selected navigation uses navy + light ink, unselected
+ * uses ivory + dark ink. This explicitly overrides the generic active-tab
+ * text rule and the legacy finance light-active-card background. */
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"],
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"]:hover,
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"]:focus-visible {
+  background: linear-gradient(135deg,#104f75 0%,#0c567c 100%) !important;
+  background-color: #104f75 !important;
+  border-color: #0c567c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.25),0 7px 16px rgba(7,54,83,.18) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"] .sig-nav-item-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"] .sig-nav-item-helper {
+  color: #eaf6ff !important;
+  -webkit-text-fill-color: #eaf6ff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="false"] {
+  background: #f7fbff !important;
+  border-color: #c5d8e5 !important;
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="false"] .sig-nav-item-label {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="false"] .sig-nav-item-helper {
+  color: #435e73 !important;
+  -webkit-text-fill-color: #435e73 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="false"]:hover {
+  background: #eaf5fc !important;
+  border-color: #6facca !important;
+  box-shadow: 0 5px 13px rgba(9,76,108,.10) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item:focus-visible {
+  outline: 3px solid #2080ad !important;
+  outline-offset: 2px !important;
+}
+/* Card hierarchy: light finance KPIs remain readable in both themes. A hover
+ * may elevate borders/shadows, but never turn a light card dark under dark ink. */
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-surface="metric"][data-premium-role-blue="metric"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f4f9fc 100%) !important;
+  border-color: #c4d8e6 !important;
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+  box-shadow: 0 7px 20px rgba(15,58,90,.075) !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-surface="metric"][data-premium-role-blue="metric"]:hover {
+  background: linear-gradient(180deg,#ffffff 0%,#f4f9fc 100%) !important;
+  border-color: #80b5d2 !important;
+  box-shadow: 0 11px 23px rgba(15,58,90,.13) !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-role-blue="metric"] .sig-stat-value {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-role-blue="metric"] .sig-fit-title:not(.sig-stat-value) {
+  color: #315c79 !important;
+  -webkit-text-fill-color: #315c79 !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-role-blue="metric"] .sig-fit-copy {
+  color: #435e73 !important;
+  -webkit-text-fill-color: #435e73 !important;
+}
+/* The finance ledger uses light-on-dark ONLY in inverse mode. Section heading
+ * and metric ink are scoped to their own card, not inherited by nested badges. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-finance-workspace :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  border-color: #c4d8e6 !important;
+  color: #15364d !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-finance-workspace :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] :is(.sig-section-title,.sig-subtitle) {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-workspace :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  background: linear-gradient(180deg,#102a3f 0%,#0c2234 100%) !important;
+  border-color: #3e6076 !important;
+  color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-workspace :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] :is(.sig-section-title,.sig-subtitle) {
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-workspace .sig-section-icon {
+  border-color: #53758b !important;
+  background: #1b4760 !important;
+  color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-workspace .sig-section-icon svg {
+  color: #edf8ff !important;
+  stroke: currentColor !important;
+}
+/* Selected filters: override legacy -webkit-text-fill-color in nested chips.
+ * The same blue/white combination is used in both light and inverse themes. */
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"],
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"]:hover,
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"]:focus-visible,
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__filter[data-active="true"] {
+  background: #0c567c !important;
+  border-color: #0c567c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"] > span,
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"] > span,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__filter[data-active="true"] > span {
+  background: #1d6384 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="false"] {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="false"] > span {
+  color: #435e73 !important;
+  -webkit-text-fill-color: #435e73 !important;
+}
+/* Rows: selectable state and hover remain readable even when the selected row
+ * gains a stronger blue surface. No blending or opacity reduction to text. */
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover {
+  background: #d9ebf6 !important;
+  box-shadow: inset 3px 0 #116e99 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:is(:hover,[data-selected="true"])
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__value,.sig-finance-ledger__process-column strong) {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="reported"] {
+  background: #e7f5ec !important; color: #1c6742 !important;
+  -webkit-text-fill-color: #1c6742 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="simulation"] {
+  background: #eaf3fa !important; color: #225978 !important;
+  -webkit-text-fill-color: #225978 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="pending"] {
+  background: #fff5df !important; color: #7b5417 !important;
+  -webkit-text-fill-color: #7b5417 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled) {
+  background: #104f75 !important; border-color: #104f75 !important;
+  color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled):hover {
+  background: #0c567c !important; border-color: #0c567c !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled) :is(span,svg),
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled):hover :is(span,svg) {
+  color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__archive-action,
+html body #root .sig-main-shell .sig-finance-ledger__archive-action:hover {
+  color: #15364d !important; -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__archive-action svg { stroke: currentColor !important; }
+/* Inverse layouts do not necessarily set html.dark, so support both contracts. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger,
+html.dark body #root .sig-main-shell .sig-finance-ledger {
+  background: #0f2d43 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+  border-color: #41637a !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__header,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__toolbar,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__actions,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__pagination {
+  background: #17384d !important;
+  border-color: #40627b !important;
+  color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:nth-child(even),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row {
+  background: #153043 !important;
+  border-color: #39576d !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:hover,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"] {
+  background: #204d66 !important;
+  box-shadow: inset 3px 0 #75c7ec !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__value,.sig-finance-ledger__process-column strong,.sig-finance-ledger__dates-column strong),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:is(:hover,[data-selected="true"])
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__value,.sig-finance-ledger__process-column strong),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:is(:hover,[data-selected="true"])
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__value,.sig-finance-ledger__process-column strong) {
+  color: #f5fbff !important;
+  -webkit-text-fill-color: #f5fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row
+  :is(.sig-finance-ledger__guide-type,.sig-finance-ledger__responsibility,.sig-finance-ledger__dates-column span,.sig-finance-ledger__process-column span,.sig-finance-ledger__mobile-details),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row
+  :is(.sig-finance-ledger__guide-type,.sig-finance-ledger__responsibility,.sig-finance-ledger__dates-column span,.sig-finance-ledger__process-column span,.sig-finance-ledger__mobile-details) {
+  color: #bfd9e8 !important;
+  -webkit-text-fill-color: #bfd9e8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__filter[data-active="false"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="false"] {
+  background: #173b50 !important; color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important; border-color: #58798d !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__filter[data-active="false"] > span,
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="false"] > span {
+  background: #28516a !important; color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="reported"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="reported"] {
+  background: #174431 !important; color: #d1ffe6 !important;
+  -webkit-text-fill-color: #d1ffe6 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="simulation"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="simulation"] {
+  background: #173f57 !important; color: #d6efff !important;
+  -webkit-text-fill-color: #d6efff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="pending"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="pending"] {
+  background: #57421c !important; color: #fff0c8 !important;
+  -webkit-text-fill-color: #fff0c8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled),
+html.dark body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled) {
+  background: #104f75 !important; border-color: #80bddc !important;
+  color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__archive-action,
+html.dark body #root .sig-main-shell .sig-finance-ledger__archive-action {
+  background: #234d65 !important; border-color: #6f98af !important;
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__page-controls select {
+  background: #10283a !important; border-color: #62869f !important;
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__search input {
+  background: #10283a !important; border-color: #62869f !important;
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__search input::placeholder {
+  color: #bfd9e8 !important; -webkit-text-fill-color: #bfd9e8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__table-head,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__notice {
+  background: #213f53 !important; border-color: #45677d !important;
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__column-titles,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__pagination,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__select-all {
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+
+/* SIGAPRO FINANCE CONTRAST CONTRACT v5 — inverse nested surfaces */
+/* Light chips and controls nested in a dark ledger cannot inherit white ink. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__counter,
+html.dark body #root .sig-main-shell .sig-finance-ledger__counter {
+  background: #21475d !important;
+  border-color: #547b92 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__counter :is(strong,span),
+html.dark body #root .sig-main-shell .sig-finance-ledger__counter :is(strong,span) {
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__header-icon,
+html.dark body #root .sig-main-shell .sig-finance-ledger__header-icon {
+  background: #1b506a !important;
+  color: #edf8ff !important;
+  border-color: #5f8ca6 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__header-icon svg,
+html.dark body #root .sig-main-shell .sig-finance-ledger__header-icon svg {
+  color: #edf8ff !important;
+  stroke: currentColor !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__sequence[data-official-sequence="false"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__sequence[data-official-sequence="false"] {
+  background: #fff3da !important;
+  color: #805512 !important;
+  -webkit-text-fill-color: #805512 !important;
+  border-color: #e0b760 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__open,
+html.dark body #root .sig-main-shell .sig-finance-ledger__open {
+  background: #1b506a !important;
+  border-color: #6b9bb5 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__open:hover,
+html.dark body #root .sig-main-shell .sig-finance-ledger__open:hover {
+  background: #285f7b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__open svg,
+html.dark body #root .sig-main-shell .sig-finance-ledger__open svg {
+  stroke: currentColor !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__empty,
+html.dark body #root .sig-main-shell .sig-finance-ledger__empty {
+  background: #153043 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__feedback,
+html.dark body #root .sig-main-shell .sig-finance-ledger__feedback {
+  background: #4e3718 !important;
+  border-color: #96723a !important;
+  color: #fff0c8 !important;
+  -webkit-text-fill-color: #fff0c8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__page-controls button,
+html.dark body #root .sig-main-shell .sig-finance-ledger__page-controls button {
+  background: #234d65 !important;
+  border-color: #648ba1 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__page-controls button:disabled,
+html.dark body #root .sig-main-shell .sig-finance-ledger__page-controls button:disabled {
+  background: #1a3b51 !important;
+  color: #c6ddeb !important;
+  -webkit-text-fill-color: #c6ddeb !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__search > svg,
+html.dark body #root .sig-main-shell .sig-finance-ledger__search > svg {
+  color: #c6ddeb !important;
+  stroke: currentColor !important;
+}
+
+
+/* SIGAPRO | Financeiro screenshot contrast v6 — official DAM sequence */
+/* Screenshot regression: previous parent card text-fill values reached the
+   blue sequence marker, creating muted numerals on navy. Explicit foreground
+   and text fill are REQUIRED on the marker itself in all three theme modes. */
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__sequence[data-official-sequence="true"],
+html body #root .sig-main-shell .sig-finance-ledger__row:hover .sig-finance-ledger__sequence[data-official-sequence="true"],
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"] .sig-finance-ledger__sequence[data-official-sequence="true"] {
+  background: #123f5b !important;
+  border: 1px solid #123f5b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+  font-weight: 850 !important;
+  min-width: 35px;
+  min-height: 29px;
+  letter-spacing: .015em;
+  box-shadow: 0 2px 5px rgba(9, 57, 88, .14);
+}
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__sequence[data-official-sequence="false"],
+html body #root .sig-main-shell .sig-finance-ledger__row:hover .sig-finance-ledger__sequence[data-official-sequence="false"] {
+  background: #fff3da !important;
+  border-color: #d5a34f !important;
+  color: #744b0b !important;
+  -webkit-text-fill-color: #744b0b !important;
+  opacity: 1 !important;
+  font-weight: 850 !important;
+}
+/* DAM number and its corresponding official process remain readable within
+   a dense 25/50/100-record table. Full reference is never ellipsized. */
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__reference {
+  color: #105278 !important;
+  -webkit-text-fill-color: #105278 !important;
+  font-size: 12.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__guide-type,
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__original-reference {
+  color: #475e71 !important;
+  -webkit-text-fill-color: #475e71 !important;
+  opacity: 1 !important;
+  line-height: 1.5 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__process-column strong,
+html body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__value {
+  color: #153950 !important;
+  -webkit-text-fill-color: #153950 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:nth-child(even):not([data-selected="true"]) {
+  background: #f4f8fc !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:nth-child(odd):not([data-selected="true"]) {
+  background: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:hover:not([data-selected="true"]) {
+  background: #e8f3fa !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover {
+  background: #d4e8f5 !important;
+  box-shadow: inset 3px 0 #0a628b !important;
+}
+/* Financeiro / Controle por processo: refined total-record banner replaces
+   the washed-out grey capsule shown immediately above Controle de Processos. */
+html body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] {
+  min-height: 47px;
+  margin-bottom: 0;
+  padding: 10px 13px !important;
+  border: 1px solid #c3d9e8 !important;
+  border-left: 3px solid #217da8 !important;
+  border-radius: 12px !important;
+  background: #f0f7fb !important;
+  color: #173b55 !important;
+  box-shadow: 0 3px 11px rgba(12, 66, 102, .06);
+}
+html body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > p {
+  margin: 0 !important;
+  color: #254e68 !important;
+  -webkit-text-fill-color: #254e68 !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button {
+  background: #ffffff !important;
+  border-color: #adcbdc !important;
+  color: #164761 !important;
+  -webkit-text-fill-color: #164761 !important;
+  font-weight: 750;
+}
+html body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button:hover {
+  background: #e1f0f9 !important;
+  color: #11405a !important;
+  -webkit-text-fill-color: #11405a !important;
+}
+/* Respect inverse-main even when html.dark is not present. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:nth-child(even):not([data-selected="true"]),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:nth-child(even):not([data-selected="true"]) {
+  background: #1b374b !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:nth-child(odd):not([data-selected="true"]),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:nth-child(odd):not([data-selected="true"]) {
+  background: #132d40 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:hover:not([data-selected="true"]),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:hover:not([data-selected="true"]) {
+  background: #204b64 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover {
+  background: #215472 !important;
+  box-shadow: inset 3px 0 #89cce9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__reference,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__process-column strong,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__value,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__reference,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__process-column strong,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row .sig-finance-ledger__value {
+  color: #f5fbff !important;
+  -webkit-text-fill-color: #f5fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row :is(.sig-finance-ledger__guide-type,.sig-finance-ledger__original-reference),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row :is(.sig-finance-ledger__guide-type,.sig-finance-ledger__original-reference) {
+  color: #bfd9e8 !important;
+  -webkit-text-fill-color: #bfd9e8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"],
+html.dark body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] {
+  background: #1b3c53 !important;
+  border-color: #52778e !important;
+  border-left-color: #6fc0e5 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > p,
+html.dark body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > p {
+  color: #e7f5ff !important;
+  -webkit-text-fill-color: #e7f5ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button,
+html.dark body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button {
+  background: #234f68 !important;
+  border-color: #6d9ab3 !important;
+  color: #f5fbff !important;
+  -webkit-text-fill-color: #f5fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button:hover,
+html.dark body #root .sig-main-shell .sig-finance-process-summary[data-finance-process-summary="premium-v4"] > button:hover {
+  background: #28617f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+
+/* Livro financeiro v7: os números oficiais são números de PROCESSO, não das
+ * guias. Linhas relacionadas formam uma única unidade visual e de paginação. */
+html body #root .sig-main-shell .sig-finance-ledger__counter small {
+  display:block; padding-left:7px; border-left:1px solid #b8cbd9;
+  font-size:10.5px; font-weight:750; color:#3f6378;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group {
+  position:relative; border-bottom:1px solid #bdcfdd;
+  background: #fff;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group:last-child {
+  border-bottom:0;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group:nth-child(even) {
+  background:#f4f8fc;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group:nth-child(even)
+.sig-finance-ledger__row:not([data-selected="true"]) {
+  background:#f4f8fc !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group:nth-child(odd)
+.sig-finance-ledger__row:not([data-selected="true"]) {
+  background:#fff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row[data-guide-group-position="linked"] {
+  border-top:1px dashed #d4e1eb;
+  border-bottom:0;
+  min-height:59px;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row[data-guide-group-position="first"] {
+  min-height:70px;
+  border-bottom:0;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row:hover:not([data-selected="true"]) {
+  background:#e8f3fa !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row[data-selected="true"] {
+  background:#d4e8f5 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__linked-guide-marker {
+  display:inline-flex; flex:0 0 35px; align-items:center; justify-content:center;
+  height:28px; border-radius:8px; border:1px solid #d1e0e9;
+  background:#eaf2f7; color:#1c6489 !important;
+  -webkit-text-fill-color:#1c6489 !important;
+  font-size:16px; font-weight:800; line-height:1;
+}
+html body #root .sig-main-shell .sig-finance-ledger__linked-selection {
+  display:block; height:15px; width:15px; border-left:2px solid #a4c5d8;
+  border-bottom:2px solid #a4c5d8; border-bottom-left-radius:5px;
+}
+html body #root .sig-main-shell .sig-finance-ledger__sequence-warning {
+  padding:11px 15px; border-bottom:1px solid #e4bb77;
+  background:#fff5df; color:#744b0b !important;
+  -webkit-text-fill-color:#744b0b !important;
+  font-size:11px; font-weight:750; line-height:1.45;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__process-group,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__process-group {
+  background:#142f43; border-bottom-color:#45677e;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__process-group:nth-child(even)
+.sig-finance-ledger__row:not([data-selected="true"]),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__process-group:nth-child(even)
+.sig-finance-ledger__row:not([data-selected="true"]) {
+  background:#1b374b !important;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__process-group:nth-child(odd)
+.sig-finance-ledger__row:not([data-selected="true"]),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__process-group:nth-child(odd)
+.sig-finance-ledger__row:not([data-selected="true"]) {
+  background:#132d40 !important;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row[data-guide-group-position="linked"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row[data-guide-group-position="linked"] {
+  border-top-color:#54718a;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row:hover:not([data-selected="true"]),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row:hover:not([data-selected="true"]) {
+  background:#204b64 !important;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row[data-selected="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__process-group
+.sig-finance-ledger__row[data-selected="true"] {
+  background:#215472 !important;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__linked-guide-marker,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__linked-guide-marker {
+  background:#224a62; border-color:#587e95; color:#e5f5ff !important;
+  -webkit-text-fill-color:#e5f5ff !important;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__linked-selection,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__linked-selection {
+  border-color:#75accb;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__counter small,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__counter small {
+  color:#d3e7f5 !important; -webkit-text-fill-color:#d3e7f5 !important;
+  border-left-color:#537b92;
+}
+html.dark body #root .sig-main-shell .sig-finance-ledger__sequence-warning,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__sequence-warning {
+  background:#4e3718; border-bottom-color:#99723b;
+  color:#fff0c8 !important; -webkit-text-fill-color:#fff0c8 !important;
+}
+@container finance-guides (max-width: 470px) {
+  html body #root .sig-main-shell .sig-finance-ledger__counter small {
+    display:none;
+  }
+}

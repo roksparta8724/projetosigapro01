@@ -1,5 +1,6 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
+import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments } from "@/lib/municipalStaffAssignments";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
@@ -1479,13 +1480,19 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     const creatorProfile =
       (process.created_by_profile_id ? profileById.get(process.created_by_profile_id) : undefined) ??
       (process.created_by ? profileByUser.get(process.created_by) : undefined);
+    // A municipal clerk is not an external architect. Internal creators were
+    // previously copied into all professional IDs/emails and therefore every
+    // clerk-created record looked like an online external application.
+    const creatorIsExternalProfessional = [
+      "profissional_externo", "professional_external", "professional", "profissional",
+    ].includes(String(creatorProfile?.role ?? "").trim().toLowerCase());
     const ownerProfile =
       owner?.profile_id ? profileById.get(owner.profile_id) : undefined;
     const externalLeadProfile =
       (externalLead?.profile_id ? profileById.get(externalLead.profile_id) : undefined) ??
       (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined) ??
       (
-        process.created_by_profile_id
+        creatorIsExternalProfessional && process.created_by_profile_id
           ? profileById.get(process.created_by_profile_id)
           : undefined
       );
@@ -1516,22 +1523,24 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       ownerEmail: ownerPrivate?.email ?? "",
       technicalLead:
         externalLeadProfile?.full_name ??
-        creatorProfile?.full_name ??
         externalLead?.display_name ??
+        (creatorIsExternalProfessional ? creatorProfile?.full_name : undefined) ??
         "Nao informado",
       ownerProfileId: owner?.profile_id ?? undefined,
       technicalProfileId:
         externalLead?.profile_id ??
-        process.created_by_profile_id ??
-        undefined,
+        (creatorIsExternalProfessional ? process.created_by_profile_id : undefined),
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       createdByProfileId: process.created_by_profile_id ?? undefined,
       createdByUserId: process.created_by ?? creatorProfile?.user_id ?? undefined,
       createdByEmail: creatorProfile?.email ?? undefined,
       createdByRole: creatorProfile?.role ?? undefined,
-      professionalProfileId: externalLead?.profile_id ?? process.created_by_profile_id ?? undefined,
-      professionalUserId: externalLead?.user_id ?? process.created_by ?? creatorProfile?.user_id ?? undefined,
-      professionalEmail: externalLeadProfile?.email ?? creatorProfile?.email ?? undefined,
+      professionalProfileId: externalLead?.profile_id ??
+        (creatorIsExternalProfessional ? process.created_by_profile_id : undefined),
+      professionalUserId: externalLead?.user_id ??
+        (creatorIsExternalProfessional ? (process.created_by ?? creatorProfile?.user_id) : undefined),
+      professionalEmail: externalLeadProfile?.email ??
+        (creatorIsExternalProfessional ? creatorProfile?.email : undefined),
       tags: markers.map((marker) =>
         serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
       ),
@@ -3545,6 +3554,68 @@ export async function assignRemoteProfileDepartment(input: {
     municipality_id: string;
     department_id: string | null;
     department_name: string | null;
+  };
+}
+
+
+export type MunicipalStaffAssignmentRecord = {
+  id: string;
+  municipalityId: string;
+  profileId: string;
+  departmentId: string;
+  departmentName: string;
+  departmentCode: string;
+  role: "analista" | "financeiro" | "fiscal" | "setor_intersetorial";
+  isCurrent: boolean;
+  isActive: boolean;
+};
+
+export async function listRemoteMunicipalStaffAssignments(profileId?: string | null) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("list_municipal_staff_assignments_v1", {
+    _profile_id: profileId ?? null,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar as lotações autorizadas.");
+  return parseMunicipalStaffAssignments(data);
+}
+
+export async function setRemoteMunicipalStaffDepartment(input: {
+  municipalityId: string;
+  profileId: string;
+  departmentId: string;
+  enabled: boolean;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("set_municipal_staff_department_v1", {
+    _municipality_id: input.municipalityId,
+    _profile_id: input.profileId,
+    _department_id: input.departmentId,
+    _enabled: input.enabled,
+  });
+  if (error) throw new Error(error.message || "Não foi possível salvar o vínculo com a unidade.");
+  if (!data || data.ok !== true || String(data.profileId) !== input.profileId ||
+      String(data.municipalityId) !== input.municipalityId) {
+    throw new Error("O banco não confirmou a alteração da lotação.");
+  }
+  return data as { ok: true; profileId: string; municipalityId: string };
+}
+
+export async function activateRemoteMunicipalStaffAssignment(assignmentId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("activate_municipal_staff_assignment_v1", {
+    _assignment_id: assignmentId,
+  });
+  if (error) throw new Error(error.message || "A troca de departamento foi negada pelo banco.");
+  if (!data || data.ok !== true ||
+      !isSwitchableMunicipalStaffRole(String(data.role || ""))) {
+    throw new Error("O banco não confirmou o novo contexto operacional.");
+  }
+  return {
+    profileId: String(data.profileId),
+    municipalityId: String(data.municipalityId),
+    departmentId: String(data.departmentId),
+    departmentName: String(data.departmentName),
+    role: data.role as MunicipalStaffAssignmentRecord["role"],
   };
 }
 

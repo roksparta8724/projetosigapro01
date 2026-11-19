@@ -23,8 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
-import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import {
   PageMainContent,
   PageMainGrid,
@@ -32,6 +32,7 @@ import {
   PageSideContent,
   PageStatsRow,
 } from "@/components/platform/PageShell";
+import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
 import { GovbrArGuideBridge } from "@/components/platform/GovbrArGuideBridge";
@@ -42,7 +43,6 @@ import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
   buildProcessPath,
-  isExternalProfessionalProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
   formatOfficialProcessNumber,
@@ -57,6 +57,8 @@ import {
 } from "@/lib/platform";
 import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
 import { isFinancialTestGuide, protocolPaymentEvidenceLabel } from "@/lib/qaPaymentEvidence";
+import { classifyProtocolRegistrationSource } from "@/lib/protocolRegistrationSource";
+import "@/styles/sigapro-protocol-section-nav.css";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -94,6 +96,7 @@ export function ProtocolDeskPage() {
     dispatchProcess,
     getUserProfile,
     refreshRemoteStore,
+    remoteSyncedForCurrentUser,
     sendProcessMessage,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
@@ -113,9 +116,6 @@ export function ProtocolDeskPage() {
     () => new Map(sessionUsers.map((user) => [user.id, user])),
     [sessionUsers],
   );
-
-  const isExternalProfessionalSubmission = (process: ProcessRecord) =>
-    isExternalProfessionalProcess(process);
 
   // "Todos os protocolos" é o livro de registro da Prefeitura:
   // depois que um protocolo é criado, ele nunca desaparece só porque mudou de setor.
@@ -275,6 +275,7 @@ export function ProtocolDeskPage() {
     );
   }, [markerFilter, markerPresets, processes]);
   const [processListQuery, setProcessListQuery] = useState("");
+  const [processListView, setProcessListView] = useState<"tabela" | "detalhes">("tabela");
   const [expandedProcessIds, setExpandedProcessIds] = useState<Set<string>>(() => new Set());
   const [selectedProcessIds, setSelectedProcessIds] = useState<Set<string>>(() => new Set());
   const [finishedProcessIds, setFinishedProcessIds] = useState<Set<string>>(() => {
@@ -325,16 +326,14 @@ export function ProtocolDeskPage() {
   const urgentProtocols = queueItems.filter(
     (item) => item.sla.breached || item.sla.hoursRemaining <= 8,
   );
+  // Origem baseada na autoria do cadastro, não no trâmite ou no técnico.
   const deskProtocols = processes.filter((item) =>
-    item.dispatches.some(
-      (dispatch) =>
-        dispatch.from === "Setor de protocolo" || dispatch.to === "Setor de protocolo",
-    ),
-  );
+    classifyProtocolRegistrationSource(item) === "internal");
   const deskProtocolIds = new Set(deskProtocols.map((item) => item.id));
-  const onlineProtocolItems = processes.filter(
-    (item) => isExternalProfessionalSubmission(item) || !deskProtocolIds.has(item.id),
-  );
+  const onlineProtocolItems = processes.filter((item) =>
+    classifyProtocolRegistrationSource(item) === "external");
+  const unidentifiedOriginProtocols = processes.filter((item) =>
+    classifyProtocolRegistrationSource(item) === "unknown");
 
   const latestActivity = useMemo(
     () =>
@@ -367,6 +366,12 @@ export function ProtocolDeskPage() {
       ) || null
     );
   }, [processes, protocolQuery, tenantSettings]);
+  // A guia não pode aparecer como "pendente" ou R$ 0 quando ainda não
+  // foi emitida. O resumo apresenta somente evidências de guia existentes.
+  const matchedProcessGuides = matchedProcess
+    ? getProcessPaymentGuides(matchedProcess, tenantSettings)
+    : [];
+
   const dispatchRows = useMemo(
     () =>
       processes.flatMap((process) =>
@@ -416,16 +421,19 @@ export function ProtocolDeskPage() {
     [dispatchRows],
   );
 
+  // Short, deliberate labels: these are navigation titles, not descriptions.
+  // Full operational meaning is carried by the helper text and destination.
+  // Each item stays tied to the same section id and query parameter.
   const navItems = [
-    { value: "visao-geral", label: "Resumo", helper: "Prioridades e situação do setor" },
-    { value: "todos", label: "Todos os protocolos", helper: "Acompanhamento e rastreabilidade do Protocolo" },
-    { value: "fila", label: "Fila de triagem", helper: "Operação principal do protocolo" },
-    { value: "entradas", label: "Entradas", helper: "Separação por canal de recebimento" },
-    { value: "documentos", label: "Documentos pendentes", helper: "Bloqueios, exigências e regularização" },
-    { value: "pagamentos", label: "Pagamento do protocolo", helper: "Conferência e baixa da guia inicial" },
-    { value: "balcao", label: "Atendimento balcão", helper: "Recepção presencial e apoio assistido" },
-    { value: "online", label: "Atendimento online", helper: "Entrada digital e despacho inicial" },
-    { value: "historico", label: "Histórico", helper: "Últimos registros e rastreabilidade" },
+    { value: "visao-geral", label: "Resumo", helper: "Indicadores e prioridades" },
+    { value: "todos", label: "Todos os protocolos", helper: "Consulta e rastreabilidade" },
+    { value: "fila", label: "Fila de triagem", helper: "Processos da unidade" },
+    { value: "entradas", label: "Entradas", helper: "Origem dos registros" },
+    { value: "documentos", label: "Pendências", helper: "Documentos e exigências" },
+    { value: "pagamentos", label: "Pagamentos", helper: "Guias e confirmações" },
+    { value: "balcao", label: "Balcão", helper: "Atendimento assistido" },
+    { value: "online", label: "Portal externo", helper: "Recebimentos digitais" },
+    { value: "historico", label: "Histórico", helper: "Eventos e movimentações" },
   ] as const;
 
   const persistFinishedProcesses = (ids: Set<string>) => {
@@ -544,8 +552,49 @@ export function ProtocolDeskPage() {
       return haystack.includes(normalizedQuery);
     });
 
+    if (processListView === "tabela") {
+      return (
+        <section data-sigapro-protocol-process-table="true" className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+              Controle de processos · {visibleItems.length.toLocaleString("pt-BR")} registro(s) · {selectedProcessIds.size} selecionado(s)
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {selectedProcessIds.size > 0 ? (
+                <>
+                  <Button type="button" variant="outline" size="sm" disabled={Boolean(protocolActionBusy)}
+                    onClick={() => void dispatchSelectedToUrbanism(visibleItems)}>Despachar selecionados</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={finishSelectedInMyList}>
+                    Finalizar na minha lista
+                  </Button>
+                </>
+              ) : null}
+              <Button type="button" size="sm" variant="outline"
+                onClick={() => setProcessListView("detalhes")}>Ver ações de triagem</Button>
+            </div>
+          </div>
+          {protocolActionStatus ? <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">{protocolActionStatus}</p> : null}
+          <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} operator={session}
+            processes={visibleItems} emptyMessage={normalizedQuery ? "Nenhum processo corresponde à busca." : emptyMessage}
+            onBulkDispatch={() => { void dispatchSelectedToUrbanism(visibleItems); }}
+            selectedProcessIds={Array.from(selectedProcessIds)}
+            onToggleSelection={(id, selected) => {
+              if (selectedProcessIds.has(id) !== selected) toggleProcessSelection(id);
+            }}
+            showArchiveAction={false}
+            canDispatchProcess={(process) => isProcessOwnedBySessionDepartment(session, process)}
+          />
+        </section>
+      );
+    }
+
     return (
       <div className="space-y-3">
+        <div className="flex justify-end">
+          <Button type="button" size="sm" variant="outline" onClick={() => setProcessListView("tabela")}>
+            Voltar à tabela de processos
+          </Button>
+        </div>
         <div className="sticky top-[72px] z-20 rounded-[20px] border border-slate-200 bg-white/95 p-3 shadow-[0_10px_28px_rgba(15,23,42,0.07)] backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative min-w-0 flex-1">
@@ -611,7 +660,7 @@ export function ProtocolDeskPage() {
               const missingRequired = getMissingRequiredDocuments(process);
               const isUrgent = process.sla.breached || process.sla.hoursRemaining <= 8;
               const isDeskFlow = deskProtocolIds.has(process.id);
-              const externalSubmission = isExternalProfessionalSubmission(process);
+              const externalSubmission = classifyProtocolRegistrationSource(process) === "external";
               const creator =
                 (process.createdByProfileId ? userById.get(process.createdByProfileId) : undefined) ??
                 (process.createdBy ? userById.get(process.createdBy) : undefined);
@@ -1033,7 +1082,7 @@ export function ProtocolDeskPage() {
         ) : null}
 
         {matchedProcess ? (
-          <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
+          <div className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-5">
             <div className="sig-responsive-data-grid">
               <div>
                 <p className="sig-label">Protocolo</p>
@@ -1042,28 +1091,38 @@ export function ProtocolDeskPage() {
               <div>
                 <p className="sig-label">Guia principal</p>
                 <p className="mt-2 sig-fit-title text-sm font-semibold text-slate-950">
-                  {getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.code}
+                  {matchedProcessGuides[0]?.code?.trim() || "Guia ainda não emitida"}
                 </p>
               </div>
               <div>
                 <p className="sig-label">Situação</p>
                 <p className="mt-2 text-sm font-semibold text-slate-950">
-                  {getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.status === "compensada"
-                    ? "Pagamento confirmado"
-                    : "Pagamento pendente"}
+                  {matchedProcessGuides.length === 0
+                    ? "Sem guia emitida"
+                    : matchedProcessGuides[0]?.status === "compensada"
+                      ? "Pagamento confirmado"
+                      : "Pagamento não confirmado"}
                 </p>
               </div>
               <div>
                 <p className="sig-label">Valor</p>
                 <p className="mt-2 text-sm font-semibold text-slate-950">
-                  {formatCurrency(getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.amount || 0)}
+                  {matchedProcessGuides.length > 0 ? formatCurrency(matchedProcessGuides[0].amount) : "Aguardando emissão"}
                 </p>
               </div>
             </div>
 
             <div className="mt-4 grid gap-3 lg:grid-cols-3">
-              {getProcessPaymentGuides(matchedProcess, tenantSettings).map((guide) => (
-                <div key={guide.kind} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
+              {matchedProcessGuides.length === 0 ? (
+                <div data-sigapro-protocol-guide-empty="true"
+                  className="col-span-full flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-[#c5d9e8] bg-[#f5fafd] px-4 py-3 text-xs text-[#49677e]">
+                  <span>Nenhuma guia registrada para este processo. A emissão depende da etapa e das regras oficiais da Prefeitura.</span>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setSection("pagamentos")}>
+                    Conferir pagamentos
+                  </Button>
+                </div>
+              ) : matchedProcessGuides.map((guide) => (
+                <div key={guide.kind} className="sig-protocol-guide-entry rounded-lg border-l-[3px] border-l-[#83b4cf] bg-transparent px-3 py-2">
                   <p className="sig-fit-title text-sm font-semibold text-slate-950" title={guide.label}>
                     {guide.label}
                   </p>
@@ -1092,7 +1151,7 @@ export function ProtocolDeskPage() {
             Nenhum protocolo localizado com este número.
           </div>
         ) : (
-          <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+          <div className="sig-protocol-soft-card rounded-xl border border-dashed border-slate-300 px-4 py-4 text-sm text-[#4e677d]">
             {hint}
           </div>
         )}
@@ -1135,29 +1194,20 @@ export function ProtocolDeskPage() {
                 aria-label="Pesquisar protocolos sem edição"
               />
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                {visible.length} protocolo(s) encontrado(s). Exibindo até 75 resultados por consulta.
+                {visible.length} protocolo(s) encontrado(s) · paginação automática, somente leitura.
               </p>
               {visible.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:text-slate-300">
                   Nenhum protocolo encontrado para os filtros informados.
                 </p>
-              ) : visible.slice(0, 75).map((process) => (
-                <div key={process.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-                  <div className="min-w-0">
-                    <p data-sigapro-contained-text="true" className="font-semibold text-slate-950 dark:text-white">
-                      {formatOfficialProcessNumber(process.protocol)}
-                    </p>
-                    <p data-sigapro-contained-text="true" className="break-words text-sm text-slate-700 dark:text-slate-200">{process.title}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-300">{statusLabel(process.status)}</p>
-                  </div>
-                  <Link
-                    to={buildProcessPath(process)}
-                    className="inline-flex min-h-9 items-center rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100"
-                  >
-                    Consultar processo
-                  </Link>
-                </div>
-              ))}
+              ) : (
+                <>
+                  <p className="sr-only">Consultar processo</p>
+                  <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} operator={session} processes={visible} showArchiveAction={false}
+                    canDispatchProcess={() => false}
+                    emptyMessage="Nenhum protocolo encontrado para os filtros informados." />
+                </>
+              )}
             </div>
           </SectionCard>
         </PageShell>
@@ -1167,23 +1217,63 @@ export function ProtocolDeskPage() {
 
   return (
     <PortalFrame eyebrow="SETOR DE PROTOCOLO" title="Triagem municipal, atendimento e fluxo inicial">
-      <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
-        <PageHeader
-          eyebrow="Operação de protocolo"
-          title="Recepção, conferência documental e despacho inicial"
-          description="Receba pedidos, faça a triagem documental, protocole atendimentos e confirme a guia inicial antes do envio ao Urbanismo."
-          icon={ClipboardList}
-          actions={
-            <Button asChild className="rounded-full bg-slate-950 hover:bg-slate-900">
-              <Link to="/prefeitura/protocolos/novo">
-                <FilePlus2 className="mr-2 h-4 w-4 text-sky-200" />
-                Protocolar no balcão
-              </Link>
-            </Button>
-          }
-        />
+      <PageShell className={section === "visao-geral" ? "sig-protocol-desk sig-module-summary-active" : "sig-protocol-desk"}>
+        <section data-sigapro-protocol-quick-actions="true"
+          aria-label="Situação operacional do Protocolo"
+          className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-3 rounded-[15px] border border-[#c5d8e6] bg-white px-4 py-3 shadow-[0_4px_12px_rgba(18,54,83,0.05)]">
+          <div className="min-w-[180px] flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#416984]">Painel operacional</p>
+            <h2 className="mt-0.5 text-sm font-bold leading-snug text-[#173650]">
+              Protocolo e triagem
+            </h2>
+            <p className="mt-1 text-[11px] leading-4 text-[#526c80]">
+              {!effectiveScopeId
+                ? "Prefeitura não identificada para esta consulta."
+                : !remoteSyncedForCurrentUser
+                  ? "Sincronizando os registros oficiais da Prefeitura..."
+                  : processes.length === 0
+                    ? "Sem protocolos oficiais recebidos nesta Prefeitura."
+                    : "Informações oficiais da Prefeitura vinculada."}
+            </p>
+          </div>
+          <div data-sigapro-protocol-live-summary="true"
+            className="flex min-w-0 flex-[2_1_410px] flex-wrap items-center gap-x-0 gap-y-2"
+            aria-label="Indicadores de trabalho atuais">
+            <button type="button" onClick={() => setSection("todos")}
+              className="group flex min-w-[95px] flex-1 flex-col items-start border-r border-[#d6e3ed] px-3 py-1 text-left transition-colors hover:bg-[#eef6fb] focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+              title="Abrir o livro de todos os protocolos">
+              <span className="text-lg font-extrabold leading-5 tabular-nums text-[#113e5b]">{remoteSyncedForCurrentUser ? processes.length : "—"}</span>
+              <span className="mt-1 text-[11px] font-semibold leading-4 text-[#4d657a]">Registrados</span>
+            </button>
+            <button type="button" onClick={() => setSection("fila")}
+              className="group flex min-w-[95px] flex-1 flex-col items-start border-r border-[#d6e3ed] px-3 py-1 text-left transition-colors hover:bg-[#eef6fb] focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+              title="Abrir a fila de triagem">
+              <span className="text-lg font-extrabold leading-5 tabular-nums text-[#113e5b]">{remoteSyncedForCurrentUser ? queueItems.length : "—"}</span>
+              <span className="mt-1 text-[11px] font-semibold leading-4 text-[#4d657a]">Na unidade</span>
+            </button>
+            <button type="button" onClick={() => setSection("documentos")}
+              className="group flex min-w-[95px] flex-1 flex-col items-start border-r border-[#d6e3ed] px-3 py-1 text-left transition-colors hover:bg-[#eef6fb] focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+              title="Consultar pendências documentais">
+              <span className="text-lg font-extrabold leading-5 tabular-nums text-[#113e5b]">{remoteSyncedForCurrentUser ? incompleteProtocols.length : "—"}</span>
+              <span className="mt-1 text-[11px] font-semibold leading-4 text-[#4d657a]">Pendências</span>
+            </button>
+            <button type="button" onClick={() => setSection("pagamentos")}
+              className="group flex min-w-[95px] flex-1 flex-col items-start px-3 py-1 text-left transition-colors hover:bg-[#eef6fb] focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+              title="Consultar pagamentos de protocolo pendentes">
+              <span className="text-lg font-extrabold leading-5 tabular-nums text-[#113e5b]">{!remoteSyncedForCurrentUser || preprotocolPaymentsLoading || Boolean(preprotocolPaymentsError) ? "—" : pendingProtocolPayments.length + pendingPreprotocolPayments.length}</span>
+              <span className="mt-1 text-[11px] font-semibold leading-4 text-[#4d657a]">Guias pendentes</span>
+            </button>
+          </div>
+          <Button asChild className="h-10 shrink-0 rounded-lg bg-[#124c70] px-4 text-xs font-bold !text-white hover:bg-[#0b3957]">
+            <Link to="/prefeitura/protocolos/novo">
+              <FilePlus2 className="mr-2 h-4 w-4 text-sky-100" />
+              Protocolar no balcão
+            </Link>
+          </Button>
+        </section>
 
         <InternalTabs
+          className="sig-protocol-section-nav"
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as ProtocolSection)}
@@ -1417,16 +1507,16 @@ export function ProtocolDeskPage() {
           <>
             <PageStatsRow className="xl:grid-cols-3">
               <StatCard
-                label="Balcão"
+                label="Cadastro interno"
                 value={String(deskProtocols.length)}
-                description="Entradas com atendimento presencial"
+                description="Registros iniciados pela equipe municipal"
                 icon={Store}
                 tone="blue"
               />
               <StatCard
-                label="Online"
+                label="Portal externo"
                 value={String(onlineProtocolItems.length)}
-                description="Recepção digital disponível"
+                description="Registros de profissionais externos"
                 icon={Globe2}
                 tone="emerald"
               />
@@ -1440,21 +1530,31 @@ export function ProtocolDeskPage() {
             </PageStatsRow>
 
             <TableCard
-              title="Entradas por canal"
-              description="Recepção municipal organizada por origem, com leitura clara entre atendimento presencial e entrada digital."
+              title="Entradas por origem identificada"
+              description="Origem determinada pelo perfil que registrou o processo, sem inferir atendimento presencial apenas pelos despachos."
               icon={ClipboardList}
             >
+              {unidentifiedOriginProtocols.length > 0 ? (
+                <div data-sigapro-protocol-unidentified-origin="true"
+                  className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p className="text-xs leading-5 text-amber-900">
+                    {unidentifiedOriginProtocols.length} registro(s) sem perfil de origem confirmado. Não foram atribuídos automaticamente a Balcão ou Portal externo.
+                  </p>
+                  <Button type="button" size="sm" variant="outline" className="h-8 border-amber-300 bg-white text-xs text-amber-950"
+                    onClick={() => setSection("todos")}>Ver no livro oficial</Button>
+                </div>
+              ) : null}
               <div className="grid gap-6 xl:grid-cols-2">
-                <div className="sig-dark-panel rounded-3xl border border-slate-200 p-5">
+                <div className="sig-protocol-soft-card rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="sig-dark-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
-                      <Store className="h-4 w-4 text-sky-200" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#c8e1ec] bg-[#e6f3f9] text-[#1c7199]">
+                      <Store className="h-4 w-4 text-[#1c7199]" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">Atendimento balcão</p>
-                          <p className="mt-1 text-sm text-slate-500">Protocolos com apoio presencial do setor.</p>
+                          <p className="text-sm font-semibold text-slate-950">Cadastro interno</p>
+                          <p className="mt-1 text-sm text-slate-500">Registros iniciados pela equipe municipal, inclusive atendimentos no balcão.</p>
                         </div>
                         <span className="sig-theme-chip shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                           {deskProtocols.length} entrada{deskProtocols.length === 1 ? "" : "s"}
@@ -1463,20 +1563,31 @@ export function ProtocolDeskPage() {
                     </div>
                   </div>
                   <div className="mt-5">
-                    {renderQueueList(deskProtocols.slice(0, 6), "Nenhuma entrada presencial disponível.")}
+                    {deskProtocols.length > 0
+                      ? renderQueueList(deskProtocols.slice(0, 6), "Nenhuma entrada presencial corresponde ao filtro.")
+                      : <div data-sigapro-protocol-empty-channel="balcao"
+                          className="rounded-lg border border-dashed border-[#c9dce8] bg-[#f6fafc] px-4 py-3">
+                          <p className="text-xs font-semibold text-[#284c66]">Sem entradas presenciais identificadas</p>
+                          <p className="mt-1 text-[11px] leading-4 text-[#5b7284]">
+                            Nenhum registro desta Prefeitura possui autoria interna identificada nesta lista.
+                          </p>
+                          <Button asChild size="sm" variant="outline" className="mt-3 h-8 rounded-lg border-[#a9c6d9] text-xs text-[#164b6e]">
+                            <Link to="/prefeitura/protocolos/novo">Novo atendimento</Link>
+                          </Button>
+                        </div>}
                   </div>
                 </div>
 
-                <div className="sig-dark-panel rounded-3xl border border-slate-200 p-5">
+                <div className="sig-protocol-soft-card rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="sig-dark-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
-                      <Globe2 className="h-4 w-4 text-sky-200" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#c8e1ec] bg-[#e6f3f9] text-[#1c7199]">
+                      <Globe2 className="h-4 w-4 text-[#1c7199]" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">Atendimento online</p>
-                          <p className="mt-1 text-sm text-slate-500">Entradas digitais prontas para conferência.</p>
+                          <p className="text-sm font-semibold text-slate-950">Portal externo</p>
+                          <p className="mt-1 text-sm text-slate-500">Registros enviados por profissionais externos.</p>
                         </div>
                         <span className="sig-theme-chip shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                           {onlineProtocolItems.length} entrada{onlineProtocolItems.length === 1 ? "" : "s"}
@@ -1485,31 +1596,21 @@ export function ProtocolDeskPage() {
                     </div>
                   </div>
                   <div className="mt-5">
-                    {renderQueueList(onlineProtocolItems.slice(0, 6), "Nenhuma entrada digital disponível.", { includeFinished: true })}
+                    {onlineProtocolItems.length > 0
+                      ? renderQueueList(onlineProtocolItems.slice(0, 6), "Nenhuma entrada digital corresponde ao filtro.", { includeFinished: true })
+                      : <div data-sigapro-protocol-empty-channel="online"
+                          className="rounded-lg border border-dashed border-[#c9dce8] bg-[#f6fafc] px-4 py-3">
+                          <p className="text-xs font-semibold text-[#284c66]">Nenhuma entrada digital nesta consulta</p>
+                          <p className="mt-1 text-[11px] leading-4 text-[#5b7284]">
+                            Os registros criados por profissionais externos aparecerão quando houver origem confirmada.
+                          </p>
+                        </div>}
                   </div>
                 </div>
               </div>
             </TableCard>
 
-            <SectionCard title="Leitura da recepção" description="Distribuição rápida das entradas atuais e situação operacional do setor.">
-              <div className="grid gap-4 lg:grid-cols-3">
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
-                  <p className="sig-label">Balcão</p>
-                  <p className="mt-2 text-lg font-semibold text-slate-950">{deskProtocols.length}</p>
-                  <p className="mt-1 text-sm text-slate-500">Fluxo com atendimento assistido.</p>
-                </div>
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
-                  <p className="sig-label">Online</p>
-                  <p className="mt-2 text-lg font-semibold text-slate-950">{onlineProtocolItems.length}</p>
-                  <p className="mt-1 text-sm text-slate-500">Recepção digital do sistema.</p>
-                </div>
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
-                  <p className="sig-label">Novos registros</p>
-                  <p className="mt-2 text-lg font-semibold text-slate-950">{newProtocols.length}</p>
-                  <p className="mt-1 text-sm text-slate-500">Protocolos ainda na etapa inicial.</p>
-                </div>
-              </div>
-            </SectionCard>
+
           </>
         ) : null}
 
@@ -1847,8 +1948,16 @@ export function ProtocolDeskPage() {
             <PageMainContent>
               <TableCard title="Histórico operacional" description="Últimos registros de recepção, conferência, despacho e andamento do protocolo." icon={ClipboardList}>
                 <div className="space-y-3">
-                  {latestActivity.map((entry) => (
-                    <div key={entry.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
+                  {latestActivity.length === 0 ? (
+                    <div data-sigapro-protocol-empty-history="true"
+                      className="rounded-lg border border-dashed border-[#c9dce8] bg-[#f6fafc] px-4 py-3">
+                      <p className="text-xs font-semibold text-[#284c66]">Sem movimentações registradas nesta consulta</p>
+                      <p className="mt-1 text-[11px] leading-4 text-[#5b7284]">
+                        Quando houver eventos oficiais de recepção, triagem ou despacho, eles aparecerão aqui.
+                      </p>
+                    </div>
+                  ) : latestActivity.map((entry) => (
+                    <div key={entry.id} className="sig-protocol-soft-card rounded-lg border border-[#d2e1eb] p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>

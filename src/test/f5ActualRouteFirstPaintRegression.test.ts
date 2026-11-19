@@ -27,23 +27,24 @@ describe("SIGAPRO F5 — first paint and real route, without a fake shell", () =
     expect(app.indexOf('pathname.startsWith("/prefeitura/arrecadacao")')).toBeLessThan(
       app.indexOf('pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage")'),
     );
-    expect(app).toContain('void preloadCurrentInternalRoute(window.location.pathname)?.catch(() => undefined);');
+    expect(app).toContain('void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);');
+    expect(app).toContain('void import("@/components/platform/PortalFrame").catch(() => undefined);');
     expect(app).toContain('<PermissionRoute permission="view_collection_settings">');
     expect(app).toContain('<PlanModuleRoute module="Configurações">');
     expect(app).toContain("<CollectionSettingsPage />");
     expect(app).toContain("<SeamlessRefreshGate />");
   });
 
-  it("refreshes data without tearing down the app, including mobile/desktop controls", () => {
+  it("keeps real-route paint continuity and silent data refresh without redundant topbar controls", () => {
     const frame = read("src/components/platform/PortalFrame.tsx");
     expect(frame).toContain('document.documentElement.style.setProperty("--sig-initial-bg", pageBackground);');
     expect(frame).toContain('document.documentElement.style.setProperty("--sig-bg", pageBackground);');
     expect(frame).toContain('window.localStorage.setItem("sigapro.last-page-background.v2", pageBackground)');
-    expect(frame).toContain("const refreshWithoutPageReload = async () => {");
-    expect(frame).toContain("await refreshRemoteStore();");
-    expect(frame.match(/aria-label="Atualizar dados sem recarregar a página"/g)).toHaveLength(2);
-    const handler = frame.slice(frame.indexOf("const refreshWithoutPageReload"), frame.indexOf("// Revalidate permissions"));
-    expect(handler).not.toContain("window.location.reload");
+    expect(frame).toContain("useLivePlatformRefresh(refreshRemoteStore,");
+    expect(frame).toContain("refreshOnMount: false");
+    expect(frame).not.toContain("refreshWithoutPageReload");
+    expect(frame).not.toContain('aria-label="Atualizar dados sem recarregar a página"');
+    expect(frame).not.toContain("window.location.reload");
   });
 
   it("preserves permissions and documents rather than snapshotting protected DOM", () => {

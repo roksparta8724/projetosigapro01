@@ -1,0 +1,161 @@
+/*
+ * SIGAPRO — navegação premium do Protocolo.
+ * Corrige a causa raiz vista na UI: nove tabs flex-1 com min-width:145px,
+ * forçados a caber na mesma linha. Não altera outras mesas/Departamentos.
+ * As nove seções seguem em uma única faixa com scroll horizontal real.
+ */
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #c4d8e6 !important;
+  border-radius: 18px !important;
+  padding: 9px 10px 7px !important;
+  background: linear-gradient(180deg, #f2f8fc 0%, #eaf3f9 100%) !important;
+  box-shadow: 0 5px 16px rgba(14, 59, 91, .065) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav > div {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 9px !important;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  scroll-behavior: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 1px;
+  scrollbar-width: thin;
+  scrollbar-color: #90b8ce #dfeaf3;
+  padding: 1px 1px 9px !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav > div::-webkit-scrollbar {
+  height: 7px;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav > div::-webkit-scrollbar-track {
+  background: #dfeaf3;
+  border-radius: 999px;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav > div::-webkit-scrollbar-thumb {
+  background: #91b6c9;
+  border: 1px solid #dfeaf3;
+  border-radius: 999px;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item {
+  box-sizing: border-box;
+  position: relative;
+  display: flex !important;
+  flex: 0 0 185px !important;
+  width: 185px !important;
+  min-width: 185px !important;
+  max-width: 185px !important;
+  min-height: 106px !important;
+  height: 106px !important;
+  max-height: 106px !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  padding: 14px 14px 12px !important;
+  overflow: hidden !important;
+  text-align: left !important;
+  border-radius: 13px !important;
+  border: 1px solid #cbdce8 !important;
+  background: #fff !important;
+  box-shadow: 0 2px 7px rgba(20, 58, 88, .035) !important;
+  color: #173c56 !important;
+  -webkit-text-fill-color: #173c56 !important;
+  scroll-snap-align: start;
+  cursor: pointer;
+  transform: none !important;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item[data-nav-active="false"]:hover {
+  border-color: #77b2ce !important;
+  background: #f8fcff !important;
+  box-shadow: 0 5px 13px rgba(20, 70, 105, .095) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item[data-nav-active="true"] {
+  border-color: #3d8cb5 !important;
+  background: linear-gradient(180deg, #e6f4fc 0%, #d9edf8 100%) !important;
+  box-shadow: inset 0 3px 0 #11719c, 0 4px 12px rgba(13, 82, 119, .12) !important;
+  color: #0c415f !important;
+  -webkit-text-fill-color: #0c415f !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item:focus-visible {
+  outline: 3px solid #3d9fce !important;
+  outline-offset: -3px;
+  z-index: 1;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item .sig-nav-item-label {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100% !important;
+  min-width: 0;
+  max-height: 2.75em;
+  overflow: hidden !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  font-family: inherit;
+  font-size: 13.2px !important;
+  font-weight: 760 !important;
+  line-height: 1.35 !important;
+  letter-spacing: -.015em !important;
+  color: #173b56 !important;
+  -webkit-text-fill-color: #173b56 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item .sig-nav-item-helper {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  width: 100%;
+  max-width: 100%;
+  max-height: 2.9em;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-top: 7px !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  font-family: inherit;
+  font-size: 11.4px !important;
+  font-weight: 500 !important;
+  line-height: 1.44 !important;
+  letter-spacing: 0 !important;
+  color: #4e6d83 !important;
+  -webkit-text-fill-color: #4e6d83 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item[data-nav-active="true"] .sig-nav-item-label {
+  color: #0a405f !important;
+  -webkit-text-fill-color: #0a405f !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item[data-nav-active="true"] .sig-nav-item-helper {
+  color: #315e7c !important;
+  -webkit-text-fill-color: #315e7c !important;
+}
+/* Navigation is a deliberate light surface in either application theme. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-section-nav.sig-protocol-section-nav {
+  border-color: #bacddc !important;
+  background: #eaf3f9 !important;
+}
+@media (max-width: 720px) {
+  html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item {
+    flex-basis: 178px !important;
+    width: 178px !important;
+    min-width: 178px !important;
+    max-width: 178px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html body #root .sig-main-shell .sig-section-nav.sig-protocol-section-nav .sig-nav-item {
+    transition: none !important;
+  }
+}

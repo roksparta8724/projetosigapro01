@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
+import { assertPersonalProcessMarkerLimit } from "@/lib/processMarkerLimits";
 import { IdentityScopedSingleFlight } from "@/lib/identityScopedSingleFlight";
 import {
   type AccountStatus,
@@ -993,6 +994,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     initialStateRef.current = getInitialPlatformStoreState();
   }
   const [store, setStore] = useState<PlatformStore>(() => initialStateRef.current?.store ?? defaultStore);
+  // A single authenticated browser tab cannot concurrently add a fourth
+  // marker to the same process from two desks.
+  const markerWritesInFlightRef = useRef<Set<string>>(new Set());
   const [loading, setLoading] = useState<boolean>(false);
   const [source, setSource] = useState<DataSource>(() => initialStateRef.current?.source ?? "demo");
   const [dataError, setDataError] = useState<string | null>(null);
@@ -1404,6 +1408,43 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   const value = useMemo<PlatformDataState>(() => {
     const metrics = getMasterMetrics(store.processes, store.tenants);
+
+    const savePersonalProcessMarker = async (
+      processId: string, label: string, color: string,
+    ) => {
+      const normalized = label.trim();
+      if (!normalized) return;
+      if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
+      const process = store.processes.find(item => item.id === processId);
+      if (!process) throw new Error("Processo não sincronizado. Atualize a lista e tente novamente.");
+      assertPersonalProcessMarkerLimit(process.tags ?? [], normalized);
+      if (markerWritesInFlightRef.current.has(processId)) {
+        throw new Error("Uma gravação de marcador já está em andamento neste processo.");
+      }
+      markerWritesInFlightRef.current.add(processId);
+      try {
+        await upsertRemoteProcessMarker(processId, normalized, color);
+        const serialized = serializeMarker(normalized, color);
+        updateStore((current) => ({
+          ...current,
+          processes: current.processes.map(item => {
+            if (item.id !== processId) return item;
+            const tags = item.tags ?? [];
+            const index = tags.findIndex(tag =>
+              parseMarker(tag).label.trim().toLowerCase() === normalized.toLowerCase()
+            );
+            // Recoloring an existing professional marker retains its order.
+            const nextTags = index >= 0
+              ? tags.map((tag, i) => i === index ? serialized : tag)
+              : [...tags, serialized];
+            return { ...item, tags: nextTags };
+          }),
+        }));
+      } finally {
+        markerWritesInFlightRef.current.delete(processId);
+      }
+    };
+
     const upsertInstitution: PlatformDataState["upsertInstitution"] = (input, options) => {
       if (hasBackendEnv && !options?.remoteConfirmed) {
         throw new Error(
@@ -2464,42 +2505,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       addProcessMarker: async (processId, marker, actor) => {
-        const normalized = marker.trim();
-        if (!normalized) return;
-        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
-
-        await upsertRemoteProcessMarker(processId, normalized, "#2563eb");
-        const serialized = serializeMarker(normalized, "#2563eb");
-
-        updateStore((current) => ({
-          ...current,
-          processes: current.processes.map((process) => {
-            if (process.id !== processId) return process;
-            const nextTags = (process.tags ?? []).filter(
-              (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized.toLowerCase(),
-            );
-            return { ...process, tags: [...nextTags, serialized] };
-          }),
-        }));
+        await savePersonalProcessMarker(processId, marker, "#2563eb");
       },
       addProcessMarkerWithColor: async (processId, marker, color, actor) => {
-        const normalized = marker.trim();
-        if (!normalized) return;
-        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
-
-        await upsertRemoteProcessMarker(processId, normalized, color);
-        const serialized = serializeMarker(normalized, color);
-
-        updateStore((current) => ({
-          ...current,
-          processes: current.processes.map((process) => {
-            if (process.id !== processId) return process;
-            const nextTags = (process.tags ?? []).filter(
-              (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized.toLowerCase(),
-            );
-            return { ...process, tags: [...nextTags, serialized] };
-          }),
-        }));
+        await savePersonalProcessMarker(processId, marker, color);
       },
       removeProcessMarker: async (processId, marker, actor) => {
         const parsedMarker = parseMarker(marker);

@@ -10,7 +10,8 @@ describe("SIGAPRO — proporção institucional unificada", () => {
     expect(frame).toContain('compactHeader && "mb-3 pb-3"');
     expect(frame).toContain('compactHeader && "!h-[66px] !w-[110px] lg:!h-[66px] lg:!w-[110px]"');
     expect(frame).toContain('compactHeader && "mt-1 text-xs leading-4"');
-    expect(frame).toContain('!focusMode ? <header');
+    expect(frame).toContain('!focusMode && !hideSectionHeader ? <header');
+    expect(frame).toContain("hideSectionHeader = false");
   });
   it("dashboard, prefeitura e organograma compartilham o mesmo PortalFrame", () => {
     for (const file of ["DashboardHomePage.tsx","TenantAdminPage.tsx","MunicipalOrganizationPage.tsx"]) {
