@@ -272,6 +272,29 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     expect(await cached?.text()).toContain("release-live");
   });
 
+  it("não espera o disco do CacheStorage para exibir uma versão atual de homologação", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const h = harness(qaOrigin);
+    await h.install();
+    const originalOpen = h.cachesMock.open;
+    let allowCacheDisk: (() => void) | undefined;
+    const diskGate = new Promise<void>((resolve) => { allowCacheDisk = resolve; });
+    h.cachesMock.open = async (key: string) => {
+      await diskGate;
+      return originalOpen(key);
+    };
+    h.fetcher.mockImplementation(async () => appHtml("release-no-disk-wait"));
+
+    const result = await h.navigate(qaOrigin + "/prefeitura/protocolos/novo");
+    expect(await result.response.text()).toContain("release-no-disk-wait");
+    expect(result.background).toHaveLength(1);
+
+    allowCacheDisk?.();
+    await Promise.all(result.background);
+    expect(await h.stores.get("sigapro-enterprise-v9:public-html")
+      ?.get(qaOrigin + "/index.html")?.text()).toContain("release-no-disk-wait");
+  });
+
   it("ativa navigation preload na homologação móvel e usa HTML de rede pré-carregado", async () => {
     const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
     const h = harness(qaOrigin);
