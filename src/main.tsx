@@ -11,6 +11,7 @@ import "./styles/sigapro-role-blue-contrast.css";
 import "./styles/sigapro-premium-footer.css";
 import "./styles/sigapro-operational-header-premium.css";
 import "./styles/sigapro-finance-premium.css";
+import "./styles/sigapro-inverse-workspace-premium.css";
 
 const CONTINUITY_KEY = "sigapro.refresh.continuity.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
