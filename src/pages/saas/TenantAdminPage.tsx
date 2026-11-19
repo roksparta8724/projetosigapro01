@@ -1117,42 +1117,42 @@ export function TenantAdminPage() {
           <div className="grid gap-4 xl:grid-cols-[minmax(250px,0.9fr)_minmax(0,1.5fr)]">
             <div
               data-municipal-user-lotation="true"
-              className={`rounded-[20px] border p-4 ${roleVisual.badge}`}
+              className={`min-w-0 rounded-[20px] border p-4 shadow-[0_4px_16px_rgba(15,23,42,0.035)] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-50 ${roleVisual.badge}`}
             >
               <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <p className="text-[10px] font-black uppercase tracking-[0.13em]">
+                <Building2 className="h-4 w-4 text-current" />
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-current">
                   Lotação institucional
                 </p>
               </div>
-              <p className="mt-3 text-base font-black leading-6">{departmentLabel}</p>
-              <p className="mt-1 text-xs leading-5 opacity-80">
+              <p className="mt-3 text-base font-bold leading-6 text-slate-950 dark:text-white">{departmentLabel}</p>
+              <p className="mt-1 text-xs font-medium leading-5 text-slate-700 dark:text-slate-200">
                 {user.title || getMunicipalProfileLabel(user)}
               </p>
             </div>
 
             <div
               data-municipal-user-security="true"
-              className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-4"
+              className="min-w-0 rounded-[20px] border border-slate-200 bg-white p-4 text-slate-950 shadow-[0_4px_16px_rgba(15,23,42,0.035)] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-50"
             >
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-slate-500" />
-                <p className="text-[10px] font-black uppercase tracking-[0.13em] text-slate-500">
+                <ShieldCheck className="h-4 w-4 text-sky-800 dark:text-sky-300" />
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-700 dark:text-slate-200">
                   Acesso e segurança
                 </p>
               </div>
               <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Criado em</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-700">{user.createdAt || "Não informado"}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-600 dark:text-slate-300">Criado em</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-950 dark:text-white">{user.createdAt || "Não informado"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Último acesso</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-700">{user.lastAccessAt || "Não registrado"}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-600 dark:text-slate-300">Último acesso</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-950 dark:text-white">{user.lastAccessAt || "Não registrado"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Situação administrativa</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-700">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-600 dark:text-slate-300">Situação administrativa</p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-950 dark:text-white">
                     {user.blockReason || "Sem restrição administrativa"}
                   </p>
                 </div>
