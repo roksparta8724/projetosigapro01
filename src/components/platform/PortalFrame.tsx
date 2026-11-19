@@ -1679,7 +1679,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   )}
                   aria-label="Busca global"
                   title="Pesquisar"
-                  data-search-surface="dark"
+                  data-search-surface={inverseMainTheme ? "light" : "dark"}
                 >
                   <span className="sig-topbar-search-icon inline-flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition">
                     <Search className="h-[18px] w-[18px]" />
@@ -2638,7 +2638,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
           }}
         >
           <div data-sig-footer-content="true" className="mx-auto w-full max-w-[1520px] px-5 py-6 lg:px-7 lg:py-6">
-            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-5 gap-y-5">
+            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-5 gap-y-5 whitespace-normal break-words">
               <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-start">
                 <InstitutionalLogo
                   branding={stableFooterBranding}

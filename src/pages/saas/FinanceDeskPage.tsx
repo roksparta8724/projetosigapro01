@@ -1055,7 +1055,7 @@ export function FinanceDeskPage() {
                   ) : null}
                   <p className="sig-finance-ledger__notice">
                     Cada processo oficial ocupa uma única posição na sequência. Guias adicionais aparecem vinculadas abaixo,
-                    sem receber nova numeração. Pré-protocolos aparecem como PRE e não ocupam posição oficial.
+                    sem receber nova numeração. Pré-protocolos ainda não pagos aparecem como PRE e não ocupam posição oficial.
                     Concluir na unidade não altera guias nem o status oficial.
                   </p>
 
@@ -1176,7 +1176,7 @@ export function FinanceDeskPage() {
                                 {guideFinancialEvidenceLabel(guide)}
                               </Badge>
                               <span className="sig-finance-ledger__responsibility">
-                                {isProtocolGuide ? "Baixa: Protocolo" : "Controle: Financeiro"}
+                                {isProtocolGuide ? "Baixa operacional: Protocolo" : "Controle: Financeiro"}
                               </span>
                             </div>
                             <div role="cell" className="sig-finance-ledger__amount-column">

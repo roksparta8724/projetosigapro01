@@ -9,7 +9,29 @@ on:
   workflow_dispatch:
 
 jobs:
+  tests:
+    name: Vitest shard ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Tests (full suite, distributed)
+        run: npm test -- --shard=${{ matrix.shard }}/4 --reporter=default
+
   quality:
+    needs: tests
     name: Typecheck, tests and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -64,9 +86,6 @@ jobs:
 
       - name: ESLint (full codebase)
         run: npm run lint
-
-      - name: Tests
-        run: npm test -- --reporter=verbose
 
       - name: Private AI gateway tests without GPU
         run: node --test infra/private-ai/gateway/gateway.test.mjs

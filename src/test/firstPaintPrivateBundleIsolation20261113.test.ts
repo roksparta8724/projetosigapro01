@@ -20,8 +20,10 @@ describe("SIGAPRO: primeiro quadro real sem JS desnecessário", () => {
     expect(app).toContain('if (pathname === "/verificar-assinatura" || pathname.startsWith("/v/")) return import("@/pages/saas/PublicSignatureVerificationPage");');
     expect(app).toContain("function preloadCurrentInternalRoute(pathname: string)");
     expect(app).toContain('if (pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage");');
-    expect(app).toContain("void preloadCurrentPublicRoute(window.location.pathname)?.catch(() => undefined);");
-    expect(app).toContain("void preloadCurrentInternalRoute(window.location.pathname)?.catch(() => undefined);");
+    expect(app).toContain("void preloadCurrentPublicRoute(initialPath)?.catch(() => undefined);");
+    expect(app).toContain("void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);");
+    expect(app).toContain("if (isWorkspaceBootPath(initialPath)) {");
+    expect(app).toContain('void import("@/components/platform/PortalFrame").catch(() => undefined);');
   });
 
   it("mantém as mesmas rotas e PermissionRoute, sem liberar sessão durante o preload", () => {
