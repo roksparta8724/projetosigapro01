@@ -1365,6 +1365,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     <div
       className={cn(
         "sig-app-frame min-h-screen text-foreground",
+        // Keep Tailwind dark: utilities in sync with the authenticated
+        // municipal inverse-main theme without affecting public routes.
+        inverseMainTheme && "dark",
         focusMode && "sig-focus-workspace h-auto overflow-visible",
       )}
       data-focus-mode={focusMode ? "true" : "false"}
