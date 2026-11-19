@@ -5,6 +5,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { installSeamlessInternalRefresh } from "@/lib/seamlessInternalRefresh";
 import { canRefreshMountedWorkspace, type RefreshWorkspaceState } from "@/lib/workspaceRefreshEligibility";
+import { persistVerifiedRouteContinuity } from "@/lib/refreshContinuity";
 
 /**
  * Listener único acima das rotas, instalado incondicionalmente no mount.
@@ -39,6 +40,26 @@ export function SeamlessRefreshGate() {
   const latest = useRef({ state, strictAuth, refreshRemoteStore });
   latest.current = { state, strictAuth, refreshRemoteStore };
   const queuedUntilVerified = useRef(false);
+
+  // Atualizar a identificação de continuidade em CADA guia/rota real, não
+  // somente no pagehide. Assim a primeira atualização após trocar de página
+  // já reconhece a URL correta, sem um boot visual intermediário.
+  useLayoutEffect(() => {
+    if (!strictAuth || !canRefreshMountedWorkspace(state, Boolean(document.querySelector(".sig-app-frame")))) return;
+    persistVerifiedRouteContinuity(
+      session.id,
+      location.pathname + (location.search ?? "") + (location.hash ?? ""),
+    );
+  }, [
+    strictAuth,
+    session.id,
+    session.role,
+    session.accountStatus,
+    session.deletedAt,
+    location.pathname,
+    location.search,
+    location.hash,
+  ]);
 
   useLayoutEffect(() => {
     const workspaceIsMounted = () => Boolean(document.querySelector(".sig-app-frame"));
