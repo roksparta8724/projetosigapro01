@@ -231,6 +231,14 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell
   [data-institutional-footer-preview],[data-municipal-logo-live-preview],
   .sig-image-frame-stage,.sig-institution-logo-surface,
   .sig-user-avatar-root,.sig-finance-pix-surface
+)):not(:is(
+  [data-sigapro-pdf-synced-page] *,[data-pdf-page] *,
+  [data-print-document] *,[data-document-paper] *,
+  .react-pdf__Page *,.sig-image-frame-stage *,
+  .sig-institution-logo-surface *,.sig-finance-pix-surface *,
+  [data-municipal-logo-live-preview] *,
+  [data-institutional-header-preview] *,
+  [data-institutional-footer-preview] *
 )):not(:has(> canvas)):not(:has(> img)) {
   background: #182f46 !important;
   background-image: none !important;
@@ -248,6 +256,15 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell
 ):not(:is([data-contrast-surface="light"],[data-surface="fixed-light"],
   [data-surface="paper"],[data-pdf-annotation-toolbar],
   .sig-image-frame-stage,.sig-finance-pix-surface))
+:not(:is(
+  [data-sigapro-pdf-synced-page] *,[data-pdf-page] *,
+  [data-print-document] *,[data-document-paper] *,
+  .react-pdf__Page *,.sig-image-frame-stage *,
+  .sig-institution-logo-surface *,.sig-finance-pix-surface *,
+  [data-municipal-logo-live-preview] *,
+  [data-institutional-header-preview] *,
+  [data-institutional-footer-preview] *
+))
 :is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
     .text-slate-600,.text-slate-500):not(:is(
   [data-ui="badge"],button,button *,[data-ui="button"] *,
