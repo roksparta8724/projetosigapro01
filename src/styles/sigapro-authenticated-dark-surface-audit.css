@@ -36,6 +36,46 @@ html body #root [data-premium-design="institutional-v3"][data-layout-mode="inver
   opacity: 1 !important;
 }
 
+/* Process KPI glyphs were still pale rectangles on navy panels, notably
+ * in Financeiro. Match the icon's semantic tone without creating white masks. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon {
+  border: 1px solid #597b96 !important;
+  box-shadow: none !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon.blue {
+  background: #1b4864 !important;
+  color: #b9e9ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon.amber {
+  background: #4b391f !important;
+  color: #ffdfaa !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon.violet {
+  background: #403562 !important;
+  color: #e8ddff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon.green {
+  background: #1b4b3c !important;
+  color: #c5ffe1 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-reference-kpi-alert {
+  background: #542b37 !important;
+  border-color: #ba778e !important;
+  color: #ffe3e9 !important;
+  -webkit-text-fill-color: #ffe3e9 !important;
+}
+
 /* Finance page — filtered process selector, not a white stripe. */
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell
 [data-finance-protocol-filter-bar="true"] {
