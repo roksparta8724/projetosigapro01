@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Tests (full suite, distributed)
-        run: npm test -- --shard=${{ matrix.shard }}/8 --reporter=default
+        run: npm test -- --shard=${{ matrix.shard }}/8 --no-file-parallelism --reporter=default
 
   quality:
     needs: tests
