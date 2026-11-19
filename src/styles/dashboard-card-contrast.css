@@ -1,0 +1,229 @@
+/*
+ * SIGAPRO Dashboard — institutional card contrast contract.
+ *
+ * Do not modify process status, workflow, data, topbar or municipal skins.
+ * Scope all overrides to this Dashboard so legacy !important ink overrides
+ * cannot make a short status chip illegible inside a narrow right column.
+ */
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-process-card="true"] {
+  min-width: 0;
+  border-color: #ccd9e5 !important;
+  background: #ffffff !important;
+  background-image: none !important;
+  box-shadow: 0 5px 15px rgb(15 42 68 / 5%) !important;
+}
+
+/* A priority is not a 48px-wide side column. Its badge flows below the title. */
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-priority-status="true"] {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+  text-align: left;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  border: 1px solid #c3d6e7 !important;
+  background: #e8f3fc !important;
+  color: #14496b !important;
+  -webkit-text-fill-color: #14496b !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium
+[data-dashboard-priority-status="true"][data-dashboard-status-tone="attention"] {
+  border-color: #e9ba61 !important;
+  background: #fff2d4 !important;
+  color: #783c08 !important;
+  -webkit-text-fill-color: #783c08 !important;
+}
+
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-legend-item="true"] {
+  border-color: #d5e0eb !important;
+  background: #f8fbff !important;
+  color: #263e54 !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-legend-item="true"]:is(:hover, :focus-visible),
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-legend-item="true"][aria-pressed="true"] {
+  border-color: #7faed2 !important;
+  background: #eaf5fd !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-legend-label="true"] {
+  color: #243b53 !important;
+  -webkit-text-fill-color: #243b53 !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-legend-count="true"] {
+  color: #0e273e !important;
+  -webkit-text-fill-color: #0e273e !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-executive-signal="true"] {
+  border-color: #ccdae7 !important;
+  background: linear-gradient(180deg, #ffffff, #f8fbff) !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-executive-label="true"] {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-executive-helper="true"] {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-executive-value="true"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-health-card="true"] {
+  border-color: #d3dfeb !important;
+  background: #f8fafc !important;
+}
+
+/*
+ * Shared metric cards have a higher-specificity institutional blue contract.
+ * Target exactly the dashboard metric subtype so inverse-main overrides it
+ * without modifying the same component on unrelated municipal pages.
+ */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-surface="metric"][data-premium-role-blue="metric"] {
+  border-color: #46647d !important;
+  border-top-color: #609fca !important;
+  background: linear-gradient(180deg, #172e45 0%, #11253a 100%) !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  box-shadow: 0 9px 22px rgb(2 6 23 / 22%) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-metric-title {
+  color: #cbdcf0 !important;
+  -webkit-text-fill-color: #cbdcf0 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-metric-value {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-metric-helper {
+  color: #d0deed !important;
+  -webkit-text-fill-color: #d0deed !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-stat-icon {
+  border-color: #4c6c89 !important;
+  background: #224a68 !important;
+  color: #c0eaff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-stat-icon svg {
+  color: #c0eaff !important;
+  stroke: currentColor !important;
+}
+
+/* The user switches theme via SIGAPRO's inverse-main mode. Native .dark
+ * is included as a secondary path for theme parity in previews/tests. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+:is(.sig-section-card, .sig-ui-card, .sig-metric-card) {
+  border-color: #415c74 !important;
+  background: linear-gradient(180deg, #142a40 0%, #102338 100%) !important;
+  color: #edf5ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+:is(.sig-section-card, .sig-ui-card, .sig-metric-card)
+:is(.sig-section-title, .sig-metric-value) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+:is(.sig-section-card, .sig-ui-card, .sig-metric-card)
+:is(.sig-subtitle, .sig-metric-title, .sig-metric-helper) {
+  color: #c9d9eb !important;
+  -webkit-text-fill-color: #c9d9eb !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium .sig-metric-card .sig-stat-icon {
+  border-color: #54718d !important;
+  background: #1a3d5b !important;
+  color: #a5dcff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium .sig-metric-card .sig-stat-icon svg {
+  color: #a5dcff !important;
+  stroke: currentColor !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-process-card="true"] {
+  border-color: #49657e !important;
+  background: #193249 !important;
+  background-image: none !important;
+  box-shadow: 0 7px 18px rgb(2 6 23 / 18%) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-priority-status="true"] {
+  border-color: #6190b6 !important;
+  background: #214c6b !important;
+  color: #f2f9ff !important;
+  -webkit-text-fill-color: #f2f9ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-priority-status="true"][data-dashboard-status-tone="attention"] {
+  border-color: #d7a34d !important;
+  background: #503917 !important;
+  color: #fff4d6 !important;
+  -webkit-text-fill-color: #fff4d6 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-legend-item="true"] {
+  border-color: #46617b !important;
+  background: #182e44 !important;
+  color: #e4effa !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-legend-item="true"]:is(:hover, :focus-visible),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-legend-item="true"][aria-pressed="true"] {
+  border-color: #7abbe4 !important;
+  background: #234663 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+:is([data-dashboard-legend-label="true"], [data-dashboard-legend-count="true"]) {
+  color: #f2f7ff !important;
+  -webkit-text-fill-color: #f2f7ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-executive-signal="true"] {
+  border-color: #45617d !important;
+  background: #18334c !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+:is([data-dashboard-executive-label="true"], [data-dashboard-executive-helper="true"]) {
+  color: #cbdcf0 !important;
+  -webkit-text-fill-color: #cbdcf0 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-executive-value="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-health-card="true"] {
+  border-color: #415e79 !important;
+  background: #183047 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
+[data-dashboard-health-card="true"] :is(.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700) {
+  color: #cbdcf0 !important;
+  -webkit-text-fill-color: #cbdcf0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-legend-item="true"] {
+    transition-duration: 0ms;
+  }
+}

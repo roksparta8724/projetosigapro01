@@ -94,7 +94,7 @@ export function MunicipalPaymentSettings({
   const webhookUrl = `https://sigapromunicipal.com.br/api/mercadopago-webhook?municipality_id=${encodeURIComponent(municipalityId)}`;
 
   const statusLabel = useMemo(() => {
-    if (!connection) return busy === "load" ? "Carregando configuração" : "Conexão não verificada";
+    if (!connection) return busy === "load" ? "Carregando configuração" : "Conexão bancária não cadastrada";
     if (!connectionMatchesForm) return "Alterações ainda não salvas";
     if (connection.status === "active") return connection.environment === "test" ? "Teste ativo — sem cobrança real" : "Conexão técnica ativa";
     if (connection.status === "error") return "Conexão com erro";
@@ -235,6 +235,11 @@ export function MunicipalPaymentSettings({
           </p>
         ) : null}
       </section>
+      {!busy && !loadFailed && !connection?.provider ? (
+        <p data-municipal-bank-missing="true" role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+          Nenhuma conexão de provedor foi encontrada para esta Prefeitura neste ambiente. O cadastro bancário não se transfere automaticamente de testes ou de outra Prefeitura: configure a credencial da instituição titular, salve, teste a integração e só então ative a arrecadação. Um banco por convênio direto exige adaptador homologado, e a baixa manual não significa conciliação automática.
+        </p>
+      ) : null}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div data-collection-payment-card="provider" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

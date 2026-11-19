@@ -33,9 +33,12 @@
   Flag,
   X,
 } from "@/components/platform/PremiumIcons";
-import { useEffect, useMemo, useState } from "react";
-import { Network, RefreshCw } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  createContext, Suspense, useCallback, useContext, useEffect,
+  useLayoutEffect, useMemo, useRef, useState,
+} from "react";
+import { Network } from "lucide-react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -59,6 +62,7 @@ import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { readCachedProfileAvatar } from "@/lib/profileAvatarCache";
+import { hasValidRefreshContinuity, readCachedSessionIdentity } from "@/lib/refreshContinuity";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -70,12 +74,16 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
+import { formatInstitutionPhone, hasInstitutionEmail, shouldRepeatInstitutionLocality } from "@/lib/institutionFooterPresentation";
+import { resolveTopbarProcessDestination } from "@/lib/topbarProcessDestination";
 import { buildProcessPath, can, canAccessMunicipalArea,
   getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { MunicipalDepartmentSwitcher } from "@/components/platform/MunicipalDepartmentSwitcher";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
 
 interface PortalFrameProps {
@@ -84,6 +92,8 @@ interface PortalFrameProps {
   children: React.ReactNode;
   focusMode?: boolean;
   compactHeader?: boolean;
+  /** Suppress the redundant institutional banner on purpose-built workspace pages. */
+  hideSectionHeader?: boolean;
 }
 
 type LayoutThemeOverride = {
@@ -285,7 +295,81 @@ function resolveBrandingLogoUrl(
     : branding.headerLogoUrl ?? branding.logoUrl ?? "";
 }
 
-export function PortalFrame({ title, eyebrow, children, focusMode = false, compactHeader = true }: PortalFrameProps) {
+type PortalFramePresentation = Omit<PortalFrameProps, "children">;
+
+// A single mounted institutional shell owns topbar, profile, sidebar and footer.
+// Pages only publish their header title/section and provide their actual content.
+// This eliminates the unmount/remount cycle caused by each routed page creating
+// an entirely new PortalFrame (including avatar/network hooks).
+const PersistentPortalFrameContext = createContext<
+  ((presentation: PortalFramePresentation) => void) | null
+>(null);
+
+export function PersistentPortalFrameLayout() {
+  const auth = useAuthGateway();
+  const { session } = usePlatformSession();
+  const [presentation, setPresentation] = useState<PortalFramePresentation>({
+    title: "SIGAPRO", eyebrow: "Ambiente institucional",
+    focusMode: false, compactHeader: true, hideSectionHeader: false,
+  });
+  const setPresentationIfChanged = useCallback((next: PortalFramePresentation) => {
+    setPresentation((prev) =>
+      prev.title === next.title &&
+      prev.eyebrow === next.eyebrow &&
+      Boolean(prev.focusMode) === Boolean(next.focusMode) &&
+      (prev.compactHeader ?? true) === (next.compactHeader ?? true) &&
+      Boolean(prev.hideSectionHeader) === Boolean(next.hideSectionHeader)
+        ? prev : next,
+    );
+  }, []);
+
+  // Unauthorized bootstrap and logout never acquire a privileged frame:
+  // route-level PermissionRoute continues to make every authorization decision.
+  const admissibleSession = session.id !== "unknown" && Boolean(session.role) &&
+    session.accountStatus !== "blocked" &&
+    session.accountStatus !== "inactive" && !session.deletedAt;
+  const verifiedSession = auth.authResolved && auth.isAuthenticated &&
+    Boolean(auth.authenticatedUserId) && admissibleSession;
+  // On a same-tab F5, PermissionRoute already knows the exact owner/route
+  // snapshot and can temporarily present that account while auth hydrates.
+  // Mount the SAME persistent frame immediately instead of first mounting a
+  // temporary page-owned shell and then replacing it once auth resolves.
+  // The snapshot is never authorization: each child still passes PermissionRoute.
+  const cachedSessionIdentity = readCachedSessionIdentity();
+  const sameAccountRefresh = !auth.authResolved &&
+    admissibleSession && cachedSessionIdentity?.id === session.id &&
+    hasValidRefreshContinuity();
+  const canMountInstitutionalFrame = verifiedSession || sameAccountRefresh;
+
+  if (!canMountInstitutionalFrame) return <Outlet />;
+
+  return (
+    <PersistentPortalFrameContext.Provider value={setPresentationIfChanged}>
+      <PortalFrameSurface {...presentation}>
+        {/* Only the page BODY suspends. The institutional topbar, menu, avatar
+            and footer never suspend or unmount while a lazy route downloads. */}
+        <Suspense fallback={<SecureRoutePending surface="route" title="Abrindo módulo do SIGAPRO" />}>
+          <Outlet />
+        </Suspense>
+      </PortalFrameSurface>
+    </PersistentPortalFrameContext.Provider>
+  );
+}
+
+// Backward compatible page API. Outside the persistent route layout (e.g.
+// isolated legacy pages/tests) the component still renders the full frame.
+export function PortalFrame({ children, ...presentation }: PortalFrameProps) {
+  const register = useContext(PersistentPortalFrameContext);
+  const { title, eyebrow, focusMode, compactHeader, hideSectionHeader } = presentation;
+  useLayoutEffect(() => {
+    if (!register) return;
+    register({ title, eyebrow, focusMode, compactHeader, hideSectionHeader });
+  }, [register, title, eyebrow, focusMode, compactHeader, hideSectionHeader]);
+  if (register) return <>{children}</>;
+  return <PortalFrameSurface {...presentation}>{children}</PortalFrameSurface>;
+}
+
+function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compactHeader = true, hideSectionHeader = false }: PortalFrameProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
@@ -352,18 +436,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     addProcessMarkerWithColor,
     removeProcessMarker,
   } = usePlatformData();
-  const [refreshingVisibleData, setRefreshingVisibleData] = useState(false);
-  const refreshWithoutPageReload = async () => {
-    if (refreshingVisibleData || session.id === "unknown") return;
-    setRefreshingVisibleData(true);
-    try {
-      await refreshRemoteStore();
-    } catch (error) {
-      console.warn("[SIGAPRO] Não foi possível atualizar dados em memória.", error);
-    } finally {
-      setRefreshingVisibleData(false);
-    }
-  };
   // Revalidate permissions across logged-in devices after Master changes a contract.
   // This is a background refresh: never replace a visible page with a loading shell.
   useLivePlatformRefresh(refreshRemoteStore, {
@@ -910,6 +982,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     : tenantSettings?.diretoriaEmail || "E-mail não informado";
   const institutionFooterSignature =
     officialFooterText || "SIGAPRO — Plataforma institucional para aprovação de projetos";
+  const institutionFooterState =
+    municipality?.state || ("state" in (activeInstitution ?? {}) ? activeInstitution?.state : undefined);
+  const footerAddress = tenantSettings?.endereco?.trim() || "";
+  const showFooterLocality = shouldRepeatInstitutionLocality(footerAddress, institutionFooterCity);
+  const footerPhoneDisplay = formatInstitutionPhone(institutionFooterPhone);
+  const footerEmailDisplay = hasInstitutionEmail(institutionFooterEmail)
+    ? institutionFooterEmail.trim()
+    : "";
   const activeThemePreset =
     availableThemePresets.find(
       (preset) =>
@@ -961,22 +1041,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     };
   }, [loading, session.id, location.pathname, activeInstitutionId, inverseMainTheme]);
 
-  const processShortcutPath =
-    isMasterUser
-      ? "/dashboard/processos"
-      : isExternalProfessionalRole(session.role)
-        ? "/externo/controle"
-        : session.role === "proprietario_consulta" || session.role === "property_owner"
-          ? "/proprietario"
-          : isInternalRole(session.role)
-            ? canAccessMunicipalArea(session, "analise")
-              ? "/prefeitura/analise?secao=fila"
-              : canAccessMunicipalArea(session, "protocolos")
-                ? "/prefeitura/protocolos"
-                : canAccessMunicipalArea(session, "financeiro")
-                  ? "/prefeitura/financeiro"
-                  : "/prefeitura/processos"
-            : "/prefeitura/protocolos";
+  const processShortcutPath = resolveTopbarProcessDestination(session.role);
 
   const resetMarkerEditor = () => {
     setEditingMarkerId(null);
@@ -1365,8 +1430,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     <div
       className={cn(
         "sig-app-frame min-h-screen text-foreground",
-        // Keep Tailwind dark: utilities in sync with the authenticated
-        // municipal inverse-main theme without affecting public routes.
+        // Tailwind dark: utilities require a .dark ancestor. The institutional
+        // theme uses inverse-main; activate both on the SAME authenticated
+        // frame, never on html/body (which also contain public routes).
         inverseMainTheme && "dark",
         focusMode && "sig-focus-workspace h-auto overflow-visible",
       )}
@@ -1451,9 +1517,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
             style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
             data-topbar-actions-viewport="mobile"
           >
-              <button
-                type="button"
-                onClick={() => navigate(processShortcutPath)}
+              <Link
+                to={processShortcutPath}
+                data-topbar-process-shortcut="mobile"
                 className={cn(
                   "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
@@ -1462,7 +1528,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                 title="Processos"
               >
                 <ScrollText className="h-[18px] w-[18px] text-white/92" />
-              </button>
+              </Link>
               {showMunicipalOrganogramShortcut ? (
                 <button
                   type="button"
@@ -1477,19 +1543,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                   <Network className="h-[18px] w-[18px] text-white/92" />
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={() => void refreshWithoutPageReload()}
-                disabled={refreshingVisibleData}
-                aria-label="Atualizar dados sem recarregar a página"
-                title="Atualizar dados"
-                className={cn(
-                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 disabled:opacity-60",
-                  topbarIconButton,
-                )}
-              >
-                <RefreshCw aria-hidden="true" className={cn("h-[18px] w-[18px] text-white/92", refreshingVisibleData && "animate-spin")} />
-              </button>
               <button
                 type="button"
                 onClick={() => navigate("/notificacoes")}
@@ -1638,9 +1691,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
               </div>
 
             <div className="sig-topbar-group sig-topbar-utility-group flex items-center gap-1.5 rounded-[18px] px-1.5 py-1.5">
-                <button
-                  type="button"
-                  onClick={() => navigate(processShortcutPath)}
+                <Link
+                  to={processShortcutPath}
+                  data-topbar-process-shortcut="desktop"
                   className={cn(
                     "sig-topbar-process-button relative",
                     topbarUtilityButtonClass,
@@ -1650,7 +1703,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                   title="Processos"
                 >
                   <ScrollText className={topbarUtilityIconClass} aria-hidden="true" />
-                </button>
+                </Link>
                 {showMunicipalOrganogramShortcut ? (
                   <button
                     type="button"
@@ -2106,22 +2159,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                   : "border-slate-200/90 bg-white/92",
               )}
             >
-              <button
-                type="button"
-                onClick={() => void refreshWithoutPageReload()}
-                disabled={refreshingVisibleData}
-                aria-label="Atualizar dados sem recarregar a página"
-                title="Atualizar dados — mantém a tela aberta"
-                className={cn(
-                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[12px] transition duration-150 disabled:opacity-60",
-                  darkTopbar
-                    ? "text-slate-100 hover:bg-white/10"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
-                )}
-              >
-                <RefreshCw aria-hidden="true" className={cn("h-[18px] w-[18px]", refreshingVisibleData && "animate-spin")} />
-              </button>
-
               {can(session, "manage_tenant_branding") ? (
                 <button
                   type="button"
@@ -2180,6 +2217,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                     authenticatedOwnerId={authenticatedAvatarOwnerId}
                       name={displayUserName}
                       imageUrl={topbarAvatarImageUrl}
+                      preservePhotoDuringRefresh
+                      photoRemovalConfirmed={topbarPhotoRemovalConfirmed}
                       crop={topbarAvatarCrop}
                       size="md"
                       className="sig-topbar-user-avatar"
@@ -2216,6 +2255,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                     authenticatedOwnerId={authenticatedAvatarOwnerId}
                           name={displayUserName}
                           imageUrl={topbarAvatarImageUrl}
+                          preservePhotoDuringRefresh
+                          photoRemovalConfirmed={topbarPhotoRemovalConfirmed}
                           crop={topbarAvatarCrop}
                           size="lg"
                           className={cn(
@@ -2274,6 +2315,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                   </p>
                 </div>
 
+                <MunicipalDepartmentSwitcher dark={darkTopbar} />
                 <div className="mt-2 space-y-1">
                   <DropdownMenuItem
                     className={cn(
@@ -2485,7 +2527,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
               ),
             )}
           >
-            {!focusMode ? <div className="mb-4 sig-strong-card rounded-[20px] p-3 shadow-sm lg:hidden">
+            {!focusMode && !hideSectionHeader ? <div className="mb-4 sig-strong-card rounded-[20px] p-3 shadow-sm lg:hidden">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="sig-label sig-fit-title">{eyebrow}</p>
@@ -2503,7 +2545,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
               </div>
             </div> : null}
 
-            {!focusMode ? <header data-sigapro-compact-header={compactHeader ? "true" : "false"} className={cn("mb-6 border-b border-slate-200 pb-5", compactHeader && "mb-3 pb-3")}>
+            {!focusMode && !hideSectionHeader ? <header data-sigapro-compact-header={compactHeader ? "true" : "false"} className={cn("mb-6 border-b border-slate-200 pb-5", compactHeader && "mb-3 pb-3")}>
               <div
                 className="overflow-hidden rounded-[24px] border shadow-[0_14px_32px_rgba(15,42,68,0.10)]"
                 style={{
@@ -2532,8 +2574,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                       <InstitutionalLogo
                         branding={stableHeaderBranding}
                         fallbackLabel={institutionDisplayName}
-                        // Master uses a proportional square emblem. A compact crop
-                        // prevents the blurred/stretching seen in the wide banner.
+                        // Master has a compact square logo: do not stretch a small
+                        // brand bitmap into the municipal rectangular crop frame.
                         variant={isMasterUser ? "compact" : "header"}
                         contextScope={isMasterUser ? "master" : "municipality"}
                         className={cn(
@@ -2587,88 +2629,86 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
         </main>
       </div>
 
-      <footer className="mt-0 pt-0">
-        <div
-          className={cn(
-            "sig-page-footer overflow-hidden border-t shadow-[0_-8px_24px_rgba(15,42,68,0.08)]",
-          )}
+      <footer className="mt-0 pt-0" aria-label="Rodapé institucional">
+        <div data-sig-footer-design="premium-v3"
+          className="sig-page-footer overflow-hidden border-t shadow-[0_-8px_24px_rgba(15,42,68,0.08)]"
           style={{
             borderColor: withAlpha(primaryColor, "0.2"),
             backgroundColor: "var(--sig-footer)",
           }}
         >
-          <div className="px-8 py-8 lg:px-12 lg:py-10">
-            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-6 gap-y-8 sm:grid-cols-2 2xl:grid-cols-4">
-              <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-center 2xl:justify-start 2xl:pl-3">
+          <div data-sig-footer-content="true" className="mx-auto w-full max-w-[1520px] px-5 py-6 lg:px-7 lg:py-6">
+            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-5 gap-y-5 whitespace-normal break-words">
+              <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-start">
                 <InstitutionalLogo
                   branding={stableFooterBranding}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   contextScope={isMasterUser ? "master" : "municipality"}
-                  className="!m-0 !shrink-0"
+                  className="!m-0 !h-[116px] !w-[116px] !min-h-[116px] !min-w-[116px] !max-h-[116px] !max-w-[116px] !shrink-0"
                 />
               </div>
 
-              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:pl-2">
-                <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
-                  <Building2 className="h-5 w-5 text-white" />
-                </div>
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Secretaria</p>
-                  <p className="max-w-[560px] text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
+              <section data-sig-footer-column="secretaria" aria-label="Secretaria responsável"
+                className="flex min-w-0 items-start gap-3">
+                <span data-sig-footer-icon="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/20 bg-white/10">
+                  <Building2 className="h-[17px] w-[17px] text-[#e4f5ff]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p data-sig-footer-label="true">Secretaria</p>
+                  <p data-sig-footer-primary="true" title={institutionFooterTitle}>
                     {institutionFooterTitle}
                   </p>
-                  <p className="text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    {tenantSettings?.diretoriaResponsavel || "Diretoria de Urbanismo"}
-                  </p>
+                  {tenantSettings?.diretoriaResponsavel?.trim() ? (
+                    <p data-sig-footer-secondary="true">{tenantSettings.diretoriaResponsavel}</p>
+                  ) : null}
                 </div>
-              </div>
+              </section>
 
-              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:justify-center">
-                <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
-                  <MapPin className="h-5 w-5 text-white" />
-                </div>
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Endereço</p>
-                  <p
-                    className="min-w-0 max-w-full whitespace-normal break-words text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]"
-                    title={tenantSettings?.endereco || "Endereço não informado"}
-                  >
-                    {tenantSettings?.endereco || "Endereço não informado"}
+              <section data-sig-footer-column="endereco" aria-label="Endereço institucional"
+                className="flex min-w-0 items-start gap-3">
+                <span data-sig-footer-icon="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/20 bg-white/10">
+                  <MapPin className="h-[17px] w-[17px] text-[#e4f5ff]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p data-sig-footer-label="true">Endereço</p>
+                  <p data-sig-footer-primary="true" title={footerAddress || "Endereço não informado"}>
+                    {footerAddress || "Endereço não informado"}
                   </p>
-                  <p className="text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    {institutionFooterCity}
-                    {(municipality?.state || ("state" in (activeInstitution ?? {}) ? activeInstitution?.state : undefined))
-                      ? ` / ${municipality?.state || ("state" in (activeInstitution ?? {}) ? activeInstitution?.state : "")}`
-                      : ""}
-                  </p>
+                  {showFooterLocality ? (
+                    <p data-sig-footer-secondary="true">
+                      {institutionFooterCity}
+                      {institutionFooterState ? ` / ${institutionFooterState}` : ""}
+                    </p>
+                  ) : null}
                 </div>
-              </div>
+              </section>
 
-              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:justify-end">
-                <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
-                  <Phone className="h-5 w-5 text-white" />
+              <section data-sig-footer-column="contato" aria-label="Contato institucional"
+                className="flex min-w-0 items-start gap-3">
+                <span data-sig-footer-icon="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/20 bg-white/10">
+                  <Phone className="h-[17px] w-[17px] text-[#e4f5ff]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p data-sig-footer-label="true">Contato</p>
+                  <p data-sig-footer-primary="true" className="tabular-nums">{footerPhoneDisplay}</p>
+                  {footerEmailDisplay ? (
+                    <div data-sig-footer-secondary="true" className="flex min-w-0 items-start gap-2">
+                      <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#a7cadf]" aria-hidden="true" />
+                      <a href={`mailto:${footerEmailDisplay}`} className="min-w-0 break-all hover:underline" title={footerEmailDisplay}>
+                        {footerEmailDisplay}
+                      </a>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="min-w-0 flex-1 space-y-2.5">
-                  <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Contato</p>
-                  <p className="text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
-                    {institutionFooterPhone}
-                  </p>
-                  <div className="flex min-w-0 items-center gap-2 text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
-                    <Mail className="h-4 w-4 shrink-0 text-white/72" />
-                    <span className="sig-fit-copy block min-w-0 max-w-full whitespace-normal break-words text-[#D6E7F4]" title={institutionFooterEmail}>
-                      {institutionFooterEmail}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              </section>
             </div>
           </div>
 
-          <div className="border-t border-white/10 bg-black/[0.06] px-6 py-3 lg:px-8">
-            <div className="flex items-center justify-center text-center">
-              <p className="text-xs font-normal text-[#D6E6F2]">{institutionFooterSignature}</p>
-            </div>
+          <div data-sig-footer-bottom="true" className="border-t border-white/10 px-5 py-3">
+            <p className="mx-auto max-w-[1520px] text-center text-[11px] leading-5 text-[#bed7e8]">
+              {institutionFooterSignature}
+            </p>
           </div>
         </div>
       </footer>

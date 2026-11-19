@@ -1376,9 +1376,16 @@ export function getExternallyVisibleProcessPaymentGuides(
   );
 }
 
+const markerHexColor = (value: string) => /^#[0-9a-f]{6}$/i.test(value.trim())
+  ? value.trim().toLowerCase() : null;
+
 export function serializeMarker(label: string, color: string) {
   const paletteEntry = getMarkerPaletteEntry(color);
-  return `${label}::${paletteEntry.id}`;
+  const hex = markerHexColor(color);
+  // Palette ids remain backward-compatible. Non-palette hex values (including
+  // historical professional colors) are preserved rather than forced to blue.
+  const savedColor = hex && hex !== paletteEntry.value.toLowerCase() ? hex : paletteEntry.id;
+  return `${label}::${savedColor}`;
 }
 
 export function parseMarker(tag: string) {
@@ -1386,10 +1393,11 @@ export function parseMarker(tag: string) {
     ? tag.split("::")
     : [tag, getDefaultMarkerPaletteEntry().id];
   const paletteEntry = getMarkerPaletteEntry(rawColor);
+  const exactHex = markerHexColor(rawColor);
   return {
     label,
-    color: paletteEntry.value,
-    colorId: paletteEntry.id,
+    color: exactHex ?? paletteEntry.value,
+    colorId: exactHex && exactHex !== paletteEntry.value.toLowerCase() ? exactHex : paletteEntry.id,
     palette: paletteEntry,
   };
 }
@@ -2747,7 +2755,10 @@ export function resolveSessionOperationalArea(
   // O papel canônico é usado somente quando não existe um departamento explícito.
   if (session.role === "setor_intersetorial") return "protocolos";
   if (session.role === "analista") return "analise";
-  if (session.role === "financeiro" || session.role === "fiscal") return "financeiro";
+  if (session.role === "financeiro") return "financeiro";
+  // Fiscalização de obras pertence à área técnica, como a rota oficial /prefeitura/analise.
+  // Antes o fallback enviava fiscais antigos sem lotação para Financeiro e bloqueava sua fila.
+  if (session.role === "fiscal") return "analise";
   return "";
 }
 

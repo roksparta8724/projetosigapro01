@@ -56,7 +56,9 @@ describe("SIGAPRO production diagnosis: 2 in review + 1 completed despite signed
     const desk=source("src/pages/saas/AnalystDeskPage.tsx");
     const municipal=source("src/pages/saas/MunicipalProcessRegistryPage.tsx");
     expect(desk).toContain("!showArchived || archivedProcessIds.includes(item.id)");
-    expect(municipal).toContain("if (showArchived && !archived) return false;");
+    expect(municipal).toContain("showArchived");
+    expect(municipal).toContain("municipalityProcesses.filter(process => archivedProcessIds.includes(process.id))");
+    expect(municipal).toContain(": municipalityProcesses;");
     expect(desk).toContain('data-analysis-official-processes="true"');
     expect(desk).toContain("renderQueue(");
     expect(desk).toContain("processRegistry.slice(0, 5)");

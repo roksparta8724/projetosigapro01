@@ -1,0 +1,224 @@
+/*
+ * SIGAPRO | Unified premium surface hierarchy.
+ * The PortalFrame is the ONE saturated institutional banner.
+ * Secondary page headers and KPI cards are readable light surfaces; no more
+ * blue-on-blue dashboards or a massive blue action-only section.
+ * Shared by Master, Prefeitura, Protocolo, Financeiro and authorized managers.
+ * Loaded last to defeat obsolete "make every card blue" theme layers.
+ */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f3f8fc 100%) !important;
+  background-color: #ffffff !important;
+  border: 1px solid #c9dce9 !important;
+  border-left: 3px solid #3789af !important;
+  color: #153751 !important;
+  -webkit-text-fill-color: #153751 !important;
+  box-shadow: 0 5px 17px rgba(19, 64, 96, .075) !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 15px 18px !important;
+  border-radius: 16px !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] :is(.sig-page-title,h1,h2) {
+  color: #12324b !important;
+  -webkit-text-fill-color: #12324b !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: clamp(1rem, 1.25vw, 1.3rem) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -.018em !important;
+  font-weight: 750 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] .sig-section-label {
+  color: #2c6588 !important;
+  -webkit-text-fill-color: #2c6588 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  letter-spacing: .055em !important;
+  font-weight: 750 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] .sig-subtitle {
+  color: #4b6379 !important;
+  -webkit-text-fill-color: #4b6379 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  line-height: 1.45 !important;
+  letter-spacing: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] .sig-header-icon {
+  color: #13668e !important;
+  background: #e4f1f8 !important;
+  border-color: #c4dce9 !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] .sig-header-icon :is(svg,svg *) {
+  color: #13668e !important;
+  stroke: currentColor !important;
+}
+/* Individual commands retain their semantics instead of inheriting a banner. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] .sig-header-actions [data-variant="outline"],
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] .sig-header-actions .bg-white {
+  color: #153b58 !important;
+  -webkit-text-fill-color: #153b58 !important;
+  background: #fff !important;
+  border-color: #b7cfdf !important;
+}
+
+/* Metrics: neutral elevated surfaces with a small semantic color accent. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"][data-premium-role-blue="metric"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f5f9fc 100%) !important;
+  background-color: #ffffff !important;
+  border: 1px solid #c8d9e6 !important;
+  border-top: 3px solid #5aadd0 !important;
+  color: #16364e !important;
+  -webkit-text-fill-color: #16364e !important;
+  box-shadow: 0 5px 15px rgba(15, 58, 90, .07) !important;
+  min-height: 120px !important;
+  border-radius: 16px !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"][data-tone="amber"] {
+  border-top-color: #d59b31 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"][data-tone="emerald"] {
+  border-top-color: #209c7b !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"][data-tone="rose"] {
+  border-top-color: #d96b85 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"] :is(.sig-stat-value,.sig-metric-value) {
+  color: #12324b !important;
+  -webkit-text-fill-color: #12324b !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  line-height: 1.12 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"] :is(.sig-fit-title:not(.sig-stat-value),.sig-metric-title) {
+  color: #315c79 !important;
+  -webkit-text-fill-color: #315c79 !important;
+  opacity: 1 !important;
+  letter-spacing: .035em !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"] :is(.sig-fit-copy,.sig-metric-helper) {
+  color: #4b6377 !important;
+  -webkit-text-fill-color: #4b6377 !important;
+  opacity: 1 !important;
+  letter-spacing: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"] .sig-stat-icon {
+  background: #e5f1f8 !important;
+  border-color: #c6ddea !important;
+  color: #13668e !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"] .sig-stat-icon :is(svg,svg *) {
+  color: #13668e !important;
+  stroke: currentColor !important;
+}
+
+/* Institution masthead is always one horizontal unit, not two stacked cards.
+ * Only this band remains saturated. */
+html body #root [data-sigapro-institutional-header="single"] {
+  background-color: #0c3853;
+}
+html body #root [data-sigapro-institutional-header="single"] h1,
+html body #root [data-sigapro-institutional-header="single"] p {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+html body #root [data-sigapro-institutional-header="single"] .sig-institution-logo-surface {
+  border-radius: 11px !important;
+  box-shadow: none !important;
+}
+html body #root [data-sigapro-protocol-quick-actions="true"] {
+  min-height: 0 !important;
+  background: linear-gradient(180deg,#ffffff 0%,#f3f8fc 100%) !important;
+  color: #153751 !important;
+}
+@media (max-width: 640px) {
+  html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+  .sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"] {
+    padding: 13px 14px !important;
+  }
+}
+
+/* Protocolo: the LOWER operational panel carries live, auditable figures.
+   This must not recolor or resize the restored upper institutional banner. */
+html body #root [data-sigapro-protocol-quick-actions="true"] {
+  min-height: 0 !important;
+  background: #ffffff !important;
+  border: 1px solid #c6d9e7 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 4px 15px rgba(15, 61, 91, .075) !important;
+  color: #173952 !important;
+}
+html body #root [data-sigapro-protocol-quick-actions="true"] :is(h2,p) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  letter-spacing: 0;
+  -webkit-text-fill-color: currentColor;
+}
+html body #root [data-sigapro-protocol-live-summary="true"] > button {
+  min-height: 50px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html body #root [data-sigapro-protocol-live-summary="true"] > button:hover {
+  background: #edf6fa;
+}
+html body #root .sig-protocol-soft-card {
+  background: linear-gradient(180deg,#ffffff,#f7fafc) !important;
+  border-color: #cfdfeb !important;
+  color: #183b53 !important;
+  box-shadow: 0 3px 11px rgba(16, 56, 83, .055) !important;
+}
+html body #root .sig-protocol-soft-card .sig-label {
+  color: #406780 !important;
+  -webkit-text-fill-color: #406780 !important;
+}
+html body #root .sig-protocol-soft-card :is(.text-slate-950,.text-slate-900,.text-slate-800) {
+  color: #183b53 !important;
+  -webkit-text-fill-color: #183b53 !important;
+}
+html body #root .sig-protocol-soft-card :is(.text-slate-500,.text-slate-600,.text-slate-700) {
+  color: #546b7f !important;
+  -webkit-text-fill-color: #546b7f !important;
+}
+html body #root .sig-protocol-guide-entry {
+  box-shadow: none !important;
+  border-left-color: #83b4cf !important;
+  background: transparent !important;
+  min-width: 0;
+}
+html body #root [data-sigapro-protocol-empty-channel],
+html body #root [data-sigapro-protocol-empty-history],
+html body #root [data-sigapro-protocol-guide-empty] {
+  min-height: 0 !important;
+  box-shadow: none !important;
+}
+@media (max-width: 640px) {
+  html body #root [data-sigapro-protocol-live-summary="true"] > button {
+    flex-basis: 46%;
+    min-width: 0;
+  }
+  html body #root [data-sigapro-protocol-live-summary="true"] > button:nth-child(even) {
+    border-right: 0;
+  }
+}

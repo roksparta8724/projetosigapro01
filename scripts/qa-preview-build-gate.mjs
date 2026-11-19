@@ -94,6 +94,75 @@ function run(label,args,extraEnv={}){
   }
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS "+label);
 }
+// The general process-control preview must validate real source, not only a
+// successful Vite asset build. These local checks are read-only and run solely
+// for this branch; bank settlement, invoices and R2 objects are not touched.
+const PREMIUM_PROCESS_BRANCH = "fix/homologacao-geral-sei-dashboard-bank-20261113";
+if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === PREMIUM_PROCESS_BRANCH) {
+  run("process-ui-typecheck", ["node_modules/typescript/bin/tsc", "-p", "tsconfig.app.json", "--noEmit"]);
+  run("process-ui-eslint", ["node_modules/eslint/bin/eslint.js", "."]);
+  run("process-ui-regression-tests", ["node_modules/vitest/vitest.mjs", "run", "--maxWorkers=2",
+    "src/test/premiumUnifiedProcessControl20261116.test.tsx",
+    "src/test/premiumBlueContrast20261117.test.ts",
+    "src/test/premiumCardHierarchy20261117.test.tsx",
+    "src/test/dashboardCardContrast20261119.test.ts",
+    "src/test/inverseMainSurfaceAudit20261119.test.ts",
+    "src/test/authenticatedDarkAllRoutesAudit20261119.test.ts",
+    "src/test/premiumInstitutionFooter20261118.test.ts",
+    "src/test/protocolPremiumTabs20261118.test.tsx",
+    "src/test/processTableLegibility20261118.test.tsx",
+    "src/test/topbarProcessShortcutContrast20261118.test.tsx",
+    "src/test/protocolCompactHeader20261118.test.ts",
+    "src/test/landingDemoPremiumContrast20261118.test.tsx",
+    "src/test/financeSharedPremium20261118.test.tsx",
+    "src/test/financeScreenshotContrast20261118.test.tsx",
+    "src/test/financeOfficialProcessLedger20261118.test.ts",
+    "src/test/navigationVisualContinuity20261118.test.tsx",
+    "src/test/browserToolbarRefreshContinuity20261118.test.ts",
+    "src/test/firstRefreshAfterTabSwitch20261119.test.tsx",
+    "src/test/privateFrameFirstPaintPrefetch20261118.test.ts",
+    "src/test/refreshAuthHydrationF5Regression.test.tsx",
+    "src/test/avatarF5SessionContinuity20261116.test.tsx",
+    "src/test/verifiedAvatarRetentionAcrossRefresh.test.tsx",
+    "src/test/masterAvatarNavigationStabilityQa.test.ts",
+    "src/test/masterInstitutionalGovernance20261119.test.ts",
+    "src/test/refreshVisualContinuity.test.ts",
+    "src/test/staticInPlaceRefresh20261118.test.ts",
+    "src/test/municipalMultiDepartmentStaff20261118.test.ts",
+    "src/test/municipalStaffLegacyAssignment20261119.test.tsx",
+    "src/test/municipalUserRegistryPhoto20261119.test.tsx",
+    "src/test/f5ActualRouteFirstPaintRegression.test.ts",
+    "src/components/platform/PermissionRoute.test.tsx",
+    "src/test/protocolRegistrationSource20261117.test.ts",
+    "src/test/processPersonalUnitFilters20261117.test.tsx",
+    "src/test/unifiedMunicipalProcessWorkspace20261117.test.tsx",
+    "src/components/platform/CompactProcessRegistry.test.tsx",
+    "src/test/municipalProcessRegistry.test.ts",
+    "src/test/municipalProcessRegistryAuthoritativeSync.test.ts",
+    "src/test/municipalAdminProtocolReadOnlyQa.test.ts",
+    "src/test/processPresentationRegression.test.ts",
+    "src/test/officialProcessRowsRender.test.tsx",
+    "src/test/municipalAdminAndProfessionalProcessRegression.test.ts",
+    "src/test/processCardContrastRegression.test.ts",
+    "src/test/processCardGeometryRegression.test.ts",
+    "src/test/dashboardSummaryNavigationRegression.test.tsx",
+    "src/test/municipalExpandableList.test.ts",
+    "src/test/municipalOverviewSubpagesQa.test.tsx",
+    "src/test/processNavigationOrganogramRegression.test.ts",
+    "src/test/tenantAdminPremiumWorkspace.test.ts",
+    "src/test/processWorkspaceMockupParity20261116.test.ts",
+    "src/test/singleLineProcessLayout20261116.test.ts",
+    "src/test/referenceProcessLayoutFidelity20261116.test.tsx",
+    "src/test/processDetailHeroPremiumQa20261117.test.tsx",
+    "src/test/publicLoginVersionAuthQa20261117.test.ts",
+    "src/test/navigationDocumentSwCacheRegression.test.ts",
+    "src/test/previewF5NavigationPreload20261118.test.ts",
+    "src/test/serviceWorker.test.ts",
+    "src/test/productionAssetFreshnessRegression.test.ts",
+    "src/test/productionParityCriticalRegression.test.ts",
+  ]);
+  console.log("[SIGAPRO_QA_BUILD_GATE] PASS unified municipal process-control preview checks.");
+}
 if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANCH){
   // Only local static checks; none of these routines call a real provider.
   run("typecheck",["node_modules/typescript/bin/tsc","-p","tsconfig.app.json","--noEmit"]);

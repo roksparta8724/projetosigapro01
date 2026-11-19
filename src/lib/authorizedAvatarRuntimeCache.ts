@@ -1,4 +1,5 @@
 import { privateAvatarObjectKey, resolveAuthorizedAvatarUrl, type AuthorizedAvatarUrl } from "@/lib/privateAvatarRead";
+import { clearAvatarSessionThumbnails } from "@/lib/avatarSessionThumbnail";
 
 /**
  * Private raster cache for navigation within the CURRENT authenticated account.
@@ -26,6 +27,9 @@ export function clearAuthorizedAvatarRuntimeCache(): void {
   for (const entry of cached.values()) entry.revoke();
   cached.clear();
   pending.clear();
+  // Any explicit logout/account switch must invalidate the tab-only preview
+  // as well as the live private blob. No private thumbnail survives logout.
+  clearAvatarSessionThumbnails();
 }
 
 export function getAuthorizedAvatarRuntimeUrl(ownerId: string, source: string): string {

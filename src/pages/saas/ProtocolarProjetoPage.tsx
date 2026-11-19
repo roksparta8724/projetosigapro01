@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
-import { PageHero } from "@/components/platform/PageHero";
+import "@/styles/sigapro-protocol-intro.css";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -1538,44 +1538,55 @@ export function ProtocolarProjetoPage({
             </div>
           ) : null}
 
-          <PageHero
-            eyebrow={
-              remotePreProtocolNumber
-                ? "Pré-protocolo com guia pendente"
-                : (isHabiteSeMode ? "Abertura de Habite-se" : "Abertura de novo protocolo")
-            }
-            title={
-              isHabiteSeMode
-                ? (remotePreProtocolNumber
-                    ? "Revise o Habite-se antes do pagamento da guia inicial"
-                    : "Abra o Habite-se como um novo processo, separado da aprovação do projeto")
-                : (remotePreProtocolNumber
-                    ? "Revise o rascunho antes do pagamento da guia inicial"
-                    : isCounterProtocol ? "Registre o requerente e os dados do responsável técnico pela obra, anexe os documentos e gere o pré-protocolo assistido com rastreabilidade do servidor." : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada")
-            }
-            description={
-              isHabiteSeMode
-                ? (remotePreProtocolNumber
-                    ? "Esta abertura ainda é um rascunho com guia pendente. Você pode corrigir dados e documentos; o número oficial do processo só será criado após a compensação."
-                    : "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos e gere o pré-protocolo com a guia inicial. O processo municipal e a numeração oficial só são criados após a confirmação do pagamento.")
-                : (remotePreProtocolNumber
-                    ? "Esta abertura continua editável enquanto a guia estiver pendente. Nenhuma sequência oficial será consumida antes do pagamento."
-                    : isCounterProtocol ? "Atendimento presencial: identifique o profissional habilitado e o proprietário sem substituir a identidade do servidor. O pré-protocolo e a guia seguem as regras municipais de pagamento." : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento.")
-            }
-            icon={FilePlus2}
-            actions={
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Voltar
-                </Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle")}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sair do protocolo
-                </Button>
+          <section
+            data-sigapro-protocol-intro="premium-v2"
+            aria-label="Abertura de protocolo"
+            className="relative flex min-w-0 flex-col gap-4 overflow-hidden rounded-[18px] border border-[#bad7e8] bg-[linear-gradient(112deg,#eaf5fc_0%,#f7fbfe_55%,#ffffff_100%)] px-4 py-4 shadow-[0_8px_22px_rgba(17,65,99,0.07)] sm:px-5 lg:flex-row lg:items-center lg:justify-between"
+          >
+            <div className="flex min-w-0 flex-1 items-start gap-3.5">
+              <span data-protocol-intro-icon="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-[#b0d8ed] bg-[#d9edf9] text-[#12618c]">
+                <FilePlus2 className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p data-protocol-intro-eyebrow="true" className="text-[10px] font-extrabold uppercase leading-4 tracking-[0.09em] text-[#436d88]">
+                  {isCounterProtocol ? "Atendimento municipal" : isHabiteSeMode ? "Habite-se" : "Protocolo digital"}
+                  <span className="mx-2 text-[#86a8bd]" aria-hidden="true">/</span>
+                  {remotePreProtocolNumber ? "Rascunho em edição" : "Cadastro em andamento"}
+                </p>
+                <h1 data-protocol-intro-title="true" className="mt-1 text-[19px] font-bold leading-[1.3] tracking-[-0.025em] text-[#123d59] sm:text-[20px]">
+                  {remotePreProtocolNumber
+                    ? (isHabiteSeMode ? "Revisar rascunho do Habite-se" : "Revisar rascunho do projeto")
+                    : isCounterProtocol ? "Novo protocolo no balcão"
+                      : isHabiteSeMode ? "Solicitar Habite-se" : "Novo protocolo de projeto"}
+                </h1>
+                <p data-protocol-intro-description="true" className="mt-1.5 max-w-[680px] text-[12.5px] font-medium leading-[1.55] text-[#4b6c82]">
+                  {remotePreProtocolNumber
+                    ? "Confira e atualize as informações e os documentos antes de prosseguir."
+                    : isCounterProtocol
+                      ? "Identifique o requerente, confira a responsabilidade técnica e anexe os documentos exigidos."
+                      : isHabiteSeMode
+                        ? "Vincule o processo de aprovação, preencha os dados da obra e apresente os documentos exigidos."
+                        : "Preencha os dados do projeto, reúna os anexos e confira as informações antes de enviar."}
+                </p>
               </div>
-            }
-          />
+            </div>
+            <div data-protocol-intro-actions="true" className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+              <Button type="button" variant="outline"
+                className="h-9 rounded-[10px] border-[#bbd0df] bg-white px-3.5 text-xs font-semibold text-[#1e4e6c] shadow-sm hover:border-[#8fbbd3] hover:bg-[#f1f9fe]"
+                disabled={savingDraft || submitting || hasPendingDocumentUpload}
+                onClick={() => navigate(-1)}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" />
+                Voltar
+              </Button>
+              <Button type="button" variant="outline"
+                className="h-9 rounded-[10px] border-[#bbd0df] bg-white px-3.5 text-xs font-semibold text-[#1e4e6c] shadow-sm hover:border-[#8fbbd3] hover:bg-[#f1f9fe]"
+                disabled={savingDraft || submitting || hasPendingDocumentUpload}
+                onClick={() => navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle")}>
+                <LogOut className="mr-1.5 h-4 w-4" />
+                Sair do protocolo
+              </Button>
+            </div>
+          </section>
 
           {isExternalFlow ? (
             <InternalTabs
@@ -2244,7 +2255,7 @@ export function ProtocolarProjetoPage({
             description={
               remotePreProtocolNumber
                 ? "Salve sem sair da tela. Quando estiver tudo conferido, use Prosseguir para pagamento para abrir a guia inicial; o número oficial continua reservado somente após a compensação."
-                : "Salve o rascunho para continuar depois ou gere a abertura com a guia inicial quando tudo estiver validado."
+                : "Salve o rascunho para continuar depois ou gere a abertura com a guia inicial quando tudo estiver validado; o processo entra na Prefeitura somente depois da compensação do pagamento."
             }
             icon={ShieldCheck}
             contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"

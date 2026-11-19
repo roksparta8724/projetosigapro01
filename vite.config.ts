@@ -732,6 +732,37 @@ export default defineConfig(({ mode }) => {
     }
   }
 
+  // Never publish the fixed homologation URL with an empty/stale Auth pair.
+  // A broken preview used to complete as READY but present a nonfunctional
+  // login. The source of truth is the Neon isolated QA branch, never prod.
+  const isFixedSigaproQaBuild =
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "fix/homologacao-geral-sei-dashboard-bank-20261113";
+  if (isFixedSigaproQaBuild) {
+    const authUrl = readEnvValue("VITE_NEON_AUTH_URL");
+    const dataUrl = readEnvValue("VITE_NEON_DATA_API_URL");
+    const endpointIdentity = (value: string, kind: "neonauth" | "apirest") => {
+      try {
+        const hostname = new URL(value).hostname.toLowerCase();
+        return hostname.match(new RegExp("^(ep-[^.]+)\\." + kind + "\\."))?.[1] || "";
+      } catch { return ""; }
+    };
+    const authEndpoint = endpointIdentity(authUrl, "neonauth");
+    const dataEndpoint = endpointIdentity(dataUrl, "apirest");
+    if (
+      readEnvValue("VITE_SIGAPRO_NEON_ISOLATED") !== "true" ||
+      authEndpoint !== "ep-misty-breeze-b4ri8ig0" ||
+      dataEndpoint !== authEndpoint ||
+      !authUrl.endsWith("/sigapro_migration_stage_20260923/auth") ||
+      !dataUrl.endsWith("/sigapro_migration_stage_20260923/rest/v1")
+    ) {
+      throw new Error(
+        "SIGAPRO_QA_AUTH_CONFIG_INVALID: a homologação não recebeu o par Neon Auth/Data API " +
+        "da branch isolada. Corrija as variáveis VITE_* da Preview antes de publicar.",
+      );
+    }
+  }
+
   return {
   server: {
     host: "localhost",

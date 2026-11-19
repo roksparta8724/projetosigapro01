@@ -9,14 +9,17 @@ describe("tenant admin premium workspace", () => {
   const organogram = read("src/components/platform/MunicipalOrganizationChart.tsx");
   const surfacePolarity = read("src/styles/surface-polarity.css");
 
-  it("renders municipal processes as compact queue rows", () => {
-    expect(admin).toContain("Abrir processo");
-    expect(admin).toContain("Etapa atual");
-    expect(admin).toContain("Pendências");
-    // Earlier five-column grid at laptop widths crushed process names and timestamps.
+  it("uses one aligned premium table for all municipal processes without expanding every card", () => {
+    const table = read("src/components/platform/CompactProcessRegistry.tsx");
+    expect(admin).toContain("renderQueueTable(filteredQueue)");
+    expect(admin).toContain("<CompactProcessRegistry");
+    expect(table).toContain("Abrir processo");
+    expect(table).toContain("Etapa atual");
+    expect(table).toContain("Pendências");
+    expect(table).toContain("Itens por página");
+    expect(admin).not.toContain('data-municipal-queue-row="true"');
     expect(admin).not.toContain("lg:grid-cols-[minmax(260px,1.55fr)");
     expect(admin).toContain("sm:grid-cols-2");
-    expect(admin).toContain("min-[2050px]:grid-cols-");
     expect(admin).toContain("[overflow-wrap:anywhere]");
     expect(admin).toContain("MunicipalActivityCard");
     expect(admin).toContain("municipalActivityTitle");

@@ -7,6 +7,12 @@ import "./styles/premium-navigation-contrast.css";
 import "./styles/institutional-premium-v3.css";
 import "./styles/municipal-executive-v4.css";
 import "./styles/dashboard-topbar-premium-v6.css";
+import "./styles/sigapro-role-blue-contrast.css";
+import "./styles/sigapro-premium-footer.css";
+import "./styles/sigapro-operational-header-premium.css";
+import "./styles/sigapro-finance-premium.css";
+import "./styles/sigapro-inverse-workspace-premium.css";
+import "./styles/sigapro-authenticated-dark-surface-audit.css";
 
 const CONTINUITY_KEY = "sigapro.refresh.continuity.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
@@ -176,7 +182,14 @@ function bootApplication() {
         mountedObserver?.disconnect();
         return;
       }
-      if (!rootElement.hasChildNodes()) return;
+      // A screen-reader-only route pending status is technically a DOM child,
+      // but it is not the page: clearing first-paint styling at that moment
+      // created a visible white/colour jump before the actual workspace loaded.
+      // Wait for genuine route content while leaving all permission gates intact.
+      // Standalone public/error pages render a div containing a semantic
+      // heading rather than PortalFrame or <main>. Count the real heading,
+      // never the screen-reader-only Pending sentinel, as the first paint.
+      if (!rootElement.querySelector(".sig-app-frame, main, form, h1, h2, [role='main'], [data-ui='page-shell']")) return;
       document.documentElement.removeAttribute("data-sigapro-initial-render");
       document.documentElement.removeAttribute("data-sigapro-boot-slow");
       mountedObserver?.disconnect();
@@ -253,12 +266,22 @@ function precacheLoadedPublicBundles() {
 }
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.addEventListener("controllerchange", precacheLoadedPublicBundles, { once: true });
-    navigator.serviceWorker
-      .register("/sigapro-sw.js", { updateViaCache: "none" })
-      .then((registration) => registration.update())
-      .catch(() => {});
-    precacheLoadedPublicBundles();
-  });
+  // Register just after React's initial paint, not after ALL logo/avatar/chart
+  // images finish loading. A slow image used to postpone SW installation until
+  // after a user's first F5, forcing an uncached network document.
+  const prepareWorkerAfterFirstPaint = () => {
+    window.requestAnimationFrame(() => {
+      navigator.serviceWorker.addEventListener("controllerchange", precacheLoadedPublicBundles, { once: true });
+      navigator.serviceWorker
+        .register("/sigapro-sw.js", { updateViaCache: "none" })
+        .then((registration) => registration.update())
+        .catch(() => {});
+      precacheLoadedPublicBundles();
+    });
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", prepareWorkerAfterFirstPaint, { once: true });
+  } else {
+    prepareWorkerAfterFirstPaint();
+  }
 }

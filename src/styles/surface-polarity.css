@@ -2246,16 +2246,16 @@ html body #root .sig-app-frame
 
 
 /* SIGAPRO SHARED FOOTER RESPONSIVE V1 */
-html body #root .sig-page-footer [data-sig-footer-grid="true"] {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-grid="true"] {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)) !important;
   align-items: start !important;
 }
-html body #root .sig-page-footer [data-sig-footer-column="true"],
-html body #root .sig-page-footer [data-sig-footer-column="true"] > div {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"],
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"] > div {
   min-width: 0 !important;
   max-width: 100% !important;
 }
-html body #root .sig-page-footer [data-sig-footer-column="true"] :is(p, span) {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"] :is(p, span) {
   white-space: normal !important;
   overflow-wrap: anywhere !important;
   word-break: normal !important;
@@ -2263,18 +2263,18 @@ html body #root .sig-page-footer [data-sig-footer-column="true"] :is(p, span) {
 
 /* SIGAPRO TENANT CONTRAST + FOOTER V3 */
 
-html body #root .sig-page-footer [data-sig-footer-grid="true"] {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-grid="true"] {
   grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)) !important;
   align-items: start !important;
 }
 
-html body #root .sig-page-footer [data-sig-footer-column="true"],
-html body #root .sig-page-footer [data-sig-footer-column="true"] > div {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"],
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"] > div {
   min-width: 0 !important;
   max-width: 100% !important;
 }
 
-html body #root .sig-page-footer [data-sig-footer-column="true"] :is(p,span) {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"] :is(p,span) {
   white-space: normal !important;
   overflow-wrap: anywhere !important;
   word-break: normal !important;
@@ -2309,19 +2309,19 @@ html body #root .sig-main-shell [data-analysis-availability-card="true"] :is(p,s
 
 /* SIGAPRO 100 PERCENT RESPONSIVE PREMIUM V1 */
 
-html body #root .sig-page-footer [data-sig-footer-grid="true"] {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-grid="true"] {
   grid-template-columns:
     repeat(auto-fit, minmax(min(100%, 260px), 1fr)) !important;
   align-items: start !important;
 }
 
-html body #root .sig-page-footer [data-sig-footer-column="true"],
-html body #root .sig-page-footer [data-sig-footer-column="true"] > div {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"],
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"] > div {
   min-width: 0 !important;
   max-width: 100% !important;
 }
 
-html body #root .sig-page-footer [data-sig-footer-column="true"] :is(p,span) {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-column="true"] :is(p,span) {
   white-space: normal !important;
   overflow-wrap: anywhere !important;
   word-break: normal !important;
@@ -2693,17 +2693,17 @@ html body #root .sig-collection-premium [data-collection-tone="dark"] [data-coll
 /* MUNICIPAL FOOTER FRAMING — same square crop as the administrator's editor,
    displayed at a compact size so the crest never dominates the footer.
    Earlier generic footer rules force align-items:start !important. */
-html body #root .sig-page-footer [data-sig-footer-grid="true"] {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-grid="true"] {
   align-items: center !important;
 }
-html body #root .sig-page-footer [data-sig-footer-logo-cell="true"] {
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-logo-cell="true"] {
   display: flex !important;
   min-width: 0 !important;
   align-self: center !important;
   align-items: center !important;
   justify-content: center !important;
 }
-html body #root .sig-page-footer [data-sig-footer-logo-cell="true"]
+html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-logo-cell="true"]
 .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="footer"] {
   width: 144px !important;
   height: 144px !important;
@@ -2716,7 +2716,7 @@ html body #root .sig-page-footer [data-sig-footer-logo-cell="true"]
   box-sizing: border-box !important;
 }
 @media (min-width: 1536px) {
-  html body #root .sig-page-footer [data-sig-footer-logo-cell="true"] {
+  html body #root .sig-page-footer:not([data-sig-footer-design="premium-v3"]) [data-sig-footer-logo-cell="true"] {
     justify-content: flex-start !important;
   }
 }

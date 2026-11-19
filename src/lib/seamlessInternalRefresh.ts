@@ -123,6 +123,9 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    // Ctrl+F5 is another native hard reload gesture (in addition to Shift+F5).
+    // It must never be accidentally converted into a data-only refresh.
+    if (event.key.toLowerCase() === "f5" && (event.ctrlKey || event.metaKey)) return;
     if (
       !shouldHandle() ||
       document.visibilityState === "hidden" ||
