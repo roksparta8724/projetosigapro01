@@ -1380,11 +1380,7 @@ export function MasterAdminPage() {
               users={sessionUsers}
               getAvatarProfile={(user) => getUserProfile(user.id, user.email) ?? null}
               renderDetails={renderUserCard}
-              onManageMunicipality={(id) => {
-                setSelectedTenantId(id);
-                setIsCreatingNewInstitution(false);
-                setWorkspaceView("cadastro");
-              }}
+              onManageMunicipality={handleSelectTenant}
             />
           </PageMainContent>
         ) : null}
