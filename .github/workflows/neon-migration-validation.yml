@@ -50,4 +50,5 @@ jobs:
           src/test/processMarkerLimit20261117.test.ts
           src/test/officialProcessCanonicalStatusAndList.test.ts
           src/test/municipalProcessRegistry.test.ts
+          src/test/municipalAdminRegistryProduction20261119.test.ts
 
