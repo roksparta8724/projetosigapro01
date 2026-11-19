@@ -460,7 +460,9 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
       expect(result.response.status).toBe(200);
       expect(await result.response.text()).toContain("always-fresh");
     }
-    expect(h.liveMessages).toHaveLength(0);
+    // The SPA path mismatch legitimately sends one PROBE and is denied by
+    // the mounted React route. Login is excluded without probing at all.
+    expect(h.liveMessages).toEqual(["SIGAPRO_LIVE_RELOAD_PROBE"]);
   });
 
 });
