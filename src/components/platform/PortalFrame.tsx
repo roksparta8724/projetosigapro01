@@ -1430,6 +1430,10 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     <div
       className={cn(
         "sig-app-frame min-h-screen text-foreground",
+        // Tailwind dark: utilities require a .dark ancestor. The institutional
+        // theme uses inverse-main; activate both on the SAME authenticated
+        // frame, never on html/body (which also contain public routes).
+        inverseMainTheme && "dark",
         focusMode && "sig-focus-workspace h-auto overflow-visible",
       )}
       data-focus-mode={focusMode ? "true" : "false"}
