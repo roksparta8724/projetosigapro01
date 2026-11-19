@@ -195,11 +195,18 @@ async function respondToNavigation(request, event) {
       }
       const response = preloaded ||
         await fetch(request, { cache: "no-store", credentials: "same-origin" });
-      if (await isVerifiedPublicAppDocument(response)) {
-        const documentCopy = response.clone();
-        event.waitUntil(
-          cache.put(DOCUMENT_URL, documentCopy).catch(() => {}),
-        );
+      // Do not hold the browser's navigation response until its duplicate
+      // HTML body has been fully read and verified. This serial wait was
+      // adding an empty first-paint interval on the mutable QA alias.
+      // Send the CURRENT network document immediately; validate only a clone
+      // in waitUntil before allowing it into the public document cache.
+      if (isPublicAppDocument(response)) {
+        const candidate = response.clone();
+        event.waitUntil((async () => {
+          if (await isVerifiedPublicAppDocument(candidate)) {
+            await cache.put(DOCUMENT_URL, candidate);
+          }
+        })().catch(() => {}));
       }
       // Never persist Vercel SSO, redirects, error HTML or app responses.
       return response;
