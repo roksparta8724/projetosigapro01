@@ -239,6 +239,39 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     expect(await next.response.text()).toContain("release-B");
     await Promise.all(next.background);
   });
+  it("entrega o HTML atual sem esperar a verificação assíncrona da cópia de cache", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const h = harness(qaOrigin);
+    await h.install();
+
+    let allowCacheValidation: (() => void) | undefined;
+    const verificationGate = new Promise<void>((resolve) => { allowCacheValidation = resolve; });
+    const fresh = appHtml("release-live");
+    const originalClone = fresh.clone.bind(fresh);
+    fresh.clone = () => {
+      const candidate = originalClone();
+      const originalText = candidate.text.bind(candidate);
+      candidate.text = async () => {
+        await verificationGate;
+        return originalText();
+      };
+      return candidate;
+    };
+    h.fetcher.mockImplementation(async () => fresh);
+
+    // The browser must receive the actual network release even while the
+    // validator is still reading a separate clone in waitUntil.
+    const result = await h.navigate(qaOrigin + "/prefeitura/protocolos");
+    expect(await result.response.text()).toContain("release-live");
+    expect(result.background).toHaveLength(1);
+
+    allowCacheValidation?.();
+    await Promise.all(result.background);
+    const cached = h.stores.get("sigapro-enterprise-v9:public-html")
+      ?.get(qaOrigin + "/index.html");
+    expect(await cached?.text()).toContain("release-live");
+  });
+
   it("ativa navigation preload na homologação móvel e usa HTML de rede pré-carregado", async () => {
     const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
     const h = harness(qaOrigin);
