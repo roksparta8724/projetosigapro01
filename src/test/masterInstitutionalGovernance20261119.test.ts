@@ -45,6 +45,8 @@ describe("SIGAPRO Master — Gestão por prefeitura e identidade premium", () =>
     expect(panel).not.toContain("setUserAccountStatus(");
     expect(panel).not.toContain("deleteUserAccount(");
     expect(panel).toContain("onManageMunicipality(selectedMunicipality.id)");
+    expect(page).toContain("onManageMunicipality={handleSelectTenant}");
+    expect(page).toContain('params.set("secao", "cadastro")');
   });
 
   it("usa diretório por prefeitura, indicadores próprios, perfis e buscas internas", () => {
