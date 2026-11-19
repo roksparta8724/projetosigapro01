@@ -1,0 +1,396 @@
+/*
+ * SIGAPRO — inverse-main surface contract, 2026-11-19.
+ * Root cause: historic desktop navigation, protocol summary and batch controls
+ * forced white backgrounds with !important while the live theme was driven by
+ * [data-layout-mode="inverse-main"] (not necessarily .dark).
+ *
+ * Only internal operational surfaces are affected. No status mutations,
+ * permission rules, route changes, topbar shell or document rendering.
+ */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell {
+  --sig-inverse-card-surface: #142d43;
+  --sig-inverse-card-raised: #1c3b55;
+  --sig-inverse-card-selected: #175477;
+  --sig-inverse-card-border: #47657f;
+  --sig-inverse-card-ink: #f6faff;
+  --sig-inverse-card-muted: #ccdded;
+}
+
+/* Shared page headers were incorrectly hard-coded white for *both* modes. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"],
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-page-header[data-sigapro-operational-header="premium-v3"] {
+  background: linear-gradient(135deg, #1b3a53 0%, #112b43 100%) !important;
+  background-color: #152f46 !important;
+  border-color: #446984 !important;
+  border-left-color: #5bafcf !important;
+  color: #f3f9ff !important;
+  -webkit-text-fill-color: #f3f9ff !important;
+  box-shadow: 0 12px 27px rgb(2 12 26 / 20%) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"]
+:is(.sig-page-title, h1, h2),
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-page-header[data-sigapro-operational-header="premium-v3"]
+[data-sigapro-header-text="true"] .sig-page-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"]
+:is(.sig-section-label, .sig-subtitle),
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-page-header[data-sigapro-operational-header="premium-v3"]
+[data-sigapro-header-text="true"] :is(.sig-section-label, .sig-subtitle) {
+  color: #cde3f1 !important;
+  -webkit-text-fill-color: #cde3f1 !important;
+  opacity: 1 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-page-header :is(.sig-header-icon) {
+  background: #25516d !important;
+  border-color: #557994 !important;
+  color: #caecff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-page-header .sig-header-icon svg {
+  color: #caecff !important;
+  stroke: currentColor !important;
+}
+
+/* Stats must obey dark colors even when the role-blue light metric rule wins. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"][data-premium-role-blue="metric"] {
+  background: linear-gradient(180deg, #1a354d, #10283f) !important;
+  background-color: #152f47 !important;
+  color: #f6faff !important;
+  -webkit-text-fill-color: #f6faff !important;
+  border-color: #486984 !important;
+  box-shadow: 0 10px 22px rgb(2 9 23 / 21%) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"]
+:is(.sig-stat-value,.sig-metric-value) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"]
+:is(.sig-fit-title,.sig-fit-copy,.sig-metric-title,.sig-metric-helper) {
+  color: #d3e5f4 !important;
+  -webkit-text-fill-color: #d3e5f4 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-role-blue="metric"] .sig-stat-icon {
+  background: #204a67 !important;
+  border-color: #557995 !important;
+  color: #b3e6ff !important;
+}
+
+/* Shared tabs: Protocolo, Financeiro, analyst desks and any other InternalTabs.
+ * Keep horizontal scroll and fixed widths; change colors only. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-section-nav[data-premium-surface="navigation"] {
+  background: #163248 !important;
+  background-image: none !important;
+  border-color: #42617b !important;
+  box-shadow: 0 8px 22px rgb(1 12 27 / 20%) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-section-nav[data-premium-surface="navigation"] > div {
+  scrollbar-color: #537997 #153147 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-section-nav[data-premium-surface="navigation"] .sig-nav-item {
+  background: #203e56 !important;
+  background-image: none !important;
+  border-color: #4d6b82 !important;
+  color: #f2f7ff !important;
+  -webkit-text-fill-color: #f2f7ff !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-section-nav[data-premium-surface="navigation"] .sig-nav-item[data-nav-active="false"]:hover {
+  background: #2c526e !important;
+  border-color: #87bfdb !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-section-nav[data-premium-surface="navigation"] .sig-nav-item[data-nav-active="true"] {
+  background: linear-gradient(135deg, #115982 0%, #2073a0 100%) !important;
+  border-color: #7ac1e4 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: inset 0 3px 0 #8fdcff, 0 6px 13px rgb(2 12 30 / 22%) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-section-nav[data-premium-surface="navigation"] .sig-nav-item .sig-nav-item-label {
+  color: #f7fbff !important;
+  -webkit-text-fill-color: #f7fbff !important;
+  opacity: 1 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-section-nav[data-premium-surface="navigation"] .sig-nav-item .sig-nav-item-helper {
+  color: #d2e1ef !important;
+  -webkit-text-fill-color: #d2e1ef !important;
+  opacity: 1 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-section-nav[data-premium-surface="navigation"] .sig-nav-item[data-nav-active="true"]
+:is(.sig-nav-item-label,.sig-nav-item-helper) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Protocol quick-summary: the former white strip had near-white text. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell [data-sigapro-protocol-quick-actions="true"] {
+  background: linear-gradient(115deg, #1c3b54 0%, #142d43 100%) !important;
+  background-color: #142d43 !important;
+  border-color: #52718b !important;
+  color: #f6fbff !important;
+  -webkit-text-fill-color: #f6fbff !important;
+  box-shadow: 0 9px 22px rgb(1 12 25 / 21%) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell [data-sigapro-protocol-quick-actions="true"] > div:first-child :is(h2,p) {
+  color: #edf6ff !important;
+  -webkit-text-fill-color: #edf6ff !important;
+  opacity: 1 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell [data-sigapro-protocol-quick-actions="true"] > div:first-child p:first-child {
+  color: #a9dafa !important;
+  -webkit-text-fill-color: #a9dafa !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell [data-sigapro-protocol-live-summary="true"] > button {
+  background: #213e56 !important;
+  border-color: #456982 !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell [data-sigapro-protocol-live-summary="true"] > button:hover {
+  background: #2c5472 !important;
+  border-color: #7eaeca !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell [data-sigapro-protocol-live-summary="true"] > button :is(span,strong,small) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell [data-sigapro-protocol-live-summary="true"] > button > span:last-child {
+  color: #d1e1f0 !important;
+  -webkit-text-fill-color: #d1e1f0 !important;
+}
+
+/* SEI-style process toolbar is shared by all units. The theme is inverse-main,
+ * while historic CSS only checked .dark. Do not conceal disabled actions. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell {
+  --sig-process-surface: #19344c;
+  --sig-process-quiet: #1c3b55;
+  --sig-process-outline: #506b84;
+  --sig-process-ink: #f4f9ff;
+  --sig-process-muted: #cbddec;
+  color: #eff7ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-actions[data-sigapro-process-bulk-actions="true"] {
+  background: #172e45 !important;
+  background-image: none !important;
+  border-color: #4e6a82 !important;
+  box-shadow: 0 7px 18px rgb(1 11 23 / 22%) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell :is(.sig-workspace-select-all,.sig-workspace-search) {
+  background: #203c55 !important;
+  border-color: #55738a !important;
+  color: #f5faff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-selected,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-clear {
+  color: #e1effb !important;
+  -webkit-text-fill-color: #e1effb !important;
+  opacity: 1 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-search input {
+  background: transparent !important;
+  color: #f7fbff !important;
+  -webkit-text-fill-color: #f7fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-search input::placeholder {
+  color: #c3d6e7 !important;
+  -webkit-text-fill-color: #c3d6e7 !important;
+  opacity: 1 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-filters > span {
+  color: #e7f4ff !important;
+  -webkit-text-fill-color: #e7f4ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-chip:not(.is-active):not(:disabled) {
+  background: #254b66 !important;
+  border-color: #567e9b !important;
+  color: #f1f8ff !important;
+  -webkit-text-fill-color: #f1f8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-chip.is-active:not(:disabled) {
+  background: #17638d !important;
+  border-color: #91d5f5 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-chip:disabled {
+  background: #1c354b !important;
+  border-color: #415c72 !important;
+  color: #a9c5d9 !important;
+  -webkit-text-fill-color: #a9c5d9 !important;
+  opacity: 1 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-action:not(:disabled) {
+  background: #284b66 !important;
+  border-color: #6285a0 !important;
+  color: #f8fcff !important;
+  -webkit-text-fill-color: #f8fcff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-action:not(:disabled):hover {
+  background: #32617f !important;
+  border-color: #a6d8ef !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-action:disabled {
+  background: #20384e !important;
+  border-color: #3f5d75 !important;
+  color: #c0d0df !important;
+  -webkit-text-fill-color: #c0d0df !important;
+  opacity: 1 !important;
+  cursor: not-allowed;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-action-primary:not(:disabled) {
+  background: linear-gradient(135deg,#105d8b,#0d446b) !important;
+  border-color: #69b6db !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-action-green:not(:disabled) {
+  background: #0e6850 !important;
+  border-color: #3fb18a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-action :is(svg,span) {
+  color: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+  stroke: currentColor;
+}
+
+/* Process list and footers, including empty-state table headers. Keep
+ * semantic process badges and active markers untouched. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-process-registry {
+  background: #142e46 !important;
+  border-color: #496981 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-process-registry .sig-process-head {
+  background: #1b3a54 !important;
+  color: #e9f4ff !important;
+  border-color: #52728e !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-process-registry .sig-process-row {
+  background: #132c44 !important;
+  color: #f3f8ff !important;
+  border-color: #385a73 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-process-registry .sig-process-row:nth-child(even) {
+  background: #18354d !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-process-registry .sig-process-row:hover {
+  background: #254963 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-process-registry :is(.sig-process-subject-title,.sig-process-responsible-name) {
+  color: #f3f8ff !important;
+  -webkit-text-fill-color: #f3f8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-process-registry :is(.sig-process-stage-description,.sig-process-interested,.sig-process-marker-label) {
+  color: #c9dcec !important;
+  -webkit-text-fill-color: #c9dcec !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-process-registry .sig-process-number-link {
+  color: #9edcff !important;
+  -webkit-text-fill-color: #9edcff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell :is(.sig-reference-footer,.sig-process-registry .sig-reference-footer) {
+  background: #19354e !important;
+  border-color: #486a84 !important;
+  color: #e3f1fd !important;
+}
+
+/* Keep the protocol-specific queue and read-only controls consistent with
+ * the shared component; do not force dark ink into active semantic buttons. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-protocol-desk
+[data-sigapro-protocol-process-table="true"] > div:first-child {
+  background: #19354e !important;
+  border-color: #4c6881 !important;
+  color: #edf6ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-protocol-desk
+[data-sigapro-protocol-process-table="true"] > div:first-child > span {
+  color: #e5f0fc !important;
+  -webkit-text-fill-color: #e5f0fc !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-protocol-desk
+[data-sigapro-protocol-process-table="true"] > div:first-child button {
+  background: #254e70 !important;
+  border-color: #688da8 !important;
+  color: #f4faff !important;
+  -webkit-text-fill-color: #f4faff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-protocol-desk
+[data-sigapro-protocol-process-table="true"] > div:first-child button:hover:not(:disabled) {
+  background: #2f6488 !important;
+}
+
+/* Preserve title and explanatory copy inside generic dark panels. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-protocol-desk .sig-section-card :is(.sig-section-title,.sig-subtitle),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-protocol-desk .sig-ui-card :is(.sig-section-title,.sig-subtitle) {
+  color: #e5f2ff !important;
+  -webkit-text-fill-color: #e5f2ff !important;
+}
+
+/* Reduced motion remains a first-class navigation requirement. */
+@media (prefers-reduced-motion: reduce) {
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  .sig-section-nav .sig-nav-item,
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  .sig-workspace-shell .sig-workspace-action {
+    transition: none !important;
+  }
+}
