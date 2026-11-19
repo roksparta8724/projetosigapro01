@@ -527,7 +527,7 @@ export function FinanceProtocolsPage() {
               title="Controle financeiro por protocolo"
               description="Cada processo possui sua conta: valores emitidos, compensados no cadastro, conciliados com banco e pendentes. Protocolos ativos aparecem mesmo antes da cobrança."
             >
-              <div className="mb-5 rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-sm dark:border-slate-700 dark:bg-none dark:bg-slate-950/45">
+              <div data-finance-protocol-filter-bar="true" className="mb-5 rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-sm dark:border-slate-700 dark:bg-none dark:bg-slate-950/45">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -541,6 +541,8 @@ export function FinanceProtocolsPage() {
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
+                      aria-pressed={view === "abertos"}
+                      data-finance-view-control="true"
                       variant={view === "abertos" ? "default" : "outline"}
                       className={
                         view === "abertos"
@@ -554,6 +556,8 @@ export function FinanceProtocolsPage() {
                     </Button>
                     <Button
                       type="button"
+                      aria-pressed={view === "todos"}
+                      data-finance-view-control="true"
                       variant={view === "todos" ? "default" : "outline"}
                       className={
                         view === "todos"
