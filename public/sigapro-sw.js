@@ -184,12 +184,13 @@ self.addEventListener("message", (event) => {
  */
 async function tryPreserveLiveQaDocument(event) {
   const request = event.request;
+  const activeClientId = event.replacesClientId || event.clientId;
   if (!IS_MUTABLE_PREVIEW_ALIAS || request.isReloadNavigation !== true ||
-      !event.replacesClientId || typeof MessageChannel !== "function") return false;
+      !activeClientId || typeof MessageChannel !== "function") return false;
 
   let client;
   try {
-    client = await self.clients.get(event.replacesClientId);
+    client = await self.clients.get(activeClientId);
   } catch {
     return false;
   }
