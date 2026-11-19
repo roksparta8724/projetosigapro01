@@ -1217,7 +1217,7 @@ export function ProtocolDeskPage() {
 
   return (
     <PortalFrame eyebrow="SETOR DE PROTOCOLO" title="Triagem municipal, atendimento e fluxo inicial">
-      <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
+      <PageShell className={section === "visao-geral" ? "sig-protocol-desk sig-module-summary-active" : "sig-protocol-desk"}>
         <section data-sigapro-protocol-quick-actions="true"
           aria-label="Situação operacional do Protocolo"
           className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-3 rounded-[15px] border border-[#c5d8e6] bg-white px-4 py-3 shadow-[0_4px_12px_rgba(18,54,83,0.05)]">
