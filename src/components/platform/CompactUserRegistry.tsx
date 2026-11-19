@@ -1,7 +1,10 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
-import { accessLevelLabels, roleLabels, type SessionUser } from "@/lib/platform";
+import { accessLevelLabels, roleLabels, type SessionUser, type UserProfile } from "@/lib/platform";
+import { UserAvatar } from "@/components/platform/UserAvatar";
+import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
+import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 
 const statusText: Record<string, string> = {
   active: "Ativo",
@@ -20,13 +23,15 @@ export type CompactUserRegistryProps = {
   page: number;
   onPageChange: (page: number) => void;
   renderDetails: (user: SessionUser) => ReactNode;
+  /** Read from the municipality-scoped profile store, never invent a photo. */
+  getAvatarProfile?: (user: SessionUser) => UserProfile | null;
   filterKey?: string;
   pageSize?: number;
   label?: string;
 };
 
 export function CompactUserRegistry({
-  users, page, onPageChange, renderDetails, filterKey = "", pageSize = 20,
+  users, page, onPageChange, renderDetails, getAvatarProfile, filterKey = "", pageSize = 20,
   label = "Cadastro de usuários",
 }: CompactUserRegistryProps) {
   const paged = useMemo(
@@ -73,15 +78,27 @@ export function CompactUserRegistry({
               {paged.items.map((user) => {
                 const expanded = expandedId === user.id;
                 const rowId = "sigapro-user-detail-" + user.id.replace(/[^a-zA-Z0-9_-]/g, "");
-                const initials = String(user.name || "?").trim().split(/\s+/)
-                  .filter(Boolean).slice(0, 2).map((part) => part.charAt(0))
-                  .join("").toLocaleUpperCase("pt-BR") || "?";
+                const profile = getAvatarProfile?.(user) ?? null;
+                const imageUrl = resolveProfileAvatarDisplayUrl(profile);
                 return (
                   <Fragment key={user.id}>
                     <tr data-sigapro-user-row="true" className="transition-colors hover:bg-sky-50/60">
                       <td className="max-w-0 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
-                          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-xs font-bold text-white">{initials}</span>
+                          <UserAvatar
+                            name={user.name}
+                            imageUrl={imageUrl}
+                            crop={imageUrl && profile ? {
+                              scale: profile.avatarScale ?? 1,
+                              offsetX: profile.avatarOffsetX ?? 0,
+                              offsetY: profile.avatarOffsetY ?? 0,
+                              editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
+                            } : undefined}
+                            size="md"
+                            title={user.name || "Usuário"}
+                            className="!h-10 !w-10 border-white bg-slate-50 ring-1 ring-slate-200 shadow-sm"
+                            fallbackClassName="!bg-slate-100 !text-slate-700"
+                          />
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-slate-950" title={user.name}>{user.name || "Usuário"}</p>
                             <p className="truncate text-xs text-slate-500" title={user.email}>{user.email || "E-mail não informado"}</p>
