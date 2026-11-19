@@ -1,0 +1,220 @@
+/* SIGAPRO Master — institutional governance, not a municipal employee page.
+ * Isolated component style; light/dark surfaces are explicit and do not
+ * change account mutation, access control, logo source, or municipality data.
+ */
+html body #root .sig-main-shell .sig-master-governance {
+  --master-ink: #19334d;
+  --master-muted: #4f657b;
+  --master-border: #c8d8e7;
+  --master-panel: #ffffff;
+  --master-raised: #f3f8fd;
+  --master-hover: #e6f3fc;
+  --master-selected: #dceefa;
+  --master-selected-border: #2182b3;
+  color: var(--master-ink) !important;
+  min-width: 0;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-hero {
+  background: linear-gradient(122deg,#102f4c 0%,#164564 72%,#17658a 100%) !important;
+  border-color: #2c6685 !important;
+  box-shadow: 0 12px 28px rgba(7,31,50,.11);
+  color: #f6fbff !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-hero :is(h2,p),
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-hero-icon {
+  color: #f6fbff !important;
+  -webkit-text-fill-color: #f6fbff !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-hero p:last-child {
+  color: #c9e3f2 !important;
+  -webkit-text-fill-color: #c9e3f2 !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-hero-icon {
+  background: #1a5474 !important;
+  border-color: #457f9d !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-scope-counter {
+  color: #e6f6ff !important;
+  -webkit-text-fill-color: #e6f6ff !important;
+  background: #164363 !important;
+  border-color: #5d91b2 !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-metric,
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-stat,
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-panel {
+  background: var(--master-panel) !important;
+  background-image: none !important;
+  color: var(--master-ink) !important;
+  border-color: var(--master-border) !important;
+  box-shadow: 0 7px 18px rgb(6 35 58 / 4%) !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-metric {
+  border-top: 3px solid #348fb6 !important;
+}
+html body #root .sig-main-shell .sig-master-governance :is(
+  .sig-master-governance-metric,.sig-master-governance-stat,
+  .sig-master-governance-panel,.sig-master-governance-option
+) p:first-child {
+  color: var(--master-muted) !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-metric p:nth-child(2),
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-stat p:nth-child(2) {
+  color: var(--master-ink) !important;
+  -webkit-text-fill-color: var(--master-ink) !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-option {
+  background: var(--master-raised) !important;
+  border-color: var(--master-border) !important;
+  color: var(--master-ink) !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-option:hover {
+  background: var(--master-hover) !important;
+  border-color: #82b7d3 !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-option[aria-pressed="true"] {
+  background: var(--master-selected) !important;
+  border-color: var(--master-selected-border) !important;
+  color: #073d5f !important;
+  box-shadow: inset 3px 0 0 var(--master-selected-border) !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-option :is(span,svg) {
+  color: inherit !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-option span span:nth-child(n+2) {
+  color: var(--master-muted) !important;
+  -webkit-text-fill-color: var(--master-muted) !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-option[aria-pressed="true"] span span:nth-child(n+2) {
+  color: #285b78 !important;
+  -webkit-text-fill-color: #285b78 !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-option-icon {
+  background: #e0edf8 !important;
+  color: #1d6687 !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-search {
+  background: var(--master-raised) !important;
+  border-color: var(--master-border) !important;
+  color: var(--master-ink) !important;
+  -webkit-text-fill-color: var(--master-ink) !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-search::placeholder {
+  color: var(--master-muted) !important;
+  -webkit-text-fill-color: var(--master-muted) !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-tabs {
+  background: var(--master-raised) !important;
+  border: 1px solid var(--master-border) !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-tabs [role="tab"] {
+  color: var(--master-muted) !important;
+  -webkit-text-fill-color: var(--master-muted) !important;
+  background: transparent !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-tabs [role="tab"][data-state="active"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: #165a7d !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-action {
+  background: #143955 !important;
+  border-color: #2b6180 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-action:hover {
+  background: #195b80 !important;
+}
+html body #root .sig-main-shell .sig-master-governance .sig-master-governance-alert {
+  background: #fff3d8 !important;
+  color: #724114 !important;
+  border-color: #e2b75d !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] > div:nth-child(2) {
+  border-color: var(--master-border) !important;
+  background: var(--master-panel) !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] table {
+  min-width: 570px !important;
+  width: 100% !important;
+  table-layout: fixed;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] :is(th:nth-child(3),td:nth-child(3),th:nth-child(5),td:nth-child(5)) {
+  display: none !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] th:first-child {
+  width: 38% !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] th:nth-child(2) {
+  width: 29% !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] th:nth-child(4) {
+  width: 17% !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] th:nth-child(6) {
+  width: 16% !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] thead {
+  background: var(--master-raised) !important;
+  color: var(--master-muted) !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] tbody tr:not(:has([data-sigapro-user-expanded="true"])) {
+  background: var(--master-panel) !important;
+  border-color: var(--master-border) !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] tbody tr:not(:has([data-sigapro-user-expanded="true"])):hover {
+  background: var(--master-hover) !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] tbody :is(.text-slate-950,.text-slate-900,.text-slate-800) {
+  color: var(--master-ink) !important;
+  -webkit-text-fill-color: var(--master-ink) !important;
+}
+html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] tbody :is(.text-slate-700,.text-slate-600,.text-slate-500) {
+  color: var(--master-muted) !important;
+  -webkit-text-fill-color: var(--master-muted) !important;
+}
+
+/* SIGAPRO's inverse-main is the authoritative theme. Scope to Master only. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance {
+  --master-ink: #f4faff;
+  --master-muted: #c6dbea;
+  --master-border: #49667e;
+  --master-panel: #183247;
+  --master-raised: #203c54;
+  --master-hover: #2a4b65;
+  --master-selected: #1b5879;
+  --master-selected-border: #82d0f3;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance .sig-master-governance-hero {
+  border-color: #5884a0 !important;
+  background: linear-gradient(122deg,#112b41 0%,#16405b 72%,#185b7c 100%) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance .sig-master-governance-option[aria-pressed="true"] {
+  color: #f6fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance .sig-master-governance-option[aria-pressed="true"] span span:nth-child(n+2) {
+  color: #cce8f7 !important;
+  -webkit-text-fill-color: #cce8f7 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance .sig-master-governance-option-icon {
+  background: #255878 !important;
+  color: #c5edff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance .sig-master-governance-tabs [role="tab"][data-state="active"] {
+  background: #2e789f !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance .sig-master-governance-alert {
+  border-color: #c09c60 !important;
+  background: #49391f !important;
+  color: #fff1d4 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] [data-sigapro-user-expanded="true"] {
+  background: #203d55 !important;
+  border-color: #526d83 !important;
+}
+@media (max-width: 720px) {
+  html body #root .sig-main-shell .sig-master-governance [data-sigapro-user-registry="compact"] table {
+    min-width: 540px !important;
+  }
+}

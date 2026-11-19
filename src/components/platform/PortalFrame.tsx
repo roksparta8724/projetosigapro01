@@ -2532,9 +2532,16 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                       <InstitutionalLogo
                         branding={stableHeaderBranding}
                         fallbackLabel={institutionDisplayName}
-                        variant="header"
+                        // Master uses a proportional square emblem. A compact crop
+                        // prevents the blurred/stretching seen in the wide banner.
+                        variant={isMasterUser ? "compact" : "header"}
                         contextScope={isMasterUser ? "master" : "municipality"}
-                        className={cn("mx-auto md:mx-0", compactHeader && "!h-[66px] !w-[110px] lg:!h-[66px] lg:!w-[110px]")}
+                        className={cn(
+                          "mx-auto md:mx-0",
+                          isMasterUser
+                            ? "!h-[56px] !w-[56px] !min-h-[56px] !min-w-[56px] !max-h-[56px] !max-w-[56px]"
+                            : compactHeader && "!h-[66px] !w-[110px] lg:!h-[66px] lg:!w-[110px]",
+                        )}
                       />
                     </div>
 

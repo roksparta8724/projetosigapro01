@@ -1,5 +1,5 @@
 ﻿import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, Plus, Search, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
+import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, Plus, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { MetricCard } from "@/components/platform/MetricCard";
@@ -10,7 +10,7 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
+import { MasterUserGovernance } from "@/components/platform/MasterUserGovernance";
 import { CompactPortfolioRegistry } from "@/components/platform/CompactPortfolioRegistry";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
@@ -40,7 +39,6 @@ import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { accessLevelLabels, roleLabels, roleSuggestedTitles, type AccountStatus, type Institution, type InstitutionAdminContact, type SessionUser, type UserRole } from "@/lib/platform";
 
 type SignatureMode = "eletronica" | "manual" | "icp_brasil";
-type UserGroup = "todos" | "internos" | "externos" | "administradores";
 type WorkspaceView = "visao-geral" | "carteira" | "cadastro" | "organograma" | "usuarios";
 type AdminContactDraft = { id: string; email: string; fullName: string; title: string; accessLevel: 2 | 3 };
 const normalizeAdminContactsFromDrafts = (drafts: AdminContactDraft[]): InstitutionAdminContact[] =>
@@ -148,11 +146,6 @@ export function MasterAdminPage() {
   const [tenantActionBusyId, setTenantActionBusyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
-  const [userSearch, setUserSearch] = useState("");
-  const [systemUserPage, setSystemUserPage] = useState(1);
-  const [userStatusFilter, setUserStatusFilter] = useState<"todos" | AccountStatus>("todos");
-  const [userRoleFilter, setUserRoleFilter] = useState<"todos" | UserRole>("todos");
-  const [userGroup, setUserGroup] = useState<UserGroup>("todos");
   const [masterDepartments, setMasterDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [orgBusy, setOrgBusy] = useState(false);
   const [orgForm, setOrgForm] = useState({
@@ -247,8 +240,6 @@ export function MasterAdminPage() {
     return [...map.values()];
   }, [sessionUsers]);
   const activeUsersCount = useMemo(() => sessionUsers.filter((user) => user.accountStatus === "active").length, [sessionUsers]);
-  const blockedUsersCount = useMemo(() => sessionUsers.filter((user) => user.accountStatus === "blocked").length, [sessionUsers]);
-  const adminUsersCount = useMemo(() => sessionUsers.filter((user) => ["master_admin", "master_ops", "prefeitura_admin"].includes(user.role)).length, [sessionUsers]);
   const monthlyRevenue = useMemo(() => institutionCatalog.reduce((sum, tenant) => sum + Number(getInstitutionSettings(tenant.id)?.monthlyFee ?? 0), 0), [getInstitutionSettings, institutionCatalog]);
   const activePlansCount = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo" && Number(getInstitutionSettings(tenant.id)?.monthlyFee ?? 0) > 0).length, [getInstitutionSettings, institutionCatalog]);
   const activeInstitutionCount = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").length, [institutionCatalog]);
@@ -307,23 +298,6 @@ export function MasterAdminPage() {
       { id: "environment", title: "Ambiente da plataforma", description: hasBackendEnv ? "Banco SIGAPRO conectado e persistência ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasBackendEnv ? ("success" as const) : ("default" as const) },
     ];
   }, [getInstitutionSettings, institutionCatalog, knownAdministrativeUsers]);
-
-  useEffect(() => {
-    setSystemUserPage(1);
-  }, [userSearch, userStatusFilter, userRoleFilter, userGroup]);
-
-  const filteredSystemUsers = useMemo(() => {
-    const term = userSearch.trim().toLowerCase();
-    return sessionUsers.filter((user) => {
-      if (userStatusFilter !== "todos" && user.accountStatus !== userStatusFilter) return false;
-      if (userRoleFilter !== "todos" && user.role !== userRoleFilter) return false;
-      if (userGroup === "internos" && (user.role === "profissional_externo" || user.role === "proprietario_consulta")) return false;
-      if (userGroup === "externos" && user.role !== "profissional_externo" && user.role !== "proprietario_consulta") return false;
-      if (userGroup === "administradores" && !["master_admin", "master_ops", "prefeitura_admin"].includes(user.role)) return false;
-      if (!term) return true;
-      return [user.name, user.email, user.title, user.department, user.userType].filter(Boolean).some((value) => value?.toLowerCase().includes(term));
-    });
-  }, [sessionUsers, userGroup, userRoleFilter, userSearch, userStatusFilter]);
 
   const handleSetForm = <K extends keyof typeof form>(field: K, value: (typeof form)[K]) => setForm((current) => ({ ...current, [field]: value }));
 
@@ -1399,10 +1373,21 @@ export function MasterAdminPage() {
           )
         ) : null}
 
-        {workspaceView === "usuarios" ? <PageMainContent className="gap-6"><SectionCard title="Governança de acessos" description="Leitura consolidada da base, dos acessos críticos e da saúde operacional da plataforma." icon={ShieldPlus} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-0"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-2xl font-semibold text-slate-950">{sessionUsers.length}</p><p className="mt-1 text-sm text-slate-500">Contas monitoradas na operação SaaS.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Contas ativas</p><p className="mt-2 text-2xl font-semibold text-slate-950">{activeUsersCount}</p><p className="mt-1 text-sm text-slate-500">Acessos habilitados e em uso.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Administradores</p><p className="mt-2 text-2xl font-semibold text-slate-950">{adminUsersCount}</p><p className="mt-1 text-sm text-slate-500">Perfis de governança ativos.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Bloqueados</p><p className="mt-2 text-2xl font-semibold text-slate-950">{blockedUsersCount}</p><p className="mt-1 text-sm text-slate-500">Contas com restrição administrativa.</p></div></div></SectionCard><TableCard title="Usuários do sistema" description="Governança de contas, acessos e perfis da operação SaaS." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-5"><Tabs value={userGroup} onValueChange={(value) => setUserGroup(value as UserGroup)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="internos">Internos</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.8fr)_minmax(240px,0.8fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou tipo" className="h-11 rounded-2xl pl-11" /></div><Select value={userStatusFilter} onValueChange={(value) => setUserStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativos</SelectItem><SelectItem value="blocked">Bloqueados</SelectItem><SelectItem value="inactive">Inativos</SelectItem></SelectContent></Select><Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{Object.entries(roleLabels).map(([role, label]) => <SelectItem key={role} value={role}>{label}</SelectItem>)}</SelectContent></Select></div><CompactUserRegistry users={filteredSystemUsers} page={systemUserPage}
-          onPageChange={setSystemUserPage}
-          filterKey={[userSearch, userStatusFilter, userRoleFilter, userGroup].join(":")}
-          renderDetails={renderUserCard} label="Usuários da plataforma SIGAPRO" /></div></TableCard></PageMainContent> : null}
+        {workspaceView === "usuarios" ? (
+          <PageMainContent className="gap-6">
+            <MasterUserGovernance
+              institutions={institutionCatalog}
+              users={sessionUsers}
+              getAvatarProfile={(user) => getUserProfile(user.id, user.email) ?? null}
+              renderDetails={renderUserCard}
+              onManageMunicipality={(id) => {
+                setSelectedTenantId(id);
+                setIsCreatingNewInstitution(false);
+                setWorkspaceView("cadastro");
+              }}
+            />
+          </PageMainContent>
+        ) : null}
       </PageShell>
     </PortalFrame>
   );
