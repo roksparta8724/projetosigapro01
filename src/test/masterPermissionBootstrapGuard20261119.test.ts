@@ -13,7 +13,8 @@ describe("SIGAPRO Master — sessão, rota e bloqueio legítimo", () => {
     expect(platform).toContain('master_admin: ["view_master_dashboard"');
     expect(platform).toContain('master_ops: ["view_master_dashboard"');
     expect(guard).toContain('!isActuallyBlocked && can(session, permission)');
-    expect(guard).not.toContain('return <>{children}</>;\n  }\n\n  const fallbackPath');
+    expect(guard).toContain('const hasStableAuthenticatedMasterView =');
+    expect(guard).toContain('!hasStableAuthenticatedMasterView &&');
   });
 
   it("não mostra acesso negado antes da confirmação da identidade Master", () => {
