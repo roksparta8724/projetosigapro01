@@ -1675,7 +1675,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   )}
                   aria-label="Busca global"
                   title="Pesquisar"
-                  data-search-surface={inverseMainTheme ? "light" : "dark"}
+                  data-search-surface="dark"
                 >
                   <span className="sig-topbar-search-icon inline-flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition">
                     <Search className="h-[18px] w-[18px]" />
