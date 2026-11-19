@@ -50,8 +50,16 @@ export function PermissionRoute({
   // boundary: a continuity snapshot must NEVER render Master prematurely.
   const requiresMasterPermission =
     permission === "view_master_dashboard" || permission === "manage_commercial_plans";
+  // A Master who is already authenticated must keep the current workspace
+  // mounted during background revalidation. Only a session with no verified
+  // Master context (e.g. stale municipal cache on a new login) waits.
+  const hasStableAuthenticatedMasterView =
+    isAuthenticated &&
+    (session.role === "master_admin" || session.role === "master_ops") &&
+    hasStableAuthenticatedView;
   const isPlatformIdentityResolving =
     requiresMasterPermission &&
+    !hasStableAuthenticatedMasterView &&
     (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading);
 
   const isInitialAccessResolution =
