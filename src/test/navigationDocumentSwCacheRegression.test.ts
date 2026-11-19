@@ -14,7 +14,8 @@ class TestRequest {
 }
 
 class TestResponse {
-  constructor(private body: string, private options: { status?: number; contentType?: string } = {}) {}
+  constructor(private body: string | null, private options: { status?: number; contentType?: string } = {}) {}
+  get status() { return this.options.status ?? 200; }
   get ok() { return (this.options.status ?? 200) >= 200 && (this.options.status ?? 200) < 300; }
   get type() { return "basic"; }
   get redirected() { return false; }
@@ -35,6 +36,30 @@ function harness(originOverride = origin) {
   const removed: string[] = [];
   const fetcher = vi.fn(async (_request: TestRequest | { url: string }) => appHtml("release-A"));
   const navigationPreloadEnable = vi.fn(async () => undefined);
+  let liveClientUrl = originOverride + "/prefeitura";
+  let liveClientAllowed = false;
+  const liveMessages: string[] = [];
+  class TestMessageChannel {
+    port1: { onmessage: ((event: { data: { type: string; eligible: boolean; location: string } }) => void) | null; close: () => void };
+    port2: { postMessage: (data: { type: string; eligible: boolean; location: string }) => void; close: () => void };
+    constructor() {
+      this.port1 = { onmessage: null, close: () => undefined };
+      this.port2 = { postMessage: (data) => this.port1.onmessage?.({ data }), close: () => undefined };
+    }
+  }
+  const liveClient = {
+    type: "window", get url() { return liveClientUrl; },
+    postMessage: (data: { type: string; location: string }, ports?: { postMessage: (payload: unknown) => void }[]) => {
+      liveMessages.push(data.type);
+      if (data.type === "SIGAPRO_LIVE_RELOAD_PROBE" && ports?.[0]) {
+        ports[0].postMessage({
+          type: "SIGAPRO_LIVE_RELOAD_ELIGIBLE",
+          eligible: liveClientAllowed,
+          location: data.location,
+        });
+      }
+    },
+  };
 
   const cachesMock = {
     keys: async () => Array.from(stores.keys()),
@@ -60,7 +85,10 @@ function harness(originOverride = origin) {
       location: { origin: originOverride, hostname: new URL(originOverride).hostname },
       addEventListener: (name: string, fn: (event: unknown) => void) => handlers.set(name, fn),
       skipWaiting: async () => undefined,
-      clients: { claim: async () => undefined },
+      clients: {
+        claim: async () => undefined,
+        get: async (id: string) => id === "live-client" ? liveClient : undefined,
+      },
       registration: { navigationPreload: { enable: navigationPreloadEnable } },
     },
     caches: cachesMock,
@@ -68,6 +96,9 @@ function harness(originOverride = origin) {
     URL,
     Request: TestRequest,
     Response: TestResponse,
+    MessageChannel: TestMessageChannel,
+    setTimeout,
+    clearTimeout,
     Set,
     Promise,
   });
@@ -78,11 +109,16 @@ function harness(originOverride = origin) {
     await Promise.all(waits);
   }
 
-  async function navigate(url = origin + "/prefeitura", preloadResponse?: Promise<TestResponse>) {
+  async function navigate(
+    url = origin + "/prefeitura",
+    preloadResponse?: Promise<TestResponse>,
+    options: { reload?: boolean; clientId?: string } = {},
+  ) {
     const background: Promise<unknown>[] = [];
     let reply: Promise<TestResponse> | undefined;
     handlers.get("fetch")!({
-      request: { method: "GET", mode: "navigate", url },
+      request: { method: "GET", mode: "navigate", url, isReloadNavigation: options.reload ?? false },
+      replacesClientId: options.clientId || "",
       preloadResponse,
       respondWith: (p: Promise<TestResponse>) => { reply = p; },
       waitUntil: (p: Promise<unknown>) => background.push(p),
@@ -95,7 +131,14 @@ function harness(originOverride = origin) {
     await Promise.all(background);
   }
 
-  return { install, activate, navigate, fetcher, navigationPreloadEnable, removed, stores, handlers, cachesMock };
+  return {
+    install, activate, navigate, fetcher, navigationPreloadEnable, removed,
+    stores, handlers, cachesMock, liveMessages,
+    setLiveClient: (url: string, allowed: boolean) => {
+      liveClientUrl = url;
+      liveClientAllowed = allowed;
+    },
+  };
 }
 
 describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
@@ -330,6 +373,53 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     expect(await result.response.text()).toContain("release-C");
     await Promise.all(result.background);
     expect(await h.stores.get("sigapro-enterprise-v9:public-html")?.get(alias + "/index.html")?.text()).toContain("release-C");
+  });
+
+  it("preserva o DOM real no reload Chrome apenas com confirmação da sessão ativa", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const path = qaOrigin + "/prefeitura/protocolos";
+    const h = harness(qaOrigin);
+    await h.install();
+    h.setLiveClient(path, true);
+    const previousRequests = h.fetcher.mock.calls.length;
+    const result = await h.navigate(path, undefined, { reload: true, clientId: "live-client" });
+    expect(result.response.status).toBe(204);
+    expect(await result.response.text()).toBeNull();
+    expect(h.liveMessages).toEqual(["SIGAPRO_LIVE_RELOAD_PROBE", "SIGAPRO_LIVE_RELOAD_REFRESH"]);
+    expect(h.fetcher).toHaveBeenCalledTimes(previousRequests);
+    expect(result.background).toHaveLength(0);
+  });
+
+  it("nega preservação da tela se a sessão real responder que não está autorizada", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const path = qaOrigin + "/prefeitura/analise";
+    const h = harness(qaOrigin);
+    await h.install();
+    h.setLiveClient(path, false);
+    h.fetcher.mockImplementation(async () => appHtml("real-native-reload"));
+    const result = await h.navigate(path, undefined, { reload: true, clientId: "live-client" });
+    expect(result.response.status).toBe(200);
+    expect(await result.response.text()).toContain("real-native-reload");
+    expect(h.liveMessages).toEqual(["SIGAPRO_LIVE_RELOAD_PROBE"]);
+  });
+
+  it("não converte em atualização interna as visitas de outra rota, recargas forçadas ou acessos públicos", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const h = harness(qaOrigin);
+    await h.install();
+    h.setLiveClient(qaOrigin + "/prefeitura/protocolos", true);
+    h.fetcher.mockImplementation(async () => appHtml("always-fresh"));
+    for (const [path, options] of [
+      ["/prefeitura/analise", { reload: true, clientId: "live-client" }],
+      ["/prefeitura/protocolos", { reload: false, clientId: "live-client" }],
+      ["/prefeitura/protocolos", { reload: true }],
+      ["/acesso", { reload: true, clientId: "live-client" }],
+    ] as const) {
+      const result = await h.navigate(qaOrigin + path, undefined, options);
+      expect(result.response.status).toBe(200);
+      expect(await result.response.text()).toContain("always-fresh");
+    }
+    expect(h.liveMessages).toHaveLength(0);
   });
 
 });
