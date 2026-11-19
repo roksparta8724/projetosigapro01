@@ -37,6 +37,7 @@ function harness(originOverride = origin) {
   const fetcher = vi.fn(async (_request: TestRequest | { url: string }) => appHtml("release-A"));
   const navigationPreloadEnable = vi.fn(async () => undefined);
   let liveClientUrl = originOverride + "/prefeitura";
+  let liveActualRoute = originOverride + "/prefeitura";
   let liveClientAllowed = false;
   const liveMessages: string[] = [];
   class TestMessageChannel {
@@ -54,7 +55,10 @@ function harness(originOverride = origin) {
       if (data.type === "SIGAPRO_LIVE_RELOAD_PROBE" && ports?.[0]) {
         ports[0].postMessage({
           type: "SIGAPRO_LIVE_RELOAD_ELIGIBLE",
-          eligible: liveClientAllowed,
+          // This is the real React gate, not Client.url. It compares
+          // window.location with the destination before preserving the DOM.
+          eligible: liveClientAllowed &&
+            new URL(liveActualRoute).pathname + new URL(liveActualRoute).search === data.location,
           location: data.location,
         });
       }
@@ -134,8 +138,9 @@ function harness(originOverride = origin) {
   return {
     install, activate, navigate, fetcher, navigationPreloadEnable, removed,
     stores, handlers, cachesMock, liveMessages,
-    setLiveClient: (url: string, allowed: boolean) => {
-      liveClientUrl = url;
+    setLiveClient: (documentUrl: string, allowed: boolean, currentRoute = documentUrl) => {
+      liveClientUrl = documentUrl;
+      liveActualRoute = currentRoute;
       liveClientAllowed = allowed;
     },
   };
@@ -383,9 +388,9 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     // Browser documented behavior: Client.url remains the originally loaded
     // document, even though React Router now shows /prefeitura/analise.
     // The real mounted React page replies YES only for its current location.
-    h.setLiveClient(qaOrigin + "/prefeitura/protocolos", true);
-    const initialRequests = h.fetcher.mock.calls.length;
     const updatedRoute = qaOrigin + "/prefeitura/analise";
+    h.setLiveClient(qaOrigin + "/prefeitura/protocolos", true, updatedRoute);
+    const initialRequests = h.fetcher.mock.calls.length;
     const result = await h.navigate(updatedRoute, undefined, {
       reload: true, clientId: "live-client",
     });
