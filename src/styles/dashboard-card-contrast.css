@@ -81,6 +81,53 @@ html body #root .sig-main-shell .sig-dashboard-premium [data-dashboard-health-ca
   background: #f8fafc !important;
 }
 
+/*
+ * Shared metric cards have a higher-specificity institutional blue contract.
+ * Target exactly the dashboard metric subtype so inverse-main overrides it
+ * without modifying the same component on unrelated municipal pages.
+ */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-surface="metric"][data-premium-role-blue="metric"] {
+  border-color: #46647d !important;
+  border-top-color: #609fca !important;
+  background: linear-gradient(180deg, #172e45 0%, #11253a 100%) !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  box-shadow: 0 9px 22px rgb(2 6 23 / 22%) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-metric-title {
+  color: #cbdcf0 !important;
+  -webkit-text-fill-color: #cbdcf0 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-metric-value {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-metric-helper {
+  color: #d0deed !important;
+  -webkit-text-fill-color: #d0deed !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-stat-icon {
+  border-color: #4c6c89 !important;
+  background: #224a68 !important;
+  color: #c0eaff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell .sig-dashboard-premium
+.sig-metric-card[data-premium-role-blue="metric"] .sig-stat-icon svg {
+  color: #c0eaff !important;
+  stroke: currentColor !important;
+}
+
 /* The user switches theme via SIGAPRO's inverse-main mode. Native .dark
  * is included as a secondary path for theme parity in previews/tests. */
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-dashboard-premium
