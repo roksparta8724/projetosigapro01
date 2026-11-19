@@ -81,8 +81,14 @@ export function MunicipalStaffAssignmentsEditor({
       {!loading && !error && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {departments.map((department) => {
-            const selected = assignments.some((item) => item.departmentId === department.id) ||
-              (assignments.length === 0 && department.name === currentDepartment);
+            const assignment = assignments.find((item) => item.departmentId === department.id);
+            // The legacy department label is not an authorized assignment.
+            // Previously it made a dark "Ativo" button that was impossible
+            // to click for the first real grant, although the database had
+            // zero records. The admin must be able to authorize it explicitly.
+            const selected = Boolean(assignment);
+            const legacyDepartment = !selected && assignments.length === 0 &&
+              department.name.trim() === currentDepartment.trim();
             const busy = savingId === department.id;
             const isLast = selected && assignments.length <= 1;
             return (
@@ -92,7 +98,10 @@ export function MunicipalStaffAssignmentsEditor({
                     {department.code ? department.code + " · " : ""}{department.name}
                   </p>
                   <p className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-300">
-                    {selected ? "Autorizado" : "Não autorizado"}
+                    {assignment?.isCurrent
+                      ? "Departamento em uso"
+                      : selected ? "Autorizado para troca"
+                        : legacyDepartment ? "Lotação antiga — autorize para vincular" : "Não autorizado"}
                   </p>
                 </div>
                 <Button type="button" size="sm" variant={selected ? "outline" : "default"}
@@ -103,7 +112,7 @@ export function MunicipalStaffAssignmentsEditor({
                   className={selected
                     ? "shrink-0 border-slate-300 bg-white text-slate-900 hover:bg-slate-100 dark:border-slate-500 dark:bg-slate-700 dark:text-white"
                     : "shrink-0 bg-sky-800 text-white hover:bg-sky-700"}>
-                  {selected ? <><Check className="mr-1 h-3.5 w-3.5" />Ativo</> : "Autorizar"}
+                  {selected ? <><Check className="mr-1 h-3.5 w-3.5" />Autorizado</> : "Autorizar"}
                   {busy ? "..." : null}
                 </Button>
               </div>
