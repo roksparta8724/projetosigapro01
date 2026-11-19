@@ -173,7 +173,8 @@ self.addEventListener("message", (event) => {
 });
 
 async function respondToNavigation(request, event) {
-  const cache = await caches.open(NAVIGATION_CACHE);
+  // Opening CacheStorage can block on disk. Never make the browser wait for
+  // it before fetching/painting the current HTML on a moving QA alias.
   const path = new URL(request.url).pathname;
   const isIdentityRoute = path === "/acesso" || path === "/recuperar-senha" || path === "/criar-conta";
 
@@ -204,6 +205,7 @@ async function respondToNavigation(request, event) {
         const candidate = response.clone();
         event.waitUntil((async () => {
           if (await isVerifiedPublicAppDocument(candidate)) {
+            const cache = await caches.open(NAVIGATION_CACHE);
             await cache.put(DOCUMENT_URL, candidate);
           }
         })().catch(() => {}));
@@ -215,12 +217,14 @@ async function respondToNavigation(request, event) {
       // pointing at a different database branch. On the official domain,
       // offline access may still display a verified public shell.
       if (IS_SIGAPRO_PREVIEW) return Response.error();
+      const cache = await caches.open(NAVIGATION_CACHE);
       const cachedOffline = await cache.match(DOCUMENT_URL);
       if (await isVerifiedPublicAppDocument(cachedOffline)) return cachedOffline;
       return Response.error();
     }
   }
 
+  const cache = await caches.open(NAVIGATION_CACHE);
   const cached = await cache.match(DOCUMENT_URL);
   if (await isVerifiedPublicAppDocument(cached)) {
     // A pinned Vercel preview is immutable, so its verified public HTML is
