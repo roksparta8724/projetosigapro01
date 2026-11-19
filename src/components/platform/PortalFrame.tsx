@@ -37,7 +37,7 @@ import {
   createContext, Suspense, useCallback, useContext, useEffect,
   useLayoutEffect, useMemo, useRef, useState,
 } from "react";
-import { Network, RefreshCw } from "lucide-react";
+import { Network } from "lucide-react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -436,20 +436,6 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     addProcessMarkerWithColor,
     removeProcessMarker,
   } = usePlatformData();
-  // A data-only refresh must not toggle a global frame loading state.
-  // Keep one request at a time without re-rendering the topbar/avatar/sidebar.
-  const refreshingVisibleDataRef = useRef(false);
-  const refreshWithoutPageReload = async () => {
-    if (refreshingVisibleDataRef.current || session.id === "unknown") return;
-    refreshingVisibleDataRef.current = true;
-    try {
-      await refreshRemoteStore();
-    } catch (error) {
-      console.warn("[SIGAPRO] Não foi possível atualizar dados em memória.", error);
-    } finally {
-      refreshingVisibleDataRef.current = false;
-    }
-  };
   // Revalidate permissions across logged-in devices after Master changes a contract.
   // This is a background refresh: never replace a visible page with a loading shell.
   useLivePlatformRefresh(refreshRemoteStore, {
@@ -1555,19 +1541,6 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
               ) : null}
               <button
                 type="button"
-                onClick={() => void refreshWithoutPageReload()}
-                
-                aria-label="Atualizar dados sem recarregar a página"
-                title="Atualizar dados"
-                className={cn(
-                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition-colors duration-150",
-                  topbarIconButton,
-                )}
-              >
-                <RefreshCw aria-hidden="true" className="h-[18px] w-[18px] text-white/92" />
-              </button>
-              <button
-                type="button"
                 onClick={() => navigate("/notificacoes")}
                 className={cn(
                   "relative inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] p-0 leading-none transition duration-200 hover:-translate-y-[1px]",
@@ -2182,22 +2155,6 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   : "border-slate-200/90 bg-white/92",
               )}
             >
-              <button
-                type="button"
-                onClick={() => void refreshWithoutPageReload()}
-                
-                aria-label="Atualizar dados sem recarregar a página"
-                title="Atualizar dados — mantém a tela aberta"
-                className={cn(
-                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[12px] transition-colors duration-150",
-                  darkTopbar
-                    ? "text-slate-100 hover:bg-white/10"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
-                )}
-              >
-                <RefreshCw aria-hidden="true" className="h-[18px] w-[18px]" />
-              </button>
-
               {can(session, "manage_tenant_branding") ? (
                 <button
                   type="button"
