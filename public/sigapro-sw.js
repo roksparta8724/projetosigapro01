@@ -199,8 +199,14 @@ async function tryPreserveLiveQaDocument(event) {
 
   const requested = new URL(request.url);
   const current = new URL(client.url);
-  if (requested.origin !== current.origin || requested.pathname !== current.pathname ||
-      requested.search !== current.search) return false;
+  // Client.url is the document's ORIGINAL navigation URL in SPA routing: it
+  // does NOT track React Router pushState/replaceState. Comparing path/search
+  // here rejected the very first toolbar refresh after each internal page
+  // change. Only require the exact SAME ORIGIN at the SW boundary; the actual
+  // current window.location and authorized route are verified by the mounted
+  // React client over the one-time MessageChannel below.
+  if (requested.origin !== self.location.origin ||
+      requested.origin !== current.origin) return false;
 
   // Explicit permission comes from the currently rendered React page, not
   // from a cached authentication claim in the Service Worker.
