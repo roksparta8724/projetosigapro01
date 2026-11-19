@@ -385,6 +385,39 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell
   -webkit-text-fill-color: #e5f2ff !important;
 }
 
+/* Native horizontal scrollbars should not leave pale strips below the
+ * dark navigation cards at 1366px and smaller workspaces. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-section-nav.sig-protocol-section-nav > div::-webkit-scrollbar-track,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-section-nav.sig-finance-section-nav > div::-webkit-scrollbar-track {
+  background: #163349 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-section-nav.sig-protocol-section-nav > div::-webkit-scrollbar-thumb,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-section-nav.sig-finance-section-nav > div::-webkit-scrollbar-thumb {
+  background: #527c99 !important;
+  border-color: #173449 !important;
+}
+
+/* Direct protocol queue (non-SEI expanded layout) uses dark: variants that
+ * aren't active when the app switches only data-layout-mode. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-protocol-desk
+[data-sigapro-protocol-queue-list="true"] {
+  background: #142d44 !important;
+  border-color: #4b6b84 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-protocol-desk
+[data-sigapro-protocol-queue-list="true"] > [data-process-premium-card="true"]:not([data-selected="true"]) {
+  background: #173249 !important;
+  border-color: #42617d !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-protocol-desk
+[data-sigapro-protocol-queue-list="true"] > [data-process-premium-card="true"]:hover {
+  background: #244a66 !important;
+}
+
 /* Financeiro: the guide ledger used html.dark rather than the actual mode.
  * Keep amount/status evidence visible and never change bank reconciliation. */
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger,
