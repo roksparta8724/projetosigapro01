@@ -172,6 +172,74 @@ self.addEventListener("message", (event) => {
   event.waitUntil(precachePublicAssetUrls(urls.filter((url) => typeof url === "string")));
 });
 
+/**
+ * Chrome toolbar reload: retain the ACTUAL live document, not a stored image.
+ * Only on the moving SIGAPRO QA preview, and only after a fresh positive answer
+ * from the currently mounted, authenticated React workspace. A 204 navigation
+ * response cancels replacement of the current document; the page itself
+ * revalidates its canonical backend data after a successful handshake.
+ *
+ * No DOM, credentials, pages, profiles or documents enter SW storage.
+ * Hard reloads/unsupported browsers/auth failures use the normal navigation.
+ */
+async function tryPreserveLiveQaDocument(event) {
+  const request = event.request;
+  if (!IS_MUTABLE_PREVIEW_ALIAS || request.isReloadNavigation !== true ||
+      !event.replacesClientId || typeof MessageChannel !== "function") return false;
+
+  let client;
+  try {
+    client = await self.clients.get(event.replacesClientId);
+  } catch {
+    return false;
+  }
+  if (!client || client.type !== "window" || !client.url) return false;
+
+  const requested = new URL(request.url);
+  const current = new URL(client.url);
+  if (requested.origin !== current.origin || requested.pathname !== current.pathname ||
+      requested.search !== current.search) return false;
+
+  // Explicit permission comes from the currently rendered React page, not
+  // from a cached authentication claim in the Service Worker.
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const expectedLocation = requested.pathname + requested.search;
+    let finished = false;
+    const finish = (approved) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      try { channel.port1.close(); } catch { /* no-op */ }
+      resolve(approved);
+    };
+    const timeout = setTimeout(() => finish(false), 650);
+    channel.port1.onmessage = (reply) => {
+      const data = reply.data;
+      const approved = data && data.type === "SIGAPRO_LIVE_RELOAD_ELIGIBLE" &&
+        data.eligible === true && data.location === expectedLocation;
+      if (!approved) return finish(false);
+      try {
+        client.postMessage({
+          type: "SIGAPRO_LIVE_RELOAD_REFRESH",
+          location: expectedLocation,
+        });
+        finish(true);
+      } catch {
+        finish(false);
+      }
+    };
+    try {
+      client.postMessage({
+        type: "SIGAPRO_LIVE_RELOAD_PROBE",
+        location: expectedLocation,
+      }, [channel.port2]);
+    } catch {
+      finish(false);
+    }
+  });
+}
+
 async function respondToNavigation(request, event) {
   // Opening CacheStorage can block on disk. Never make the browser wait for
   // it before fetching/painting the current HTML on a moving QA alias.
@@ -255,7 +323,23 @@ self.addEventListener("fetch", (event) => {
       !url.pathname.startsWith("/assets/") &&
       !url.pathname.startsWith("/.well-known/") &&
       !/\.(?:pdf|zip|xlsx?|docx?|csv|png|jpe?g|svg|webp|gif|json|xml|txt|m?js|css)$/i.test(url.pathname);
-    if (isAppRoute) event.respondWith(respondToNavigation(request, event));
+    if (isAppRoute) {
+      // The browser's native refresh button is handled BEFORE it destroys
+      // the old DOM. Without an authenticated live page, fall back to normal
+      // network navigation. Never apply this to public login or production.
+      if (IS_MUTABLE_PREVIEW_ALIAS && request.isReloadNavigation === true) {
+        event.respondWith((async () => {
+          const preserved = await tryPreserveLiveQaDocument(event);
+          if (preserved) return new Response(null, {
+            status: 204,
+            headers: { "Cache-Control": "no-store" },
+          });
+          return respondToNavigation(request, event);
+        })());
+      } else {
+        event.respondWith(respondToNavigation(request, event));
+      }
+    }
     return;
   }
 
