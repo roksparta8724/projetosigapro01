@@ -61,8 +61,19 @@ describe("SIGAPRO — um login, múltiplas lotações com permissão real",()=>{
     expect(admin).toContain("session.role === \"prefeitura_admin\"");
     expect(admin).toContain("<MunicipalStaffAssignmentsEditor");
     expect(editor).toContain("setRemoteMunicipalStaffDepartment");
-    expect(editor).toContain("dark:bg-slate-900/70");
+    expect(editor).toContain("dark:bg-slate-900");
     expect(editor).toContain("dark:text-white");
+    expect(editor).toContain('data-municipal-assignment-card="true"');
+    expect(editor).toContain('data-assignment-state=');
+    expect(editor).toContain("border-emerald-300 bg-emerald-50/90");
+    expect(editor).toContain("border-sky-200 bg-sky-50/80");
+    expect(editor).toContain("dark:bg-emerald-950/45");
+    expect(editor).toContain("dark:bg-sky-950/35");
+    expect(editor).toContain("!text-white");
+    expect(editor).toContain("dark:!text-white");
+    expect(admin).toContain('data-municipal-user-lotation="true"');
+    expect(admin).toContain('data-municipal-user-security="true"');
+    expect(admin).toContain("dark:text-slate-200");
     expect(sql).toContain("É necessário manter ao menos uma lotação ativa");
   });
   it("confirma o setor ativo no backend antes de mudar perfil e rota", () => {
