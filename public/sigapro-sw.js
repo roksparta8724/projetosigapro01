@@ -189,6 +189,13 @@ async function tryPreserveLiveQaDocument(event) {
       (request.isReloadNavigation !== true && event.isReload !== true) ||
       !activeClientId || typeof MessageChannel !== "function") return false;
 
+  // Public, authentication and standalone identity routes must always use
+  // a normal navigation. Never probe a private workspace for login refresh.
+  const targetPath = new URL(request.url).pathname;
+  if (["/", "/inicio", "/apresentacao", "/planos-publicos",
+       "/acesso", "/criar-conta", "/recuperar-senha", "/verificar-assinatura"].includes(targetPath) ||
+      targetPath.startsWith("/cliente/") || targetPath.startsWith("/v/")) return false;
+
   let client;
   try {
     client = await self.clients.get(activeClientId);
