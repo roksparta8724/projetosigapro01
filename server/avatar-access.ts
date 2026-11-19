@@ -66,11 +66,17 @@ export async function authorizePrivateAvatarRead(
 }
 
 /**
- * Strict only on the isolated, explicit QA Preview branch. Other environments
- * retain the legacy image URL during controlled rollout, never an implicit
- * switch to production. Production activation needs separate browser QA.
+ * Private R2 photos on explicitly reviewed QA branches require the verified
+ * Bearer -> current_profile_id ACL before returning any image bytes. The
+ * R2_AUTH_DATA_API_URL server setting MUST point at the matching isolated QA
+ * Neon branch; if absent or mismatched, getDataApiUrl() fails closed.
+ *
+ * The production rollout is intentionally unchanged until live QA is approved.
  */
 export function enforceAuthenticatedAvatarRead(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.VERCEL_ENV === "preview" &&
-    env.VERCEL_GIT_COMMIT_REF === "fix/qa-triagem-analise-pagamento-20261101";
+    (
+      env.VERCEL_GIT_COMMIT_REF === "fix/qa-triagem-analise-pagamento-20261101" ||
+      env.VERCEL_GIT_COMMIT_REF === "fix/homologacao-geral-sei-dashboard-bank-20261113"
+    );
 }

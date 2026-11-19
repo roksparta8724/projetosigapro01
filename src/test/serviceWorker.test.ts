@@ -46,8 +46,9 @@ describe("service worker do SIGAPRO", () => {
     } as FetchEvent & WorkerEvent);
 
     expect(await response).toBe("fresh-html");
-    expect(worker.fetch).toHaveBeenCalledWith(expect.objectContaining({ mode: "navigate" }), { cache: "no-store" });
-    expect(worker.openCache).toHaveBeenCalledWith("sigapro-enterprise-v8:public-html");
+    expect(worker.fetch).toHaveBeenCalledWith(expect.objectContaining({ mode: "navigate" }), { cache: "no-store", credentials: "same-origin" });
+    // Invalid or unverified responses must not trigger CacheStorage on the critical navigation path.
+    expect(worker.openCache).not.toHaveBeenCalled();
   });
 
   it("remove o cache de HTML da versao anterior na ativacao", async () => {
@@ -62,6 +63,7 @@ describe("service worker do SIGAPRO", () => {
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v4:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v5:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v5:avatars");
-    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v7:assets");
+    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v7:assets");
+    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v8:assets");
   });
 });

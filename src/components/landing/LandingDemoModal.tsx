@@ -140,7 +140,7 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(80vw,1320px)] max-w-none overflow-hidden border-white/70 bg-[linear-gradient(180deg,rgba(249,251,255,0.98)_0%,rgba(238,244,252,0.98)_100%)] p-0 shadow-[0_36px_120px_rgba(15,23,42,0.28)] sm:rounded-[32px]">
+      <DialogContent data-landing-demo-modal="showcase" className="w-[min(80vw,1320px)] max-w-none overflow-hidden border-white/70 bg-[linear-gradient(180deg,rgba(249,251,255,0.98)_0%,rgba(238,244,252,0.98)_100%)] p-0 shadow-[0_36px_120px_rgba(15,23,42,0.28)] sm:rounded-[32px]">
         <div className="max-h-[88vh] overflow-y-auto">
           <div className="border-b border-slate-200/80 bg-[linear-gradient(135deg,#0f1c2f_0%,#18304f_54%,#24456d_100%)] px-6 py-6 text-white sm:px-8 sm:py-7 lg:px-10">
             <DialogHeader className="space-y-3 text-left">
@@ -391,7 +391,7 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
     </Dialog>
 
       <Dialog open={contactOpen} onOpenChange={setContactOpen}>
-        <DialogContent className="w-[min(92vw,760px)] max-w-none overflow-hidden border-white/80 bg-white p-0 shadow-[0_36px_120px_rgba(15,23,42,0.26)] sm:rounded-[32px]">
+        <DialogContent data-landing-demo-modal="contact" className="w-[min(92vw,760px)] max-w-none overflow-hidden border-white/80 bg-white p-0 shadow-[0_36px_120px_rgba(15,23,42,0.26)] sm:rounded-[32px]">
           <div className="grid min-h-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.10),transparent_34%),linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]">
             <div className="border-b border-slate-200/80 px-6 py-6 sm:px-8">
               <DialogHeader className="space-y-3 text-left">
@@ -415,7 +415,7 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
             </div>
 
             <div className="grid gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_240px]">
-              <form className="min-w-0 space-y-4" onSubmit={handleContactSubmit}>
+              <form data-landing-demo-contact-form="true" className="min-w-0 space-y-4" onSubmit={handleContactSubmit}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="demo-contact-name">Nome completo</Label>
@@ -458,7 +458,7 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
                 ) : null}
 
                 <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
-                  <Button type="submit" disabled={contactStatus === "sending"} className="h-12 rounded-full bg-slate-950 px-6 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(15,23,42,0.18)] hover:bg-slate-900">
+                  <Button type="submit" data-landing-demo-submit="true" disabled={contactStatus === "sending"} className="h-12 rounded-full bg-slate-950 px-6 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(15,23,42,0.18)] hover:bg-slate-900">
                     {contactStatus === "sending" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     Solicitar contato
                   </Button>
@@ -468,7 +468,7 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
                 </div>
               </form>
 
-              <aside className="min-w-0 rounded-[26px] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_20px_48px_rgba(15,23,42,0.14)]">
+              <aside data-landing-demo-contact-aside="true" className="min-w-0 rounded-[26px] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_20px_48px_rgba(15,23,42,0.14)]">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 text-sky-200">
                   <ShieldCheck className="h-5 w-5" />
                 </div>

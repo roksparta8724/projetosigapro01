@@ -31,6 +31,7 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import {
@@ -201,6 +202,7 @@ export function FinanceProtocolsPage() {
   const [view, setView] = useState<FinanceView>("abertos");
   const [search, setSearch] = useState("");
   const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
+  const [processListView, setProcessListView] = useState<"tabela" | "detalhes">("tabela");
 
   const openLedgers = ledgers.filter((ledger) => ledger.isOpen);
   const totalIssued = ledgers.reduce((sum, ledger) => sum + ledger.totalIssued, 0);
@@ -454,7 +456,7 @@ export function FinanceProtocolsPage() {
       eyebrow="FINANCEIRO MUNICIPAL"
       title="Controle financeiro por processo"
     >
-      <PageShell>
+      <PageShell className="sig-finance-workspace sig-finance-protocols-workspace">
         <PageHero
           eyebrow="Livro financeiro municipal"
           title="Protocolos, lançamentos e conciliação por processo"
@@ -525,7 +527,7 @@ export function FinanceProtocolsPage() {
               title="Controle financeiro por protocolo"
               description="Cada processo possui sua conta: valores emitidos, compensados no cadastro, conciliados com banco e pendentes. Protocolos ativos aparecem mesmo antes da cobrança."
             >
-              <div className="mb-5 rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-sm dark:border-slate-700 dark:bg-none dark:bg-slate-950/45">
+              <div data-finance-protocol-filter-bar="true" className="mb-5 rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-sm dark:border-slate-700 dark:bg-none dark:bg-slate-950/45">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -539,6 +541,8 @@ export function FinanceProtocolsPage() {
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
+                      aria-pressed={view === "abertos"}
+                      data-finance-view-control="true"
                       variant={view === "abertos" ? "default" : "outline"}
                       className={
                         view === "abertos"
@@ -552,6 +556,8 @@ export function FinanceProtocolsPage() {
                     </Button>
                     <Button
                       type="button"
+                      aria-pressed={view === "todos"}
+                      data-finance-view-control="true"
                       variant={view === "todos" ? "default" : "outline"}
                       className={
                         view === "todos"
@@ -567,7 +573,14 @@ export function FinanceProtocolsPage() {
                 </div>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-3">
+                <div data-finance-process-summary="premium-v4" className="sig-finance-process-summary flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-200">Processos do Financeiro · {visibleLedgers.length.toLocaleString("pt-BR")} registro(s)</p>
+                  <Button type="button" variant="outline" size="sm" className="rounded-lg border-slate-300 bg-white text-slate-900"
+                    onClick={() => setProcessListView((current) => current === "tabela" ? "detalhes" : "tabela")}>
+                    {processListView === "tabela" ? "Ver guias e ações financeiras" : "Voltar à tabela"}
+                  </Button>
+                </div>
                 {visibleLedgers.length === 0 ? (
                   <div className="rounded-[22px] border border-dashed border-slate-300 bg-slate-50 p-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
                     <FolderOpen className="mx-auto h-8 w-8 text-slate-400" />
@@ -578,6 +591,10 @@ export function FinanceProtocolsPage() {
                       Ajuste a pesquisa ou altere o filtro para visualizar o histórico.
                     </p>
                   </div>
+                ) : processListView === "tabela" ? (
+                  <CompactProcessRegistry operatorName={session.name} processes={visibleLedgers.map((ledger) => ledger.process)}
+                    showArchiveAction={false} canDispatchProcess={() => false}
+                    emptyMessage="Nenhum processo financeiro encontrado." />
                 ) : (
                   visibleLedgers.map((ledger) => {
                     const { process, guides } = ledger;

@@ -10,8 +10,10 @@ const permission = readFileSync(resolve(root, "src/components/platform/Permissio
 const css = readFileSync(resolve(root, "src/index.css"), "utf8");
 
 describe("process entry and organogram regression", () => {
-  it("restores premium analysis cards while keeping both direct process links", () => {
-    expect(analyst).not.toContain('import { CompactProcessRegistry }');
+  it("makes compact process-control the default while preserving detailed analysis actions", () => {
+    expect(analyst).toContain('import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";');
+    expect(analyst).toContain('processListView === "tabela"');
+    expect(analyst).toContain("Ver ações detalhadas da Análise");
     expect(analyst).toContain("renderQueue(");
     expect(analyst).toContain('data-primary-action="process"');
     expect(analyst).toContain("sm:w-[190px]");
@@ -28,9 +30,13 @@ describe("process entry and organogram regression", () => {
     expect(permission).not.toContain('location.pathname.startsWith("/prefeitura/organograma") ||');
   });
 
-  it("routes the Processos shortcut back to the operational analysis queue when applicable", () => {
-    expect(portal).toContain('canAccessMunicipalArea(session, "analise")');
-    expect(portal).toContain('"/prefeitura/analise?secao=fila"');
+  it("routes the topbar Processos shortcut into the municipal registry, preserving separate analysis deep links", () => {
+    const destination = readFileSync(resolve(root, "src/lib/topbarProcessDestination.ts"), "utf8");
+    expect(portal).toContain("resolveTopbarProcessDestination(session.role)");
+    expect(portal).toContain('data-topbar-process-shortcut="mobile"');
+    expect(portal).toContain('data-topbar-process-shortcut="desktop"');
+    expect(destination).toContain('return "/prefeitura/processos";');
+    expect(destination).toContain('return "/dashboard/processos";');
     expect(analyst).toContain('const requested = searchParams.get("secao");');
     expect(analyst).toContain('      : "fila";');
   });

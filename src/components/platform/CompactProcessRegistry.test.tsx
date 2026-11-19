@@ -57,10 +57,11 @@ describe("SIGAPRO QA — 2.000 processos não criam 2.000 linhas no DOM", () => 
     const row = registry?.querySelector('[data-sei-process-row="true"]');
     expect(header?.querySelector(".sr-only")).toHaveTextContent("Marcador");
     expect(header?.querySelector("svg")).toBeInTheDocument();
-    expect(row?.className).toContain("xl:grid-cols-[44px_");
+    expect(row?.className).toContain("sig-process-row");
     expect(row?.querySelectorAll('[title="' + longMarker + '"]')).toHaveLength(2);
-    expect(row?.querySelector(".flex-wrap")).toBeInTheDocument();
-    expect(row?.querySelector(".max-w-full.truncate")).toBeInTheDocument();
+    expect(row?.querySelector(".sig-process-marker")).toBeInTheDocument();
+    expect(row?.querySelector(".sig-process-number-link")).toBeInTheDocument();
+    expect(row?.querySelector(".sig-process-actions")).toBeInTheDocument();
   });
 
 });

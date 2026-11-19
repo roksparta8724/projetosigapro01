@@ -20,6 +20,7 @@ describe("municipal process registry", () => {
     "utf8",
   );
   const platform = readFileSync(resolve(process.cwd(), "src/lib/platform.ts"), "utf8");
+  const topbarDestination = readFileSync(resolve(process.cwd(), "src/lib/topbarProcessDestination.ts"), "utf8");
 
   it("keeps the process list compact and linked to the existing process detail", () => {
     expect(registry).toContain("CompactProcessRegistry");
@@ -31,20 +32,23 @@ describe("municipal process registry", () => {
     expect(registry).toContain("parseMarker");
   });
 
-  it("keeps the municipality-wide registry dense but restores premium process cards in the analysis tab", () => {
+  it("renders every process in the dense premium table with an accessible open action", () => {
     expect(registry).toContain('data-sei-process-row="true"');
-    expect(registry).toContain("px-3 py-2.5");
-    expect(registry).not.toContain("Abrir processo");
-    expect(analyst).not.toContain("CompactProcessRegistry");
+    expect(registry).toContain("sig-process-row");
+    expect(registry).toContain("sig-process-actions");
+    expect(registry).toContain("Abrir processo");
+    expect(registry).toContain('data-sigapro-process-control="premium-table"');
+    expect(analyst).toContain("CompactProcessRegistry");
+    expect(analyst).toContain("processListView");
     expect(analyst).toContain('data-process-premium-card="true"');
     expect(analyst).toContain("Abrir processo");
     expect(analyst).toContain("sm:w-[190px]");
   });
 
-  it("shows only the single operational marker and leaves marker management in the topbar", () => {
+  it("shows persisted operational markers without mounting the editor in readonly list rows", () => {
     expect(registry).toContain("process.tags?.[0]");
     expect(registry).not.toContain("MarkerSelector");
-    expect(analyst).not.toContain("CompactProcessRegistry");
+    expect(analyst).toContain("CompactProcessRegistry");
     expect(analyst).toContain("Abrir processo");
     expect(analyst).toContain("Abrir processo");
   });
@@ -63,7 +67,8 @@ describe("municipal process registry", () => {
     expect(page).toContain("Processos da Prefeitura");
     expect(page).toContain("matchesOperationalScope");
     expect(page).toContain("isInternalRole");
-    expect(frame).toContain('"/prefeitura/processos"');
+    expect(frame).toContain("resolveTopbarProcessDestination(session.role)");
+    expect(topbarDestination).toContain('return "/prefeitura/processos"');
     expect(platform).toContain("Leitura/acompanhamento municipal é transversal");
     expect(platform).toContain("return true;");
   });

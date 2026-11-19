@@ -28,7 +28,9 @@ import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { MunicipalStaffAssignmentsEditor } from "@/components/platform/MunicipalStaffAssignmentsEditor";
+import { isSwitchableMunicipalStaffRole } from "@/lib/municipalStaffAssignments";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
 import { isMunicipalOverviewSubpagePath, municipalOverviewSubpageFromPath } from "@/lib/municipalOverviewSubpages";
 import { buildPlanCapacityMetrics } from "@/lib/planUsageDashboard";
@@ -340,8 +342,9 @@ export function TenantAdminPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
-  const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore, remoteSyncedForCurrentUser, dataError: platformDataError, loading: platformDataLoading } = usePlatformData();
+  // The authenticated municipality wins over a stale branding/selected tenant.
+  const effectiveScopeId = session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const planMunicipalityId = session.municipalityId ?? session.tenantId ?? null;
   const planCapacity = usePlanCapacityLive(planMunicipalityId, {
     enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
@@ -390,12 +393,11 @@ export function TenantAdminPage() {
   }>({ tone: "idle", message: "" });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("fila");
-  const [queueSearch, setQueueSearch] = useState("");
+  const [queueSearch] = useState("");
   const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
   const [overviewProcessSearch, setOverviewProcessSearch] = useState("");
   const [overviewActivityPage, setOverviewActivityPage] = useState(1);
   const [overviewPendingSearch, setOverviewPendingSearch] = useState("");
-  const [queuePage, setQueuePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
   const [segment, setSegment] = useState<UserSegment>("todos");
   const [userPage, setUserPage] = useState(1);
@@ -528,7 +530,6 @@ export function TenantAdminPage() {
   const overviewActivityPageData = paginateMunicipalItems(recentActivity, overviewActivityPage, 15);
   const planSnapshot = planCapacity.rows[0];
   const planUsersMetric = planSnapshot ? buildPlanCapacityMetrics(planSnapshot).find((item) => item.key === "users") : null;
-  const queuePageData = paginateMunicipalItems(filteredQueue, queuePage, 20);
   const historyPageData = paginateMunicipalItems(recentActivity, historyPage, 20);
   useEffect(() => {
     setOverviewActivityPage(1);
@@ -889,138 +890,16 @@ export function TenantAdminPage() {
     void runUserCommand(user.id, () => deleteUserAccount({ userId: user.id, actor: session.id, reason }), (updated) => `Conta de ${updated.name} marcada como inativa.`);
   };
 
-  const renderQueueCard = (process: ProcessRecord) => {
-    const pendingRequirements = process.requirements.filter(
-      (item) => item.status === "aberta" || item.status === "respondida",
-    );
-    const financialGuides = getProcessPaymentGuides(process, tenantSettings);
-    const pendingGuides = financialGuides.filter((guide) => guide.status === "pendente");
-    const protocolGuide = financialGuides.find((guide) => guide.kind === "protocolo");
-    const slaLabel = process.sla.breached
-      ? "Vencido"
-      : process.sla.hoursRemaining <= 12
-        ? "Crítico"
-        : "No prazo";
-
-    return (
-      <details key={process.id} data-municipal-queue-row="true"
-        className="group relative min-w-0 overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-sm open:border-sky-200">
-        <summary className="flex min-w-0 cursor-pointer flex-wrap items-center gap-2 px-4 py-3 pl-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 [&::-webkit-details-marker]:hidden">
-          <span className="min-w-0 text-xs font-bold text-slate-950">{process.protocol}</span>
-          <Badge variant="outline" className={`${statusTone(process.status)} max-w-full whitespace-normal break-words`}>{statusLabel(process.status)}</Badge>
-          <span className="min-w-0 flex-1 truncate text-sm text-slate-700" title={process.title}>{process.title}</span>
-          <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-sky-700 underline-offset-4 group-hover:underline">
-            <span className="group-open:hidden">Ver detalhes</span>
-            <span className="hidden group-open:inline">Ocultar detalhes</span>
-            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-          </span>
-        </summary>
-        <div className="border-t border-slate-200 bg-slate-50/70">
-        <div
-          className={`absolute inset-y-0 left-0 w-1 ${
-            process.sla.breached
-              ? "bg-rose-500"
-              : process.sla.hoursRemaining <= 12
-                ? "bg-amber-400"
-                : "bg-sky-500"
-          }`}
-          aria-hidden="true"
-        />
-
-        <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 px-4 py-4 pl-5 sm:grid-cols-2 min-[1750px]:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)_minmax(0,0.82fr)] min-[2050px]:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,0.7fr)_auto] [overflow-wrap:anywhere]">
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p
-                className="min-w-0 max-w-full break-words text-sm font-black tracking-[-0.01em] text-slate-950 [overflow-wrap:anywhere]"
-                title={process.protocol}
-              >
-                {process.protocol}
-              </p>
-              <Badge variant="outline" className={`${statusTone(process.status)} max-w-full whitespace-normal break-words [overflow-wrap:anywhere]`}>
-                {statusLabel(process.status)}
-              </Badge>
-              <Badge className={`shrink-0 rounded-full border text-[10px] ${getPriorityTone(process)}`}>
-                SLA {slaLabel}
-              </Badge>
-            </div>
-            <p
-              className="mt-1.5 min-w-0 max-w-full break-words text-sm font-semibold text-slate-800 [overflow-wrap:anywhere]"
-              title={process.title}
-            >
-              {process.title}
-            </p>
-            <div className="mt-1 flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 [overflow-wrap:anywhere]">
-              <span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]" title={process.ownerName}>
-                {process.ownerName || "Responsável não informado"}
-              </span>
-              <span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]" title={process.property.iptu}>
-                IPTU {process.property.iptu || "não informado"}
-              </span>
-            </div>
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
-              Etapa atual
-            </p>
-            <p
-              className="mt-1 max-w-full break-words text-xs font-semibold leading-5 text-slate-700 [overflow-wrap:anywhere]"
-              title={process.sla.currentStage}
-            >
-              {process.sla.currentStage || "Não informada"}
-            </p>
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
-              Responsável
-            </p>
-            <p
-              className="mt-1 max-w-full break-words text-xs font-semibold text-slate-700 [overflow-wrap:anywhere]"
-              title={process.technicalLead}
-            >
-              {process.technicalLead || "Não atribuído"}
-            </p>
-            <p className="mt-1 max-w-full break-words text-[11px] text-slate-500 [overflow-wrap:anywhere]" title={process.sla.dueDate}>
-              Prazo: {process.sla.dueDate || "não informado"}
-            </p>
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
-              Pendências
-            </p>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800">
-                {pendingRequirements.length} exig.
-              </span>
-              <span className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-700">
-                {pendingGuides.length} guia(s)
-              </span>
-            </div>
-            <p
-              className="mt-1 max-w-full break-words text-[10px] text-slate-500 [overflow-wrap:anywhere]"
-              title={protocolGuide?.code || ""}
-            >
-              {protocolGuide?.code ? `Inicial ${protocolGuide.code}` : "Sem guia inicial"}
-            </p>
-          </div>
-
-          <div className="flex min-w-0 items-center justify-start sm:justify-end min-[1750px]:col-span-3 min-[2050px]:col-span-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-auto min-h-9 min-w-0 max-w-full whitespace-normal break-words rounded-xl border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 [overflow-wrap:anywhere]"
-              onClick={() => navigate(buildProcessPath(process))}
-            >
-              Abrir processo
-            </Button>
-          </div>
-        </div>
-        </div>
-      </details>
-    );
-  };
+  // Single premium process table, not one expanding card per process.
+  // Authoritative process data and the sector's permissions remain unchanged.
+  const renderQueueTable = (items: ProcessRecord[]) => (
+    <CompactProcessRegistry embedded operatorName={session.name} operator={session}
+      processes={items}
+      showArchiveAction={false}
+      canDispatchProcess={() => false}
+      emptyMessage="Nenhum processo corresponde aos filtros."
+    />
+  );
 
   const renderUserCard = (user: SessionUser) => {
     const profile = getUserProfile(user.id, user.email);
@@ -1224,45 +1103,56 @@ export function TenantAdminPage() {
             </div>
           ) : null}
 
+          {session.role === "prefeitura_admin" && effectiveScopeId &&
+            isSwitchableMunicipalStaffRole(user.role) ? (
+              <MunicipalStaffAssignmentsEditor
+                key={user.id}
+                profileId={user.id}
+                municipalityId={effectiveScopeId}
+                currentDepartment={user.department || ""}
+                departments={activeDepartments}
+                onChanged={refreshRemoteStore}
+              />
+            ) : null}
           <div className="grid gap-4 xl:grid-cols-[minmax(250px,0.9fr)_minmax(0,1.5fr)]">
             <div
               data-municipal-user-lotation="true"
-              className={`rounded-[20px] border p-4 ${roleVisual.badge}`}
+              className={`min-w-0 rounded-[20px] border p-4 shadow-[0_4px_16px_rgba(15,23,42,0.035)] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-50 ${roleVisual.badge}`}
             >
               <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <p className="text-[10px] font-black uppercase tracking-[0.13em]">
+                <Building2 className="h-4 w-4 text-current" />
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-current">
                   Lotação institucional
                 </p>
               </div>
-              <p className="mt-3 text-base font-black leading-6">{departmentLabel}</p>
-              <p className="mt-1 text-xs leading-5 opacity-80">
+              <p className="mt-3 text-base font-bold leading-6 text-slate-950 dark:text-white">{departmentLabel}</p>
+              <p className="mt-1 text-xs font-medium leading-5 text-slate-700 dark:text-slate-200">
                 {user.title || getMunicipalProfileLabel(user)}
               </p>
             </div>
 
             <div
               data-municipal-user-security="true"
-              className="rounded-[20px] border border-slate-200 bg-slate-50/70 p-4"
+              className="min-w-0 rounded-[20px] border border-slate-200 bg-white p-4 text-slate-950 shadow-[0_4px_16px_rgba(15,23,42,0.035)] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-50"
             >
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-slate-500" />
-                <p className="text-[10px] font-black uppercase tracking-[0.13em] text-slate-500">
+                <ShieldCheck className="h-4 w-4 text-sky-800 dark:text-sky-300" />
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-700 dark:text-slate-200">
                   Acesso e segurança
                 </p>
               </div>
               <div className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Criado em</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-700">{user.createdAt || "Não informado"}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-600 dark:text-slate-300">Criado em</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-950 dark:text-white">{user.createdAt || "Não informado"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Último acesso</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-700">{user.lastAccessAt || "Não registrado"}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-600 dark:text-slate-300">Último acesso</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-950 dark:text-white">{user.lastAccessAt || "Não registrado"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Situação administrativa</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-700">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-600 dark:text-slate-300">Situação administrativa</p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-950 dark:text-white">
                     {user.blockReason || "Sem restrição administrativa"}
                   </p>
                 </div>
@@ -1395,7 +1285,7 @@ export function TenantAdminPage() {
 
         {workspaceView === "visao-geral" && overviewSubpage === "resumo" ? (
           <div data-sigapro-overview-summary="premium-v4" className="flex min-w-0 flex-col gap-3">
-            <section data-sigapro-summary-board="dark" className="min-w-0 overflow-hidden rounded-[20px] border border-sky-600/35 bg-[#0a263d] p-4 text-white shadow-[0_14px_32px_rgba(6,32,55,0.16)] sm:p-5">
+            <section data-sigapro-summary-board="dark" data-premium-blue-surface="true" className="min-w-0 overflow-hidden rounded-[20px] border border-sky-600/35 bg-[#0a263d] p-4 text-white shadow-[0_14px_32px_rgba(6,32,55,0.16)] sm:p-5">
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/15 pb-3">
                 <div className="min-w-0">
                   <p data-summary-muted="true" className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200">Painel executivo • Prefeitura</p>
@@ -1403,7 +1293,7 @@ export function TenantAdminPage() {
                   <p data-summary-muted="true" className="mt-1 text-xs text-slate-200">Visão sintética dos processos oficiais, sem duplicar toda a fila.</p>
                 </div>
                 <Button type="button" size="sm" variant="outline"
-                  className="h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
+                  className="sig-premium-light-control h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
                   onClick={() => navigate("/prefeitura/visao-geral/processos")}>
                   Ver processos
                 </Button>
@@ -1444,7 +1334,7 @@ export function TenantAdminPage() {
                             {process.sla.breached ? "Vencido" : process.sla.hoursRemaining <= 12 ? "Urgente" : "No prazo"}
                           </Badge>
                           <Button type="button" size="sm" variant="outline"
-                            className="h-8 rounded-lg border-white/25 bg-white !text-[#123650] hover:bg-sky-50"
+                            className="sig-premium-light-control h-8 rounded-lg border-white/25 bg-white !text-[#123650] hover:bg-sky-50"
                             onClick={() => openMunicipalProcess(process.id)}>Abrir</Button>
                         </div>
                       </div>
@@ -1542,14 +1432,14 @@ export function TenantAdminPage() {
             aria-label="Consulta dos processos municipais"
             className="min-w-0 rounded-[20px] border border-[#bfd4e4] bg-[#ecf4fa] p-3 shadow-[0_9px_28px_rgba(8,45,73,0.085)] sm:p-4"
           >
-            <header className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#386f8d] bg-[linear-gradient(115deg,#0b344f,#104e6b)] px-3.5 py-3 text-white">
+            <header data-premium-blue-surface="true" className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#386f8d] bg-[linear-gradient(115deg,#0b344f,#104e6b)] px-3.5 py-3 text-white">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#bfe7fa]">Consulta oficial • Prefeitura</p>
                 <h2 data-processes-header-title="true" className="mt-0.5 text-[17px] font-bold leading-tight text-white">Processos municipais</h2>
                 <p className="mt-1 text-xs text-sky-100">Pesquisa e situação atual sem painéis intermediários.</p>
               </div>
               <Button type="button" size="sm" variant="outline"
-                className="h-9 shrink-0 rounded-lg border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
+                className="sig-premium-light-control h-9 shrink-0 rounded-lg border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
                 onClick={() => navigate("/prefeitura/processos")}>
                 Abrir gestão de processos
               </Button>
@@ -1587,7 +1477,7 @@ export function TenantAdminPage() {
             </div>
 
             <div data-processes-list="true" className="min-w-0">
-              <CompactProcessRegistry
+              <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} operator={session}
                 key={overviewProcessStatus + ":" + overviewProcessSearch + ":" + (effectiveScopeId || "")}
                 processes={overviewProcesses}
                 showArchiveAction={false}
@@ -1627,7 +1517,7 @@ export function TenantAdminPage() {
                 <p className="text-xs text-slate-600" aria-live="polite">
                   {overviewPendingProcesses.length.toLocaleString("pt-BR")} processo(s) encontrados · 25 por página
                 </p>
-                <CompactProcessRegistry
+                <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} operator={session}
                   key={overviewPendingSearch + ":" + (effectiveScopeId || "")}
                   processes={overviewPendingProcesses}
                   showArchiveAction={false}
@@ -1712,44 +1602,29 @@ export function TenantAdminPage() {
         ) : null}
 
         {workspaceView === "fila" ? (
-          <TableCard title="Fila operacional" description="Consulte os processos por número, assunto ou responsável. Detalhes aparecem somente quando solicitados." icon={ClipboardList}>
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong className="block text-lg text-slate-950">{mainQueue.length}</strong> processos no município</div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong className="block text-lg text-slate-950">{criticalAlerts.length}</strong> com atenção ao prazo</div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong className="block text-lg text-slate-950">{metrics.pendingPayments}</strong> guias pendentes</div>
-              </div>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <Input aria-label="Pesquisar processos da fila" value={queueSearch}
-                  onChange={(event) => { setQueueSearch(event.target.value); setQueuePage(1); }}
-                  placeholder="Pesquisar número, assunto, proprietário ou responsável"
-                  className="h-11 rounded-xl border-slate-300 bg-white pl-10 text-slate-900" />
-              </div>
-              {queuePageData.total === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Nenhum processo encontrado.</div>
-              ) : (
-                <>
-                  <div data-municipal-queue-paged="true" className="space-y-2">
-                    {queuePageData.items.map((process) => renderQueueCard(process))}
-                  </div>
-                  <nav aria-label="Paginação processos" className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-  <span className="text-xs text-slate-600">Exibindo {queuePageData.start + 1}–{queuePageData.end} de {queuePageData.total} processos · Página {queuePageData.page} de {queuePageData.totalPages}</span>
-  <div className="flex gap-2">
-    <Button type="button" size="sm" variant="outline" disabled={queuePageData.page <= 1} onClick={() => setQueuePage(queuePageData.page - 1)}>Anterior</Button>
-    <Button type="button" size="sm" variant="outline" disabled={queuePageData.page >= queuePageData.totalPages} onClick={() => setQueuePage(queuePageData.page + 1)}>Próxima</Button>
-  </div>
-</nav>
-                </>
-              )}
+          <div data-sigapro-queue-workspace="premium" className="min-w-0 w-full">
+            <div data-municipal-queue-paged="true" className="min-w-0">
+              {renderQueueTable(filteredQueue)}
             </div>
-          </TableCard>
+          </div>
         ) : null}
 
         {workspaceView === "usuarios" ? (
           <PageMainContent className="min-w-0 gap-5">
-            <PageStatsRow className="md:grid-cols-3 [&>*]:min-w-0">
-              <StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" />
+            {!remoteSyncedForCurrentUser ? (
+              <div role={platformDataError ? "alert" : "status"} data-municipal-users-sync={platformDataError ? "error" : "pending"}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-900 dark:border-sky-700 dark:bg-sky-950/40 dark:text-white">
+                <div className="min-w-0">
+                  <p className="font-bold">{platformDataError ? "Não foi possível confirmar a lista oficial de usuários" : "Validando os usuários vinculados à Prefeitura..."}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">{platformDataError || (platformDataLoading ? "Conferindo os cadastros no banco oficial." : "Os números serão confirmados após sincronização; o cache não define o cadastro oficial.")}</p>
+                </div>
+                <Button type="button" variant="outline" className="rounded-xl border-slate-300 bg-white text-slate-900"
+                  onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>Tentar sincronizar</Button>
+              </div>
+            ) : null}
+            <PageStatsRow className="md:grid-cols-4 [&>*]:min-w-0">
+              <StatCard label="Equipe interna" value={String(internalTenantUsers.length)} description="Servidores e contas operacionais internas" icon={Users2} tone="blue" />
+              <StatCard label="Vínculos municipais" value={String(tenantUsers.length)} description="Todos os perfis da Prefeitura, inclusive externos" icon={Users2} tone="default" />
               <StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" />
               <StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" />
             </PageStatsRow>
@@ -1770,6 +1645,7 @@ export function TenantAdminPage() {
                 <CompactUserRegistry users={filteredUsers} page={userPage}
                   onPageChange={setUserPage}
                   filterKey={[segment, statusFilter, roleFilter, search, effectiveScopeId || ""].join(":")}
+                  getAvatarProfile={(user) => getUserProfile(user.id, user.email) ?? null}
                   renderDetails={renderUserCard}
                   label="Usuários da Prefeitura" />
               </div>

@@ -22,6 +22,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
 import { SectionCard } from "@/components/platform/SectionCard";
@@ -129,6 +130,7 @@ export function AnalystDeskPage() {
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
+  const [processListView, setProcessListView] = useState<"tabela" | "detalhes">("tabela");
   const [section, setSection] = useState<AnalystSection>(() => {
     const requested = searchParams.get("secao");
     return requested && ["visao-geral", "fila", "concluidos", "pendencias", "correcoes", "historico", "indicadores"].includes(requested)
@@ -643,8 +645,23 @@ export function AnalystDeskPage() {
     items = queue,
     emptyMessage = "Nenhum processo encontrado com os filtros atuais.",
     allowArchiveAction = false,
-  ) => (
+  ) => processListView === "tabela" ? (
+    <div data-sigapro-analysis-process-table="true" className="min-w-0 space-y-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-[#ccdae8] bg-[#f3f8fc] px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+        <p className="text-xs font-semibold text-[#204561] dark:text-slate-100">{items.length.toLocaleString("pt-BR")} processo(s) nesta pasta</p>
+        <Button type="button" size="sm" variant="outline"
+          className="h-9 rounded-lg border-[#9cbcd2] bg-white px-3 text-xs font-semibold !text-[#0c3d5d] hover:bg-sky-50 dark:border-slate-500 dark:bg-slate-800 dark:!text-white"
+          onClick={() => setProcessListView("detalhes")}>Ver ações detalhadas da Análise</Button>
+      </div>
+      <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} operator={session} processes={items} showArchiveAction={false}
+        canDispatchProcess={() => false} emptyMessage={emptyMessage} />
+    </div>
+  ) : (
     <div className="space-y-3.5">
+      <div className="flex justify-end">
+        <Button type="button" size="sm" variant="outline" className="rounded-lg border-slate-300 bg-white text-slate-900"
+          onClick={() => setProcessListView("tabela")}>Voltar à tabela de processos</Button>
+      </div>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
           {remoteSyncedForCurrentUser
@@ -1206,18 +1223,14 @@ export function AnalystDeskPage() {
   };
 
   const renderProcessRegistry = () => (
-    <div className="space-y-3" data-analysis-registry-state={remoteSyncedForCurrentUser ? "confirmed" : "pending"}>
-      <div data-analysis-queue-guide="true" className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5 text-xs dark:border-slate-700">
-        <p role="status" className="font-semibold text-slate-700 dark:text-slate-200">
+    <div className="space-y-2" data-analysis-registry-state={remoteSyncedForCurrentUser ? "confirmed" : "pending"}>
+      <div data-analysis-registry-pagination="true"
+        className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d6e2ed] bg-[#f7fbfe] px-3 py-2 text-xs text-[#34536e] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+        <p role="status" className="font-semibold">
           {remoteSyncedForCurrentUser
-            ? "Consulta oficial confirmada · " + registryPagination.total + " processo(s) nesta visualização"
+            ? `Exibindo ${registryPagination.from}–${registryPagination.to} de ${registryPagination.total} processos oficiais`
             : "Sincronização pendente — aguardando confirmação do banco"}
         </p>
-        <p className="text-slate-500 dark:text-slate-400">Clique no número para abrir o processo.</p>
-      </div>
-
-      <div data-analysis-registry-pagination="true" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-        <p className="font-semibold">Exibindo {registryPagination.from}–{registryPagination.to} de {registryPagination.total} processos oficiais</p>
         {registryPagination.pages > 1 ? (
           <nav aria-label="Páginas dos processos oficiais" className="flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" disabled={registryPagination.page <= 1}
@@ -1242,25 +1255,25 @@ export function AnalystDeskPage() {
   return (
     <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões" compactHeader>
       <PageShell className={section === "visao-geral" ? "sig-analysis-page sig-module-summary-active !flex !flex-col !gap-3 !pb-5" : "sig-analysis-page !flex !flex-col !gap-3 !pb-5"}>
-        <section data-analysis-command-bar="true"
-          className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_22px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
+        <section data-analysis-command-bar="true" data-premium-blue-surface="true"
+          className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-sky-500/30 bg-[linear-gradient(115deg,#0b314c,#155b74)] px-4 py-4 text-white shadow-[0_8px_22px_rgba(11,49,76,0.16)] sm:px-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-slate-950 text-white dark:bg-sky-800">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-white/25 bg-white/10 text-white">
               <ListTodo className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] !text-sky-800 dark:!text-sky-200">Operação municipal · Análise técnica</p>
-              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight !text-slate-950 dark:!text-white sm:text-xl">Mesa de processos</h2>
-              <p className="mt-0.5 text-xs !text-slate-600 dark:!text-slate-300">Fila, prazos, encaminhamentos e relatórios em um só lugar.</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.08em] !text-sky-100">Operação municipal · Análise técnica</p>
+              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight !text-white sm:text-xl">Mesa de processos</h2>
+              <p className="mt-0.5 text-xs !text-sky-100">Fila, prazos, encaminhamentos e relatórios em um só lugar.</p>
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
-            <span className="hidden shrink-0 items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 2xl:inline-flex" role="status">
+            <span className="hidden shrink-0 items-center gap-1.5 text-[11px] font-bold !text-emerald-100 2xl:inline-flex" role="status">
               <span className={remoteSyncedForCurrentUser ? "h-2 w-2 rounded-full bg-emerald-500" : "h-2 w-2 rounded-full bg-amber-500"} />
               {remoteSyncedForCurrentUser ? "Banco confirmado" : "Aguardando sincronização"}
             </span>
             <Button type="button" variant="outline"
-              className="h-10 w-full rounded-xl border-slate-300 bg-white px-4 text-xs font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white sm:w-auto"
+              className="sig-premium-light-control h-10 w-full rounded-xl border-slate-300 bg-white px-4 text-xs font-bold text-slate-800 hover:bg-slate-100 sm:w-auto"
               disabled={!remoteSyncedForCurrentUser}
               onClick={handleExportCsv}
               title="Exportar registros do filtro atual para planilha UTF-8">
@@ -1530,7 +1543,7 @@ export function AnalystDeskPage() {
                 Distribuição da equipe e carga de trabalho — expandir quando necessário
               </summary>
             <div
-              data-analysis-distribution-manager="true"
+              data-analysis-distribution-manager="true" data-premium-blue-surface="true"
               className="mb-4 overflow-hidden rounded-[22px] border border-white/15 bg-[linear-gradient(180deg,#102637_0%,#0b1c2e_100%)] shadow-[0_12px_32px_rgba(0,0,0,0.22)]"
             >
               <div className="flex flex-col gap-3 border-b border-white/10 bg-[linear-gradient(135deg,#132d42_0%,#102438_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1562,7 +1575,7 @@ export function AnalystDeskPage() {
                   <p className="mt-2 text-2xl font-black text-white">{teamAssignedAnalysis.length}</p>
                   <p className="mt-1 text-xs text-slate-300">Processos com responsável de referência; a equipe técnica da Análise pode colaborar quando necessário.</p>
                 </div>
-                <div data-analysis-availability-card="true" className="rounded-2xl border border-slate-400/30 bg-[#20364b] p-4">
+                <div data-analysis-availability-card="true" data-premium-blue-surface="true" className="rounded-2xl border border-slate-400/30 bg-[#20364b] p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-200">Equipe disponível</p>
                   <p className="mt-2 text-2xl font-black text-white">{analysisTeam.length}</p>
                   <p className="mt-1 text-xs text-slate-300">

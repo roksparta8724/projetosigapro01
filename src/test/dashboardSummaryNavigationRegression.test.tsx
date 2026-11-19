@@ -82,12 +82,14 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
     expect(dashboard).not.toContain("<InternalTabs");
     expect(dashboard).toContain("<InternalSectionNav");
-    // O resumo não deve colocar o cartão de plano antes da fila operacional.
+    // Dashboard is executive-only. The operational process table belongs to
+    // the dedicated municipal registry, not to the dashboard first fold.
     const overview = dashboard.split("const renderOverview = () => (")[1]?.split("const renderProcesses = () => (")[0] ?? "";
-    expect(overview).toContain("{renderMunicipalWorkQueue()}");
+    expect(dashboard).not.toContain("renderMunicipalWorkQueue");
+    expect(dashboard).not.toContain("<CompactProcessRegistry");
+    expect(dashboard).toContain('data-dashboard-hero="compact-v6"');
+    expect(overview).not.toContain("renderMunicipalWorkQueue");
     expect(overview).toContain("{showPlanCapacity && !isMaster ? renderPlanCapacity() : null}");
-    expect(overview.indexOf("{renderMunicipalWorkQueue()}"))
-      .toBeLessThan(overview.indexOf("{showPlanCapacity && !isMaster ? renderPlanCapacity() : null}"));
     expect(dashboard).not.toContain('section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null');
   });
 
@@ -147,7 +149,8 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(dashboard).toContain('data-sigapro-overview-strip="compact"');
     expect(tenant).not.toContain("lg:grid-cols-[minmax(260px,1.55fr)");
     expect(cards).toContain("[overflow-wrap:anywhere]");
-    expect(history).toContain("min-[2050px]:grid-cols-");
+    expect(history).toContain("renderQueueTable(filteredQueue)");
+    expect(history).toContain("<CompactProcessRegistry");
     expect(externalTabs.indexOf('value: "visao"')).toBeGreaterThan(externalTabs.indexOf('value: "controle"'));
   });
 
