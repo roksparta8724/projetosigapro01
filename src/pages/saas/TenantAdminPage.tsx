@@ -1645,7 +1645,7 @@ export function TenantAdminPage() {
                 <CompactUserRegistry users={filteredUsers} page={userPage}
                   onPageChange={setUserPage}
                   filterKey={[segment, statusFilter, roleFilter, search, effectiveScopeId || ""].join(":")}
-                  getAvatarProfile={(user) => getUserProfile(user.id, user.email)}
+                  getAvatarProfile={(user) => getUserProfile(user.id, user.email) ?? null}
                   renderDetails={renderUserCard}
                   label="Usuários da Prefeitura" />
               </div>
