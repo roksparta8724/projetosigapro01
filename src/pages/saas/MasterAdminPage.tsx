@@ -1378,7 +1378,7 @@ export function MasterAdminPage() {
             <MasterUserGovernance
               institutions={institutionCatalog}
               users={sessionUsers}
-              getAvatarProfile={(user) => getUserProfile(user.id, user.email)}
+              getAvatarProfile={(user) => getUserProfile(user.id, user.email) ?? null}
               renderDetails={renderUserCard}
               onManageMunicipality={(id) => {
                 setSelectedTenantId(id);
