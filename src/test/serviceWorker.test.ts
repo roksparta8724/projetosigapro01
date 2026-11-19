@@ -47,7 +47,8 @@ describe("service worker do SIGAPRO", () => {
 
     expect(await response).toBe("fresh-html");
     expect(worker.fetch).toHaveBeenCalledWith(expect.objectContaining({ mode: "navigate" }), { cache: "no-store", credentials: "same-origin" });
-    expect(worker.openCache).toHaveBeenCalledWith("sigapro-enterprise-v9:public-html");
+    // Invalid or unverified responses must not trigger CacheStorage on the critical navigation path.
+    expect(worker.openCache).not.toHaveBeenCalled();
   });
 
   it("remove o cache de HTML da versao anterior na ativacao", async () => {
