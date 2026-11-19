@@ -185,7 +185,8 @@ self.addEventListener("message", (event) => {
 async function tryPreserveLiveQaDocument(event) {
   const request = event.request;
   const activeClientId = event.replacesClientId || event.clientId;
-  if (!IS_MUTABLE_PREVIEW_ALIAS || request.isReloadNavigation !== true ||
+  if (!IS_MUTABLE_PREVIEW_ALIAS ||
+      (request.isReloadNavigation !== true && event.isReload !== true) ||
       !activeClientId || typeof MessageChannel !== "function") return false;
 
   let client;
@@ -328,7 +329,8 @@ self.addEventListener("fetch", (event) => {
       // The browser's native refresh button is handled BEFORE it destroys
       // the old DOM. Without an authenticated live page, fall back to normal
       // network navigation. Never apply this to public login or production.
-      if (IS_MUTABLE_PREVIEW_ALIAS && request.isReloadNavigation === true) {
+      if (IS_MUTABLE_PREVIEW_ALIAS &&
+          (request.isReloadNavigation === true || event.isReload === true)) {
         event.respondWith((async () => {
           const preserved = await tryPreserveLiveQaDocument(event);
           if (preserved) return new Response(null, {
