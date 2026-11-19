@@ -22,7 +22,8 @@ describe("SIGAPRO — proporção institucional unificada", () => {
   it("não altera o PDF, a escala de impressão ou a identidade visual configurável", () => {
     const frame=read("src/components/platform/PortalFrame.tsx");
     const logo=read("src/components/platform/InstitutionalLogo.tsx");
-    expect(frame).toContain('variant="header"');
+    expect(frame).toContain('variant={isMasterUser ? "compact" : "header"}');
+    expect(frame).toContain('contextScope={isMasterUser ? "master" : "municipality"}');
     expect(frame).toContain("focusMode");
     expect(logo).toContain("MUNICIPAL_LOGO_BASE_RATIO");
     expect(logo).toContain("branding.logoScale");
