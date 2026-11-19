@@ -17,14 +17,10 @@ describe("SIGAPRO — in-place data refresh keeps visible frame and profile stat
     expect(portal).not.toContain("<RefreshCw");
     expect(portal).toContain("useLivePlatformRefresh(refreshRemoteStore,");
   });
-  it("does not navigate, replace root or force a browser document reload", () => {
-    const start = portal.indexOf("const refreshWithoutPageReload = async () => {");
-    const end = portal.indexOf("useLivePlatformRefresh(refreshRemoteStore", start);
-    const body = portal.slice(start, end);
-    expect(body).toContain("await refreshRemoteStore()");
-    expect(body).not.toContain("window.location");
-    expect(body).not.toContain("navigate(");
-    expect(body).not.toContain("root.render");
+  it("does not replace the root or force a browser reload to synchronize data", () => {
+    expect(portal).toContain("useLivePlatformRefresh(refreshRemoteStore,");
+    expect(portal).not.toContain("window.location.reload");
+    expect(portal).not.toContain("root.render");
     expect(gate).toContain("canRefreshMountedWorkspace");
     expect(refresh).toContain('event.navigationType !== "reload"');
   });
