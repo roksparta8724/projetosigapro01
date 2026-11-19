@@ -118,6 +118,7 @@
   ],
   "git": {
     "deploymentEnabled": {
+      "**": false,
       "workbench-sigapro-polish-no-deploy-20261009": false,
       "fix/analise-premium-cadastro-20261013": false,
       "workbench/logo-preview-premium-no-deploy-20261016": false,
@@ -127,7 +128,9 @@
       "workbench/sigapro-consolidacao-p3-no-deploy-20261029": false,
       "fix/qa-triagem-analise-pagamento-20261101": false,
       "fix/f5-navigation-document-cache-20261113": false,
-      "feat/qa-premium-visual-sync-20261113": false
+      "feat/qa-premium-visual-sync-20261113": false,
+      "fix/premium-analise-fila-relatorio-20261112": false,
+      "main": true
     }
   }
 }
