@@ -5,20 +5,17 @@ const gate = readFileSync("src/components/platform/SeamlessRefreshGate.tsx", "ut
 const refresh = readFileSync("src/lib/seamlessInternalRefresh.ts", "utf8");
 
 describe("SIGAPRO — in-place data refresh keeps visible frame and profile stationary", () => {
-  it("does not toggle a topbar-wide loading state on each data refresh", () => {
-    expect(portal).toContain("const refreshingVisibleDataRef = useRef(false)");
-    expect(portal).toContain('if (refreshingVisibleDataRef.current || session.id === "unknown") return');
-    expect(portal).toContain("refreshingVisibleDataRef.current = true");
-    expect(portal).toContain("refreshingVisibleDataRef.current = false");
+  it("keeps background revalidation independent from the mounted topbar", () => {
+    expect(portal).toContain("useLivePlatformRefresh(refreshRemoteStore,");
+    expect(portal).toContain("refreshOnMount: false");
     expect(portal).not.toContain("setRefreshingVisibleData");
     expect(portal).not.toContain("const [refreshingVisibleData,");
   });
-  it("keeps both institutional refresh buttons visually static, without spinning icons", () => {
-    expect(portal.split('onClick={() => void refreshWithoutPageReload()}').length - 1).toBe(2);
-    expect(portal).toContain('aria-label="Atualizar dados sem recarregar a página"');
-    expect(portal).not.toContain('refreshingVisibleData && "animate-spin"');
-    expect(portal).toContain('<RefreshCw aria-hidden="true" className="h-[18px] w-[18px] text-white/92" />');
-    expect(portal).toContain('<RefreshCw aria-hidden="true" className="h-[18px] w-[18px]" />');
+  it("removes redundant desktop/mobile refresh buttons without disabling real background synchronization", () => {
+    expect(portal).not.toContain('aria-label="Atualizar dados sem recarregar a página"');
+    expect(portal).not.toContain("refreshWithoutPageReload");
+    expect(portal).not.toContain("<RefreshCw");
+    expect(portal).toContain("useLivePlatformRefresh(refreshRemoteStore,");
   });
   it("does not navigate, replace root or force a browser document reload", () => {
     const start = portal.indexOf("const refreshWithoutPageReload = async () => {");
