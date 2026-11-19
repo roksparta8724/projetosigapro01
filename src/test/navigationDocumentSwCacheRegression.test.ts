@@ -375,6 +375,42 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     expect(await h.stores.get("sigapro-enterprise-v9:public-html")?.get(alias + "/index.html")?.text()).toContain("release-C");
   });
 
+  it("aceita a PRIMEIRA recarga após troca SPA quando Client.url ainda é a página anterior", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const h = harness(qaOrigin);
+    await h.install();
+
+    // Browser documented behavior: Client.url remains the originally loaded
+    // document, even though React Router now shows /prefeitura/analise.
+    // The real mounted React page replies YES only for its current location.
+    h.setLiveClient(qaOrigin + "/prefeitura/protocolos", true);
+    const initialRequests = h.fetcher.mock.calls.length;
+    const updatedRoute = qaOrigin + "/prefeitura/analise";
+    const result = await h.navigate(updatedRoute, undefined, {
+      reload: true, clientId: "live-client",
+    });
+
+    expect(result.response.status).toBe(204);
+    expect(h.liveMessages).toEqual([
+      "SIGAPRO_LIVE_RELOAD_PROBE", "SIGAPRO_LIVE_RELOAD_REFRESH",
+    ]);
+    expect(h.fetcher).toHaveBeenCalledTimes(initialRequests);
+  });
+
+  it("rejeita cliente de outra origem mesmo que o canal declare sessão válida", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const h = harness(qaOrigin);
+    await h.install();
+    h.setLiveClient("https://outro-sistema.example/prefeitura/analise", true);
+    h.fetcher.mockImplementation(async () => appHtml("network-checked"));
+    const result = await h.navigate(qaOrigin + "/prefeitura/analise", undefined, {
+      reload: true, clientId: "live-client",
+    });
+    expect(result.response.status).toBe(200);
+    expect(await result.response.text()).toContain("network-checked");
+    expect(h.liveMessages).toHaveLength(0);
+  });
+
   it("preserva o DOM real no reload Chrome apenas com confirmação da sessão ativa", async () => {
     const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
     const path = qaOrigin + "/prefeitura/protocolos";
