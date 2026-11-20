@@ -7,7 +7,10 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 describe("SIGAPRO — homologação premium integrada ao código oficial", () => {
   it("Prefeitura abre pela fila operacional, como na prévia revisada pelo usuário", () => {
     const code = read("src/pages/saas/TenantAdminPage.tsx");
-    expect(code).toContain('useState<WorkspaceView>("fila")');
+    expect(code).toContain('const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => {');
+    expect(code).toContain('? selected');
+    expect(code).toContain(': "fila";');
+    expect(code).toContain('hideSectionHeader={workspaceView === "usuarios"}');
     expect(code).toContain('label: "Fila operacional"');
     expect(code).toContain('data-sigapro-overview-summary="premium-v4"');
   });

@@ -351,7 +351,15 @@ export function TenantAdminPage() {
     enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
     intervalMs: 8000,
   });
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("fila");
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => {
+    // Respect a direct Users link on first paint, without a temporary queue/hero.
+    if (isNestedOverview) return "visao-geral";
+    const selected = new URLSearchParams(location.search).get("secao");
+    return selected === "usuarios" || selected === "organograma" ||
+      selected === "historico" || selected === "visao-geral" || selected === "fila"
+      ? selected
+      : "fila";
+  });
   const [municipalRegistryRefresh, setMunicipalRegistryRefresh] = useState(0);
   const [municipalRegistry, setMunicipalRegistry] = useState<{
     identity: string; municipalityId: string; loaded: boolean;
@@ -392,7 +400,7 @@ export function TenantAdminPage() {
         });
       });
     return () => { active = false; };
-  }, [effectiveScopeId, session.id, session.role, workspaceView, municipalRegistryRefresh, sessionUsers]);
+  }, [effectiveScopeId, session.id, session.role, workspaceView, municipalRegistryRefresh]);
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
   const tenantUsers = useMemo(() => {
@@ -693,11 +701,13 @@ export function TenantAdminPage() {
             message: `A conta foi criada, mas o vínculo com o departamento não foi concluído: ${detail}`,
           });
           await refreshRemoteStore();
+          setMunicipalRegistryRefresh((current) => current + 1);
           return;
         }
       }
 
       await refreshRemoteStore();
+      setMunicipalRegistryRefresh((current) => current + 1);
 
       setCreateUserFeedback({
         tone: "success",
@@ -735,6 +745,7 @@ export function TenantAdminPage() {
     try {
       const updated = await command();
       if (!updated) throw new Error("Usuário não encontrado no banco.");
+      setMunicipalRegistryRefresh((current) => current + 1);
       setStatusMessage(success(updated));
       return true;
     } catch (error) {
@@ -814,6 +825,7 @@ export function TenantAdminPage() {
       }
 
       await refreshRemoteStore();
+      setMunicipalRegistryRefresh((current) => current + 1);
       setEditStatusMessage("Alterações salvas no banco e confirmadas com sucesso.");
     } catch (error) {
       setEditStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar as alterações.");
@@ -1245,7 +1257,9 @@ export function TenantAdminPage() {
   ];
 
   return (
-    <PortalFrame eyebrow="Administração da Prefeitura" title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}>
+    <PortalFrame eyebrow="Administração da Prefeitura"
+      title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}
+      hideSectionHeader={workspaceView === "usuarios"}>
       <PageShell>
         <InternalTabs
           className="border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
@@ -1656,10 +1670,10 @@ export function TenantAdminPage() {
         ) : null}
 
         {workspaceView === "usuarios" ? (
-          <PageMainContent className="min-w-0 gap-5">
+          <PageMainContent className="min-w-0 gap-3">
             {(!remoteSyncedForCurrentUser || !municipalRegistryConfirmed) ? (
               <div role={platformDataError || municipalRegistry.error ? "alert" : "status"} data-municipal-users-sync={platformDataError || municipalRegistry.error ? "error" : "pending"}
-                className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-900 dark:border-sky-700 dark:bg-sky-950/40 dark:text-white">
+                className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-slate-900 dark:border-sky-700 dark:bg-sky-950/40 dark:text-white">
                 <div className="min-w-0">
                   <p className="font-bold">{platformDataError || municipalRegistry.error ? "Não foi possível confirmar a lista oficial de usuários" : "Validando os usuários vinculados à Prefeitura..."}</p>
                   <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">{municipalRegistry.error || platformDataError || (platformDataLoading || !municipalRegistryConfirmed ? "Conferindo a lista protegida de usuários no banco oficial." : "Os números serão confirmados após sincronização; o cache não define o cadastro oficial.")}</p>
@@ -1668,15 +1682,9 @@ export function TenantAdminPage() {
                   onClick={() => { setMunicipalRegistryRefresh((current) => current + 1); void refreshRemoteStore().catch(() => undefined); }}>Tentar sincronizar</Button>
               </div>
             ) : null}
-            <PageStatsRow className="md:grid-cols-4 [&>*]:min-w-0">
-              <StatCard label="Equipe interna" value={municipalRegistryConfirmed ? String(internalTenantUsers.length) : "—"} description="Servidores e contas operacionais internas" icon={Users2} tone="blue" />
-              <StatCard label="Vínculos municipais" value={municipalRegistryConfirmed ? String(tenantUsers.length) : "—"} description="Todos os perfis da Prefeitura, inclusive externos" icon={Users2} tone="default" />
-              <StatCard label="Administradores" value={municipalRegistryConfirmed ? String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length) : "—"} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" />
-              <StatCard label="Bloqueados" value={municipalRegistryConfirmed ? String(tenantUsers.filter((user) => user.accountStatus === "blocked").length) : "—"} description="Contas com restrição" icon={ShieldAlert} tone="rose" />
-            </PageStatsRow>
             <TableCard title="Gestão de usuários"
-              description="Tabela paginada e compacta. Consulte um cadastro por vez, sem empilhar fichas nem comprometer a navegação."
-              icon={Users2} className="min-w-0 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
+              description="Equipe, lotações e acessos desta Prefeitura, com consulta e edição diretamente na tabela."
+              icon={Users2} className="min-w-0 !h-auto !min-h-0 !self-start shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
               actions={
                 <Button type="button" variant="outline"
                   aria-expanded={createUserOpen}
@@ -1686,7 +1694,15 @@ export function TenantAdminPage() {
                   {createUserOpen ? "Fechar cadastro" : "Criar servidor"}
                 </Button>
               }>
-              <div className="min-w-0 space-y-4">
+              <div data-municipal-users-list-first="premium-v6" className="min-w-0 space-y-3">
+                <div data-municipal-users-summary="compact-v6"
+                  className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-[#2f6384] bg-[#123d5b] px-3.5 py-2.5 text-xs text-white shadow-[0_4px_14px_rgba(9,37,64,0.12)]"
+                  aria-label="Resumo do cadastro municipal">
+                  <span className="text-sky-100">Vínculos municipais <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? tenantUsers.length : "—"}</strong></span>
+                  <span className="text-sky-100">Equipe interna <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? internalTenantUsers.length : "—"}</strong></span>
+                  <span className="text-sky-100">Administradores <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? tenantUsers.filter((user) => user.role === "prefeitura_admin").length : "—"}</strong></span>
+                  <span className="text-sky-100">Bloqueados <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? tenantUsers.filter((user) => user.accountStatus === "blocked").length : "—"}</strong></span>
+                </div>
                 <Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div>
                 <CompactUserRegistry users={filteredUsers} page={userPage}
                   onPageChange={setUserPage}
