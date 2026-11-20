@@ -77,6 +77,7 @@ export function enforceAuthenticatedAvatarRead(env: NodeJS.ProcessEnv = process.
   return env.VERCEL_ENV === "preview" &&
     (
       env.VERCEL_GIT_COMMIT_REF === "fix/qa-triagem-analise-pagamento-20261101" ||
-      env.VERCEL_GIT_COMMIT_REF === "fix/homologacao-geral-sei-dashboard-bank-20261113"
+      env.VERCEL_GIT_COMMIT_REF === "fix/homologacao-geral-sei-dashboard-bank-20261113" ||
+      env.VERCEL_GIT_COMMIT_REF === "qa/avatar-cache-users-premium-20261119"
     );
 }
