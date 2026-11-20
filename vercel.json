@@ -71,6 +71,15 @@
           "value": "private, no-store"
         }
       ]
+    },
+    {
+      "source": "/((?!api/|assets/|\\.well-known/|.*\\.[^/]+$).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -139,7 +148,7 @@
       "destination": "/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/|assets/|\\.well-known/|.*\\.[^/]+$).*)",
       "destination": "/index.html"
     }
   ],

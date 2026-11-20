@@ -69,11 +69,13 @@ describe("entrega de ativos atuais no site oficial", () => {
   });
 
   it("invalida caches de versões anteriores sem afetar dados do Neon", () => {
-    expect(worker).toContain('CACHE_VERSION = "sigapro-enterprise-v9"');
+    expect(worker).toContain('CACHE_VERSION = "sigapro-enterprise-v10"');
     expect(worker).toContain("safeAssetResponse(request, response)");
     expect(worker).toContain('type.includes("text/html")');
     expect(worker).toContain('key.startsWith("sigapro-enterprise-")');
     expect(worker).toContain("event.respondWith(respondToNavigation(request, event))");
+    expect(worker).toContain("const IS_MUTABLE_APP_HOST =");
+    expect(worker).toContain("if (IS_MUTABLE_APP_HOST || isIdentityRoute)");
     expect(worker).toContain("isVerifiedPublicAppDocument");
     expect(worker).toContain("DOCUMENT_SIGNATURE");
     expect(worker).not.toContain("indexedDB");

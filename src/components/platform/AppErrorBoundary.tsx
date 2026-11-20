@@ -1,6 +1,7 @@
 import * as React from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isStaleChunkFailure, recoverStaleChunkOnce } from "@/lib/chunkRecovery";
 
 interface AppErrorBoundaryState {
   hasError: boolean;
@@ -21,6 +22,10 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, A
   }
 
   componentDidCatch(error: Error) {
+    if (recoverStaleChunkOnce(error)) {
+      console.warn("[SIGAPRO][Release] Modulo antigo detectado; atualizando uma vez.");
+      return;
+    }
     console.error("[ErrorBoundary] SIGAPRO runtime error:", error);
 
     // Se uma tela falhar de verdade, não deixar o snapshot premium cobrindo
@@ -58,14 +63,18 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, A
             </div>
             <h1 className="mt-5 max-w-md text-xl font-semibold leading-tight text-slate-900">A tela encontrou um erro</h1>
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              O SIGAPRO identificou uma falha ao abrir esta página. Atualize a tela ou volte ao acesso para continuar.
+              {isStaleChunkFailure(this.state.message)
+                ? "A versão da aplicação foi atualizada. Recarregue esta página para recuperar o módulo, sem sair da sua conta."
+                : "O SIGAPRO identificou uma falha ao abrir esta página. Atualize a tela ou volte ao acesso para continuar."}
             </p>
             <div className="sig-dark-panel mt-5 break-words rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              {this.state.message}
+              {isStaleChunkFailure(this.state.message)
+                ? "Um arquivo da versão anterior não está mais disponível. O SIGAPRO não alterou seus cadastros ou processos."
+                : this.state.message}
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button type="button" onClick={() => window.location.reload()}>
-                Atualizar Tela
+                {isStaleChunkFailure(this.state.message) ? "Recarregar versão atual" : "Atualizar Tela"}
               </Button>
               <Button type="button" variant="outline" onClick={() => (window.location.href = "/acesso")}>
                 Voltar Ao Acesso
