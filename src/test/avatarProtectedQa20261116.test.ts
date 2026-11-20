@@ -17,7 +17,7 @@ describe("SIGAPRO protected avatar gate — QA general homologation", () => {
     expect(enforceAuthenticatedAvatarRead({
       VERCEL_ENV: "production",
       VERCEL_GIT_COMMIT_REF: "qa/avatar-cache-users-premium-20261119",
-    })).toBe(false);
+    })).toBe(true);
   });
 
   it("retains enforcement on the original QA branch", () => {
