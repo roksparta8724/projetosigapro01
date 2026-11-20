@@ -11,7 +11,7 @@ const cached = new Map<string, AuthorizedAvatarUrl>();
 const pending = new Map<string, Promise<string>>();
 let generation = 0;
 let activeOwner = "";
-const MAX_CACHED_IMAGES = 8;
+// Keep the 20-photo municipal registry page + the signed-in header in memory.\n// Never store authorized blobs persistently; logout/account switch still revokes all.\nconst MAX_CACHED_IMAGES = 24;
 
 function validOwner(value: string): string {
   const owner = value.trim();

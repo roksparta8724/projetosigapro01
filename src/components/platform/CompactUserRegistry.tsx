@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { accessLevelLabels, roleLabels, type SessionUser, type UserProfile } from "@/lib/platform";
-import { UserAvatar } from "@/components/platform/UserAvatar";
+import { UserAvatar } from "@/components/platform/UserAvatar";\nimport { useAuthGateway } from "@/hooks/useAuthGateway";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 
@@ -34,7 +34,7 @@ export function CompactUserRegistry({
   users, page, onPageChange, renderDetails, getAvatarProfile, filterKey = "", pageSize = 20,
   label = "Cadastro de usuários",
 }: CompactUserRegistryProps) {
-  const paged = useMemo(
+  const { isAuthenticated, authResolved, authenticatedUserId, authenticatedProfileId } = useAuthGateway();\n  const authorizedViewerId = isAuthenticated && authResolved\n    ? (authenticatedUserId || authenticatedProfileId)\n    : null;\n  const paged = useMemo(
     () => paginateMunicipalItems(users, page, pageSize),
     [users, page, pageSize],
   );
@@ -86,7 +86,7 @@ export function CompactUserRegistry({
                       <td className="max-w-0 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
                           <UserAvatar
-                            name={user.name}
+                            authenticatedOwnerId={authorizedViewerId}\n                            name={user.name}
                             imageUrl={imageUrl}
                             crop={imageUrl && profile ? {
                               scale: profile.avatarScale ?? 1,

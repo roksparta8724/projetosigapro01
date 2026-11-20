@@ -9,6 +9,7 @@ on:
       - "src/pages/saas/TenantAdminPage.tsx"
       - "src/test/municipalAdminRegistryProduction20261119.test.ts"
       - "src/test/municipalUsersNoEmptyHeader20261119.test.ts"
+      - "src/test/qaAvatarNavigationAndMunicipalUsersPremium20261119.test.ts"
       - "neon/migrations/20261119_municipal_admin_user_registry_v1.sql"
       - ".github/workflows/municipal-users-gate.yml"
   push:
@@ -35,6 +36,6 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
       - name: Municipal registry authorization and sync regressions
-        run: npx vitest run src/test/municipalAdminRegistryProduction20261119.test.ts src/test/municipalUsersNoEmptyHeader20261119.test.ts
+        run: npx vitest run src/test/municipalAdminRegistryProduction20261119.test.ts src/test/municipalUsersNoEmptyHeader20261119.test.ts src/test/qaAvatarNavigationAndMunicipalUsersPremium20261119.test.ts
       - name: Production build
         run: npm run build
