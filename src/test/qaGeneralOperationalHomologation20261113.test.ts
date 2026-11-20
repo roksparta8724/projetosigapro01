@@ -33,7 +33,8 @@ describe("SIGAPRO operational launch quality — 13 Nov 2026", () => {
   it("keeps the authenticated municipal scope authoritative and distinguishes linked users from staff", () => {
     const page = source("src/pages/saas/TenantAdminPage.tsx");
     expect(page).toContain("session.municipalityId ?? session.tenantId ?? municipality?.id");
-    expect(page).toContain('data-municipal-users-sync={platformDataError ? "error" : "pending"}');
+    expect(page).toContain('data-municipal-users-sync={platformDataError || municipalRegistry.error ? "error" : "pending"}');
+    expect(page).toContain('data-municipal-users-summary="compact-v6"');
     expect(page).toContain("Equipe interna");
     expect(page).toContain("Vínculos municipais");
   });
