@@ -92,18 +92,21 @@ export function AcessoPage() {
       // vínculo ativo quanto o módulo do contrato. Master usa perfil já
       // validado no get_current_profile_context. Permissões de rota/API
       // continuam independentes desta verificação de entrada.
-      const [decision] = await Promise.all([
-        verifyLoginLandingAccess(role, result.municipalityId ?? null,
-          async (method, args) => {
-            const response = await backendClient.rpc(method, args);
-            return {
-              data: response.data,
-              error: response.error ? { message: response.error.message } : null,
-            };
-          }),
-        // Page chunk downloads while Neon validates the current role/contract.
-        preloadLoginLanding(landingPath),
-      ]);
+      // Download the next page while checking the contract, but NEVER hold a
+      // successful login waiting for the whole screen bundle to download.
+      // React.lazy/Suspense still handles the route safely if it arrives later.
+      void preloadLoginLanding(landingPath).catch(() => undefined);
+      const decision = await verifyLoginLandingAccess(
+        role,
+        result.municipalityId ?? null,
+        async (method, args) => {
+          const response = await backendClient.rpc(method, args);
+          return {
+            data: response.data,
+            error: response.error ? { message: response.error.message } : null,
+          };
+        },
+      );
       if (decision.ok === false) {
         setError(decision.message);
         return;
