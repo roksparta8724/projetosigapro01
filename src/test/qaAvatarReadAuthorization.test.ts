@@ -94,7 +94,7 @@ describe("SIGAPRO QA — leitura de foto privada vinculada ao perfil", () => {
       .toMatchObject({ok:false,status:503});
     const qa = {VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:"fix/qa-triagem-analise-pagamento-20261101"};
     expect(enforceAuthenticatedAvatarRead(qa)).toBe(true);
-    expect(enforceAuthenticatedAvatarRead({...qa,VERCEL_ENV:"production"})).toBe(false);
+    expect(enforceAuthenticatedAvatarRead({...qa,VERCEL_ENV:"production"})).toBe(true);
     expect(enforceAuthenticatedAvatarRead({...qa,VERCEL_GIT_COMMIT_REF:"main"})).toBe(false);
   });
 
