@@ -123,7 +123,9 @@ export function UserAvatar(props: UserAvatarProps) {
   const privateSource = privateAvatarObjectKey(props.imageUrl);
   const authenticatedOwner = String(props.authenticatedOwnerId || "").trim();
   const rememberVerifiedImage = (image: HTMLImageElement) => {
-    // A miniatura persistida entre recargas pertence apenas à foto da conta\n    // no cabeçalho; nunca substituir a miniatura por fotos de outros servidores.\n    if (!props.preservePhotoDuringRefresh || !privateSource || !authenticatedOwner || !image.currentSrc.startsWith("blob:")) return;
+    // A miniatura persistida entre recargas pertence apenas à foto da conta
+    // no cabeçalho; nunca substituir a miniatura por fotos de outros servidores.
+    if (!props.preservePhotoDuringRefresh || !privateSource || !authenticatedOwner || !image.currentSrc.startsWith("blob:")) return;
     rememberAvatarSessionThumbnail(authenticatedOwner, String(props.imageUrl || ""), image, props.crop, props.size || "md");
   };
   // Uma URL temporariamente ausente durante o refresh do MESMO usuário não
