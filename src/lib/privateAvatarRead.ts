@@ -27,6 +27,32 @@ export function privateAvatarObjectKey(source: string | null | undefined): strin
 
 export type AuthorizedAvatarUrl = { url: string; revoke: () => void };
 
+// A municipal user table may mount 20+ avatar images in the same render.
+// Coalesce ONLY simultaneous Neon Auth session reads, not the image bytes.
+// The task is discarded as soon as it resolves: logout/identity switch cannot
+// reuse a previously obtained Bearer token on a later navigation.
+let inFlightTokenRead: Promise<string> | null = null;
+
+export function readAvatarAccessToken(): Promise<string> {
+  if (inFlightTokenRead) return inFlightTokenRead;
+  const task = (async () => {
+    const { backendClient } = await import("@/integrations/backend/databaseClient");
+    const result = await backendClient?.auth?.getSession?.();
+    const session = result?.data?.session ?? null;
+    const token = session?.access_token || session?.accessToken || session?.token || "";
+    if (typeof token !== "string" || !token) {
+      throw new Error("Sessão necessária para visualizar a foto.");
+    }
+    return token;
+  })();
+  inFlightTokenRead = task;
+  void task.then(
+    () => { if (inFlightTokenRead === task) inFlightTokenRead = null; },
+    () => { if (inFlightTokenRead === task) inFlightTokenRead = null; },
+  );
+  return task;
+}
+
 export async function resolveAuthorizedAvatarUrl(
   source: string,
   signal?: AbortSignal,
@@ -34,15 +60,9 @@ export async function resolveAuthorizedAvatarUrl(
   const key = privateAvatarObjectKey(source);
   if (!key) return { url: source, revoke: () => {} };
 
-  // Lazy import: the public login/login landing bundle must not eagerly load
-  // profile storage or session SDKs just to display an anonymous page.
-  const { backendClient } = await import("@/integrations/backend/databaseClient");
-  const result = await backendClient?.auth?.getSession?.();
-  const session = result?.data?.session ?? null;
-  const token =
-    session?.access_token || session?.accessToken || session?.token || "";
-  if (typeof token !== "string" || !token)
-    throw new Error("Sessão necessária para visualizar a foto.");
+  // Authentication remains mandatory for every protected object, but a
+  // simultaneous group of photos shares the same CURRENT session lookup.
+  const token = await readAvatarAccessToken();
 
   const response = await fetch(
     "/api/profile-avatar-open?objectKey=" + encodeURIComponent(key),
