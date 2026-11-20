@@ -63,7 +63,7 @@ describe("service worker do SIGAPRO", () => {
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v4:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v5:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v5:avatars");
-    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v7:assets", "sigapro-enterprise-v8:assets", "sigapro-enterprise-v9:assets");
+    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v7:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v8:assets");
     expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v9:assets");
     expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v10:assets");
