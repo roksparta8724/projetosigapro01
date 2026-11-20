@@ -7,10 +7,10 @@ describe("SIGAPRO — login sempre no build correto e autenticacao isolada", () 
   it("preview não serve HTML JS antigo nem autenticação antiga após novo deploy", () => {
     const sw = source("public/sigapro-sw.js");
     const navigation = sw.split("async function respondToNavigation(request, event) {")[1];
-    expect(sw).toContain('sigapro-enterprise-v9');
+    expect(sw).toContain('CACHE_VERSION = "sigapro-enterprise-v10"');
     expect(sw).toContain("const IS_SIGAPRO_PREVIEW =");
     expect(sw).toContain("const IS_MUTABLE_PREVIEW_ALIAS =");
-    expect(navigation).toContain("if (IS_MUTABLE_PREVIEW_ALIAS || isIdentityRoute)");
+    expect(navigation).toContain("if (IS_MUTABLE_APP_HOST || isIdentityRoute)");
     expect(navigation).toContain('fetch(request, { cache: "no-store", credentials: "same-origin" })');
     expect(navigation).toContain("if (IS_SIGAPRO_PREVIEW) return Response.error()");
     expect(navigation).toContain("await isVerifiedPublicAppDocument(response)");
@@ -52,6 +52,11 @@ describe("SIGAPRO — login sempre no build correto e autenticacao isolada", () 
         header.key === "Cache-Control" && header.value.includes("no-store")
       )).toBe(true);
     }
-    expect(config.rewrites.some((item) => item.source === "/(.*)" && item.destination === "/index.html")).toBe(true);
+    const spa = config.rewrites.find(item => item.destination === "/index.html");
+    expect(spa).toBeDefined();
+    const rule = new RegExp("^" + spa!.source + "$");
+    expect(rule.test("/prefeitura")).toBe(true);
+    expect(rule.test("/acesso")).toBe(true);
+    expect(rule.test("/assets/PortalFrame-BZ04PhkO.js")).toBe(false);
   });
 });

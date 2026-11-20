@@ -147,23 +147,24 @@ function harness(originOverride = origin) {
 }
 
 describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
-  it("armazena na instalação e entrega o documento sem esperar a rede", async () => {
+  it("prepara documento na instalação e usa HTML atual da rede nos domínios de produção", async () => {
     const h = harness();
     await h.install();
-    expect(h.stores.get("sigapro-enterprise-v9:public-html")?.has(indexUrl)).toBe(true);
+    expect(h.stores.get("sigapro-enterprise-v10:public-html")?.has(indexUrl)).toBe(true);
     const count = h.fetcher.mock.calls.length;
-    h.fetcher.mockImplementation(async () => new Promise<TestResponse>(() => undefined)); // rede travada
+    h.fetcher.mockImplementation(async () => appHtml("release-B"));
     const result = await h.navigate(origin + "/prefeitura");
-    expect(await result.response.text()).toContain("release-A");
+    expect(await result.response.text()).toContain("release-B");
     expect(h.fetcher).toHaveBeenCalledTimes(count + 1);
+    await Promise.all(result.background);
   });
 
-  it("atualiza o HTML em background sem atrasar a visualização", async () => {
+  it("serve HTML atual antes de validar assíncronamente a cópia em CacheStorage", async () => {
     const h = harness();
     await h.install();
     h.fetcher.mockImplementation(async () => appHtml("release-B"));
     const first = await h.navigate(origin + "/dashboard");
-    expect(await first.response.text()).toContain("release-A");
+    expect(await first.response.text()).toContain("release-B");
     await Promise.all(first.background);
     const second = await h.navigate(origin + "/dashboard");
     expect(await second.response.text()).toContain("release-B");
@@ -173,7 +174,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
   it("não intercepta URLs de APIs, PDFs, downloads ou assets diretos", async () => {
     const h = harness();
     await h.install();
-    const cache = h.stores.get("sigapro-enterprise-v9:public-html")!;
+    const cache = h.stores.get("sigapro-enterprise-v10:public-html")!;
     for (const path of [
       "/api/profile-avatar-open?user=1",
       "/api/municipality-logo-open?tenant=2",
@@ -207,7 +208,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
       const h = harness();
       h.fetcher.mockImplementation(async () => response);
       await h.install();
-      expect(h.stores.get("sigapro-enterprise-v9:public-html")?.size ?? 0).toBe(0);
+      expect(h.stores.get("sigapro-enterprise-v10:public-html")?.size ?? 0).toBe(0);
     }
   });
 
@@ -232,7 +233,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     });
     await h.install();
 
-    const assets = h.stores.get("sigapro-enterprise-v9:assets")!;
+    const assets = h.stores.get("sigapro-enterprise-v10:assets")!;
     expect([...assets.keys()]).toEqual([
       origin + "/assets/start-a.js",
       origin + "/assets/start-b.css",
@@ -260,6 +261,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
 
   it("preserva a geração imediatamente anterior de chunks na produção e invalida as antigas", async () => {
     const h = harness();
+    await h.cachesMock.open("sigapro-enterprise-v9:assets");
     await h.cachesMock.open("sigapro-enterprise-v8:assets");
     await h.cachesMock.open("sigapro-enterprise-v7:assets");
     await h.cachesMock.open("sigapro-enterprise-v6:assets");
@@ -269,15 +271,16 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     await Promise.all(waits);
     expect(h.removed).toContain("sigapro-enterprise-v6:assets");
     expect(h.removed).toContain("sigapro-enterprise-v7:assets");
-    expect(h.removed).not.toContain("sigapro-enterprise-v8:assets");
-    expect(h.removed).not.toContain("sigapro-enterprise-v9:public-html");
+    expect(h.removed).toContain("sigapro-enterprise-v8:assets");
+    expect(h.removed).not.toContain("sigapro-enterprise-v9:assets");
+    expect(h.removed).not.toContain("sigapro-enterprise-v10:public-html");
   });
 
   it("preview de homologação ignora o documento em cache e carrega sempre a publicação atual", async () => {
     const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
     const h = harness(qaOrigin);
     await h.install();
-    const cache = h.stores.get("sigapro-enterprise-v9:public-html");
+    const cache = h.stores.get("sigapro-enterprise-v10:public-html");
     expect(cache?.get(qaOrigin + "/index.html")).toBeDefined();
     h.fetcher.mockImplementation(async () => appHtml("release-B"));
     const result = await h.navigate(qaOrigin + "/acesso");
@@ -315,7 +318,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
 
     allowCacheValidation?.();
     await Promise.all(result.background);
-    const cached = h.stores.get("sigapro-enterprise-v9:public-html")
+    const cached = h.stores.get("sigapro-enterprise-v10:public-html")
       ?.get(qaOrigin + "/index.html");
     expect(await cached?.text()).toContain("release-live");
   });
@@ -339,7 +342,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
 
     allowCacheDisk?.();
     await Promise.all(result.background);
-    expect(await h.stores.get("sigapro-enterprise-v9:public-html")
+    expect(await h.stores.get("sigapro-enterprise-v10:public-html")
       ?.get(qaOrigin + "/index.html")?.text()).toContain("release-no-disk-wait");
   });
 
@@ -354,7 +357,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     expect(await result.response.text()).toContain("release-B");
     expect(h.fetcher).toHaveBeenCalledTimes(before);
     await Promise.all(result.background);
-    expect(await h.stores.get("sigapro-enterprise-v9:public-html")?.get(qaOrigin + "/index.html")?.text()).toContain("release-B");
+    expect(await h.stores.get("sigapro-enterprise-v10:public-html")?.get(qaOrigin + "/index.html")?.text()).toContain("release-B");
   });
 
   it("reutiliza HTML validado em hostname imutável sem aguardar rede travada", async () => {
@@ -377,7 +380,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     const result = await h.navigate(alias + "/prefeitura");
     expect(await result.response.text()).toContain("release-C");
     await Promise.all(result.background);
-    expect(await h.stores.get("sigapro-enterprise-v9:public-html")?.get(alias + "/index.html")?.text()).toContain("release-C");
+    expect(await h.stores.get("sigapro-enterprise-v10:public-html")?.get(alias + "/index.html")?.text()).toContain("release-C");
   });
 
   it("aceita a PRIMEIRA recarga após troca SPA quando Client.url ainda é a página anterior", async () => {
