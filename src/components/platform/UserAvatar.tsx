@@ -123,7 +123,9 @@ export function UserAvatar(props: UserAvatarProps) {
   const privateSource = privateAvatarObjectKey(props.imageUrl);
   const authenticatedOwner = String(props.authenticatedOwnerId || "").trim();
   const rememberVerifiedImage = (image: HTMLImageElement) => {
-    if (!privateSource || !authenticatedOwner || !image.currentSrc.startsWith("blob:")) return;
+    // A miniatura persistida entre recargas pertence apenas à foto da conta
+    // no cabeçalho; nunca substituir a miniatura por fotos de outros servidores.
+    if (!props.preservePhotoDuringRefresh || !privateSource || !authenticatedOwner || !image.currentSrc.startsWith("blob:")) return;
     rememberAvatarSessionThumbnail(authenticatedOwner, String(props.imageUrl || ""), image, props.crop, props.size || "md");
   };
   // Uma URL temporariamente ausente durante o refresh do MESMO usuário não
@@ -132,9 +134,9 @@ export function UserAvatar(props: UserAvatarProps) {
   // Em listagens sem owner autenticado, manter chave por origem para não
   // reaproveitar fotos entre registros diferentes.
   const owner = String(props.authenticatedOwnerId || "").trim();
-  const presentationKey = owner && owner !== "unknown"
+  const presentationKey = owner && owner !== "unknown" && props.preservePhotoDuringRefresh
     ? `account:${owner}`
-    : `source:${props.imageUrl || ""}`;
+    : `source:${owner}:${props.imageUrl || ""}`;
   return <UserAvatarPresentation
     key={presentationKey}
     {...props}

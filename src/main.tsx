@@ -13,6 +13,7 @@ import "./styles/sigapro-operational-header-premium.css";
 import "./styles/sigapro-finance-premium.css";
 import "./styles/sigapro-inverse-workspace-premium.css";
 import "./styles/sigapro-authenticated-dark-surface-audit.css";
+import "./styles/municipal-users-premium-v7.css";
 
 const CONTINUITY_KEY = "sigapro.refresh.continuity.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";

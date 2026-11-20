@@ -9,6 +9,17 @@ describe("SIGAPRO protected avatar gate — QA general homologation", () => {
     })).toBe(true);
   });
 
+  it("protects the current avatar and municipal users QA branch", () => {
+    expect(enforceAuthenticatedAvatarRead({
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "qa/avatar-cache-users-premium-20261119",
+    })).toBe(true);
+    expect(enforceAuthenticatedAvatarRead({
+      VERCEL_ENV: "production",
+      VERCEL_GIT_COMMIT_REF: "qa/avatar-cache-users-premium-20261119",
+    })).toBe(true);
+  });
+
   it("retains enforcement on the original QA branch", () => {
     expect(enforceAuthenticatedAvatarRead({
       VERCEL_ENV: "preview",
@@ -16,11 +27,11 @@ describe("SIGAPRO protected avatar gate — QA general homologation", () => {
     })).toBe(true);
   });
 
-  it("does not modify production configuration or unrelated previews implicitly", () => {
+  it("protects production avatars and keeps unrelated previews fail-closed on configuration", () => {
     expect(enforceAuthenticatedAvatarRead({
       VERCEL_ENV: "production",
       VERCEL_GIT_COMMIT_REF: "fix/homologacao-geral-sei-dashboard-bank-20261113",
-    })).toBe(false);
+    })).toBe(true);
     expect(enforceAuthenticatedAvatarRead({
       VERCEL_ENV: "preview",
       VERCEL_GIT_COMMIT_REF: "other-preview",

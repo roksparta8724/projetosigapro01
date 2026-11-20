@@ -1171,7 +1171,7 @@ export function PerfilPage() {
           avatarUrl: form.avatarUrl,
           avatarStorageRef: profile?.avatarStorageRef,
         }));
-  const avatarPreviewUrl = useAuthorizedAvatarUrl(avatarPreviewSourceUrl);
+  const avatarPreviewUrl = useAuthorizedAvatarUrl(avatarPreviewSourceUrl, authenticatedUserId || authenticatedProfileId);
   const avatarPreviewCrop = useMemo(
     () => ({
       scale: form.avatarScale,
@@ -1629,7 +1629,7 @@ export function PerfilPage() {
                         <p className="mt-1 text-sm leading-6 text-slate-500">Veja como a foto vai aparecer no perfil e no topo da plataforma.</p>
                       </div>
                       <div className="flex items-center gap-4 rounded-[24px] border border-white/80 bg-white/90 p-4 shadow-[0_10px_25px_rgba(15,23,42,0.08)]">
-                        <UserAvatar
+                        <UserAvatar authenticatedOwnerId={authenticatedUserId || authenticatedProfileId}
                           name={form.fullName || session.name}
                           imageUrl={avatarPreviewUrl}
                           size="xl"
@@ -1650,7 +1650,7 @@ export function PerfilPage() {
                             <p id="profile-preview-topbar-title" className="text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
                             <p id="profile-preview-topbar-copy" className="mt-1 text-sm">{avatarPreviewUrl ? "Foto exibida automaticamente no cabeçalho após salvar." : "Sem foto cadastrada: o topo mostra as iniciais."}</p>
                           </div>
-                          <UserAvatar
+                          <UserAvatar authenticatedOwnerId={authenticatedUserId || authenticatedProfileId}
                             name={form.fullName || session.name}
                             imageUrl={avatarPreviewUrl}
                             size="md"
