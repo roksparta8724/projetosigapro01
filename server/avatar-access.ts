@@ -52,17 +52,31 @@ export async function authorizePrivateAvatarRead(
     return { ok: true };
   }
 
-  const master = await callDataApiRpc<boolean>(req, "is_master", {});
-  if (master.ok && master.payload === true) return { ok: true };
-  if (!avatar.municipalityId) return DENIED;
+  if (!avatar.municipalityId) {
+    const master = await callDataApiRpc<boolean>(req, "is_master", {});
+    return master.ok && master.payload === true ? { ok: true } : DENIED;
+  }
 
-  const admin = await callDataApiRpc<boolean>(req, "is_municipality_admin", {});
-  if (!admin.ok || admin.payload !== true) return DENIED;
-  const tenant = await callDataApiRpc<boolean>(req, "has_tenant_access", {
-    target_tenant: avatar.municipalityId,
-  });
-  if (!tenant.ok || tenant.payload !== true) return DENIED;
-  return { ok: true };
+  // These read-only checks are independent. On a municipal users page the
+  // previous serial sequence (is_master -> is_admin -> membership) multiplied
+  // Neon round-trips for every private photo. Parallel calls reduce latency
+  // without relaxing either condition required for a municipal administrator.
+  const [masterResult, adminResult, tenantResult] = await Promise.allSettled([
+    callDataApiRpc<boolean>(req, "is_master", {}),
+    callDataApiRpc<boolean>(req, "is_municipality_admin", {}),
+    callDataApiRpc<boolean>(req, "has_tenant_access", {
+      target_tenant: avatar.municipalityId,
+    }),
+  ]);
+  // One failing role lookup never grants access. A verified Master can still
+  // read its permitted photo even if an unrelated tenant RPC is unavailable.
+  const master = masterResult.status === "fulfilled" ? masterResult.value : null;
+  const admin = adminResult.status === "fulfilled" ? adminResult.value : null;
+  const tenant = tenantResult.status === "fulfilled" ? tenantResult.value : null;
+  if (master?.ok && master.payload === true) return { ok: true };
+  if (admin?.ok && admin.payload === true && tenant?.ok && tenant.payload === true)
+    return { ok: true };
+  return DENIED;
 }
 
 /**
