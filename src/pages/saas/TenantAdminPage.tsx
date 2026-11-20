@@ -38,6 +38,7 @@ import { buildPlanCapacityMetrics } from "@/lib/planUsageDashboard";
 import {
   assignRemoteProfileDepartment,
   listRemoteMunicipalDepartments,
+  listRemoteMunicipalUserRegistry,
   upsertRemoteMunicipalDepartment,
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
@@ -350,8 +351,54 @@ export function TenantAdminPage() {
     enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
     intervalMs: 8000,
   });
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("fila");
+  const [municipalRegistryRefresh, setMunicipalRegistryRefresh] = useState(0);
+  const [municipalRegistry, setMunicipalRegistry] = useState<{
+    identity: string; municipalityId: string; loaded: boolean;
+    users: SessionUser[]; error: string | null;
+  }>({ identity: "", municipalityId: "", loaded: false, users: [], error: null });
+  const municipalRegistryConfirmed =
+    municipalRegistry.loaded && municipalRegistry.identity === session.id &&
+    municipalRegistry.municipalityId === effectiveScopeId;
+
+  // Read the signed-in municipality roster independently from the general
+  // bootstrap, which may continue even if a non-critical profile SELECT failed.
+  useEffect(() => {
+    if (workspaceView !== "usuarios" || !effectiveScopeId || !session.id ||
+        session.id === "unknown" ||
+        !["prefeitura_admin", "prefeitura_supervisor"].includes(session.role)) return;
+    let active = true;
+    setMunicipalRegistry({
+      identity: session.id, municipalityId: effectiveScopeId,
+      loaded: false, users: [], error: null,
+    });
+    void listRemoteMunicipalUserRegistry()
+      .then((result) => {
+        if (!active) return;
+        if (!result || result.municipalityId !== effectiveScopeId) {
+          throw new Error("A Prefeitura autenticada não corresponde aos cadastros retornados pelo banco.");
+        }
+        setMunicipalRegistry({
+          identity: session.id, municipalityId: effectiveScopeId,
+          loaded: true, users: result.users, error: null,
+        });
+      })
+      .catch((error) => {
+        if (!active) return;
+        setMunicipalRegistry({
+          identity: session.id, municipalityId: effectiveScopeId, loaded: false,
+          users: [],
+          error: error instanceof Error ? error.message : "A lista de servidores não pôde ser confirmada.",
+        });
+      });
+    return () => { active = false; };
+  }, [effectiveScopeId, session.id, session.role, workspaceView, municipalRegistryRefresh, sessionUsers]);
+
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
-  const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
+  const tenantUsers = useMemo(() => {
+    if (municipalRegistryConfirmed) return municipalRegistry.users;
+    return sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user));
+  }, [effectiveScopeId, sessionUsers, municipalRegistryConfirmed, municipalRegistry.users]);
   const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)), [effectiveScopeId, processes]);
   const internalTenantUsers = useMemo(
     () =>
@@ -392,7 +439,6 @@ export function TenantAdminPage() {
     message: string;
   }>({ tone: "idle", message: "" });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("fila");
   const [queueSearch] = useState("");
   const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
   const [overviewProcessSearch, setOverviewProcessSearch] = useState("");
@@ -1611,22 +1657,22 @@ export function TenantAdminPage() {
 
         {workspaceView === "usuarios" ? (
           <PageMainContent className="min-w-0 gap-5">
-            {!remoteSyncedForCurrentUser ? (
-              <div role={platformDataError ? "alert" : "status"} data-municipal-users-sync={platformDataError ? "error" : "pending"}
+            {(!remoteSyncedForCurrentUser || !municipalRegistryConfirmed) ? (
+              <div role={platformDataError || municipalRegistry.error ? "alert" : "status"} data-municipal-users-sync={platformDataError || municipalRegistry.error ? "error" : "pending"}
                 className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-900 dark:border-sky-700 dark:bg-sky-950/40 dark:text-white">
                 <div className="min-w-0">
-                  <p className="font-bold">{platformDataError ? "Não foi possível confirmar a lista oficial de usuários" : "Validando os usuários vinculados à Prefeitura..."}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">{platformDataError || (platformDataLoading ? "Conferindo os cadastros no banco oficial." : "Os números serão confirmados após sincronização; o cache não define o cadastro oficial.")}</p>
+                  <p className="font-bold">{platformDataError || municipalRegistry.error ? "Não foi possível confirmar a lista oficial de usuários" : "Validando os usuários vinculados à Prefeitura..."}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">{municipalRegistry.error || platformDataError || (platformDataLoading || !municipalRegistryConfirmed ? "Conferindo a lista protegida de usuários no banco oficial." : "Os números serão confirmados após sincronização; o cache não define o cadastro oficial.")}</p>
                 </div>
                 <Button type="button" variant="outline" className="rounded-xl border-slate-300 bg-white text-slate-900"
-                  onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>Tentar sincronizar</Button>
+                  onClick={() => { setMunicipalRegistryRefresh((current) => current + 1); void refreshRemoteStore().catch(() => undefined); }}>Tentar sincronizar</Button>
               </div>
             ) : null}
             <PageStatsRow className="md:grid-cols-4 [&>*]:min-w-0">
-              <StatCard label="Equipe interna" value={String(internalTenantUsers.length)} description="Servidores e contas operacionais internas" icon={Users2} tone="blue" />
-              <StatCard label="Vínculos municipais" value={String(tenantUsers.length)} description="Todos os perfis da Prefeitura, inclusive externos" icon={Users2} tone="default" />
-              <StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" />
-              <StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" />
+              <StatCard label="Equipe interna" value={municipalRegistryConfirmed ? String(internalTenantUsers.length) : "—"} description="Servidores e contas operacionais internas" icon={Users2} tone="blue" />
+              <StatCard label="Vínculos municipais" value={municipalRegistryConfirmed ? String(tenantUsers.length) : "—"} description="Todos os perfis da Prefeitura, inclusive externos" icon={Users2} tone="default" />
+              <StatCard label="Administradores" value={municipalRegistryConfirmed ? String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length) : "—"} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" />
+              <StatCard label="Bloqueados" value={municipalRegistryConfirmed ? String(tenantUsers.filter((user) => user.accountStatus === "blocked").length) : "—"} description="Contas com restrição" icon={ShieldAlert} tone="rose" />
             </PageStatsRow>
             <TableCard title="Gestão de usuários"
               description="Tabela paginada e compacta. Consulte um cadastro por vez, sem empilhar fichas nem comprometer a navegação."

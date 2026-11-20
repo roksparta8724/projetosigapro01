@@ -1,0 +1,39 @@
+name: SIGAPRO Municipal Users Release Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/lib/municipalUserRegistry.ts"
+      - "src/integrations/backend/platformImpl.ts"
+      - "src/pages/saas/TenantAdminPage.tsx"
+      - "src/test/municipalAdminRegistryProduction20261119.test.ts"
+      - "neon/migrations/20261119_municipal_admin_user_registry_v1.sql"
+      - ".github/workflows/municipal-users-gate.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Municipal registry authorization and sync regressions
+        run: npx vitest run src/test/municipalAdminRegistryProduction20261119.test.ts
+      - name: Production build
+        run: npm run build

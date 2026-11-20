@@ -1,6 +1,7 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments } from "@/lib/municipalStaffAssignments";
+import { parseVerifiedMunicipalUserRegistry, reconcileVerifiedMunicipalUsers } from "@/lib/municipalUserRegistry";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
@@ -504,6 +505,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     plansResult,
     planAssignmentsResult,
     lastAccessResult,
+    municipalRegistryResult,
     dispatchAuthorsResult,
     eventAuthorsResult,
   ] = (await Promise.all([
@@ -552,6 +554,11 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
       : Promise.resolve({ data: [], error: null }),
+    // Independent, scoped read path: a partial profiles/memberships SELECT must
+    // never silently erase the municipality administrator\u0027s staff registry.
+    isNeonBackend
+      ? db.rpc("list_municipal_user_registry_v1")
+      : Promise.resolve({ data: null, error: null }),
     isNeonBackend
       ? db.rpc("list_visible_dispatch_authors_v1")
       : Promise.resolve({ data: [], error: null }),
@@ -613,6 +620,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   const nonCriticalErrors = [
     profilesResult.error,
     membershipsResult.error,
+    municipalRegistryResult.error,
     tolerateLegacyMissing(tenantsResult.error, "public.tenants"),
     tolerateLegacyMissing(brandingResult.error, "public.tenant_branding"),
     tolerateLegacyMissing(settingsResult.error, "public.tenant_settings"),
@@ -1400,7 +1408,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     }
   }
 
-  const sessionUsers: SessionUser[] = Array.from(dedupedMembershipUsers.values());
+  let sessionUsers: SessionUser[] = Array.from(dedupedMembershipUsers.values());
 
     const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
   for (const profile of profilesResult.data ?? []) {
@@ -1436,6 +1444,30 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       blockReason: profile.block_reason ?? null,
       deletedAt: null,
     });
+  }
+
+  // Server verifies the caller\u0027s municipal admin role and limits every
+  // returned row to their one municipality. This is read-only display data,
+  // never an authorization source for permitting routes or writes.
+  if (isNeonBackend && !municipalRegistryResult.error && municipalRegistryResult.data) {
+    try {
+      const verified = parseVerifiedMunicipalUserRegistry(municipalRegistryResult.data);
+      sessionUsers = reconcileVerifiedMunicipalUsers(sessionUsers, verified);
+      if (verified) {
+        for (const user of verified.users) {
+          if (userProfiles.some((profile) => profile.userId === user.id)) continue;
+          userProfiles.push({
+            userId: user.id, fullName: user.name, email: user.email,
+            phone: "", cpfCnpj: "", rg: "", birthDate: "", professionalType: "",
+            registrationNumber: "", companyName: "", addressLine: "", addressNumber: "",
+            addressComplement: "", neighborhood: "", city: "", state: "", zipCode: "",
+            avatarUrl: "", avatarStorageRef: "", bio: "",
+          });
+        }
+      }
+    } catch (registryError) {
+      console.warn("[SIGAPRO][CadastroMunicipal] Resposta protegida rejeitada.", registryError);
+    }
   }
 
   const processes: ProcessRecord[] = processRows.map((process) => {
@@ -3569,6 +3601,16 @@ export type MunicipalStaffAssignmentRecord = {
   isCurrent: boolean;
   isActive: boolean;
 };
+
+/** Read-only authoritative registry for the authenticated municipal administrator. */
+export async function listRemoteMunicipalUserRegistry() {
+  if (!db || !isNeonBackend) {
+    throw new Error("Cadastro oficial municipal indisponível neste ambiente.");
+  }
+  const { data, error } = await db.rpc("list_municipal_user_registry_v1");
+  if (error) throw error;
+  return parseVerifiedMunicipalUserRegistry(data);
+}
 
 export async function listRemoteMunicipalStaffAssignments(profileId?: string | null) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
