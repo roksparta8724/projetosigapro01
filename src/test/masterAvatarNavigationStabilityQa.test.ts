@@ -70,7 +70,7 @@ describe("SIGAPRO Master — foto estável ao mudar de página com isolamento da
     expect(frame).toContain("readCachedProfileAvatar(signedInProfileId, authenticatedEmail)");
     expect(frame).toContain("authenticatedOwnerId={authenticatedAvatarOwnerId}");
     expect(frame).not.toContain('key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}');
-    expect(hook).toContain("getAuthorizedAvatarRuntimeUrl(owner, raw)");
+    expect(hook).toContain("getAuthorizedAvatarRuntimeUrl(owner, raw, variant)");
     expect(auth).toContain("clearAuthorizedAvatarRuntimeCache();");
     expect(auth).toContain("lastAuthenticatedId.current !== current");
   });
