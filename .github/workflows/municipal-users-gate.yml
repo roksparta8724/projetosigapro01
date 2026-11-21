@@ -31,6 +31,12 @@ on:
       - "src/hooks/useAuthorizedAvatarUrl.ts"
       - "src/components/platform/UserAvatar.tsx"
       - "src/test/privateAvatarThumbnailPerformance20261121.test.ts"
+      - "src/components/platform/PortalFrame.tsx"
+      - "src/components/platform/CompactUserRegistry.tsx"
+      - "src/components/platform/PageLayout.tsx"
+      - "src/components/platform/Topbar.tsx"
+      - "src/styles/sigapro-mobile-legibility-20261121.css"
+      - "src/test/mobileLegibilityAcrossDepartments20261121.test.ts"
       - "src/test/loginFastAccessGateQa.test.ts"
       - "src/test/loginRemoteStoreRegression.test.ts"
 
@@ -61,6 +67,6 @@ jobs:
       - name: TypeScript
         run: npm run typecheck
       - name: Municipal registry authorization and sync regressions
-        run: npx vitest run src/test/municipalAdminRegistryProduction20261119.test.ts src/test/municipalUsersNoEmptyHeader20261119.test.ts src/test/qaAvatarNavigationAndMunicipalUsersPremium20261119.test.ts src/test/avatarProtectedQa20261116.test.ts src/test/qaAvatarReadAuthorization.test.ts src/test/staleChunkRecovery20261120.test.ts src/test/serviceWorker.test.ts src/test/productionAssetFreshnessRegression.test.ts src/test/previewF5NavigationPreload20261118.test.ts src/test/loginAndAvatarPerformance20261120.test.ts src/test/loginRemoteStoreRegression.test.ts src/test/loginFastAccessGateQa.test.ts src/test/privateAvatarThumbnailPerformance20261121.test.ts src/test/qaAuthenticatedAvatarBrowser.test.ts src/test/qaAvatarReadAuthorization.test.ts
+        run: npx vitest run src/test/municipalAdminRegistryProduction20261119.test.ts src/test/municipalUsersNoEmptyHeader20261119.test.ts src/test/qaAvatarNavigationAndMunicipalUsersPremium20261119.test.ts src/test/avatarProtectedQa20261116.test.ts src/test/qaAvatarReadAuthorization.test.ts src/test/staleChunkRecovery20261120.test.ts src/test/serviceWorker.test.ts src/test/productionAssetFreshnessRegression.test.ts src/test/previewF5NavigationPreload20261118.test.ts src/test/loginAndAvatarPerformance20261120.test.ts src/test/loginRemoteStoreRegression.test.ts src/test/loginFastAccessGateQa.test.ts src/test/privateAvatarThumbnailPerformance20261121.test.ts src/test/qaAuthenticatedAvatarBrowser.test.ts src/test/qaAvatarReadAuthorization.test.ts src/test/mobileLegibilityAcrossDepartments20261121.test.ts src/test/layoutIntegrityRegression.test.ts src/test/topbarProcessShortcutContrast20261118.test.tsx src/test/qaAvatarNavigationAndMunicipalUsersPremium20261119.test.ts
       - name: Production build
         run: npm run build
