@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
+import { fitMunicipalLogoFrame } from "@/lib/municipalLogoFraming";
 import type { InstitutionalBranding } from "@/lib/institutionBranding";
 
 const branding: InstitutionalBranding = {
@@ -93,13 +94,14 @@ describe("InstitutionalLogo", () => {
     expect(screen.queryByText("SIGAPRO")).not.toBeInTheDocument();
   });
 
-  it("restores a full, uncut municipal header even when an old 1.75x crop was saved", () => {
+  it("preserves opt-in zoom above 1.50x when saved again in municipal header", () => {
     const framed = { ...branding, logoScale: 1.75, logoOffsetX: 20, logoOffsetY: -12 };
     const { container } = render(
       <InstitutionalLogo branding={framed} variant="header" contextScope="municipality" />,
     );
+    const fitted = fitMunicipalLogoFrame({ scale: 1.75, offsetX: 20, offsetY: -12 });
     expect(container.querySelector("img")).toHaveStyle({
-      transform: "translate(0%, 0%) scale(1)",
+      transform: `translate(${(fitted.offsetX / 188) * 100}%, ${(fitted.offsetY / 188) * 100}%) scale(${fitted.scale * (2 / 3)})`,
     });
   });
 
@@ -147,7 +149,7 @@ describe("InstitutionalLogo", () => {
     });
     rerender(<InstitutionalLogo branding={{ ...framed, logoScale: 2 }} variant="footer" contextScope="municipality" />);
     expect(container.querySelector("img")).toHaveStyle({
-      transform: `translate(0%, 0%) scale(${2 * (2 / 3)})`,
+      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(${2 * (2 / 3)})`,
     });
   });
 
@@ -157,8 +159,9 @@ describe("InstitutionalLogo", () => {
         branding={{ ...branding, logoScale: 5, logoOffsetX: 400, logoOffsetY: -300 }}
         variant={variant} contextScope="municipality"
       />);
+      const fitted = fitMunicipalLogoFrame({ scale: 5, offsetX: 400, offsetY: -300 }, variant);
       expect(container.querySelector("img")).toHaveStyle({
-        transform: variant === "header" ? "translate(0%, 0%) scale(1)" : "translate(0%, 0%) scale(2)",
+        transform: `translate(${(fitted.offsetX / 188) * 100}%, ${(fitted.offsetY / 188) * 100}%) scale(${fitted.scale * (2 / 3)})`,
       });
       unmount();
     }

@@ -16,11 +16,12 @@ const guide: PaymentGuideEntry = {
 const payload = buildPixPayload({ key: "recebimento@exemplo.gov.br", merchantName: "PREFEITURA DE TESTE", merchantCity: "TESTE", amount: 125, txid: "DAMISS202612345" });
 
 describe("footer zoom and PIX sharing", () => {
-  it("allows footer-only zoom up to 3x without affecting the header", () => {
-    expect(MUNICIPAL_FOOTER_LOGO_MAX_ZOOM).toBe(3);
+  it("allows footer zoom to 4x and header zoom to 3x, keeping full fit at 1.5x", () => {
+    expect(MUNICIPAL_FOOTER_LOGO_MAX_ZOOM).toBe(4);
     expect(fitMunicipalLogoFrame({ scale: 2.8, offsetX: 0, offsetY: 0 }, "footer").scale).toBe(2.8);
-    expect(fitMunicipalLogoFrame({ scale: 2.8, offsetX: 0, offsetY: 0 }, "header").scale).toBe(1.5);
-    expect(fitMunicipalLogoFrame({ scale: 9 }, "footer").scale).toBe(3);
+    expect(fitMunicipalLogoFrame({ scale: 2.8, offsetX: 0, offsetY: 0 }, "header").scale).toBe(2.8);
+    expect(fitMunicipalLogoFrame({ scale: 9 }, "footer").scale).toBe(4);
+    expect(fitMunicipalLogoFrame({ scale: 9 }, "header").scale).toBe(3);
     expect(fullMunicipalLogoFrame().scale).toBe(1.5);
   });
 
