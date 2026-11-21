@@ -127,7 +127,7 @@ export function CompactUserRegistry({
                         <span className="block truncate text-xs text-slate-600" title={user.lastAccessAt || ""}>{user.lastAccessAt || "Não registrado"}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button type="button" aria-expanded={expanded} aria-controls={rowId} aria-label={(expanded ? "Recolher" : "Abrir") + " detalhes de " + (user.name || "usuário")}
+                        <button type="button" aria-expanded={expanded} aria-controls={rowId} title={"Detalhes de " + (user.name || "usuário")}
                           onClick={() => showDetails(user.id)}
                           className="inline-flex min-h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-900 hover:border-sky-300 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600">
                           {expanded ? "Recolher" : "Detalhes"}
@@ -136,7 +136,7 @@ export function CompactUserRegistry({
                       </td>
                     </tr>
                     {expanded ? (
-                      <tr>
+                      <tr data-sigapro-user-details-row="true">
                         <td colSpan={6} id={rowId} data-sigapro-user-expanded="true" className="border-t border-sky-100 bg-slate-50/70 px-4 py-4">
                           {renderDetails(user)}
                         </td>
