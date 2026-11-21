@@ -15,8 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useTenant } from "@/hooks/useTenant";
-import { getRoleLandingPath } from "@/lib/platform";
-import { preloadLoginLanding, verifyLoginLandingAccess } from "@/lib/loginLandingAccess";
+
+import { verifyLoginLandingAccess } from "@/lib/loginLandingAccess";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
@@ -86,16 +86,15 @@ export function AcessoPage() {
       }
 
       const role = result.role ?? null;
-      const landingPath = getRoleLandingPath(role);
+      // Resolve the permission check BEFORE asking the browser to download
+      // the authenticated page. Eagerly fetching a multi-MB dashboard bundle
+      // competes with Neon Auth on slow connections and blocks the main thread.
+      // React.lazy loads only the permitted route immediately after navigation.
       // O login NÃO precisa esperar 30+ consultas do store operacional, guias
       // e histórico. Para prefeitura/externo, a RPC oficial confirma tanto
       // vínculo ativo quanto o módulo do contrato. Master usa perfil já
       // validado no get_current_profile_context. Permissões de rota/API
       // continuam independentes desta verificação de entrada.
-      // Download the next page while checking the contract, but NEVER hold a
-      // successful login waiting for the whole screen bundle to download.
-      // React.lazy/Suspense still handles the route safely if it arrives later.
-      void preloadLoginLanding(landingPath).catch(() => undefined);
       const decision = await verifyLoginLandingAccess(
         role,
         result.municipalityId ?? null,

@@ -37,7 +37,8 @@ describe("SIGAPRO — login rápido e fotos privadas sem leituras redundantes", 
 
   it("não espera baixar página para liberar rota após validação real do município/contrato", () => {
     const access = source("src/pages/saas/AcessoPage.tsx");
-    expect(access).toContain("void preloadLoginLanding(landingPath).catch(() => undefined)");
+    expect(access).not.toContain("preloadLoginLanding(landingPath)");
+    expect(access).not.toContain("const landingPath = getRoleLandingPath(role)");
     expect(access).toContain("const decision = await verifyLoginLandingAccess(");
     expect(access).toContain("navigate(decision.path, { replace: true })");
     expect(access).not.toContain("await Promise.all([");

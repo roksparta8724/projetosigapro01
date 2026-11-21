@@ -26,7 +26,7 @@ describe("login remote-store regression", () => {
     const permission = read("src/components/platform/PermissionRoute.tsx");
 
     expect(access).toContain("const decision = await verifyLoginLandingAccess(");
-    expect(access).toContain("preloadLoginLanding(landingPath)");
+    expect(access).not.toContain("preloadLoginLanding(landingPath)");
     expect(access).not.toContain("dataReadyForCurrentUser");
     // Authorization is still checked against the current authenticated
     // membership and the bank's official contract module, never localStorage.
