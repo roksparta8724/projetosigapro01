@@ -67,7 +67,7 @@ export function CompactUserRegistry({
           Nenhum usuário encontrado para os filtros atuais.
         </div>
       ) : (
-        <div className="max-w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.035)]">
+        <div data-mobile-registry-scroll="true" className="max-w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.035)]">
           <table className="w-full min-w-[900px] table-fixed border-collapse text-left text-sm" aria-label={label}>
             <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-[0.09em] text-slate-600">
               <tr>
@@ -111,23 +111,23 @@ export function CompactUserRegistry({
                           </div>
                         </div>
                       </td>
-                      <td className="max-w-0 px-4 py-3">
+                      <td data-mobile-label="Perfil e acesso" className="max-w-0 px-4 py-3">
                         <p className="truncate font-medium text-slate-800" title={roleLabels[user.role] || user.role}>{roleLabels[user.role] || user.role}</p>
                         <p className="truncate text-xs text-slate-500">{accessLevelLabels[user.accessLevel] || "Sem nível"}</p>
                       </td>
-                      <td className="max-w-0 px-4 py-3">
+                      <td data-mobile-label="Lotação" className="max-w-0 px-4 py-3">
                         <p className="truncate text-slate-600" title={user.department || user.title || ""}>{user.department || user.title || "Não informada"}</p>
                       </td>
-                      <td className="px-4 py-3">
+                      <td data-mobile-label="Situação" className="px-4 py-3">
                         <span className={"inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold " + statusClass(user.accountStatus)}>
                           {statusText[user.accountStatus] || "Indefinido"}
                         </span>
                       </td>
-                      <td className="max-w-0 px-4 py-3">
+                      <td data-mobile-label="Último acesso" className="max-w-0 px-4 py-3">
                         <span className="block truncate text-xs text-slate-600" title={user.lastAccessAt || ""}>{user.lastAccessAt || "Não registrado"}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button type="button" aria-expanded={expanded} aria-controls={rowId}
+                        <button type="button" aria-expanded={expanded} aria-controls={rowId} title={"Detalhes de " + (user.name || "usuário")}
                           onClick={() => showDetails(user.id)}
                           className="inline-flex min-h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-900 hover:border-sky-300 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600">
                           {expanded ? "Recolher" : "Detalhes"}
@@ -136,7 +136,7 @@ export function CompactUserRegistry({
                       </td>
                     </tr>
                     {expanded ? (
-                      <tr>
+                      <tr data-sigapro-user-details-row="true">
                         <td colSpan={6} id={rowId} data-sigapro-user-expanded="true" className="border-t border-sky-100 bg-slate-50/70 px-4 py-4">
                           {renderDetails(user)}
                         </td>

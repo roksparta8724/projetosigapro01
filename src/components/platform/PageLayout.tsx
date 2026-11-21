@@ -73,7 +73,7 @@ export function PageHeader({
           </div>
         </div>
         {actions ? (
-          <div data-sigapro-header-actions="true" className="sig-header-actions flex min-w-0 shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+          <div data-sigapro-header-actions="true" className="sig-header-actions flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end">
             {actions}
           </div>
         ) : null}
@@ -145,7 +145,7 @@ export function SectionCard({
           </div>
         </div>
         {actions ? (
-          <div className="sig-section-actions flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+          <div className="sig-section-actions flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end [&>*]:min-w-0 [&>*]:w-full sm:[&>*]:w-auto">
             {actions}
           </div>
         ) : null}
