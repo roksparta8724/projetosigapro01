@@ -25,6 +25,22 @@ const analysisStageProcess = {
   id: "process-1",
   tenantId: municipalityId,
   municipalityId,
+  isOfficial: true,
+  triage: { status: "concluido" },
+  payment: {
+    guideNumber: "DAM-TESTE-PROTOCOLO",
+    amount: 1,
+    status: "compensada",
+    dueDate: "2026-11-01",
+    guides: [{
+      kind: "protocolo",
+      label: "Guia de Protocolo",
+      code: "DAM-TESTE-PROTOCOLO",
+      amount: 1,
+      status: "compensada",
+      dueDate: "2026-11-01",
+    }],
+  },
   status: "analise_tecnica",
   processControl: {
     currentFolder: "Urbanismo e Obras",

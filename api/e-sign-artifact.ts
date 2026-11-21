@@ -430,6 +430,39 @@ export default async function handler(req: ApiReq, res: Res) {
       }
     }
 
+    if (artifactType === "urban_analysis_checklist") {
+      // A client UI check is not an authorization boundary. Require a real
+      // municipal DB readback before accepting ANY analyst/director signature.
+      const officialSheet = await callDataApiRpc<{
+        found?: boolean;
+        revision?: number;
+        payload?: Record<string, unknown> | null;
+      }>(
+        bearer,
+        "get_process_analysis_sheet_v2",
+        { _process_id: processId },
+      );
+
+      const official = officialSheet.payload;
+      if (!officialSheet.ok || !official || official.found !== true ||
+          !Number.isSafeInteger(official.revision) || Number(official.revision) <= 0 ||
+          !official.payload || typeof official.payload !== "object" ||
+          Array.isArray(official.payload) ||
+          official.payload.schema !== "sigapro.urban-analysis-checklist.v2" ||
+          official.payload.processId !== processId ||
+          stableStringify(official.payload) !== stableStringify(payload)) {
+        fail(
+          res,
+          409,
+          "integrity",
+          "ANALYSIS_SHEET_NOT_SAVED",
+          officialSheet.error,
+          "A ficha enviada não corresponde à versão salva no banco. Salve e valide a ficha antes de assinar.",
+        );
+        return;
+      }
+    }
+
     if (artifactType === "habite_se_permit" && signerSlot === "secretaria") {
       const signatureState = await callDataApiRpc<{
         signers?: Array<{ slot?: string; status?: string }>;

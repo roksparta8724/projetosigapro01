@@ -27,6 +27,41 @@ export function readCachedSessionIdentity(): CachedSessionIdentity | null {
   }
 }
 
+/**
+ * Registra a rota REAL assim que o React Router termina de navegá-la.
+ * Antes, apenas main.tsx (boot/pagehide) criava esse marcador: na PRIMEIRA
+ * recarga após trocar a guia interna ainda constava a rota anterior.
+ *
+ * Não concede acesso nem armazena conteúdo privado. Só atualiza os metadados
+ * quando a sessão em memória já foi validada pelo gateway e sua identidade
+ * coincide com a sessão operacional local da mesma aba.
+ */
+export function persistVerifiedRouteContinuity(
+  verifiedSessionId: string,
+  expectedLocation: string,
+): boolean {
+  if (typeof window === "undefined" || !verifiedSessionId || verifiedSessionId === "unknown") return false;
+  const cachedSession = readCachedSessionIdentity();
+  if (cachedSession?.id !== verifiedSessionId) return false;
+
+  const currentLocation =
+    window.location.pathname + window.location.search + window.location.hash;
+  if (expectedLocation !== currentLocation) return false;
+
+  try {
+    window.sessionStorage.setItem(REFRESH_CONTINUITY_KEY, JSON.stringify({
+      host: window.location.host,
+      location: currentLocation,
+      userId: verifiedSessionId,
+      savedAt: Date.now(),
+    }));
+    return true;
+  } catch {
+    // Navegação e autorização reais nunca dependem de sessionStorage.
+    return false;
+  }
+}
+
 export function hasValidRefreshContinuity(expectedLocation?: string) {
   if (typeof window === "undefined") return false;
 

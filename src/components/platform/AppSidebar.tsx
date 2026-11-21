@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from "@/components/platform/PremiumIcons";
 import { cn } from "@/lib/utils";
+import { isMunicipalOverviewSubpagePath } from "@/lib/municipalOverviewSubpages";
 
 export type AppSidebarItem = {
   to: string;
@@ -30,10 +31,16 @@ type SidebarInnerProps = {
 };
 
 function isRouteActive(pathname: string, route: string) {
-  if (route === "/dashboard") {
-    return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const currentPath = pathname.replace(/\/+$/, "") || "/";
+  // A Visão geral possui URLs próprias. Não tratar todas as rotas /prefeitura/*
+  // como ativas: Organograma, Protocolo e Financeiro têm entradas independentes.
+  if (route === "/prefeitura") {
+    return currentPath === "/prefeitura" || isMunicipalOverviewSubpagePath(currentPath);
   }
-  return pathname === route;
+  if (route === "/dashboard") {
+    return currentPath === "/dashboard" || pathname.startsWith("/dashboard/");
+  }
+  return currentPath === route;
 }
 
 function isParentActive(pathname: string, routeGroup: string) {
@@ -98,7 +105,7 @@ function SidebarInner({
 
       <div
         ref={scrollContainerRef}
-        className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-4 py-4.5" : "px-2.5 py-4")}
+        className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-2.5 py-3.5" : "px-2 py-3.5")}
       >
         <nav className="sig-sidebar-nav space-y-0">
           {groups.map((group) => {
@@ -119,7 +126,7 @@ function SidebarInner({
                   const itemClassName = cn(
                     "sig-sidebar-item group flex items-center justify-start text-left text-sm leading-5 ",
                     expanded
-                      ? "w-full min-h-[58px] gap-3 rounded-[18px] px-3.5 py-3"
+                      ? "w-full min-h-[51px] gap-2.5 rounded-[14px] px-2.5 py-2"
                       : "mx-auto min-h-[56px] w-[56px] justify-center gap-0 rounded-[18px] px-0 py-0",
                     parentActive
                       ? darkSurface
@@ -204,6 +211,7 @@ function SidebarInner({
                           to={item.to}
                           onClick={onNavigate}
                           title={!expanded ? item.label : undefined}
+                          aria-current={parentActive ? "page" : undefined}
                           data-sidebar-active={parentActive ? "true" : "false"}
                           data-sidebar-collapsed={expanded ? "false" : "true"}
                           className={itemClassName}
@@ -397,8 +405,8 @@ export function AppSidebar({
         className={cn(
           "sig-sidebar-shell relative hidden min-h-full shrink-0 self-stretch overflow-visible lg:flex lg:flex-col",
           expanded
-            ? "w-[304px]"
-            : "w-[96px]",
+            ? "w-[232px]"
+            : "w-[76px]",
           className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
@@ -440,7 +448,7 @@ export function AppSidebar({
         />
         <aside
           className={cn(
-            "absolute left-0 top-0 flex h-full w-[min(90vw,348px)] flex-col border-r border-white/10 shadow-[0_24px_48px_rgba(2,6,23,0.45)] transition-transform duration-200 ease-out",
+            "absolute left-0 top-0 flex h-full w-[min(88vw,300px)] flex-col border-r border-white/10 shadow-[0_24px_48px_rgba(2,6,23,0.45)] transition-transform duration-200 ease-out",
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
           data-sidebar-mode={inverseMain ? "inverse-main" : "default"}

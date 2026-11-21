@@ -9,11 +9,6 @@ import {
   testMunicipalStorageConnection,
 } from "../server/municipal-storage.js";
 
-function readEnv(key: string) {
-  const raw = process.env[key];
-  return raw ? String(raw).replace(/^['"]|['"]$/g, "").trim() : "";
-}
-
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
 
@@ -26,7 +21,9 @@ function setCors(res: Res) {
 function json(res: Res, status: number, body: unknown) {
   setCors(res);
   res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.end(JSON.stringify(body));
 }
 
@@ -74,20 +71,10 @@ export default async function handler(req: Req, res: Res) {
   const actionFromQuery = requestUrl.searchParams.get("action") || "";
 
   if (req.method === "GET" && actionFromQuery === "health") {
-    json(res, 200, {
-      ok: true,
-      env: {
-        hasNeonAuthUrl: Boolean(readEnv("VITE_NEON_AUTH_URL")),
-        hasNeonDataApiUrl: Boolean(readEnv("VITE_NEON_DATA_API_URL")),
-        hasR2Endpoint: Boolean(readEnv("R2_ENDPOINT")),
-        hasR2AccessKeyId: Boolean(readEnv("R2_ACCESS_KEY_ID")),
-        hasR2Secret: Boolean(readEnv("R2_SECRET_ACCESS_KEY")),
-        hasR2BucketLogos: Boolean(readEnv("R2_BUCKET_LOGOS")),
-        hasR2BucketDocs: Boolean(readEnv("R2_BUCKET_DOCUMENTOS")),
-        hasOpenAiApiKey: Boolean(readEnv("OPENAI_API_KEY")),
-      },
-      timestamp: new Date().toISOString(),
-    });
+    // Public health is strictly liveness, never an inventory of secrets,
+    // storage providers, API credentials, or which services are configured.
+    // Restricted operational diagnostics use authenticated admin workflows.
+    json(res, 200, { ok: true, service: "sigapro", status: "alive" });
     return;
   }
 

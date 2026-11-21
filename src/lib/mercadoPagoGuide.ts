@@ -55,12 +55,57 @@ export async function requestQaPixCharge(input: {
   return result;
 }
 
+/** Reconciliation is not a fake payment confirmation: the server requires
+ * an authenticated municipal guide, an archived original DAM, a previously
+ * HMAC-verified bank notification and a fresh provider GET with exact values.
+ * This never issues a new PIX order.
+ */
+export async function reconcileQaPixAfterPdf(input: {
+ municipalityId:string;guideCode:string;
+}):Promise<{code:string;settled:boolean}>{
+ if(import.meta.env.VITE_SIGAPRO_NEON_ISOLATED!=="true")
+   throw Error("Conciliação QA indisponível fora do ambiente isolado.");
+ const sessionResult=await backendClient.auth.getSession();
+ const session=sessionResult?.data?.session;
+ const token=session?.access_token||session?.accessToken||session?.token||"";
+ if(!token)throw Error("Entre novamente para conferir a conciliação do banco.");
+ const resp=await fetch("/api/mercadopago?action=qa-webhook&mode=post-archive-reconcile",{
+   method:"POST",
+   headers:{Accept:"application/json","Content-Type":"application/json",Authorization:"Bearer "+token},
+   body:JSON.stringify(input),
+   cache:"no-store",
+ });
+ const data=await resp.json().catch(()=>({})) as {
+   code?:string;automaticallySettled?:boolean;ok?:boolean;
+ };
+ if(resp.status===409 && data.code==="SIGNED_BANK_EVENT_REQUIRED")
+   return {code:"SIGNED_BANK_EVENT_REQUIRED",settled:false};
+ if(!resp.ok)throw Error(
+   data.code==="IMMUTABLE_ORIGINAL_REQUIRED"
+     ? "O PDF original da guia ainda não está arquivado com integridade."
+     : "Conciliação bancária não confirmada: "+String(data.code||resp.status),
+ );
+ return {code:String(data.code||"manual_review"),settled:data.automaticallySettled===true};
+}
+
+/** Collected explicitly by the payer; never cache or log these private fields. */
+export type BoletoPayerForm = {
+  email:string;
+  street_name:string;
+  street_number:string;
+  zip_code:string;
+  neighborhood:string;
+  city:string;
+  state:string;
+};
+
 export type MercadoPagoGuideChargeInput = {
   municipalityId?: string | null;
   guideCode: string;
   amount: number;
   dueDate?: string;
   description?: string;
+  payer?: BoletoPayerForm;
 };
 
 function cacheKey(input: MercadoPagoGuideChargeInput) {

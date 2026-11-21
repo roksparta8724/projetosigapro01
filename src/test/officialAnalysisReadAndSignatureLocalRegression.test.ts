@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { canViewMunicipalProcessDocument, canAnalyzeProcessDocument, type SessionUser, type ProcessRecord } from "@/lib/platform";
 const tenant="mun-campo";
 const analyst = { id:"ana1", name:"Analista A", role:"analista", accountStatus:"active", tenantId:tenant, municipalityId:tenant, department:"Urbanismo e Obras", title:"Analista Técnico", accessLevel:1, email:"ana@prefeitura.test", userType:"Interno" } as SessionUser;
-const process={id:"p1",tenantId:tenant,municipalityId:tenant,processControl:{currentFolder:"Vistoria"},analysis:{assignedTo:"Analista A",assignedProfileId:"ana1"},dispatches:[],payment:{guides:[]},status:"vistoria"} as unknown as ProcessRecord;
+const process={id:"p1",tenantId:tenant,municipalityId:tenant,processControl:{currentFolder:"Vistoria"},analysis:{assignedTo:"Analista A",assignedProfileId:"ana1"},dispatches:[],triage:{status:"concluido"},isOfficial:true,payment:{guideNumber:"DAM-LEGADO-TESTE",status:"compensada",guides:[{kind:"protocolo",label:"Guia de Protocolo",code:"DAM-LEGADO-TESTE",amount:1,status:"compensada",dueDate:"2026-11-01"}]},status:"vistoria"} as unknown as ProcessRecord;
 describe("documentos SIGAPRO: leitura e autoria",()=>{
   it("permite que um outro analista de Urbanismo visualize documento concluido",()=>{
     const other={...analyst,id:"ana2",name:"Analista B"};

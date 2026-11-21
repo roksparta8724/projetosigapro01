@@ -1,3 +1,4 @@
+import { resolveR2Endpoint } from "../r2-runtime.js";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
@@ -5,27 +6,6 @@ type Res = import("http").ServerResponse;
 
 function env(key: string) {
   return String(process.env[key] || "").replace(/^['"]|['"]$/g, "").trim();
-}
-
-function resolveR2Endpoint() {
-  const accountId = env("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
-  }
-
-  const rawEndpoint = env("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
-
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
-  }
 }
 
 async function readBody(req: Req): Promise<Record<string, unknown>> {

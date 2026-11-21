@@ -6,7 +6,7 @@ import { canAnalyzeProcessDocument, canViewMunicipalProcessDocument, type Sessio
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8");
 const municipalityId = "campo-limpo-paulista-test";
 const analyst = { id: "author", name: "Analista responsável", municipalityId, tenantId: municipalityId, role: "analista", department: "Urbanismo e Obras", accessLevel: 1, email: "author@prefeitura.test", title: "Analista", userType: "Interno", accountStatus: "active" } as SessionUser;
-const closed = { id: "p", municipalityId, tenantId: municipalityId, processControl: { currentFolder: "Vistoria" }, status: "vistoria", dispatches: [], payment: { guides: [] }, analysis: { assignedProfileId: "author", assignedTo: "Analista responsável" } } as unknown as ProcessRecord;
+const closed = { id: "p", municipalityId, tenantId: municipalityId, processControl: { currentFolder: "Vistoria" }, status: "vistoria", dispatches: [], triage: { status: "concluido" }, isOfficial: true, payment: { guideNumber: "DAM-LEGADO-TESTE", status: "compensada", guides: [{ kind: "protocolo", label: "Guia de Protocolo", code: "DAM-LEGADO-TESTE", amount: 1, status: "compensada", dueDate: "2026-11-01" }] }, analysis: { assignedProfileId: "author", assignedTo: "Analista responsável" } } as unknown as ProcessRecord;
 describe("SIGAPRO documentos oficiais e auditoria", () => {
   it("outro analista pode consultar sem editar", () => {
     const other = { ...analyst, id: "another", name: "Outro Analista" };

@@ -7,7 +7,7 @@ const line = "23793388096060157364540663333335168400000300000";
 const barcode = "23791684000003000003388060601573644066333333";
 const req = { headers: { authorization: "Bearer test" } } as ApiReq;
 const guide: StoredGuide = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-1", amount: 300, due_date: "2026-10-30", created_at: "2026-10-21T12:00:00Z", status: "pendente" };
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => { vi.resetAllMocks(); vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","ab".repeat(32)); });
 
 describe("confirmed guide provider persistence", () => {
   it("never reports success for incomplete or inconsistent stored banking data", () => {

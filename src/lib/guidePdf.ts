@@ -1,4 +1,5 @@
 import { buildGuiaRecolhimentoOficialHtml, type GuiaRecolhimentoOficialProps } from "@/components/GuiaRecolhimentoOficial";
+import { fitGuideImageToA4 } from "@/lib/guidePdfGeometry";
 
 export async function renderGuideOriginalPdf(props: GuiaRecolhimentoOficialProps): Promise<Blob> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
@@ -23,7 +24,11 @@ export async function renderGuideOriginalPdf(props: GuiaRecolhimentoOficialProps
     pdf.setProperties({ title: `DAM ${props.guia.numeroGuia}`, subject: "Original da guia municipal" });
     const issuedAt = new Date(props.guia.dataDocumento || "2000-01-01T00:00:00.000Z");
     pdf.setCreationDate(Number.isNaN(issuedAt.getTime()) ? new Date("2000-01-01T00:00:00.000Z") : issuedAt);
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 5, 5, 200, 286.5);
+    const placement = fitGuideImageToA4(canvas.width, canvas.height);
+    pdf.addImage(
+      canvas.toDataURL("image/png"), "PNG",
+      placement.x, placement.y, placement.width, placement.height,
+    );
     return pdf.output("blob");
   } finally { frame.remove(); }
 }

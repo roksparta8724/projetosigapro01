@@ -1,9 +1,14 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
+import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments } from "@/lib/municipalStaffAssignments";
+import { parseVerifiedMunicipalUserRegistry, reconcileVerifiedMunicipalUsers } from "@/lib/municipalUserRegistry";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
 import {
   buildProcessDocuments,
+  buildProcessRouteKey,
+  parseProcessIdentityRouteKey,
   isOccupancyPermitProcessType,
   serializeMarker,
   type ClientPlanAssignment,
@@ -25,6 +30,9 @@ import {
 
 const PROFILE_ASSET_REF_PREFIX = "r2:";
 
+// Data API rows span independently versioned municipal schemas. Normalize each
+// public field at the read boundary; a dynamic value is necessary here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DatabaseRow = Record<string, any>;
 
 async function resolveStoredProfileAvatar(value: string | null | undefined) {
@@ -432,11 +440,14 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
     return activeResult;
   }
 
-  const uuid = normalizeUuid(routeKey);
+  // The visible route includes the municipality-local number and the UUID.
+  // Resolve by UUID first; the legacy number-only query remains for old links.
+  const identityKey = parseProcessIdentityRouteKey(routeKey);
+  const uuid = normalizeUuid(identityKey?.id ?? routeKey);
   const focusQuery = db.from("processes").select("*");
   const focusResult = uuid
     ? await focusQuery.eq("id", uuid).limit(1)
-    : await focusQuery.eq("protocol_number", routeKey).limit(1);
+    : await focusQuery.eq("protocol_number", routeKey).limit(2);
 
   if (activeResult.error) return activeResult;
   if (focusResult.error) return focusResult;
@@ -446,6 +457,11 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
   for (const item of focusResult.data ?? []) {
     const id = String(item.id ?? "");
     if (!id || seen.has(id)) continue;
+    if (identityKey && (
+      id.toLowerCase() !== identityKey.id.toLowerCase() ||
+      buildProcessRouteKey(String(item.protocol_number ?? ""), id).toLocaleLowerCase("pt-BR") !==
+        identityKey.protocolKey.toLocaleLowerCase("pt-BR")
+    )) continue;
     seen.add(id);
     merged.unshift(item as DatabaseRow);
   }
@@ -472,7 +488,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     processesResult,
     constructionPermitsResult,
     propertiesResult,
-    guidesResult,
+    initialGuidesResult,
     partiesResult,
     privatePartyDataResult,
     documentsResult,
@@ -489,6 +505,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     plansResult,
     planAssignmentsResult,
     lastAccessResult,
+    municipalRegistryResult,
     dispatchAuthorsResult,
     eventAuthorsResult,
   ] = (await Promise.all([
@@ -537,13 +554,18 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
       : Promise.resolve({ data: [], error: null }),
+    // Independent, scoped read path: a partial profiles/memberships SELECT must
+    // never silently erase the municipality administrator\u0027s staff registry.
+    isNeonBackend
+      ? db.rpc("list_municipal_user_registry_v1")
+      : Promise.resolve({ data: null, error: null }),
     isNeonBackend
       ? db.rpc("list_visible_dispatch_authors_v1")
       : Promise.resolve({ data: [], error: null }),
     isNeonBackend
       ? db.rpc("list_visible_process_event_authors_v1")
       : Promise.resolve({ data: [], error: null }),
-  ])) as any[];
+  ])) as DatabaseRow[];
 
   if (profilesResult.error) {
     console.warn("SIGAPRO: falha ao carregar profiles.", profilesResult.error);
@@ -558,13 +580,13 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // Processos são o núcleo operacional. Se o SELECT REST falhar ou voltar vazio
   // por uma inconsistência transitória de schema/cache, consulta a RPC canônica
   // escopada pelo mesmo has_process_access usado nas políticas do banco.
-  let processRows = [...(processesResult.data ?? [])] as any[];
+  let processRows = [...(processesResult.data ?? [])] as DatabaseRow[];
   let processLoadError: unknown = processesResult.error ?? null;
 
   if (isNeonBackend && (processLoadError || processRows.length === 0)) {
     const fallback = await db.rpc("list_visible_processes_v1");
     if (!fallback.error) {
-      processRows = [...(fallback.data ?? [])] as any[];
+      processRows = [...(fallback.data ?? [])] as DatabaseRow[];
       processLoadError = null;
     } else if (processLoadError) {
       console.error("[SIGAPRO][Processos] SELECT e fallback RPC falharam.", {
@@ -577,9 +599,28 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     }
   }
 
+  // Operational process visibility depends on the SAME authorized payment
+  // guide snapshot as triage/technical review. Previously a guide API failure
+  // was logged as non-critical and silently mapped paid records to "pendente",
+  // removing valid processes from the analysis queue.
+  let guidesResult = initialGuidesResult;
+  if (isNeonBackend && guidesResult.error && processRows.length > 0) {
+    const retryGuides = await db
+      .from("payment_guides")
+      .select("*")
+      .not("process_id", "is", null)
+      .order("created_at", { ascending: false });
+    if (!retryGuides.error) guidesResult = retryGuides;
+  }
+  if (processRows.length > 0 && guidesResult.error) {
+    console.error("[SIGAPRO][Sincronismo] Guias oficiais indisponíveis; estado operacional não confirmado.");
+    throw new Error("Não foi possível sincronizar as guias oficiais vinculadas aos processos. Tente atualizar novamente.");
+  }
+
   const nonCriticalErrors = [
     profilesResult.error,
     membershipsResult.error,
+    municipalRegistryResult.error,
     tolerateLegacyMissing(tenantsResult.error, "public.tenants"),
     tolerateLegacyMissing(brandingResult.error, "public.tenant_branding"),
     tolerateLegacyMissing(settingsResult.error, "public.tenant_settings"),
@@ -627,7 +668,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // SECURITY DEFINER, que valida o acesso de cada processo antes de retornar
   // o registro. Assim uma restricao de infraestrutura do Alvara nao derruba
   // todo o store oficial nem faz o fluxo visual regredir.
-  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
+  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as DatabaseRow[];
   if (isNeonBackend) {
     const visibleProcessIds = processRows
       .filter((process) => Boolean(process.officialized_at))
@@ -650,7 +691,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             return null;
           }
 
-          const payload = (data ?? {}) as { permit?: any | null };
+          const payload = (data ?? {}) as { permit?: DatabaseRow | null };
           return payload.permit ?? null;
         }),
       );
@@ -1367,7 +1408,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     }
   }
 
-  const sessionUsers: SessionUser[] = Array.from(dedupedMembershipUsers.values());
+  let sessionUsers: SessionUser[] = Array.from(dedupedMembershipUsers.values());
 
     const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
   for (const profile of profilesResult.data ?? []) {
@@ -1403,6 +1444,30 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       blockReason: profile.block_reason ?? null,
       deletedAt: null,
     });
+  }
+
+  // Server verifies the caller\u0027s municipal admin role and limits every
+  // returned row to their one municipality. This is read-only display data,
+  // never an authorization source for permitting routes or writes.
+  if (isNeonBackend && !municipalRegistryResult.error && municipalRegistryResult.data) {
+    try {
+      const verified = parseVerifiedMunicipalUserRegistry(municipalRegistryResult.data);
+      sessionUsers = reconcileVerifiedMunicipalUsers(sessionUsers, verified);
+      if (verified) {
+        for (const user of verified.users) {
+          if (userProfiles.some((profile) => profile.userId === user.id)) continue;
+          userProfiles.push({
+            userId: user.id, fullName: user.name, email: user.email,
+            phone: "", cpfCnpj: "", rg: "", birthDate: "", professionalType: "",
+            registrationNumber: "", companyName: "", addressLine: "", addressNumber: "",
+            addressComplement: "", neighborhood: "", city: "", state: "", zipCode: "",
+            avatarUrl: "", avatarStorageRef: "", bio: "",
+          });
+        }
+      }
+    } catch (registryError) {
+      console.warn("[SIGAPRO][CadastroMunicipal] Resposta protegida rejeitada.", registryError);
+    }
   }
 
   const processes: ProcessRecord[] = processRows.map((process) => {
@@ -1447,13 +1512,19 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     const creatorProfile =
       (process.created_by_profile_id ? profileById.get(process.created_by_profile_id) : undefined) ??
       (process.created_by ? profileByUser.get(process.created_by) : undefined);
+    // A municipal clerk is not an external architect. Internal creators were
+    // previously copied into all professional IDs/emails and therefore every
+    // clerk-created record looked like an online external application.
+    const creatorIsExternalProfessional = [
+      "profissional_externo", "professional_external", "professional", "profissional",
+    ].includes(String(creatorProfile?.role ?? "").trim().toLowerCase());
     const ownerProfile =
       owner?.profile_id ? profileById.get(owner.profile_id) : undefined;
     const externalLeadProfile =
       (externalLead?.profile_id ? profileById.get(externalLead.profile_id) : undefined) ??
       (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined) ??
       (
-        process.created_by_profile_id
+        creatorIsExternalProfessional && process.created_by_profile_id
           ? profileById.get(process.created_by_profile_id)
           : undefined
       );
@@ -1469,10 +1540,11 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       officializedAt: process.officialized_at ?? undefined,
       title: process.title,
       type: process.process_type,
-      status:
-        constructionPermit?.status === "signed"
-          ? "deferido"
-          : process.status,
+      // The process status is owned by the official workflow. A separately
+      // signed construction permit is evidence of a signed artifact, NOT
+      // authorization to silently rewrite a process still in technical review.
+      // Keep the permit's state in processControl.checkpoint instead.
+      status: process.status,
       ownerName: ownerProfile?.full_name ?? owner?.display_name ?? "Nao informado",
       ownerDocument:
         ownerPrivate?.document_number ??
@@ -1483,22 +1555,24 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       ownerEmail: ownerPrivate?.email ?? "",
       technicalLead:
         externalLeadProfile?.full_name ??
-        creatorProfile?.full_name ??
         externalLead?.display_name ??
+        (creatorIsExternalProfessional ? creatorProfile?.full_name : undefined) ??
         "Nao informado",
       ownerProfileId: owner?.profile_id ?? undefined,
       technicalProfileId:
         externalLead?.profile_id ??
-        process.created_by_profile_id ??
-        undefined,
+        (creatorIsExternalProfessional ? process.created_by_profile_id : undefined),
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       createdByProfileId: process.created_by_profile_id ?? undefined,
       createdByUserId: process.created_by ?? creatorProfile?.user_id ?? undefined,
       createdByEmail: creatorProfile?.email ?? undefined,
       createdByRole: creatorProfile?.role ?? undefined,
-      professionalProfileId: externalLead?.profile_id ?? process.created_by_profile_id ?? undefined,
-      professionalUserId: externalLead?.user_id ?? process.created_by ?? creatorProfile?.user_id ?? undefined,
-      professionalEmail: externalLeadProfile?.email ?? creatorProfile?.email ?? undefined,
+      professionalProfileId: externalLead?.profile_id ??
+        (creatorIsExternalProfessional ? process.created_by_profile_id : undefined),
+      professionalUserId: externalLead?.user_id ??
+        (creatorIsExternalProfessional ? (process.created_by ?? creatorProfile?.user_id) : undefined),
+      professionalEmail: externalLeadProfile?.email ??
+        (creatorIsExternalProfessional ? creatorProfile?.email : undefined),
       tags: markers.map((marker) =>
         serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
       ),
@@ -1561,7 +1635,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           id: document.id,
           label: document.title,
           required: Boolean(document.is_required),
-          uploaded: true,
+          uploaded: hasPersistedProcessDocumentFile(document),
           signed: false,
           reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
           // Identidade humana para exibicao; profile ID preservado separadamente para auditoria.
@@ -1576,6 +1650,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
           fileName: document.file_name ?? undefined,
           filePath: document.file_path ?? undefined,
+          fileHash: document.file_hash ?? undefined,
           mimeType: document.mime_type ?? undefined,
           sizeLabel: document.size_label ?? undefined,
           fileSizeBytes: document.file_size_bytes == null ? undefined : Number(document.file_size_bytes),
@@ -1900,7 +1975,7 @@ export async function createRemoteOwnerRequestByProtocol(input: {
 
   if (error) throw error;
 
-  const payload = data as Record<string, any> | null;
+  const payload = data as DatabaseRow | null;
   const row = payload?.request ?? null;
   const processRow = payload?.process ?? null;
   if (!row?.id) {
@@ -1952,7 +2027,7 @@ export async function respondRemoteOwnerRequest(input: {
     });
     if (error) throw error;
 
-    const payload = data as Record<string, any> | null;
+    const payload = data as DatabaseRow | null;
     const row = payload?.request ?? null;
     const linkRow = payload?.link ?? null;
     if (!row?.id) throw new Error("Falha ao atualizar solicitação de responsável.");
@@ -2000,7 +2075,7 @@ export async function respondRemoteOwnerRequest(input: {
   const requestRow = Array.isArray(requestData) ? requestData[0] : null;
   if (!requestRow) throw new Error("Falha ao atualizar solicitacao de responsavel.");
 
-  let linkData: Record<string, any> | null = null;
+  let linkData: DatabaseRow | null = null;
 
   if (input.status === "approved") {
     const { data, error } = await db
@@ -2062,7 +2137,7 @@ export async function setRemoteOwnerChatEnabled(input: {
     });
     if (error) throw error;
 
-    const row = data as Record<string, any> | null;
+    const row = data as DatabaseRow | null;
     if (!row?.id) throw new Error("Falha ao atualizar chat do responsável.");
 
     return {
@@ -2122,7 +2197,7 @@ export async function createRemoteOwnerMessage(input: {
     });
     if (error) throw error;
 
-    const row = data as Record<string, any> | null;
+    const row = data as DatabaseRow | null;
     if (!row?.id) throw new Error("Falha ao criar mensagem de responsável.");
 
     return {
@@ -2279,8 +2354,8 @@ export async function getRemoteExternalPreprotocolDraft(
     throw new Error(formatDatabaseError(error));
   }
 
-  const row = (data ?? {}) as Record<string, any>;
-  const guide = (row.guide ?? {}) as Record<string, any>;
+  const row = (data ?? {}) as DatabaseRow;
+  const guide = (row.guide ?? {}) as DatabaseRow;
 
   return {
     processId: String(row.process_id ?? ""),
@@ -2423,6 +2498,18 @@ async function callProcessRpc<T = Record<string, unknown>>(
   const { data, error } = await db.rpc(fn, args);
   if (error) throw new Error(formatDatabaseError(error));
   return data as T;
+}
+
+export async function upgradeRemoteQa04ArchitecturalPlanV2(
+  processId: string, filePath: string, fileName: string, fileSizeBytes: number, fileHash: string,
+): Promise<{ ok: boolean; already_upgraded?: boolean; document_id: string; version: number }> {
+  return callProcessRpc("upgrade_qa04_architectural_plan_v2", {
+    _process_id: processId,
+    _file_path: filePath,
+    _file_name: fileName,
+    _file_size_bytes: fileSizeBytes,
+    _file_hash: fileHash,
+  });
 }
 
 export async function appendRemoteProcessDocuments(
@@ -2637,6 +2724,13 @@ export async function setRemoteProcessTriage(input: {
     _process_id: input.processId,
     _triage_status: input.status,
     _notes: input.notes || null,
+  });
+}
+
+export async function reconcileRemoteProcessTriage(processId: string, reason: string) {
+  return callProcessRpc("reconcile_unreleased_process_triage_v1", {
+    _process_id: processId,
+    _reason: reason,
   });
 }
 
@@ -3492,6 +3586,78 @@ export async function assignRemoteProfileDepartment(input: {
     municipality_id: string;
     department_id: string | null;
     department_name: string | null;
+  };
+}
+
+
+export type MunicipalStaffAssignmentRecord = {
+  id: string;
+  municipalityId: string;
+  profileId: string;
+  departmentId: string;
+  departmentName: string;
+  departmentCode: string;
+  role: "analista" | "financeiro" | "fiscal" | "setor_intersetorial";
+  isCurrent: boolean;
+  isActive: boolean;
+};
+
+/** Read-only authoritative registry for the authenticated municipal administrator. */
+export async function listRemoteMunicipalUserRegistry() {
+  if (!db || !isNeonBackend) {
+    throw new Error("Cadastro oficial municipal indisponível neste ambiente.");
+  }
+  const { data, error } = await db.rpc("list_municipal_user_registry_v1");
+  if (error) throw error;
+  return parseVerifiedMunicipalUserRegistry(data);
+}
+
+export async function listRemoteMunicipalStaffAssignments(profileId?: string | null) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("list_municipal_staff_assignments_v1", {
+    _profile_id: profileId ?? null,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar as lotações autorizadas.");
+  return parseMunicipalStaffAssignments(data);
+}
+
+export async function setRemoteMunicipalStaffDepartment(input: {
+  municipalityId: string;
+  profileId: string;
+  departmentId: string;
+  enabled: boolean;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("set_municipal_staff_department_v1", {
+    _municipality_id: input.municipalityId,
+    _profile_id: input.profileId,
+    _department_id: input.departmentId,
+    _enabled: input.enabled,
+  });
+  if (error) throw new Error(error.message || "Não foi possível salvar o vínculo com a unidade.");
+  if (!data || data.ok !== true || String(data.profileId) !== input.profileId ||
+      String(data.municipalityId) !== input.municipalityId) {
+    throw new Error("O banco não confirmou a alteração da lotação.");
+  }
+  return data as { ok: true; profileId: string; municipalityId: string };
+}
+
+export async function activateRemoteMunicipalStaffAssignment(assignmentId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("activate_municipal_staff_assignment_v1", {
+    _assignment_id: assignmentId,
+  });
+  if (error) throw new Error(error.message || "A troca de departamento foi negada pelo banco.");
+  if (!data || data.ok !== true ||
+      !isSwitchableMunicipalStaffRole(String(data.role || ""))) {
+    throw new Error("O banco não confirmou o novo contexto operacional.");
+  }
+  return {
+    profileId: String(data.profileId),
+    municipalityId: String(data.municipalityId),
+    departmentId: String(data.departmentId),
+    departmentName: String(data.departmentName),
+    role: data.role as MunicipalStaffAssignmentRecord["role"],
   };
 }
 

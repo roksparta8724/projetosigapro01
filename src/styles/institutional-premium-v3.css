@@ -1,0 +1,246 @@
+/*
+ * SIGAPRO — Institutional Premium V3
+ * One semantic visual contract for municipal, external, finance and master workspaces.
+ * This layer is LAST: it corrects legacy blanket-white theme overrides without
+ * changing process forms, payment screens, PDF canvases or tenant-specific logos.
+ * Polarity is explicit. No universal recoloring of arbitrary .bg-white children.
+ */
+
+/* Canvas: the surrounding application is a calm blue-grey work surface,
+   rather than a white document holding dozens of stark white cards. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell {
+  background: linear-gradient(180deg, #f3f7fc 0%, #eaf2f9 100%) !important;
+  border-color: #cbdbe9 !important;
+  box-shadow: 0 12px 38px rgba(9, 41, 69, .09) !important;
+}
+
+/* Darker brand headers with light foreground; remains distinct from the larger
+   institutional banner and never touches PDF/document editor fixed-dark headers. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-page-header[data-premium-surface="header"] {
+  background: linear-gradient(124deg, #0e3855 0%, #0a2941 65%, #104c66 100%) !important;
+  border: 1px solid rgba(102, 176, 206, .27) !important;
+  border-left: 4px solid #42accd !important;
+  box-shadow: 0 14px 34px rgba(5, 34, 58, .18) !important;
+  color: #f7fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-page-header[data-premium-surface="header"] :is(h1, h2, .sig-page-title, .sig-section-label) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-page-header[data-premium-surface="header"] :is(.sig-subtitle, p:not(.sig-section-label)) {
+  color: #d5e5f2 !important;
+  -webkit-text-fill-color: #d5e5f2 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-page-header .sig-header-icon {
+  background: rgba(255, 255, 255, .11) !important;
+  color: #9ee4fa !important;
+  border-color: rgba(162, 223, 249, .28) !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-page-header .sig-header-icon svg {
+  stroke: #9ee4fa !important;
+  color: #9ee4fa !important;
+}
+
+/* KPI surfaces: use a coherent institutional navy instead of four white tiles.
+   Tone stays as a small colored stripe and icon so status meaning is retained. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] {
+  position: relative;
+  background: linear-gradient(143deg, #0c334e 0%, #0b2941 68%, #124962 100%) !important;
+  border: 1px solid rgba(77, 147, 185, .46) !important;
+  border-top: 3px solid #58bdd7 !important;
+  color: #f8fcff !important;
+  box-shadow: 0 12px 26px rgba(10, 40, 64, .16), inset 0 1px 0 rgba(255,255,255,.055) !important;
+  min-height: 122px !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-stat-card[data-tone="emerald"] {
+  border-top-color: #58d6b0 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-stat-card[data-tone="amber"] {
+  border-top-color: #f5c96f !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-stat-card[data-tone="rose"] {
+  border-top-color: #f7a0b2 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-stat-value,.sig-metric-value) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 800 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-fit-title:not(.sig-stat-value),.sig-metric-title) {
+  color: #c2e4f6 !important;
+  -webkit-text-fill-color: #c2e4f6 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-fit-copy,.sig-metric-helper) {
+  color: #d8e7f3 !important;
+  -webkit-text-fill-color: #d8e7f3 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] .sig-stat-icon {
+  background: rgba(255, 255, 255, .105) !important;
+  border-color: rgba(194, 226, 241, .32) !important;
+  color: #ddf5ff !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] .sig-stat-icon svg {
+  color: #ddf5ff !important;
+  stroke: #ddf5ff !important;
+}
+
+/* Larger content panels are light blue-grey, not hard white. Keep editable
+   fields and data grids light with strong dark text for legibility. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  background: linear-gradient(180deg, #f8fbfe 0%, #edf4fa 100%) !important;
+  border: 1px solid #c7d8e6 !important;
+  box-shadow: 0 9px 23px rgba(11, 49, 79, .075) !important;
+  color: #17364f !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] :is(.sig-section-title,h2) {
+  color: #123550 !important;
+  -webkit-text-fill-color: #123550 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] .sig-subtitle {
+  color: #50667b !important;
+  -webkit-text-fill-color: #50667b !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] .sig-section-icon {
+  background: #dcebf4 !important;
+  border-color: #bcd5e7 !important;
+  color: #075985 !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] .sig-section-icon svg {
+  stroke: #075985 !important;
+  color: #075985 !important;
+}
+
+/* Navigation rail is a deliberate light-blue control group, not another stack
+   of white cards. Active controls retain the existing high-contrast brand blue. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-section-nav[data-premium-surface="navigation"] {
+  background: linear-gradient(180deg, #dfeaf5 0%, #e8f1fa 100%) !important;
+  border-color: #b7ccdf !important;
+  box-shadow: 0 6px 18px rgba(15, 54, 84, .055) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-section-nav .sig-nav-item[data-nav-active="false"] {
+  background: #f6faff !important;
+  border-color: #c8d7e6 !important;
+  color: #173b54 !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell .sig-section-nav .sig-nav-item[data-nav-active="false"] :is(.sig-nav-item-label,.sig-nav-item-helper) {
+  color: #27445d !important;
+  -webkit-text-fill-color: #27445d !important;
+}
+
+/* The municipal plan is a large mostly-white region in the supplied video.
+   Give it a measured navy header and softer submetrics, while preserving its
+   independent status badges, progressbars and percentage colors. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell [data-plan-capacity] {
+  background: linear-gradient(180deg, #f8fbfe, #ecf4fa) !important;
+  border-color: #c7d8e6 !important;
+  box-shadow: 0 8px 24px rgba(11,49,79,.09) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell [data-plan-capacity] > header {
+  padding: 13px 15px;
+  border-radius: 15px;
+  background: linear-gradient(125deg, #123e5c, #0b2e46) !important;
+  color: #f7fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell [data-plan-capacity] > header :is(h2,h3,p) {
+  color: #e0eefa !important;
+  -webkit-text-fill-color: #e0eefa !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell [data-plan-capacity] > header h3 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell [data-plan-capacity] > div > div {
+  background: #e5f0f8 !important;
+  border-color: #c5dbe9 !important;
+}
+
+/* Inverse theme: maintain navy-on-navy with contrasting values. No white
+   patches are introduced by this contract, and identity media remains white. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] {
+  background: linear-gradient(145deg, #122f47, #0a1f34) !important;
+  border-color: #3a617d !important;
+  box-shadow: 0 11px 26px rgba(0,0,0,.22) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-stat-value,.sig-metric-value) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-fit-title:not(.sig-stat-value),.sig-fit-copy,.sig-metric-title,.sig-metric-helper) {
+  color: #d7e9f5 !important;
+  -webkit-text-fill-color: #d7e9f5 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  background: linear-gradient(180deg, #132b40, #0b2034) !important;
+  border-color: #375873 !important;
+  color: #eff6fe !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] :is(.sig-section-title,h2,.sig-subtitle) {
+  color: #e6f3fc !important;
+  -webkit-text-fill-color: #e6f3fc !important;
+}
+
+
+/* Eliminate grid-stretched blank sections and let records grow with content.
+   This is the structural counterpart to removing the old 117.647vh spacer. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell .sig-page-shell {
+  align-content: start !important;
+  grid-auto-rows: max-content !important;
+  min-height: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell .sig-main-grid {
+  align-items: start !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  height: auto !important;
+  min-height: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell :is(.sig-main-content,.sig-side-content) {
+  align-self: start;
+  min-height: 0;
+}
+
+/* Desktop sidebar remains reachable while scrolling long workspaces.
+   Native mobile menu keeps its existing fixed overlay; print/footer untouched. */
+@media (min-width: 1024px) {
+  html body #root [data-premium-design="institutional-v3"] .sig-content-frame > .sig-sidebar-shell {
+    position: sticky !important;
+    top: var(--sig-topbar-height, 68px) !important;
+    height: calc(100dvh - var(--sig-topbar-height, 68px)) !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - var(--sig-topbar-height, 68px)) !important;
+    align-self: flex-start !important;
+    overflow: hidden !important;
+  }
+  html body #root [data-premium-design="institutional-v3"] .sig-content-frame > .sig-sidebar-shell .sig-sidebar-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+  html body #root [data-premium-design="institutional-v3"] .sig-content-frame > .sig-sidebar-shell .sig-sidebar-scroll {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+  }
+}
+
+/* Preserve user/system accessibility. No forced color changes for focus rings,
+   controls, document-workspace canvases, status badges, logos or print output. */
+@media (prefers-reduced-motion: reduce) {
+  html body #root [data-premium-design="institutional-v3"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card,.sig-section-card,.sig-ui-card) {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+@media print {
+  html body #root [data-premium-design="institutional-v3"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card) {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+}

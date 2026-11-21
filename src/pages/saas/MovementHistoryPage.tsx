@@ -39,7 +39,7 @@ export function MovementHistoryPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const { processes: allProcesses, sessionUsers, refreshRemoteStore, documentTemplates, dispatchProcess, acknowledgeDispatchReceipt, completeDispatches, returnDispatches, setProcessCheckpoint, setProcessOnHold } = usePlatformData();
-  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 30000, refreshOnMount: false });
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<ControlTab>("visao-geral");
   const [selectedProcessIds, setSelectedProcessIds] = useState<string[]>([]);

@@ -1,0 +1,243 @@
+/*
+ * SIGAPRO | Readable municipal process registry — 18 Nov 2026.
+ *
+ * Fix the actual 960–1000px usable municipality workspace. The earlier
+ * eight-column layout spent too much space on marker and action columns,
+ * while clipping status badges, splitting "Pendências", and ellipsizing
+ * official process titles. Keep one row per process and ALL eight columns;
+ * rows grow vertically only when a real value needs another line.
+ */
+html body #root .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+html body #root .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-content {
+  min-width: 0;
+  width: 100%;
+}
+/* A narrow workstation uses the existing compact multi-row presentation.
+   At 940px eight separate columns fit with a deliberate size budget. */
+@container sigapro-process-registry (min-width: 940px) and (max-width: 1119px) {
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] :is(.sig-process-head,.sig-process-row) {
+    display: grid !important;
+    grid-template-columns:
+      80px 112px minmax(145px, 1.5fr) minmax(154px, 1.5fr)
+      96px 87px 69px 142px !important;
+    grid-template-areas: "marker number subject stage owner deadline pending actions" !important;
+    gap: 4px !important;
+    align-items: center !important;
+    padding: 9px 8px !important;
+    min-width: 0;
+    width: 100%;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head {
+    min-height: 42px !important;
+    font-size: 9.5px !important;
+    line-height: 1.25;
+    letter-spacing: 0 !important;
+  }
+  /* At this size there is room for the selection + glyphs, not for an
+     additional full-word MARCADORES inside the checkbox column. */
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-reference-marker-heading,
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-reference-marker-third,
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-reference-marker-fourth,
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-reference-extra-count-wide {
+    display: none !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head-marker > svg {
+    display: inline-block !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-reference-extra-count-narrow {
+    display: inline-flex !important;
+  }
+}
+@container sigapro-process-registry (min-width: 1120px) {
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] :is(.sig-process-head,.sig-process-row) {
+    display: grid !important;
+    grid-template-columns:
+      96px 126px minmax(205px, 1.65fr) minmax(185px, 1.3fr)
+      minmax(106px, .9fr) 96px 90px 145px !important;
+    grid-template-areas: "marker number subject stage owner deadline pending actions" !important;
+    align-items: center !important;
+    column-gap: 6px !important;
+    row-gap: 5px !important;
+    padding: 9px 10px !important;
+  }
+}
+/* Every status/subject is legible. No `...` is silently substituted for
+   official information, and no word is split across a cell boundary. */
+@container sigapro-process-registry (min-width: 940px) {
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row {
+    min-height: 52px !important;
+    height: auto !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head :is(
+    .sig-process-head-number,
+    .sig-process-head-subject,
+    .sig-process-head-stage,
+    .sig-process-head-owner,
+    .sig-process-head-deadline,
+    .sig-process-head-pending,
+    .sig-process-head-actions
+  ) {
+    min-width: 0;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    letter-spacing: 0 !important;
+    font-weight: 800;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head-pending {
+    font-size: 9.4px !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head-number {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-subject-title {
+    display: block !important;
+    width: 100%;
+    max-width: 100%;
+    max-height: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+    line-height: 1.4 !important;
+    font-size: 11.5px !important;
+    font-weight: 670 !important;
+    text-wrap: pretty;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-responsible-name {
+    display: block !important;
+    width: 100%;
+    max-height: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+    font-size: 10.5px !important;
+    line-height: 1.45 !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-status {
+    display: inline-flex !important;
+    width: auto !important;
+    max-width: 100% !important;
+    min-height: 27px;
+    height: auto !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 3px !important;
+    padding: 4px 6px !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    font-size: 10px !important;
+    line-height: 1.35 !important;
+    font-weight: 700 !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-status svg {
+    flex: 0 0 12px;
+    width: 12px;
+    height: 12px;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head,
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row {
+    align-items: center !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-due-chip {
+    width: max-content !important;
+    max-width: 100% !important;
+    min-height: 26px !important;
+    padding: 4px 5px !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+    font-size: 10px !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-due-value {
+    display: inline-block;
+    min-width: 0;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-marker {
+    min-width: 0;
+    overflow: hidden;
+    gap: 2px !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-open-btn {
+    width: 102px !important;
+    min-width: 102px !important;
+    max-width: 102px;
+    min-height: 32px;
+    padding-inline: 6px !important;
+    white-space: nowrap !important;
+    font-size: 10px !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-more-btn {
+    width: 31px !important;
+    min-width: 31px !important;
+    height: 32px !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-actions {
+    gap: 4px !important;
+    justify-content: flex-end;
+    overflow: visible !important;
+  }
+  html body #root .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-number-link {
+    white-space: nowrap !important;
+    max-width: 100%;
+    font-size: 11px !important;
+  }
+}
+/* Keep inverse theme readable while retaining semantic stage/status colors. */
+.dark .sig-workspace-shell .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head {
+  background: #203b52;
+  color: #e8f1fa;
+}
+.dark .sig-workspace-shell .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-subject-title,
+.dark .sig-workspace-shell .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-responsible-name {
+  color: #f0f6fc;
+}

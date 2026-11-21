@@ -27,6 +27,8 @@ beforeEach(()=>{
   vi.clearAllMocks();
   root=mkdtempSync(join(tmpdir(),"sigapro-pix-"));
   vi.stubEnv("SIGAPRO_QA_TEST_HOME",root);
+  // This fixture tests isolated localhost file receipts, never the hosted Neon bank worker.
+  vi.stubEnv("VERCEL_ENV","development");
   vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","true");
   vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","true");
   vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED","true");
@@ -38,7 +40,7 @@ beforeEach(()=>{
   mocks.guide.mockResolvedValue({guide_number:guideCode,municipality_id:municipalityId,amount:35.24});
   mocks.token.mockResolvedValue({environment:"test",token:"APP_USR_SANDBOX_ONLY"});
   vi.stubGlobal("fetch",vi.fn().mockImplementation(async ()=>new Response(JSON.stringify({
-    id:"ORDER_QA_PIX_001",external_reference:guideCode+"-PIX-QA",total_amount:"35.24",status:"action_required",
+    id:"ORDER_QA_PIX_001",external_reference:guideCode,total_amount:"35.24",status:"action_required",
     transactions:{payments:[{id:"PAY_QA_001",status:"action_required",payment_method:{
       id:"pix",type:"bank_transfer",qr_code:qr,
     }}]},
@@ -60,8 +62,8 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
       .toBe(qaPixIdempotencyKey("isolated-test",municipalityId,guideCode));
     const body=JSON.parse(String(opts?.body));
     expect(body).toMatchObject({
-      type:"online",external_reference:guideCode+"-PIX-QA",total_amount:"35.24",
-      payer:{email:"test_payer@example.com"},
+      type:"online",external_reference:guideCode,total_amount:"35.24",
+      payer:{email:"test_payer@example.com",first_name:"APRO"},
       processing_mode:"automatic",
       transactions:{payments:[{amount:"35.24",payment_method:{id:"pix",type:"bank_transfer"}}]},
     });
@@ -83,10 +85,10 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
       .rejects.toThrow(/autorização/);
     expect(fetch).not.toHaveBeenCalled();
   });
-  it("does not issue outside localhost isolated QA",async()=>{
+  it("does not issue outside strictly isolated local or hosted QA",async()=>{
     vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","");
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
-      .rejects.toThrow(/isolado/);
+      .rejects.toThrow(/isolad/);
     expect(fetch).not.toHaveBeenCalled();
   });
   it("reuses the exact provider idempotency key for an unresolved POST without duplicating the order",async()=>{
@@ -96,7 +98,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
       if(times===1) throw new Error("socket timeout after provider acceptance");
       return new Response(JSON.stringify({
         id:"ORDER_QA_PIX_RETRY",
-        external_reference:guideCode+"-PIX-QA",
+        external_reference:guideCode,
         total_amount:"35.24",
         transactions:{payments:[{
           id:"PAY_RETRY",status:"action_required",
@@ -123,7 +125,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
         },
       }]};
       return new Response(JSON.stringify({
-        id:"ORDER_QA_PIX_ASYNC",external_reference:guideCode+"-PIX-QA",
+        id:"ORDER_QA_PIX_ASYNC",external_reference:guideCode,
         total_amount:"35.24",status:calls===1?"processing":"action_required",
         transactions,
       }),{status:calls===1?201:200});
@@ -138,7 +140,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
 
   it("rejects provider orders with mismatched amount and prevents double POST",async()=>{
     vi.stubGlobal("fetch",vi.fn().mockImplementation(async()=>new Response(JSON.stringify({
-      id:"ORDER_QA_PIX_002",external_reference:guideCode+"-PIX-QA",
+      id:"ORDER_QA_PIX_002",external_reference:guideCode,
       total_amount:"999.99",transactions:{payments:[]},
     }),{status:201})));
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))

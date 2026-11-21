@@ -37,7 +37,8 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).not.toContain("sigapro-soft-refresh");
     expect(html).toContain('type="module"');
     expect(html).toContain('src="/src/main.tsx"');
-    expect(html).toContain('blocking="render"');
+    expect(html).toContain('id="sigapro-preboot-recovery"');
+    expect(html).not.toContain('blocking="render"');
     expect(html).toContain('fetchpriority="high"');
     expect(main).toContain('import { flushSync } from "react-dom"');
     expect(main).toContain("flushSync(() =>");
@@ -121,9 +122,10 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(portal).toContain('display: isDesktopTopbarViewport ? undefined : "none"');
   });
 
-  it("compensates the 85 percent app zoom so the footer logo cannot jump into the initial viewport", () => {
+  it("uses the real 100 percent viewport without a synthetic 117.647vh spacer", () => {
     expect(portal).toContain('data-refresh-layout-stable={focusMode ? "false" : "true"}');
-    expect(portal).toContain('minHeight: "117.6470588235vh"');
+    expect(portal).not.toContain('minHeight: "117.6470588235vh"');
+    expect(html).toContain('var initialAppZoom = "1"');
   });
 
   it("hydrates analysis checklist synchronously before first paint", () => {
@@ -157,8 +159,9 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(analystDesk).toContain("const currentAnalyst = resolveAssignedAnalystName(process)");
   });
 
-  it("keeps concluded processes visible and archives only per profile", () => {
-    expect(processDetail).toContain('status: "deferido"');
+  it("archives the official Habite-se through its RPC, independently of each user's list archive", () => {
+    expect(processDetail).toContain("completeHabiteSeProcess(process.id)");
+    expect(habitePermit).toContain('setLifecycleStatus("arquivado")');
     expect(analystDesk).toContain('"concluidos"');
     expect(analystDesk).toContain('"profile_process_archives"');
     expect(analystDesk).toContain("Arquivar da minha lista");
@@ -170,7 +173,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain('isFinalProcessStatus ? "Concluído" : "Em andamento"');
     expect(processDetail).toContain('data-process-final-milestone="true"');
     expect(processDetail).toContain("Processo concluído");
-    expect(processDetail).toContain("intervalMs: 1800");
+    expect(processDetail).toContain("intervalMs: 30000, refreshOnMount: false");
   });
 
   it("marks every Habite-se workflow step done after final process status", () => {
@@ -184,7 +187,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain('"id,status,current_department,current_queue,sla_stage,process_checkpoint,archived_at,updated_at"');
     expect(processDetail).toContain("setDirectProcessState");
     expect(processDetail).toContain("setCachedProcessVisual");
-    expect(processDetail).toContain("window.setInterval(() => void syncExactProcess(), 1500)");
+    expect(processDetail).toContain("window.setInterval(() => void syncExactProcess(), 8000)");
   });
 
   it("treats repeated status commands as idempotent instead of surfacing P0001", () => {
@@ -225,9 +228,13 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(viteConfig).toContain('"./src/pages/saas/ProcessDetailPage.tsx"');
   });
 
-  it("loads critical process styles before the first React paint", () => {
-    expect(html).toContain('href="/src/components/platform/ProcessIdentityPanel.css"');
-    expect(html).toContain('href="/src/components/platform/AnalysisReadinessPanel.css"');
+  it("loads process-specific styles with their real panels without delaying unrelated F5 routes", () => {
+    expect(html).not.toContain('href="/src/components/platform/ProcessIdentityPanel.css"');
+    expect(html).not.toContain('href="/src/components/platform/AnalysisReadinessPanel.css"');
+    const identityPanel = readFileSync(resolve(process.cwd(), "src/components/platform/ProcessIdentityPanel.tsx"), "utf8");
+    const analysisPanel = readFileSync(resolve(process.cwd(), "src/components/platform/AnalysisReadinessPanel.tsx"), "utf8");
+    expect(identityPanel).toContain('import "./ProcessIdentityPanel.css";');
+    expect(analysisPanel).toContain('import "./AnalysisReadinessPanel.css";');
   });
 
   it("clears the local identity before navigation/network so account switching stays isolated", () => {

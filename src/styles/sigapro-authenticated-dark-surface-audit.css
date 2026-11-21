@@ -1,0 +1,276 @@
+/*
+ * SIGAPRO — authenticated dark-mode surface audit (19 Nov 2026).
+ * One final, narrowly scoped contract for internal SPA surfaces that came
+ * from legacy light-only modules. The actual theme is inverse-main and the
+ * authenticated PortalFrame now also carries .dark for Tailwind dark: rules.
+ *
+ * Never recolor PDFs, printable pages, document canvases, institutional
+ * logos, PIX QR codes, image crops, or the public landing/authentication UI.
+ * No pointers, event handlers, layout widths, process flags or data touched.
+ */
+
+/* Shared cards and heading icons, including Analysis / Finance / Protocol. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  background: linear-gradient(180deg, #162f46, #10263a) !important;
+  border-color: #496982 !important;
+  color: #f1f8ff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"]
+:is(.sig-section-title,.sig-subtitle) {
+  color: #f3f9ff !important;
+  -webkit-text-fill-color: #f3f9ff !important;
+  opacity: 1 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] .sig-section-icon {
+  background: #244763 !important;
+  border-color: #5c82a0 !important;
+  color: #d3efff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"]
+.sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] .sig-section-icon :is(svg,svg *) {
+  color: #d3efff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Process KPI glyphs were still pale rectangles on navy panels, notably
+ * in Financeiro. Match the icon's semantic tone without creating white masks. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon {
+  border: 1px solid #597b96 !important;
+  box-shadow: none !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon.blue {
+  background: #1b4864 !important;
+  color: #b9e9ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon.amber {
+  background: #4b391f !important;
+  color: #ffdfaa !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon.violet {
+  background: #403562 !important;
+  color: #e8ddff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon.green {
+  background: #1b4b3c !important;
+  color: #c5ffe1 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-workspace-kpi-icon svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-workspace-shell .sig-reference-kpi-alert {
+  background: #542b37 !important;
+  border-color: #ba778e !important;
+  color: #ffe3e9 !important;
+  -webkit-text-fill-color: #ffe3e9 !important;
+}
+
+/* Finance page — filtered process selector, not a white stripe. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-finance-protocol-filter-bar="true"] {
+  background: #1b364e !important;
+  background-image: none !important;
+  border-color: #506e87 !important;
+  color: #f4f9ff !important;
+  box-shadow: 0 5px 17px rgb(2 12 26 / 16%) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-finance-protocol-filter-bar="true"] input {
+  background: #102a40 !important;
+  border-color: #57758e !important;
+  color: #f7fbff !important;
+  -webkit-text-fill-color: #f7fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-finance-protocol-filter-bar="true"] input::placeholder {
+  color: #c2d9ec !important;
+  -webkit-text-fill-color: #c2d9ec !important;
+  opacity: 1 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-finance-protocol-filter-bar="true"] [data-finance-view-control="true"][aria-pressed="false"] {
+  background: #264b66 !important;
+  border: 1px solid #668ba8 !important;
+  color: #eff7ff !important;
+  -webkit-text-fill-color: #eff7ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-finance-protocol-filter-bar="true"] [data-finance-view-control="true"][aria-pressed="true"] {
+  background: #12638e !important;
+  border: 1px solid #80c7e9 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-finance-protocol-filter-bar="true"] [data-finance-view-control="true"] :is(svg,span) {
+  color: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+  stroke: currentColor !important;
+}
+/* Financial reconciliation warning is serious; keep explicit dark amber
+ * with pale ink and avoid an alarming near-black/orange unreadable stripe. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-finance-protocol-unverified="true"] {
+  background: #46371f !important;
+  background-image: none !important;
+  border-color: #b48d47 !important;
+  color: #fff0cc !important;
+  -webkit-text-fill-color: #fff0cc !important;
+  opacity: 1 !important;
+}
+
+/* All municipal process footers share this colored legend. It is the actual
+ * source of the pastel/white unreadable chips in the screenshot. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-reference-footer {
+  background: #19334a !important;
+  border-color: #496982 !important;
+  color: #e4effa !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-reference-footer :is(.sig-reference-legend-label,.sig-reference-page-label) {
+  color: #e7f4ff !important;
+  -webkit-text-fill-color: #e7f4ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-reference-legend-chip {
+  color: #ecf7ff !important;
+  -webkit-text-fill-color: #ecf7ff !important;
+  background: #27445b !important;
+  border-color: #6886a1 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  white-space: nowrap;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-legend-chip.danger {
+  background: #592a38 !important;
+  border-color: #b47787 !important;
+  color: #ffe4e9 !important;
+  -webkit-text-fill-color: #ffe4e9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-legend-chip.pending {
+  background: #522a4a !important;
+  border-color: #b582aa !important;
+  color: #ffdef8 !important;
+  -webkit-text-fill-color: #ffdef8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-legend-chip.warning {
+  background: #523d21 !important;
+  border-color: #b59760 !important;
+  color: #fff0c9 !important;
+  -webkit-text-fill-color: #fff0c9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-legend-chip.blue {
+  background: #1d4564 !important;
+  border-color: #649dc6 !important;
+  color: #dcf0ff !important;
+  -webkit-text-fill-color: #dcf0ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-legend-chip.purple {
+  background: #3e3761 !important;
+  border-color: #9185c7 !important;
+  color: #efe5ff !important;
+  -webkit-text-fill-color: #efe5ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-legend-chip.green {
+  background: #194b3b !important;
+  border-color: #609e86 !important;
+  color: #e0ffed !important;
+  -webkit-text-fill-color: #e0ffed !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-legend-chip svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-page-button {
+  color: #e2effa !important;
+  -webkit-text-fill-color: #e2effa !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-page-button:not(.active):hover {
+  background: #315774 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-reference-page-button.active {
+  background: #18739f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/*
+ * Final fallback for generic light-only inner cards across ALL authenticated
+ * departments. Exact white/near-white Tailwind background utility tokens,
+ * not a blanket all-div override. Explicitly exclude intentional paper/PIX/
+ * photo/logo surfaces; never recolor buttons, field controls, icons or media.
+ */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+:is(section,article,aside,details,div,header,footer):is(
+  [class~="bg-white"],
+  [class~="bg-white/80"],
+  [class~="bg-white/85"],
+  [class~="bg-white/90"],
+  [class~="bg-white/95"],
+  [class~="bg-slate-50"],
+  [class~="bg-slate-50/70"],
+  [class~="bg-slate-50/80"],
+  [class~="bg-slate-50/90"],
+  [class*="bg-[linear-gradient("][class*="#ffffff"]
+):not(:is(
+  [data-contrast-surface="light"],[data-surface="fixed-light"],
+  [data-surface="paper"],[data-print-document],[data-pdf-page],
+  [data-pdf-annotation-toolbar],[data-institutional-header-preview],
+  [data-institutional-footer-preview],[data-municipal-logo-live-preview],
+  .sig-image-frame-stage,.sig-institution-logo-surface,
+  .sig-user-avatar-root,.sig-finance-pix-surface
+)):not(:is(
+  [data-sigapro-pdf-synced-page] *,[data-pdf-page] *,
+  [data-print-document] *,[data-document-paper] *,
+  .react-pdf__Page *,.sig-image-frame-stage *,
+  .sig-institution-logo-surface *,.sig-finance-pix-surface *,
+  [data-municipal-logo-live-preview] *,
+  [data-institutional-header-preview] *,
+  [data-institutional-footer-preview] *
+)):not(:has(> canvas)):not(:has(> img)) {
+  background: #182f46 !important;
+  background-image: none !important;
+  border-color: #49667f !important;
+  color: #ecf5ff !important;
+}
+/* Colors are remapped only for text *on these normalized dark surfaces*.
+ * Avoid overriding captions on their own colored statuses or white buttons. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+:is(section,article,aside,details,div,header,footer):is(
+  [class~="bg-white"],[class~="bg-white/80"],[class~="bg-white/85"],
+  [class~="bg-white/90"],[class~="bg-white/95"],[class~="bg-slate-50"],
+  [class~="bg-slate-50/70"],[class~="bg-slate-50/80"],
+  [class*="bg-[linear-gradient("][class*="#ffffff"]
+):not(:is([data-contrast-surface="light"],[data-surface="fixed-light"],
+  [data-surface="paper"],[data-pdf-annotation-toolbar],
+  .sig-image-frame-stage,.sig-finance-pix-surface))
+:not(:is(
+  [data-sigapro-pdf-synced-page] *,[data-pdf-page] *,
+  [data-print-document] *,[data-document-paper] *,
+  .react-pdf__Page *,.sig-image-frame-stage *,
+  .sig-institution-logo-surface *,.sig-finance-pix-surface *,
+  [data-municipal-logo-live-preview] *,
+  [data-institutional-header-preview] *,
+  [data-institutional-footer-preview] *
+))
+:is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,
+    .text-slate-600,.text-slate-500):not(:is(
+  [data-ui="badge"],button,button *,[data-ui="button"] *,
+  input,input *,select,select *,textarea,[class*="bg-"],[data-contrast-surface="light"] *
+)) {
+  color: #d5e7f5 !important;
+  -webkit-text-fill-color: #d5e7f5 !important;
+  opacity: 1 !important;
+}
