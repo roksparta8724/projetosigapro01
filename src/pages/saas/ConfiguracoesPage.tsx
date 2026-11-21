@@ -16,7 +16,7 @@ import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
-import { PageMainContent, PageMainGrid, PageShell, PageStatsRow } from "@/components/platform/PageShell";
+import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
 import { StatCard } from "@/components/platform/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -3222,7 +3222,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
             </p>
           </div>
         </SectionCard>
-      </PageMainContent>
+      </PageSideContent>
     </PageMainGrid>
   );
   const settingsSectionMeta =
@@ -4975,7 +4975,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
               </div>
             </div>
         </SectionCard>
-        </PageSideContent> : null}
+        </PageMainContent> : null}
       </PageMainGrid> : null}
       {activeSettingsView === "account" ? accountSettingsSection : null}
       </PageShell>
