@@ -1,7 +1,7 @@
 ﻿/* eslint-disable react-hooks/exhaustive-deps */
 import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRef } from "react";
-import { ArrowLeft, Bell, Building2, Calculator, CheckCircle2, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, RefreshCw, ScrollText, ShieldPlus, Wallet } from "lucide-react";
+import { Bell, Building2, Calculator, CheckCircle2, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, RefreshCw, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { canEditUrbanLegislationManagement } from "@/lib/urbanLegislationAccess";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
@@ -16,7 +16,7 @@ import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
-import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
+import { PageMainContent, PageMainGrid, PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { StatCard } from "@/components/platform/StatCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +52,7 @@ import {
 import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
   fitMunicipalLogoFrame, fullMunicipalLogoFrame,
-  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_MAX_ZOOM, MUNICIPAL_FOOTER_LOGO_MAX_ZOOM,
+  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_FIT_ZOOM, MUNICIPAL_LOGO_MAX_ZOOM, MUNICIPAL_FOOTER_LOGO_MAX_ZOOM,
 } from "@/lib/municipalLogoFraming";
 import { getLegislationOpenUrl, getStableMunicipalLegislationReference, getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
@@ -946,12 +946,12 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     });
   }, [draftLogoFiles]);
   const [draftHeaderLogoConfig, setDraftHeaderLogoConfig] = useState(() => fitMunicipalLogoFrame({
-    scale: settings?.headerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+    scale: settings?.headerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_FIT_ZOOM,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   }));
   const [draftFooterLogoConfig, setDraftFooterLogoConfig] = useState(() => fitMunicipalLogoFrame({
-    scale: settings?.footerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+    scale: settings?.footerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_FIT_ZOOM,
     offsetX: settings?.footerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.footerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   }, "footer"));
@@ -1160,7 +1160,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     });
 
     const nextHeaderConfig = fitMunicipalLogoFrame({
-      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_FIT_ZOOM,
       offsetX: nextSettings?.headerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.headerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     });
@@ -1172,7 +1172,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     );
 
     const nextFooterConfig = fitMunicipalLogoFrame({
-      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_FIT_ZOOM,
       offsetX: nextSettings?.footerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     }, "footer");
@@ -2142,7 +2142,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       const existingObjectKey = variant === "header"
         ? settingsWithVariants.headerLogoObjectKey
         : settingsWithVariants.footerLogoObjectKey;
-      persistedVariantUrl = existingObjectKey || variantLogoUrl.startsWith("blob:") || variantLogoUrl.startsWith("data:")
+      persistedVariantUrl = (existingObjectKey || variantLogoUrl.startsWith("blob:") || variantLogoUrl.startsWith("data:"))
         ? ""
         : variantLogoUrl;
     }
@@ -2389,12 +2389,12 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
         logoOffsetY: nextSettings.logoOffsetY ?? 0,
       }));
       setDraftHeaderLogoConfig(fitMunicipalLogoFrame({
-        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_FIT_ZOOM,
         offsetX: nextSettings.headerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.headerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       }));
       setDraftFooterLogoConfig(fitMunicipalLogoFrame({
-        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_FIT_ZOOM,
         offsetX: nextSettings.footerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.footerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       }, "footer"));
@@ -3222,7 +3222,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
             </p>
           </div>
         </SectionCard>
-      </PageSideContent>
+      </PageMainContent>
     </PageMainGrid>
   );
   const settingsSectionMeta =
@@ -3802,10 +3802,10 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={(next) => setDraftHeaderLogoConfig(fitMunicipalLogoFrame(next))}
                       label="Ajuste do logo do cabeçalho"
-                      hint="O brasão permanece inteiro. O máximo de 1,50x corresponde ao encaixe completo mostrado no cabeçalho."
+                      hint="O encaixe inteiro continua em 1,50x. Amplie até 3,00x e arraste para enquadrar, sem deformar o brasão; o zoom extra pode recortar as bordas."
                       fitMode="contain"
                       containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
-                      keepWholeImageVisible
+                      keepWholeImageVisible={draftHeaderLogoConfig.scale <= MUNICIPAL_LOGO_FIT_ZOOM}
                       minScale={1}
                       maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
                       zoomStep={0.1}
@@ -3956,10 +3956,10 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={(next) => setDraftFooterLogoConfig(fitMunicipalLogoFrame(next, "footer"))}
                       label="Ajuste do logo do rodapé"
-                      hint="Até 1,50x mostra o arquivo inteiro. Amplie até 3,00x para aproximar o brasão e reduzir bordas vazias, sempre com proporção preservada. Confira o resultado na prévia real."
+                      hint="O encaixe inteiro é 1,50x. Amplie até 4,00x e arraste para enquadrar, com recorte proporcional opcional. Confira a prévia antes de confirmar."
                       fitMode="contain"
                       containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
-                      keepWholeImageVisible
+                      keepWholeImageVisible={draftFooterLogoConfig.scale <= MUNICIPAL_LOGO_FIT_ZOOM}
                       minScale={1}
                       maxScale={MUNICIPAL_FOOTER_LOGO_MAX_ZOOM}
                       zoomStep={0.1}
@@ -4284,8 +4284,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
           </PageMainContent>
         ) : null}
 
-        {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "collection" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="w-full">
-        <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3" actions={<Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>}>
+        {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "collection" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainContent className="w-full">
+        <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} className="sig-institutional-config-panel" headerClassName="gap-2 pb-3">
             <form className="space-y-4" onSubmit={handleSubmit}>
               {activeSettingsView === "institutional" ? (
                 <>

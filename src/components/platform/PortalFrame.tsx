@@ -82,6 +82,7 @@ import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { TopbarBrandMark } from "@/components/platform/TopbarBrandMark";
 import { MunicipalDepartmentSwitcher } from "@/components/platform/MunicipalDepartmentSwitcher";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
@@ -1499,7 +1500,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
             </button>
             <div className="sig-topbar-brand-logo flex h-[46px] w-[46px] shrink-0 items-center justify-center">
               <div className="sig-topbar-brand-badge flex items-center justify-center">
-                <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
+                <TopbarBrandMark />
               </div>
             </div>
             <div className="sig-topbar-brand-copy min-w-0 flex-1">
@@ -1625,7 +1626,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
                 <div className="sig-topbar-brand-logo flex h-[46px] w-[46px] items-center justify-center">
                   <div className="sig-topbar-brand-badge flex items-center justify-center">
-                    <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
+                    <TopbarBrandMark />
                   </div>
                 </div>
                 <div className="sig-topbar-brand-copy min-w-0">

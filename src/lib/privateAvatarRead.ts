@@ -65,8 +65,9 @@ export async function resolveAuthorizedAvatarUrl(
   // simultaneous group of photos shares the same CURRENT session lookup.
   const token = await readAvatarAccessToken();
 
-  const response = await fetch(
-    "/api/profile-avatar-open?objectKey=" + encodeURIComponent(key) + (variant === "thumbnail" ? "&variant=thumb" : ""),
+  const getPrivateImage = (requestedVariant: "original" | "thumbnail") => fetch(
+    "/api/profile-avatar-open?objectKey=" + encodeURIComponent(key) +
+      (requestedVariant === "thumbnail" ? "&variant=thumb" : ""),
     {
       method: "GET",
       headers: {
@@ -78,6 +79,12 @@ export async function resolveAuthorizedAvatarUrl(
       signal,
     },
   );
+  let response = await getPrivateImage(variant);
+  // A miniatura R2 pode não existir em registros anteriores. A foto original
+  // continua exigindo exatamente o mesmo token/ACL; nunca contornar 401/403.
+  if (variant === "thumbnail" && [404, 415, 422, 500, 502, 503].includes(response.status)) {
+    response = await getPrivateImage("original");
+  }
   if (!response.ok) throw new Error("Não foi possível confirmar o acesso à foto.");
   const mime = String(response.headers.get("content-type") || "").split(";")[0].trim();
   const advertisedLength = Number(response.headers.get("content-length") || "0");

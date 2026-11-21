@@ -3,17 +3,17 @@
  *
  * Both 188px admin editors and the responsive real header/footer use
  * object-fit: contain. Optical base factor 2/3 makes 1.50x exactly the
- * original fully fitted image. A previous 5x slider cut the crest.
+ * original fully fitted image. Further optical zoom is opt-in and can crop the viewport.
  *
- * Offset limits are computed in editor coordinates and conservatively bound
- * to the available margin. They remain safe even for non-square original
- * assets because contain never fills more than one axis.
+ * Offset limits are computed in editor coordinates and bounded to available margin or optical overflow. The original asset is
+ * never stretched or destructively cropped.
  */
 export const MUNICIPAL_LOGO_BASE_RATIO = 2 / 3;
 export const MUNICIPAL_LOGO_MIN_ZOOM = 1;
-export const MUNICIPAL_LOGO_MAX_ZOOM = 1.5;
-/** Footer-only optical enlargement; header stays capped at the full 1.50x fit. */
-export const MUNICIPAL_FOOTER_LOGO_MAX_ZOOM = 3;
+export const MUNICIPAL_LOGO_FIT_ZOOM = 1.5;
+export const MUNICIPAL_LOGO_MAX_ZOOM = 3;
+/** Footer-only additional optical enlargement; the full fit remains 1.50x. */
+export const MUNICIPAL_FOOTER_LOGO_MAX_ZOOM = 4;
 export const MUNICIPAL_LOGO_EDITOR_SIZE = 188;
 
 export interface MunicipalLogoFrame {
@@ -33,14 +33,12 @@ export function fitMunicipalLogoFrame(
   variant: "header" | "footer" = "header",
 ): MunicipalLogoFrame {
   const scale = clamp(
-    finiteOr(frame?.scale, MUNICIPAL_LOGO_MAX_ZOOM),
+    finiteOr(frame?.scale, MUNICIPAL_LOGO_FIT_ZOOM),
     MUNICIPAL_LOGO_MIN_ZOOM,
     variant === "footer" ? MUNICIPAL_FOOTER_LOGO_MAX_ZOOM : MUNICIPAL_LOGO_MAX_ZOOM,
   );
-  const margin = Math.max(
-    0,
-    (MUNICIPAL_LOGO_EDITOR_SIZE * (1 - MUNICIPAL_LOGO_BASE_RATIO * scale)) / 2,
-  );
+  // 1.50x fits entire artwork. More zoom permits centered crop with panning.
+  const margin = Math.abs((MUNICIPAL_LOGO_EDITOR_SIZE * (1 - MUNICIPAL_LOGO_BASE_RATIO * scale)) / 2);
   // Avoid negative zero and preserve an exact centered origin at full fit.
   if (margin < 0.000001) return { scale, offsetX: 0, offsetY: 0 };
   const offsetX = clamp(finiteOr(frame?.offsetX, 0), -margin, margin);
@@ -50,5 +48,5 @@ export function fitMunicipalLogoFrame(
 
 export function fullMunicipalLogoFrame(): MunicipalLogoFrame {
   // Reset always displays the entire uploaded image; extra footer zoom is opt-in.
-  return { scale: MUNICIPAL_LOGO_MAX_ZOOM, offsetX: 0, offsetY: 0 };
+  return { scale: MUNICIPAL_LOGO_FIT_ZOOM, offsetX: 0, offsetY: 0 };
 }
