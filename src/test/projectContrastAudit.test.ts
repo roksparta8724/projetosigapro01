@@ -10,7 +10,7 @@ function walk(dir: string): string[] {
 }
 
 function extractStaticClassNames(source: string) {
-  return [...source.matchAll(/className=(?:"([^"]+)"|'([^']+)'|\`([^\`]+)\`)/g)]
+  return [...source.matchAll(/className=(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/g)]
     .map((match) => match[1] || match[2] || match[3] || "");
 }
 

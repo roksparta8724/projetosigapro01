@@ -1,6 +1,33 @@
 {
   "headers": [
     {
+      "source": "/criar-conta",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/recuperar-senha",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/acesso",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/sigapro-sw.js",
       "headers": [
         {
@@ -44,6 +71,15 @@
           "value": "private, no-store"
         }
       ]
+    },
+    {
+      "source": "/((?!api/|assets/|\\.well-known/|.*\\.[^/]+$).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -54,6 +90,18 @@
     {
       "source": "/api/payment-connection",
       "destination": "/api/mercadopago?action=payment-connection"
+    },
+    {
+      "source": "/api/mp-qa-webhook",
+      "destination": "/api/mercadopago?action=qa-webhook"
+    },
+    {
+      "source": "/api/qa/mercadopago/guide-boleto",
+      "destination": "/api/mercadopago?action=qa-boleto"
+    },
+    {
+      "source": "/api/qa/mercadopago/guide-pix",
+      "destination": "/api/mercadopago?action=qa-pix"
     },
     {
       "source": "/api/mercadopago/health",
@@ -70,6 +118,10 @@
     {
       "source": "/api/r2-upload",
       "destination": "/api/r2?action=upload"
+    },
+    {
+      "source": "/api/r2-process-proxy-upload",
+      "destination": "/api/r2?action=process-proxy-upload"
     },
     {
       "source": "/api/r2-delete",
@@ -96,7 +148,7 @@
       "destination": "/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/|assets/|\\.well-known/|.*\\.[^/]+$).*)",
       "destination": "/index.html"
     }
   ],
@@ -107,7 +159,11 @@
       "workbench/logo-preview-premium-no-deploy-20261016": false,
       "work/analysis-sheet-official-persistence-local-only-20261020": false,
       "fix/habite-se-alvara-summary-contrast-20261020": false,
-      "fix/vercel-serverless-esm-complete-no-deploy-20261020": false
+      "fix/vercel-serverless-esm-complete-no-deploy-20261020": false,
+      "workbench/sigapro-consolidacao-p3-no-deploy-20261029": false,
+      "fix/qa-triagem-analise-pagamento-20261101": false,
+      "fix/f5-navigation-document-cache-20261113": false,
+      "feat/qa-premium-visual-sync-20261113": false
     }
   }
 }

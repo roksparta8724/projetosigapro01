@@ -3,6 +3,7 @@ import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 
 export function PlanModuleRoute({
   module,
@@ -21,9 +22,14 @@ export function PlanModuleRoute({
       return <>{children}</>;
     }
 
-    // Cold start/troca de conta: falha fechada sem desenhar uma tela falsa.
-    // A PermissionRoute já segura a identidade até a sessão real ser resolvida.
-    return null;
+    // Cold start/troca de conta: permanecer fechado sem exibir uma página branca.
+    // Não renderizar a página protegida enquanto o contrato é verificado.
+    return (
+      <SecureRoutePending
+        title="Conferindo o módulo contratado"
+        detail="O SIGAPRO está verificando a autorização do plano desta Prefeitura antes de abrir a ferramenta."
+      />
+    );
   }
 
   if (entitlements.isMaster || entitlements.canUseModule(module)) {

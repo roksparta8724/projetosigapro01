@@ -59,9 +59,9 @@ describe("municipal staff account and avatar recovery regressions", () => {
   });
 
   it("exposes official coat-of-arms management directly from Prefeitura administration", () => {
-    expect(admin).toContain('title="Brasão oficial"');
+    expect(admin).toContain('navigate("/configuracoes?secao=branding")');
     expect(admin).toContain("coatOfArmsPreviewUrl");
-    expect(admin).toContain("Alterar ou salvar brasão");
+    expect(admin).toContain("Identidade visual • brasão salvo");
     expect(admin).toContain('navigate("/configuracoes?secao=branding")');
   });
 

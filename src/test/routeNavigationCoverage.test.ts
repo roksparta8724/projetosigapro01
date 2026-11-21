@@ -24,10 +24,19 @@ describe("route and navigation coverage", () => {
     const missing = navigationTargets.filter(
       (target) =>
         !routePaths.includes(target) &&
+        !routePaths.some((route) => route.endsWith("/*") && (
+          target === route.slice(0, -2) || target.startsWith(route.slice(0, -1))
+        )) &&
         !routePaths.some((route) => route.includes(":") && target.startsWith(route.split("/:")[0])),
     );
 
     expect(missing, `Navigation without route: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("keeps all dashboard sections under one persistent wildcard route", () => {
+    expect(routePaths).toContain("/dashboard/*");
+    expect(routePaths).not.toContain("/dashboard/processos");
+    expect(routePaths).not.toContain("/dashboard/financeiro");
   });
 
   it("does not duplicate declared route paths", () => {

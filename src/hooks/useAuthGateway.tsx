@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef } from "react";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
+import { clearAuthorizedAvatarRuntimeCache } from "@/lib/authorizedAvatarRuntimeCache";
 
 interface AuthGatewayContextValue {
   isAuthenticated: boolean;
@@ -61,10 +62,15 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
       updateEmail: bootstrap.updateEmail,
       updatePassword: bootstrap.updatePassword,
       signOut: async () => {
-        console.log("[Logout] signOut start");
-        await bootstrap.signOut();
-        console.log("[Logout] signOut result");
-        if (typeof window !== "undefined") {
+        try {
+          await bootstrap.signOut();
+        } finally {
+          // Apagar imediatamente as imagens privadas da conta antiga, inclusive
+          // quando o logout remoto falhar. Nunca persistir blob URL no navegador.
+          clearAuthorizedAvatarRuntimeCache();
+          // A falha de rede ao revogar a sessão nunca pode impedir que as
+          // credenciais/cache visuais locais sejam eliminados.
+          if (typeof window !== "undefined") {
           try {
             const transientKeys = [
               "sigapro.platform.session.v1",
@@ -95,6 +101,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
             // ignore
           }
           // A navegacao e responsabilidade da rota chamadora. Nunca descarregar o documento aqui.
+          }
         }
       },
     }),
@@ -119,6 +126,15 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
 
 export function AuthGatewayProvider({ children }: { children: React.ReactNode }) {
   const value = useAuthGatewayValue();
+  const lastAuthenticatedId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!value.authResolved || value.loading) return;
+    const current = value.authenticatedUserId || "";
+    if (lastAuthenticatedId.current !== null && lastAuthenticatedId.current !== current) {
+      clearAuthorizedAvatarRuntimeCache();
+    }
+    lastAuthenticatedId.current = current;
+  }, [value.authResolved, value.loading, value.authenticatedUserId]);
   return <AuthGatewayContext.Provider value={value}>{children}</AuthGatewayContext.Provider>;
 }
 

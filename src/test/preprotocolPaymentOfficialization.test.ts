@@ -140,7 +140,7 @@ describe("payment-first pre-protocol officialization", () => {
   });
 
   it("polls payment state and keeps a provisional item editable without opening it as an official process", () => {
-    expect(paymentsPage).toContain("setInterval(refresh, 8000)");
+    expect(paymentsPage).toContain("setInterval(refresh, 15000)");
     expect(paymentsPage).toContain("process.isOfficial === false");
     expect(paymentsPage).toContain('data-preprotocol-edit-action="true"');
     expect(paymentsPage).toContain('data-preprotocol-guide-action="true"');
@@ -213,7 +213,7 @@ describe("payment-first pre-protocol officialization", () => {
     );
     expect(hardeningMigration).toContain("Pronto para Despacho");
     expect(protocolDesk).toContain(
-      "Como a guia inicial já está compensada, o processo está pronto para despacho ao Urbanismo",
+      "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente.",
     );
   });
 });

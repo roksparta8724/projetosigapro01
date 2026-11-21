@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Blob as NodeBlob } from "node:buffer";
 import { webcrypto } from "node:crypto";
-import { archiveAndOpenGuide, openLegacyGuideOriginal, type GuideOriginal } from "./guideOriginal";
+import { archiveAndOpenGuide, openLegacyGuideOriginal, assertOfficialGuideDocument, type GuideOriginal } from "./guideOriginal";
 import type { ProcessDocument } from "@/lib/platform";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
@@ -78,4 +78,39 @@ describe("immutable DAM original", () => {
     await expect(archiveAndOpenGuide("m1", props, target)).rejects.toThrow("R2 read failed");
     expect(renderGuideOriginalPdf).not.toHaveBeenCalled();
   });
+  it.each(["pago","paid","confirmed","confirmado","compensada"])("não recria guia quitada com status %s nem gera nova cobrança",async status=>{
+    vi.mocked(backendClient.rpc).mockResolvedValue({data:{...original,status}});
+    await expect(archiveAndOpenGuide("m1",props,target)).rejects.toThrow("Não será recriada");
+    expect(renderGuideOriginalPdf).not.toHaveBeenCalled();
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(backendClient.rpc).toHaveBeenCalledTimes(1);
+  });
+  it("não recria guia com indicador paid=true mesmo se status for pendente",async()=>{
+    vi.mocked(backendClient.rpc).mockResolvedValue({data:{...original,paid:true}});
+    await expect(archiveAndOpenGuide("m1",props,target)).rejects.toThrow("Não será recriada");
+    expect(uploadFile).not.toHaveBeenCalled();
+  });
+  it("rejeita município ou número da guia que o banco devolveu de outro processo",async()=>{
+    for(const other of [{municipality_id:"m2"},{guide_number:"DAM-2"},{process_id:"../other"}]){
+      vi.mocked(backendClient.rpc).mockResolvedValue({data:{...original,...other}});
+      await expect(archiveAndOpenGuide("m1",props,target)).rejects.toThrow();
+      expect(uploadFile).not.toHaveBeenCalled();
+    }
+  });
+  it("recusa adulteração do valor, prévia não pagável e QR com valor divergente",async()=>{
+    expect(()=>assertOfficialGuideDocument(original,{...props,guia:{...props.guia,valorDocumento:299}},"m1")).toThrow(/valor do PDF/);
+    expect(()=>assertOfficialGuideDocument(original,{...props,guia:{...props.guia,nonPayablePreview:true}},"m1")).toThrow(/prévia/);
+    const pixWrong=buildPixPayload({key:"financeiro@prefeitura.gov.br",merchantName:"Prefeitura Teste",merchantCity:"Sao Paulo",amount:301,txid:"DAM1"})!;
+    expect(()=>assertOfficialGuideDocument(original,{...props,guia:{...props.guia,pixPayload:pixWrong}},"m1")).toThrow(/PIX divergente/);
+    expect(()=>assertOfficialGuideDocument(original,props,"m1")).not.toThrow();
+  });
+  it("recusa também o snapshot adulterado depois da etapa freeze, antes de renderizar ou subir R2",async()=>{
+    vi.mocked(backendClient.rpc).mockResolvedValueOnce({data:original}).mockResolvedValueOnce({
+      data:{...original,document_snapshot:{...props,guia:{...props.guia,valorDocumento:999}}},
+    });
+    await expect(archiveAndOpenGuide("m1",props,target)).rejects.toThrow(/valor do PDF/);
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(renderGuideOriginalPdf).not.toHaveBeenCalled();
+  });
+
 });

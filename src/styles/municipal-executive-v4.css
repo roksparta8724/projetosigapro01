@@ -1,0 +1,335 @@
+/*
+ * SIGAPRO MUNICIPAL EXECUTIVE V4
+ * The only dark, saturated summary board is the municipal executive snapshot.
+ * The dashboard keeps summary first; all operational modules use summary last.
+ * Never touch PDF canvases, login, municipality crest or document/editor cards.
+ */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell [data-sigapro-overview-summary="premium-v4"] {
+  min-width: 0;
+  align-items: stretch;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+[data-sigapro-summary-board="dark"] {
+  background: linear-gradient(128deg,#0a2a43 0%,#0b314c 58%,#10475f 100%) !important;
+  border-color: #386a85 !important;
+  color: #f8fbff !important;
+  box-shadow: 0 14px 30px rgba(6,29,49,.14) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-summary-board="dark"] {
+  background: linear-gradient(128deg,#0d2740 0%,#0a2136 100%) !important;
+  border-color: #35556e !important;
+  color: #f8fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-summary-board="dark"] [data-summary-dark-card] {
+  background: rgba(255,255,255,.065) !important;
+  border-color: rgba(177,224,247,.21) !important;
+  color: #f8fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-summary-board="dark"] [data-summary-process-row="true"] {
+  background: #123b56 !important;
+  border-color: rgba(177,224,247,.19) !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-summary-board="dark"] :is([data-summary-title],[data-summary-value]) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-summary-board="dark"] [data-summary-label] {
+  color: #d5effe !important;
+  -webkit-text-fill-color: #d5effe !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-summary-board="dark"] [data-summary-muted] {
+  color: #d1e3f0 !important;
+  -webkit-text-fill-color: #d1e3f0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-summary-light-card] {
+  background: linear-gradient(180deg,#eef5fa 0%,#e3eef6 100%) !important;
+  border-color: #c2d7e6 !important;
+  color: #173a53 !important;
+  box-shadow: 0 8px 21px rgba(10,44,69,.06) !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-summary-light-title] {
+  color: #123650 !important;
+  -webkit-text-fill-color: #123650 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-summary-light-muted] {
+  color: #4b667c !important;
+  -webkit-text-fill-color: #4b667c !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-summary-light-card] {
+  background: linear-gradient(180deg,#172f46,#10253b) !important;
+  border-color: #355b73 !important;
+  color: #f8fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] :is([data-summary-light-title],[data-summary-light-muted]) {
+  color: #eef8ff !important;
+  -webkit-text-fill-color: #eef8ff !important;
+}
+
+/* The municipality's activity rows are deliberately thin and legible. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-municipal-activity-card="true"] {
+  background: #f8fbfe !important;
+  border-color: #c9dbe8 !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-municipal-activity-card="true"] summary {
+  padding: 10px 12px !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-municipal-activity-card="true"] > div {
+  background: #e9f2fa !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-municipal-activity-card="true"] :is(.text-slate-950,.text-slate-900,.text-slate-800) {
+  color: #15354c !important;
+  -webkit-text-fill-color: #15354c !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-summary="premium-v4"] [data-municipal-activity-card="true"] :is(.text-slate-500,.text-slate-600) {
+  color: #526a7e !important;
+  -webkit-text-fill-color: #526a7e !important;
+}
+
+/* Compact municipal KPI strip and always-collapsed plan at page entry. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-municipal-stats="premium-v4"] .sig-stat-card {
+  min-height: 98px !important;
+  border-radius: 15px !important;
+  padding: 12px 14px !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-municipal-stats="premium-v4"] .sig-stat-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 10px !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-municipal-stats="premium-v4"] [data-sigapro-plan-overview="compact"] {
+  background: linear-gradient(125deg,#133b55,#104761) !important;
+  border-color: #3b728d !important;
+  color: #fff !important;
+  box-shadow: 0 9px 19px rgba(9,36,57,.1) !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-municipal-stats="premium-v4"] [data-sigapro-plan-overview="compact"] > summary {
+  min-height: 48px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-municipal-stats="premium-v4"] [data-sigapro-plan-overview="compact"] > summary p {
+  color: #e5f3ff !important;
+  -webkit-text-fill-color: #e5f3ff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-municipal-stats="premium-v4"] [data-sigapro-plan-overview="compact"] > summary p:first-child {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-municipal-stats="premium-v4"] [data-sigapro-plan-overview="compact"] > summary > span {
+  background: #e4f5ff !important;
+  color: #123b55 !important;
+  border-color: #96cee7 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-municipal-stats="premium-v4"] [data-sigapro-plan-overview="compact"] > div {
+  background: #ecf5fb !important;
+  color: #173a53 !important;
+}
+
+/* Four directly navigable subpages; summary intentionally occupies the last. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-subpages="true"] {
+  padding: 5px !important;
+  background: #dceaf4 !important;
+  border-color: #bad0df !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-subpages="true"] > div {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-subpages="true"] a[data-sigapro-overview-tab] {
+  min-height: 45px !important;
+  min-width: 0 !important;
+  border-radius: 10px !important;
+  padding: 6px 10px !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-subpages="true"] a[data-sigapro-overview-tab="active"] {
+  background: linear-gradient(120deg,#114b70,#0b3251) !important;
+  color: white !important;
+  border-color: #367ba0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-subpages="true"] a[data-sigapro-overview-tab="active"] :is([data-sigapro-overview-tab-title],[data-sigapro-overview-tab-helper]) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+@media (max-width: 760px) {
+  html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+  [data-sigapro-overview-subpages="true"] > div {
+    min-width: 670px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+  [data-sigapro-overview-summary="premium-v4"] * {
+    animation: none !important;
+  }
+}
+
+
+/* Other modules: Resumo/Visão geral is the LAST tab and gets compact
+   institutional section headers. Forms, ordinary work queues and Dashboard
+   stay governed by their own existing styles. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] {
+  height: auto !important;
+  background: linear-gradient(180deg,#edf5fb 0%,#e2eef7 100%) !important;
+  border-color: #bed5e6 !important;
+  box-shadow: 0 8px 21px rgba(12,45,69,.065) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child {
+  background: linear-gradient(119deg,#103851 0%,#0e2e47 100%) !important;
+  border: 1px solid #356781 !important;
+  border-radius: 12px !important;
+  padding: 10px 12px !important;
+  margin: 0 !important;
+  color: #f6fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child :is(.sig-section-title,.sig-subtitle) {
+  color: #f2f9ff !important;
+  -webkit-text-fill-color: #f2f9ff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child .sig-subtitle {
+  color: #cde4f3 !important;
+  -webkit-text-fill-color: #cde4f3 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child .sig-section-icon {
+  background: rgba(255,255,255,.10) !important;
+  border-color: rgba(189,225,243,.24) !important;
+  color: #ddf5ff !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child .sig-section-icon svg {
+  stroke: #ddf5ff !important;
+  color: #ddf5ff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:last-child {
+  min-height: 0 !important;
+  flex-grow: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+.sig-module-summary-active .sig-main-grid {
+  align-items: start !important;
+}
+
+
+/* SIGAPRO Premium V5 — resolve the empty municipal-processes panel by eliminating
+   its extra generic TableCard entirely. The toolbar and registry follow each other
+   in the normal document flow, never stretch to the viewport height. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] {
+  display: block !important;
+  flex: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  align-self: flex-start !important;
+  align-content: start !important;
+  overflow: visible !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] {
+  background: #eaf3fa !important;
+  border-color: #bcd4e5 !important;
+  box-shadow: 0 9px 22px rgba(9,48,76,.085) !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] :is([data-processes-toolbar],[data-processes-list]) {
+  min-height: 0 !important;
+  height: auto !important;
+  flex: none !important;
+  margin-top: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] [data-processes-toolbar] {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] [data-processes-list] {
+  display: block !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] [data-sei-process-registry="true"] {
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  margin-top: 0 !important;
+  background: #f8fbfe !important;
+  border-color: #c5d6e5 !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] [data-processes-toolbar] {
+  background: #f5fafe !important;
+  border-color: #c6d9e7 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] [data-processes-header-title] {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+/* Organogram is a compact, real-data institutional header, never a tall empty
+   PageHero whose only apparent content is the Nova unidade button. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-municipal-organization-hero="compact-v5"] {
+  display: block !important;
+  min-height: 0 !important;
+  height: auto !important;
+  background: linear-gradient(118deg,#102e46,#12516a) !important;
+  border-color: #32647d !important;
+  color: #f8fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-municipal-organization-hero="compact-v5"] :is(h1,strong) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-municipal-organization-hero="compact-v5"] p,
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-municipal-organization-hero="compact-v5"] span:not(.sr-only) {
+  color: #cde9fa;
+}
+@media (max-width: 767px) {
+  html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+  [data-municipal-organization-hero="compact-v5"] {
+    padding: 14px !important;
+  }
+}
