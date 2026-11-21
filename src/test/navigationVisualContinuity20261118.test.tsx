@@ -80,6 +80,6 @@ describe("SIGAPRO — root do portal persistente, sem duas interfaces por troca"
     expect(frame).toContain('authenticatedOwnerId={authenticatedAvatarOwnerId}');
     expect(frame).toContain('photoRemovalConfirmed={topbarPhotoRemovalConfirmed}');
     expect(cache).toContain("clearAuthorizedAvatarRuntimeCache");
-    expect(cache).toContain("cached.get(cacheId(owner, source))");
+    expect(cache).toContain("cached.get(cacheId(owner, source, variant))");
   });
 });

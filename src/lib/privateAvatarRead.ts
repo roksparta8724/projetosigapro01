@@ -56,6 +56,7 @@ export function readAvatarAccessToken(): Promise<string> {
 export async function resolveAuthorizedAvatarUrl(
   source: string,
   signal?: AbortSignal,
+  variant: "original" | "thumbnail" = "original",
 ): Promise<AuthorizedAvatarUrl> {
   const key = privateAvatarObjectKey(source);
   if (!key) return { url: source, revoke: () => {} };
@@ -65,7 +66,7 @@ export async function resolveAuthorizedAvatarUrl(
   const token = await readAvatarAccessToken();
 
   const response = await fetch(
-    "/api/profile-avatar-open?objectKey=" + encodeURIComponent(key),
+    "/api/profile-avatar-open?objectKey=" + encodeURIComponent(key) + (variant === "thumbnail" ? "&variant=thumb" : ""),
     {
       method: "GET",
       headers: {

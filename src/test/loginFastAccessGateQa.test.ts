@@ -85,7 +85,7 @@ describe("SIGAPRO QA — entrada rápida com autorização institucional real", 
     const routes=readFileSync("src/App.tsx","utf8");
     const auth=readFileSync("src/hooks/useAppBootstrap.tsx","utf8");
     expect(code).toContain("verifyLoginLandingAccess(");
-    expect(code).toContain("preloadLoginLanding(landingPath)");
+    expect(code).not.toContain("preloadLoginLanding(landingPath)");
     expect(code).not.toContain("dataReadyForCurrentUser");
     expect(code).not.toContain("entitlements.isResolving");
     expect(routes).toContain('<PermissionRoute permission="view_master_dashboard">');

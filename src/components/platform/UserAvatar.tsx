@@ -119,7 +119,7 @@ function userInitials(name?: string | null) {
 }
 
 export function UserAvatar(props: UserAvatarProps) {
-  const privateImageUrl = useAuthorizedAvatarUrl(props.imageUrl, props.authenticatedOwnerId);
+  const privateImageUrl = useAuthorizedAvatarUrl(props.imageUrl, props.authenticatedOwnerId, "thumbnail");
   const privateSource = privateAvatarObjectKey(props.imageUrl);
   const authenticatedOwner = String(props.authenticatedOwnerId || "").trim();
   const rememberVerifiedImage = (image: HTMLImageElement) => {

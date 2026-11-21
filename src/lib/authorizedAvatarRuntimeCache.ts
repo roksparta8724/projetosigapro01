@@ -19,8 +19,8 @@ function validOwner(value: string): string {
   const owner = value.trim();
   return owner && owner !== "unknown" ? owner : "";
 }
-function cacheId(owner: string, source: string) {
-  return JSON.stringify([owner, source]);
+function cacheId(owner: string, source: string, variant: "original" | "thumbnail") {
+  return JSON.stringify([owner, source, variant]);
 }
 
 export function clearAuthorizedAvatarRuntimeCache(): void {
@@ -34,26 +34,26 @@ export function clearAuthorizedAvatarRuntimeCache(): void {
   clearAvatarSessionThumbnails();
 }
 
-export function getAuthorizedAvatarRuntimeUrl(ownerId: string, source: string): string {
+export function getAuthorizedAvatarRuntimeUrl(ownerId: string, source: string, variant: "original" | "thumbnail" = "original"): string {
   const owner = validOwner(ownerId);
   if (!owner || activeOwner !== owner || !privateAvatarObjectKey(source)) return "";
-  return cached.get(cacheId(owner, source))?.url || "";
+  return cached.get(cacheId(owner, source, variant))?.url || "";
 }
 
-export async function loadAuthorizedAvatarRuntimeUrl(ownerId: string, source: string): Promise<string> {
+export async function loadAuthorizedAvatarRuntimeUrl(ownerId: string, source: string, variant: "original" | "thumbnail" = "original"): Promise<string> {
   const owner = validOwner(ownerId);
   if (!owner || !privateAvatarObjectKey(source)) return "";
   // An authenticated user change must never reuse the previous owner's blob.
   if (activeOwner && activeOwner !== owner) clearAuthorizedAvatarRuntimeCache();
   activeOwner = owner;
-  const id = cacheId(owner, source);
+  const id = cacheId(owner, source, variant);
   const already = cached.get(id);
   if (already) return already.url;
   const fetching = pending.get(id);
   if (fetching) return fetching;
 
   const requestGeneration = generation;
-  const task = resolveAuthorizedAvatarUrl(source).then((asset) => {
+  const task = resolveAuthorizedAvatarUrl(source, undefined, variant).then((asset) => {
     if (requestGeneration !== generation || activeOwner !== owner) {
       asset.revoke();
       return "";
