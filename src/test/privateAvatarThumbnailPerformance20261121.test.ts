@@ -47,7 +47,8 @@ describe("SIGAPRO — perfil rápido com miniatura privada e original preservado
     const profile = read("src/pages/saas/PerfilPage.tsx");
     expect(component).toContain('useAuthorizedAvatarUrl(props.imageUrl, props.authenticatedOwnerId, "thumbnail")');
     expect(hook).toContain('variant: "original" | "thumbnail" = "original"');
-    expect(browser).toContain('variant === "thumbnail" ? "&variant=thumb" : ""');
+    expect(browser).toContain('requestedVariant === "thumbnail" ? "&variant=thumb" : ""');
+    expect(browser).toContain('response = await getPrivateImage("original")');
     expect(cache).toContain("JSON.stringify([owner, source, variant])");
     expect(profile).toContain("useAuthorizedAvatarUrl(avatarPreviewSourceUrl, authenticatedUserId || authenticatedProfileId)");
     expect(browser).toContain('Authorization: "Bearer " + token');
