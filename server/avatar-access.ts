@@ -80,22 +80,12 @@ export async function authorizePrivateAvatarRead(
 }
 
 /**
- * Private R2 photos on explicitly reviewed QA branches require the verified
- * Bearer -> current_profile_id ACL before returning any image bytes. The
- * R2_AUTH_DATA_API_URL server setting MUST point at the matching isolated QA
- * Neon branch; if absent or mismatched, getDataApiUrl() fails closed.
- *
- * The production rollout is intentionally unchanged until live QA is approved.
+ * SECURE BY DEFAULT: private R2 profile photos always require a verified
+ * Bearer identity and role/municipality ACL, including previews, production
+ * and local development. New branches MUST NOT silently bypass the check.
+ * The server's Data API selection independently fails closed if no matching
+ * environment is configured.
  */
-export function enforceAuthenticatedAvatarRead(env: NodeJS.ProcessEnv = process.env): boolean {
-  // Public production must never expose R2 profile photos by guessing object keys.
-  // The production API uses the validated production Neon Data API and checks
-  // Bearer -> profile/tenant privileges before serving bytes.
-  if (env.VERCEL_ENV === "production") return true;
-  return env.VERCEL_ENV === "preview" &&
-    (
-      env.VERCEL_GIT_COMMIT_REF === "fix/qa-triagem-analise-pagamento-20261101" ||
-      env.VERCEL_GIT_COMMIT_REF === "fix/homologacao-geral-sei-dashboard-bank-20261113" ||
-      env.VERCEL_GIT_COMMIT_REF === "qa/avatar-cache-users-premium-20261119"
-    );
+export function enforceAuthenticatedAvatarRead(_env: NodeJS.ProcessEnv = process.env): boolean {
+  return true;
 }
