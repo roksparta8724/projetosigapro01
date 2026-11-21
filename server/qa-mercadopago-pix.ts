@@ -1,0 +1,248 @@
+/**
+ * SIGAPRO isolated QA ONLY: independent Mercado Pago PIX sandbox order for
+ * a DAM previously issued as a test boleto. No production charges or R2 writes.
+ * Localhost:8081 persists a private local file; hosted QA uses a dedicated
+ * Neon SECURITY DEFINER receipt via the restricted QA bank worker.
+ */
+import { createHash } from "node:crypto";
+import {createRequire} from "node:module";
+import {qaMpWebhookDatabaseUrl} from "./mp-qa-webhook.js";
+import {assertQaWorkerLeastPrivilege} from "./mp-webhook-worker-privilege.js";
+import {assertIsolatedQaBankRuntime} from "./qa-hosted-bank-guard.js";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+import type { ApiReq } from "./municipal-storage.js";
+import { callDataApiRpc, getDataApiUrl } from "./municipal-storage.js";
+import { readStoredGuide } from "./guide-persistence.js";
+import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
+import { isValidPixPayload } from "../src/lib/pix.js";
+
+export type QaPixResult = {
+  ok: boolean;
+  sandboxOnly: true;
+  orderId?: string;
+  paymentId?: string;
+  qrCode?: string;
+  environment?: "test";
+  status?: string;
+  error?: string;
+};
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function requireQaEnvironment() {
+  // Hosted QA must be as isolated as localhost:8081, but uses durable Neon
+  // receipts instead of files in a stateless Vercel function.
+  assertIsolatedQaBankRuntime();
+  const url = new URL(getDataApiUrl());
+  if (url.protocol !== "https:" || !url.hostname.startsWith("ep-") ||
+      !url.hostname.includes(".apirest.")) {
+    throw new Error("Neon isolado não identificado.");
+  }
+  return createHash("sha256").update(url.host + url.pathname).digest("hex").slice(0, 20);
+}
+
+const requireNode=createRequire(import.meta.url);
+type PixDb={connect():Promise<void>;end():Promise<void>;
+  query(sql:string,args:unknown[]):Promise<{rows:Array<Record<string,unknown>>}>};
+
+/** One tiny, role-limited DB RPC: no direct SELECT/UPDATE on any finance table. */
+async function hostedPixState(
+  municipalityId:string,guideCode:string,idem:string,
+  action:"get"|"reserve"|"record",state?:Store,
+):Promise<Store|null>{
+  const pg=requireNode("pg") as {Client:new(options:Record<string,unknown>)=>PixDb};
+  const db=new pg.Client({
+    connectionString:qaMpWebhookDatabaseUrl(),
+    connectionTimeoutMillis:4500,statement_timeout:8000,query_timeout:8000,
+    application_name:"sigapro_qa_hosted_pix_receipt",
+  });
+  await db.connect();
+  try{
+    await assertQaWorkerLeastPrivilege(db);
+    const result=await db.query(
+      "SELECT public.qa_pix_sandbox_order_v1($1::uuid,$2::text,$3::uuid,$4::text,"+
+      "$5::text,$6::text,$7::text,$8::text) AS receipt",
+      [municipalityId,guideCode,idem,action,
+       state?.orderId??null,state?.paymentId??null,state?.qrCode??null,state?.status??null],
+    );
+    const value=result.rows[0]?.receipt as Store|null|undefined;
+    return value?.state==="pending"||value?.state==="issued"?value:null;
+  }finally{await db.end();}
+}
+
+type Store = {
+  state: "pending" | "issued";
+  orderId?: string;
+  paymentId?: string;
+  qrCode?: string;
+  status?: string;
+  amount: string;
+  guideCode: string;
+  municipalityId: string;
+};
+
+function pathFor(branch: string, municipalityId: string, guideCode: string) {
+  const key = createHash("sha256").update([branch,municipalityId,guideCode,"mercadopago-pix-qa-v1"].join(":")).digest("hex");
+  return join(homedir(),".sigapro","isolated-qa-pix",branch,key+".json");
+}
+
+async function safeRead(file: string): Promise<Store | null> {
+  try {
+    const value = JSON.parse(await readFile(file,"utf8")) as Store;
+    return value && (value.state === "issued" || value.state === "pending") ? value : null;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+/** Stable key for retrying an uncertain HTTP response without a second PIX order.
+ * Mercado Pago Orders requires X-Idempotency-Key on every creation call. */
+export function qaPixIdempotencyKey(branch: string, municipalityId: string, guideCode: string): string {
+  const hex = createHash("sha256")
+    .update(["sigapro", "pix", "qa", branch, municipalityId, guideCode].join(":"))
+    .digest("hex");
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-8${hex.slice(17,20)}-${hex.slice(20,32)}`;
+}
+
+function response(store: Store | null): QaPixResult {
+  if (!store) return {ok:false,sandboxOnly:true,error:"PIX de teste ainda não emitido."};
+  if (!store.qrCode || !isValidPixPayload(store.qrCode) || !store.orderId) {
+    return {ok:false,sandboxOnly:true,error:"Emissão PIX pendente. A mesma order deve ser consultada; não crie uma nova cobrança."};
+  }
+  return {ok:true,sandboxOnly:true,environment:"test",orderId:store.orderId,
+    paymentId:store.paymentId,qrCode:store.qrCode,status:store.status};
+}
+
+export async function qaMercadoPagoPix(
+  req: ApiReq, input: {municipalityId:string;guideCode:string;action:"get"|"issue"},
+): Promise<QaPixResult> {
+  const branch = requireQaEnvironment();
+  if (!uuidPattern.test(input.municipalityId) || !/^DAM-PRE-[A-Za-z0-9-]{8,100}$/.test(input.guideCode)) {
+    throw new Error("Identificação de guia de homologação inválida.");
+  }
+  const guide = await readStoredGuide(req,input.municipalityId,input.guideCode);
+  if (guide.guide_number !== input.guideCode || guide.municipality_id !== input.municipalityId ||
+      !Number.isFinite(Number(guide.amount)) || Number(guide.amount) <= 0) {
+    throw new Error("Guia original não autorizada para emissão PIX de teste.");
+  }
+  // Use the already-granted QA RPCs, never the private internal guard that
+  // deliberately has no EXECUTE grant for authenticated clients.
+  const authFn = guide.bank_reference
+    ? "qa_authorize_payment_guide_provider_sync_v1"
+    : "qa_authorize_payment_guide_charge_v1";
+  const access = await callDataApiRpc<boolean>(req,authFn,{
+    _municipality_id:input.municipalityId,_guide_code:input.guideCode,
+    ...(guide.bank_reference ? {_bank_reference:guide.bank_reference} : {}),
+  });
+  if (!access.ok || access.payload !== true) throw new Error("Sem autorização para esta guia de homologação.");
+  const hosted=process.env.VERCEL_ENV==="preview";
+  const path=hosted?"":pathFor(branch,input.municipalityId,input.guideCode);
+  const idem=qaPixIdempotencyKey(branch,input.municipalityId,input.guideCode);
+  let stored=hosted
+    ? await hostedPixState(input.municipalityId,input.guideCode,idem,"get")
+    : await safeRead(path);
+  if (input.action==="get" && (!stored || stored.state==="issued" || !stored.orderId)) return response(stored);
+
+  const resolved=await resolveMercadoPagoMunicipalAccessToken(req,input.municipalityId);
+  if(resolved.environment!=="test" || !resolved.token) {
+    throw new Error("Somente credenciais Mercado Pago de TESTE são aceitas.");
+  }
+  const amount=Number(guide.amount).toFixed(2);
+  if(stored && (stored.amount!==amount || stored.municipalityId!==input.municipalityId ||
+      stored.guideCode!==input.guideCode)) throw new Error("O PIX QA não corresponde à guia original.");
+  if(stored?.state==="issued") return response(stored);
+
+  type MercadoPagoQaOrder = {
+    id?: string; message?: string; error?: string; external_reference?: string;
+    total_amount?: string | number; status?: string;
+    transactions?: { payments?: Array<{ id?: string; status?: string; payment_method?: {
+      id?: string; type?: string; qr_code?: string;
+    } }> };
+  };
+  // Provider callback and Neon receipt reconciliation require the exact persisted
+  // guide_number. The former -PIX-QA suffix made every signed event unmatched.
+  const externalReference=input.guideCode;
+  let order: MercadoPagoQaOrder | null = null;
+  if(stored?.orderId){
+    // Recover an already-created order, never create a second one.
+    const res=await fetch("https://api.mercadopago.com/v1/orders/"+encodeURIComponent(stored.orderId),{
+      method:"GET",headers:{Authorization:"Bearer "+resolved.token,Accept:"application/json"},
+      signal:AbortSignal.timeout(12000),
+    });
+    order=res.ok ? await res.json().catch(()=>null) : null;
+    if(!order) throw new Error("A consulta da order PIX pendente falhou. A mesma order será consultada novamente, sem duplicação.");
+  }else{
+    // An existing pending record may mean the provider accepted a POST whose
+    // response was lost. Retrying the SAME idempotency key is safe; changing
+    // the key or deleting the reservation could create a second payment.
+    if(!stored) {
+      if(hosted){
+        stored=await hostedPixState(input.municipalityId,input.guideCode,idem,"reserve");
+        if(!stored)throw new Error("A reserva PIX não foi registrada no Neon QA.");
+      }else{
+        await mkdir(dirname(path),{recursive:true,mode:0o700});
+        const pending:Store={state:"pending",amount,guideCode:input.guideCode,municipalityId:input.municipalityId};
+        try {await writeFile(path,JSON.stringify(pending),{flag:"wx",mode:0o600});}
+        catch(error){
+          if((error as NodeJS.ErrnoException).code==="EEXIST") throw new Error("PIX de teste já está sendo preparado.");
+          throw error;
+        }
+      }
+    }
+    const res=await fetch("https://api.mercadopago.com/v1/orders",{
+      method:"POST",
+      signal:AbortSignal.timeout(12000),
+      headers:{
+        Authorization:"Bearer "+resolved.token,Accept:"application/json",
+        "Content-Type":"application/json",
+        "X-Idempotency-Key":qaPixIdempotencyKey(branch,input.municipalityId,input.guideCode),
+      },
+      body:JSON.stringify({
+        type:"online",
+        processing_mode:"automatic",
+        external_reference:externalReference,
+        total_amount:amount,
+        // Mercado Pago official Orders sandbox: APRO triggers an approved Pix
+        // transition without real funds. This handler is QA TEST-only.
+        payer:{email:"test_payer@example.com",first_name:"APRO"},
+        transactions:{payments:[{amount,payment_method:{id:"pix",type:"bank_transfer"}}]},
+      }),
+    });
+    order=await res.json().catch(()=>null);
+    if(!res.ok){
+      // Never delete a pending reservation: retrying with the same key
+      // avoids creating a second charge after an uncertain provider response.
+      throw new Error("Mercado Pago recusou o PIX de teste (HTTP "+res.status+"): "+
+        String(order?.message || order?.error || "Consulte as credenciais e o método PIX.")+
+        ". A próxima tentativa reutilizará a mesma chave de idempotência.");
+    }
+  }
+  if(!order || typeof order.id!=="string" || order.external_reference!==externalReference ||
+      Number(order.total_amount)!==Number(amount)) {
+    throw new Error("Order PIX de teste não corresponde à guia. Nova emissão bloqueada para evitar duplicação.");
+  }
+  const payment=order.transactions?.payments?.[0];
+  if(!payment) {
+    // Orders may be asynchronous; remember its ID so the next GET can recover
+    // the bank-issued QR rather than issuing another order.
+    stored={state:"pending",amount,guideCode:input.guideCode,municipalityId:input.municipalityId,
+      orderId:String(order.id),status:String(order.status||"processing")};
+    if(hosted)stored=await hostedPixState(input.municipalityId,input.guideCode,idem,"record",stored)??stored;
+    else await writeFile(path,JSON.stringify(stored),{mode:0o600});
+    return response(stored);
+  }
+  if(payment.payment_method?.id!=="pix" || payment.payment_method?.type!=="bank_transfer"){
+    throw new Error("O provedor não retornou uma transação PIX de homologação.");
+  }
+  const qr=String(payment.payment_method.qr_code||"");
+  stored={state:qr&&isValidPixPayload(qr)?"issued":"pending",
+    amount,guideCode:input.guideCode,municipalityId:input.municipalityId,
+    orderId:String(order.id),paymentId:String(payment.id||""),
+    qrCode:qr,status:String(payment.status||order.status||"")};
+  if(hosted)stored=await hostedPixState(input.municipalityId,input.guideCode,idem,"record",stored)??stored;
+  else await writeFile(path,JSON.stringify(stored),{flag:"w",mode:0o600});
+  return response(stored);
+}

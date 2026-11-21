@@ -7,6 +7,10 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { parseMarker } from "@/lib/platform";
+import {
+  MAX_PERSONAL_PROCESS_MARKERS, PERSONAL_PROCESS_MARKER_LIMIT_ERROR,
+  canApplyPersonalProcessMarker, composeProfessionalMarkerLabel, parseProfessionalMarkerSymbol,
+} from "@/lib/processMarkerLimits";
 import { useMarkerPresets, formatMarkerLabel } from "@/hooks/useMarkerPresets";
 import { usePlatformData } from "@/hooks/usePlatformData";
 
@@ -17,6 +21,7 @@ type MarkerSelectorProps = {
   subjectLabel?: string;
   className?: string;
   triggerClassName?: string;
+  showAppliedMarkers?: boolean;
   onApplyMarker?: (markerLabel: string, markerColor: string) => Promise<void> | void;
   onRemoveMarker?: (markerTag: string) => Promise<void> | void;
 };
@@ -28,6 +33,7 @@ export function MarkerSelector({
   subjectLabel = "processo",
   className,
   triggerClassName,
+  showAppliedMarkers = true,
   onApplyMarker,
   onRemoveMarker,
 }: MarkerSelectorProps) {
@@ -50,21 +56,27 @@ export function MarkerSelector({
     () => tags.map((tag) => ({ tag, ...parseMarker(tag) })),
     [tags],
   );
+  const isProcessMarker = Boolean(processId && !onApplyMarker);
+  const personalMarkerLimitReached = isProcessMarker && markers.length >= MAX_PERSONAL_PROCESS_MARKERS;
   const activePresets = useMemo(
     () => presets.filter((preset) => preset.active),
     [presets],
   );
 
-  const handleApplyMarker = async (markerLabel: string, markerColor: string) => {
+  const handleApplyMarker = async (markerLabel: string, markerColor: string, markerEmoji?: string) => {
     if (markerBusy) return;
     setMarkerBusy(markerLabel);
     setActionError(null);
 
     try {
+      const actualLabel = composeProfessionalMarkerLabel(markerLabel, markerEmoji);
+      if (isProcessMarker && !canApplyPersonalProcessMarker(tags, actualLabel)) {
+        throw new Error(PERSONAL_PROCESS_MARKER_LIMIT_ERROR);
+      }
       if (onApplyMarker) {
         await onApplyMarker(markerLabel, markerColor);
       } else if (processId) {
-        await addProcessMarkerWithColor(processId, markerLabel, markerColor, actor);
+        await addProcessMarkerWithColor(processId, actualLabel, markerColor, actor);
       } else {
         throw new Error("Este item não possui destino configurado para marcador.");
       }
@@ -97,7 +109,7 @@ export function MarkerSelector({
 
   return (
     <div className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)}>
-      {markers.slice(0, 2).map((marker) => (
+      {showAppliedMarkers && markers.slice(0, MAX_PERSONAL_PROCESS_MARKERS).map((marker) => (
         <span
           key={marker.tag}
           className="inline-flex max-w-[180px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none shadow-sm"
@@ -108,17 +120,19 @@ export function MarkerSelector({
           }}
           title={marker.label}
         >
-          <Flag
-            className="h-3.5 w-3.5 shrink-0 sig-flag-filled"
-            style={{ color: marker.color, fill: marker.color }}
-          />
-          <span className="truncate">{marker.label}</span>
+          {parseProfessionalMarkerSymbol(marker.label).emoji ? (
+            <span className="text-sm leading-none" aria-hidden="true">{parseProfessionalMarkerSymbol(marker.label).emoji}</span>
+          ) : (
+            <Flag className="h-3.5 w-3.5 shrink-0 sig-flag-filled"
+              style={{ color: marker.color, fill: marker.color }} />
+          )}
+          <span className="truncate">{parseProfessionalMarkerSymbol(marker.label).label}</span>
         </span>
       ))}
 
-      {markers.length > 2 ? (
+      {showAppliedMarkers && markers.length > MAX_PERSONAL_PROCESS_MARKERS ? (
         <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-2 text-[10px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-          +{markers.length - 2}
+          +{markers.length - MAX_PERSONAL_PROCESS_MARKERS}
         </span>
       ) : null}
 
@@ -180,6 +194,12 @@ export function MarkerSelector({
           </div>
 
           <div className="space-y-4 p-4">
+            {isProcessMarker ? (
+              <p role="status" className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] font-semibold text-sky-900">
+                Marcadores individuais: {markers.length}/{MAX_PERSONAL_PROCESS_MARKERS}.
+                {" "}O marcador oficial da situação é automático e não ocupa uma vaga.
+              </p>
+            ) : null}
             {markers.length > 0 ? (
               <section className="rounded-[16px] border border-slate-200 bg-slate-50 p-3">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
@@ -196,8 +216,12 @@ export function MarkerSelector({
                         color: marker.color,
                       }}
                     >
-                      <Flag className="h-3.5 w-3.5 sig-flag-filled" style={{ fill: marker.color }} />
-                      {marker.label}
+                      {parseProfessionalMarkerSymbol(marker.label).emoji ? (
+                        <span className="text-sm leading-none" aria-hidden="true">{parseProfessionalMarkerSymbol(marker.label).emoji}</span>
+                      ) : (
+                        <Flag className="h-3.5 w-3.5 sig-flag-filled" style={{ fill: marker.color }} />
+                      )}
+                      {parseProfessionalMarkerSymbol(marker.label).label}
                       <button
                         type="button"
                         className="inline-flex h-5 w-5 items-center justify-center rounded-full hover:bg-white/80"
@@ -236,22 +260,26 @@ export function MarkerSelector({
                 <div className="mt-3 grid gap-2">
                   {activePresets.map((preset) => {
                     const composedLabel = formatMarkerLabel(preset);
+                    const actualLabel = composeProfessionalMarkerLabel(composedLabel, preset.emoji);
                     const isApplied = markers.some(
-                      (marker) => marker.label.toLowerCase() === composedLabel.toLowerCase(),
+                      (marker) => marker.label.toLowerCase() === actualLabel.toLowerCase(),
                     );
+                    const unavailable = Boolean(personalMarkerLimitReached && !isApplied);
 
                     return (
                       <button
                         key={preset.id}
                         type="button"
-                        onClick={() => void handleApplyMarker(composedLabel, preset.color || "#2563eb")}
-                        disabled={Boolean(markerBusy) || isApplied}
+                        onClick={() => void handleApplyMarker(composedLabel, preset.color || "#2563eb", preset.emoji)}
+                        disabled={Boolean(markerBusy) || isApplied || unavailable}
+                        title={unavailable ? PERSONAL_PROCESS_MARKER_LIMIT_ERROR : undefined}
                         className={cn(
                           "flex min-h-11 items-center justify-between rounded-xl border px-3 py-2 text-left transition",
                           isApplied
                             ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                             : "border-slate-200 bg-white text-slate-700 hover:border-sky-200 hover:bg-sky-50/70",
                           markerBusy && "cursor-wait opacity-70",
+                          unavailable && "cursor-not-allowed opacity-60",
                         )}
                       >
                         <span className="flex min-w-0 items-center gap-2">
@@ -262,13 +290,17 @@ export function MarkerSelector({
                               backgroundColor: `${preset.color || "#2563eb"}14`,
                             }}
                           >
-                            <Flag
-                              className="h-3.5 w-3.5 sig-flag-filled"
-                              style={{
-                                color: preset.color || "#2563eb",
-                                fill: preset.color || "#2563eb",
-                              }}
-                            />
+                            {preset.emoji ? (
+                              <span className="text-base leading-none">{preset.emoji}</span>
+                            ) : (
+                              <Flag
+                                className="h-3.5 w-3.5 sig-flag-filled"
+                                style={{
+                                  color: preset.color || "#2563eb",
+                                  fill: preset.color || "#2563eb",
+                                }}
+                              />
+                            )}
                           </span>
                           <span className="truncate text-[12px] font-semibold">{preset.label}</span>
                         </span>
@@ -276,6 +308,10 @@ export function MarkerSelector({
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700">
                             <Check className="h-3 w-3" />
                             Aplicado
+                          </span>
+                        ) : unavailable ? (
+                          <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-amber-700">
+                            Limite atingido
                           </span>
                         ) : (
                           <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">

@@ -28,8 +28,10 @@ describe("document workspace continuity", () => {
     expect(html).toContain('var isFullDocumentRoute =');
     expect(html).toContain('initialBackground = isFullDocumentRoute ? "#2b3037"');
     expect(html).not.toContain('data-sigapro-document-preboot="true"');
-    expect(permission).toContain('data-document-route-preboot="silent"');
-    expect(permission).toContain('className="min-h-screen bg-[#2b3037]"');
+    expect(permission).toContain('surface="document"');
+    expect(permission).toContain('title="Preparando o documento oficial"');
+    expect(permission).not.toContain('data-document-route-preboot="silent"');
+    expect(html).toContain('html[data-sigapro-document-route="true"] #sigapro-preboot-recovery');
     expect(permission).not.toContain("<DocumentWorkspaceBoot");
   });
 
@@ -187,7 +189,10 @@ describe("analyst PDF markup entry", () => {
     expect(viewer).toContain("analisar?ferramenta=highlight");
     expect(detail).toContain("openDocumentWorkspace");
     expect(detail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
-    expect(detail).toContain('const query = shouldAnalyze ? "?ferramenta=highlight" : ""');
+    expect(detail).toContain("const query = shouldAnalyze");
+    expect(detail).toContain('"?ferramenta=highlight"');
+    expect(detail).toContain('"?ferramenta=navigate&painel=ia"');
+    expect(detail).toContain("const route = shouldAnalyze");
     expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
   });
 

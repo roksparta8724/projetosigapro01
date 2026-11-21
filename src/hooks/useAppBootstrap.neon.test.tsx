@@ -25,7 +25,7 @@ const neonMock = vi.hoisted(() => {
       }],
       error: null,
     };
-    const builder: any = {
+    const builder: {is: ReturnType<typeof vi.fn>; eq: ReturnType<typeof vi.fn>; then: (resolve: (value: typeof result) => unknown, reject?: (reason: unknown) => unknown) => Promise<unknown>} = {
       is: vi.fn(() => builder),
       eq: vi.fn(() => builder),
       then: (resolve: (value: typeof result) => unknown, reject?: (reason: unknown) => unknown) =>
@@ -34,7 +34,7 @@ const neonMock = vi.hoisted(() => {
     return builder;
   };
 
-  const client: any = {
+  const client = {
     auth: {
       getSession: vi.fn(async () => ({ data: { session: null } })),
       getUser: vi.fn(async () => ({ data: { user: null }, error: null })),
@@ -48,7 +48,7 @@ const neonMock = vi.hoisted(() => {
         return { data: { subscription: { unsubscribe: vi.fn() } } };
       }),
     },
-    rpc: vi.fn(async (name: string) => {
+    rpc: vi.fn(async (name: string): Promise<{ data: unknown; error: null }> => {
       if (name === "get_current_profile_context") return { data: { profile_id: profileId, role: "prefeitura_admin", municipality_id: municipalityId, account_status: "active", email: authUser.email, full_name: "Prefeitura Admin", access_level: 3 }, error: null };
       if (name === "mark_current_profile_access") return { data: true, error: null };
       throw new Error(`Unexpected RPC: ${name}`);

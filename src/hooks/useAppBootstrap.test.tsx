@@ -48,7 +48,7 @@ const authMock = vi.hoisted(() => {
       }
       if (table === "tenant_memberships") {
         const result = { data: [], error: null };
-        const builder: any = {
+        const builder: {is: ReturnType<typeof vi.fn>; eq: ReturnType<typeof vi.fn>; then: (resolve: (value: typeof result) => unknown, reject?: (reason: unknown) => unknown) => Promise<unknown>} = {
           is: vi.fn(() => builder),
           eq: vi.fn(() => builder),
           then: (resolve: (value: typeof result) => unknown, reject?: (reason: unknown) => unknown) =>

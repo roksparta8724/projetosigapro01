@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useLayoutEffect, useState } from "react";
 import {
   BadgeCheck,
   CheckCircle2,
@@ -14,12 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
-import { usePlatformData } from "@/hooks/usePlatformData";
-import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useTenant } from "@/hooks/useTenant";
-import type { PlanModuleName } from "@/lib/planEntitlements";
-import { getRoleLandingPath } from "@/lib/platform";
-import { hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+
+import { verifyLoginLandingAccess } from "@/lib/loginLandingAccess";
+import { backendClient } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
 const institutionalHighlights = [
@@ -48,8 +46,6 @@ const institutionalHighlights = [
 export function AcessoPage() {
   const navigate = useNavigate();
   const { signIn } = useAuthGateway();
-  const { dataReadyForCurrentUser, dataError } = usePlatformData();
-  const entitlements = usePlanEntitlements();
   const tenant = useTenant();
   const [searchParams] = useSearchParams();
 
@@ -57,81 +53,74 @@ export function AcessoPage() {
   const tenantQuery =
     tenant.mode === "tenant" || !tenantSlug ? "" : `?tenant=${tenantSlug}`;
 
-  const [email, setEmail] = useState(hasSupabaseEnv ? "" : "roksparta02@gmail.com");
-  const [password, setPassword] = useState(hasSupabaseEnv ? "" : "Sigapro@2026");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!pendingRedirect) return;
-
-    if (dataError && !dataReadyForCurrentUser) {
-      setError("A conta foi autenticada, mas os dados institucionais ainda não puderam ser sincronizados. Tente novamente.");
-      setSubmitting(false);
-      setPendingRedirect(null);
-      return;
-    }
-
-    if (
-      tenant.loading ||
-      !dataReadyForCurrentUser ||
-      entitlements.isResolving
-    ) {
-      return;
-    }
-
-    const requiredModule = getRequiredModuleForRedirect(pendingRedirect);
-    if (
-      requiredModule &&
-      !entitlements.isMaster &&
-      !entitlements.canUseModule(requiredModule)
-    ) {
-      setError(
-        entitlements.contractReason ||
-          "A conta foi autenticada, mas o módulo ainda não está liberado para esta Prefeitura.",
-      );
-      setSubmitting(false);
-      setPendingRedirect(null);
-      return;
-    }
-
-    navigate(pendingRedirect, { replace: true });
-  }, [
-    dataError,
-    dataReadyForCurrentUser,
-    entitlements,
-    navigate,
-    pendingRedirect,
-    tenant.loading,
-  ]);
+  // Avoid inheriting the previous process page's scroll offset on login.
+  useLayoutEffect(() => {
+    const prior = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+    return () => { window.history.scrollRestoration = prior; };
+  }, []);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
     setError("");
 
-    let keepSubmitting = false;
     try {
       const result = await signIn(email, password);
       if (!result.ok) {
-        setError(result.message ?? "Nao foi possivel entrar.");
+        setError(result.message ?? "Não foi possível autenticar.");
         return;
       }
 
-      keepSubmitting = true;
-      setPendingRedirect(resolveRedirect(result.role ?? null));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao autenticar.";
-      setError(message);
+      if (!backendClient) {
+        setError("O banco institucional está indisponível para validar o acesso.");
+        return;
+      }
+
+      const role = result.role ?? null;
+      // Resolve the permission check BEFORE asking the browser to download
+      // the authenticated page. Eagerly fetching a multi-MB dashboard bundle
+      // competes with Neon Auth on slow connections and blocks the main thread.
+      // React.lazy loads only the permitted route immediately after navigation.
+      // O login NÃO precisa esperar 30+ consultas do store operacional, guias
+      // e histórico. Para prefeitura/externo, a RPC oficial confirma tanto
+      // vínculo ativo quanto o módulo do contrato. Master usa perfil já
+      // validado no get_current_profile_context. Permissões de rota/API
+      // continuam independentes desta verificação de entrada.
+      const decision = await verifyLoginLandingAccess(
+        role,
+        result.municipalityId ?? null,
+        async (method, args) => {
+          const response = await backendClient.rpc(method, args);
+          return {
+            data: response.data,
+            error: response.error ? { message: response.error.message } : null,
+          };
+        },
+      );
+      if (decision.ok === false) {
+        setError(decision.message);
+        return;
+      }
+
+      navigate(decision.path, { replace: true });
+    } catch {
+      setError("Não foi possível concluir o acesso institucional. Confirme sua conexão e tente novamente.");
     } finally {
-      if (!keepSubmitting) setSubmitting(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#06111d] text-slate-100">
+    <div data-sigapro-public-login="true" className="min-h-screen bg-[#06111d] text-slate-100">
       <div className="relative min-h-screen overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -149,21 +138,21 @@ export function AcessoPage() {
           </div>
         </div>
 
-        <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-6 py-6 sm:px-8 lg:px-10 xl:px-12">
+        <div className="relative z-10 flex min-h-screen w-full items-start justify-center px-6 py-5 sm:px-8 lg:px-10 xl:px-12">
           <div className="grid w-full max-w-[1420px] grid-cols-1 items-start gap-10 min-[900px]:grid-cols-[minmax(0,1.18fr)_400px] min-[900px]:gap-10 min-[1200px]:max-w-[1460px] min-[1200px]:grid-cols-[minmax(0,1.35fr)_minmax(420px,440px)] min-[1200px]:gap-14 xl:gap-16">
             <section className="min-w-0 overflow-hidden">
-              <div className="flex w-full max-w-[760px] flex-col items-start gap-9 min-[1200px]:max-w-[880px] min-[1200px]:gap-10 xl:gap-11">
-                <div className="inline-flex h-10 w-fit items-center rounded-full border border-white/20 bg-white/[0.07] px-5 text-[11px] font-semibold uppercase tracking-[0.24em] text-white shadow-[0_10px_28px_rgba(3,8,15,0.16)] backdrop-blur-md">
+              <div className="flex w-full max-w-[760px] flex-col items-start gap-5 min-[1200px]:max-w-[880px] min-[1200px]:gap-6">
+                <div className="inline-flex h-9 w-fit items-center rounded-full border border-white/20 bg-white/[0.07] px-5 text-[11px] font-semibold uppercase tracking-[0.24em] text-white shadow-[0_10px_28px_rgba(3,8,15,0.16)] backdrop-blur-md">
                   Plataforma institucional de aprovacao de projetos
                 </div>
 
-                <div className="grid w-full max-w-[760px] grid-cols-[140px_minmax(0,1fr)] items-center gap-6 rounded-[30px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.06)_100%)] px-6 py-5 shadow-[0_18px_40px_rgba(2,6,23,0.18)] backdrop-blur-[10px]">
-                  <div className="flex h-[140px] w-[140px] shrink-0 items-center justify-center rounded-[28px] bg-white p-4 shadow-[0_18px_36px_rgba(15,23,42,0.18)]">
+                <div className="grid w-full max-w-[760px] grid-cols-[104px_minmax(0,1fr)] items-center gap-5 rounded-[24px] border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.06)_100%)] px-5 py-4 shadow-[0_18px_40px_rgba(2,6,23,0.18)] backdrop-blur-[10px]">
+                  <div className="flex h-[104px] w-[104px] shrink-0 items-center justify-center rounded-[20px] bg-white p-3 shadow-[0_18px_36px_rgba(15,23,42,0.18)]">
                     <SigaproLogo
                       bare
                       compact
                       showInternalWordmark
-                      className="scale-[2.3]"
+                      className="scale-[1.75]"
                     />
                   </div>
 
@@ -178,8 +167,8 @@ export function AcessoPage() {
                   </div>
                 </div>
 
-                <div className="max-w-[860px] space-y-5">
-                  <h1 className="sig-public-display max-w-[26ch] text-[clamp(2.15rem,3vw,3.25rem)] text-white">
+                <div className="max-w-[860px] space-y-3">
+                  <h1 className="sig-public-display max-w-[28ch] text-[clamp(2rem,2.6vw,2.75rem)] leading-[1.11] text-white">
                     Aprovação digital de projetos com padrão institucional e operação integrada.
                   </h1>
 
@@ -190,16 +179,16 @@ export function AcessoPage() {
                   </p>
                 </div>
 
-                <div className="grid w-full max-w-[650px] grid-cols-1 gap-5 sm:grid-cols-2 min-[1200px]:max-w-[690px]">
+                <div className="grid w-full max-w-[650px] grid-cols-1 gap-3 sm:grid-cols-2 min-[1200px]:max-w-[690px]">
                   {institutionalHighlights.map((item) => {
                     const Icon = item.icon;
 
                     return (
                       <div
                         key={item.title}
-                        className="group flex min-h-[168px] w-full min-w-0 flex-col justify-between overflow-hidden rounded-[26px] border border-white/25 bg-[linear-gradient(180deg,rgba(13,35,60,0.98)_0%,rgba(10,27,46,0.95)_100%)] px-5 py-5 shadow-[0_24px_60px_rgba(2,8,15,0.35)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-[2px] hover:border-white/35 hover:shadow-[0_30px_70px_rgba(4,12,20,0.42)] min-[1200px]:min-h-[176px] min-[1200px]:px-6 min-[1200px]:py-6"
+                        className="group flex min-h-[136px] w-full min-w-0 flex-col justify-between overflow-hidden rounded-[26px] border border-white/25 bg-[linear-gradient(180deg,rgba(13,35,60,0.98)_0%,rgba(10,27,46,0.95)_100%)] px-5 py-5 shadow-[0_24px_60px_rgba(2,8,15,0.35)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-[2px] hover:border-white/35 hover:shadow-[0_30px_70px_rgba(4,12,20,0.42)] min-[1200px]:min-h-[142px] min-[1200px]:px-6 min-[1200px]:py-6"
                       >
-                        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-[16px] bg-white text-slate-950 shadow-md">
+                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-[16px] bg-white text-slate-950 shadow-md">
                           <Icon className="h-[18px] w-[18px]" />
                         </div>
 
@@ -219,7 +208,7 @@ export function AcessoPage() {
               </div>
             </section>
 
-            <section className="flex min-w-0 items-start justify-center pt-4 min-[900px]:pt-5">
+            <section className="flex min-w-0 items-start justify-center pt-0">
               <div className="flex w-full justify-center self-start">
                 <div className="w-full max-w-[392px] min-[1200px]:max-w-[424px]">
                   <div className="mb-5 flex items-center justify-center lg:hidden">
@@ -228,18 +217,18 @@ export function AcessoPage() {
                     </div>
                   </div>
 
-                  <Card className="mx-auto overflow-hidden rounded-[32px] border border-slate-200/90 bg-white shadow-[0_40px_104px_rgba(15,23,42,0.18)]">
-                    <CardHeader className="space-y-6 px-9 pb-0 pt-9">
-                      <div className="flex h-[60px] w-[60px] items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#0f172a_0%,#16365a_100%)] text-white shadow-[0_18px_36px_rgba(15,23,42,0.16)]">
+                  <Card className="mx-auto overflow-hidden rounded-[25px] border border-slate-200/90 bg-white shadow-[0_40px_104px_rgba(15,23,42,0.18)]">
+                    <CardHeader className="space-y-4 px-7 pb-0 pt-6">
+                      <div className="flex h-[50px] w-[50px] items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#0f172a_0%,#16365a_100%)] text-white shadow-[0_18px_36px_rgba(15,23,42,0.16)]">
                         <BadgeCheck className="h-6 w-6" />
                       </div>
 
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                           ACESSO SEGURO
                         </p>
 
-                        <CardTitle className="text-[1.78rem] font-semibold leading-tight tracking-[-0.03em] text-slate-950">
+                        <CardTitle className="text-[1.5rem] font-semibold leading-tight tracking-[-0.03em] text-slate-950">
                           ENTRAR NO SISTEMA
                         </CardTitle>
 
@@ -250,8 +239,8 @@ export function AcessoPage() {
 
                     </CardHeader>
 
-                    <CardContent className="px-9 pb-9 pt-7">
-                        <form className="w-full space-y-6 border-t border-slate-200 pt-7" onSubmit={handleSubmit}>
+                    <CardContent className="px-7 pb-7 pt-5">
+                        <form className="w-full space-y-4 border-t border-slate-200 pt-5" onSubmit={handleSubmit}>
                           <div className="space-y-2">
                             <Label htmlFor="email" className="text-sm font-medium text-slate-500">
                               E-mail
@@ -298,8 +287,14 @@ export function AcessoPage() {
                           </div>
 
                           {error ? (
-                            <div className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                              {error}
+                            <div role="alert" className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                              <p>{error}</p>
+                              {/serviço de autenticação indisponível|neon auth indisponível/i.test(error) ? (
+                                <button type="button" className="mt-2 font-semibold underline underline-offset-2"
+                                  onClick={() => window.location.reload()}>
+                                  Carregar versão atual da homologação
+                                </button>
+                              ) : null}
                             </div>
                           ) : null}
 
@@ -347,15 +342,3 @@ export function AcessoPage() {
   );
 }
 
-function getRequiredModuleForRedirect(path: string): PlanModuleName | null {
-  if (path === "/prefeitura") return "Configurações";
-  if (path.startsWith("/prefeitura/analise")) return "Analise tecnica";
-  if (path.startsWith("/prefeitura/financeiro")) return "Financeiro";
-  if (path.startsWith("/prefeitura/protocolos")) return "Protocolo digital";
-  if (path.startsWith("/externo") || path.startsWith("/proprietario")) return "Acesso externo";
-  return null;
-}
-
-function resolveRedirect(role: string | null) {
-  return getRoleLandingPath(role);
-}

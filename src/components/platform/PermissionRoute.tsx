@@ -7,16 +7,19 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole } from "@/lib/platform";
-import type { Permission, SessionUser } from "@/lib/platform";
+import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole, roleLabels } from "@/lib/platform";
+import type { Permission, SessionUser, UserRole } from "@/lib/platform";
 import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 
 export function PermissionRoute({
   permission,
   children,
+  allowedRoles,
 }: {
   permission: Permission;
   children: React.ReactNode;
+  allowedRoles?: readonly UserRole[];
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,14 +45,32 @@ export function PermissionRoute({
       Boolean(session.email)
     );
 
+  // Do not decide Master access from a cached municipal role while the
+  // authenticated profile is still being verified. This is an authorization
+  // boundary: a continuity snapshot must NEVER render Master prematurely.
+  const requiresMasterPermission =
+    permission === "view_master_dashboard" || permission === "manage_commercial_plans";
+  // A Master who is already authenticated must keep the current workspace
+  // mounted during background revalidation. Only a session with no verified
+  // Master context (e.g. stale municipal cache on a new login) waits.
+  const hasStableAuthenticatedMasterView =
+    isAuthenticated &&
+    (session.role === "master_admin" || session.role === "master_ops") &&
+    hasStableAuthenticatedView;
+  const isPlatformIdentityResolving =
+    requiresMasterPermission &&
+    !hasStableAuthenticatedMasterView &&
+    (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading);
+
   const isInitialAccessResolution =
-    !hasStableAuthenticatedView &&
-    (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading);
+    isPlatformIdentityResolving ||
+    (!hasStableAuthenticatedView &&
+      (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading));
 
   if (isInitialAccessResolution) {
     // F5/reload da MESMA conta e MESMA rota: nunca desmontar a árvore real.
     // A identidade continua sendo revalidada pelo bootstrap em segundo plano.
-    if (hasValidRefreshContinuity()) {
+    if (hasValidRefreshContinuity() && !allowedRoles && !requiresMasterPermission) {
       return <>{children}</>;
     }
 
@@ -57,20 +78,25 @@ export function PermissionRoute({
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.exec(location.pathname);
 
     if (documentRoute) {
-      // Cold start da guia documental: mantenha somente o canvas neutro.
-      // A tela falsa de carregamento foi removida para que o usuário passe
-      // diretamente do processo para o PDF real quando a sessão terminar de validar.
+      // Um PDF restrito também deve dar feedback sem expor dados antes da autenticação.
       return (
-        <div
-          data-document-route-preboot="silent"
-          className="min-h-screen bg-[#2b3037]"
-          aria-hidden="true"
+        <SecureRoutePending
+          surface="document"
+          title="Preparando o documento oficial"
+          detail="Verificando se sua sessão tem autorização para abrir este documento."
         />
       );
     }
 
-    // Cold start real sem continuidade: não liberar conteúdo antes da identidade.
-    return null;
+    // A identidade continua bloqueando conteúdo, mas nunca exibir uma tela vazia.
+    return (
+      <SecureRoutePending
+        title={bootstrap.stage === "bootstrap_error" ? "Não foi possível validar o acesso" : "Validando o acesso municipal"}
+        detail={bootstrap.stage === "bootstrap_error"
+          ? "A autenticação não foi concluída. Use Recarregar ou volte ao acesso para tentar novamente."
+          : "Estamos verificando a sessão e o vínculo com a Prefeitura. Nenhum processo fica visível antes da confirmação."}
+      />
+    );
   }
 
 
@@ -189,7 +215,8 @@ export function PermissionRoute({
     (!isAdminOnlyMunicipalPath &&
       (!requiredOperationalArea || canAccessMunicipalArea(session, requiredOperationalArea)));
 
-  if (!isActuallyBlocked && can(session, permission) && departmentRouteAllowed) {
+  if (!isActuallyBlocked && can(session, permission) && departmentRouteAllowed &&
+      (!allowedRoles || allowedRoles.includes(session.role))) {
     return <>{children}</>;
   }
 
@@ -214,10 +241,20 @@ export function PermissionRoute({
           ) : (
             <>
               <p className="mt-3 text-sm text-slate-600">
-                Esta area exige um perfil diferente do seu acesso atual. Isso nao significa bloqueio da conta.
+                {requiresMasterPermission
+                  ? "A área Master é reservada aos perfis Administrador Geral ou Operação Geral da plataforma."
+                  : "Esta area exige um perfil diferente do seu acesso atual. Isso nao significa bloqueio da conta."}
+              </p>
+              <p className="mt-2 text-sm text-slate-700">
+                Perfil atualmente reconhecido:{" "}
+                <strong data-active-access-role="true" className="font-semibold text-slate-950">
+                  {roleLabels[session.role] ?? "Não identificado"}
+                </strong>
               </p>
               <p className="mt-2 text-sm text-slate-500">
-                Se voce quiser entrar com outra conta, acesse novamente para trocar de usuario.
+                {requiresMasterPermission
+                  ? "Para entrar no Master, utilize uma conta da plataforma autorizada. Caso você já tenha esse perfil, faça uma nova autenticação para atualizar a sessão."
+                  : "Se voce quiser entrar com outra conta, acesse novamente para trocar de usuario."}
               </p>
             </>
           )}

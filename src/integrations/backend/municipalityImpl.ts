@@ -132,7 +132,7 @@ export function mapMunicipalityBranding(record: Record<string, unknown>): Munici
   };
 }
 
-function mapMunicipalitySettings(record: Record<string, unknown>): MunicipalitySettings {
+export function mapMunicipalitySettings(record: Record<string, unknown>): MunicipalitySettings {
   const readString = (key: string, fallback = "") =>
     typeof record[key] === "string" ? (record[key] as string) : fallback;
 

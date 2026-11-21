@@ -77,7 +77,10 @@ describe("professional process workspace", () => {
     expect(detail).toContain('session.role === "profissional_externo" ||');
     expect(detail).toContain("Financeiro do processo");
     expect(detail).toContain("somente as guias liberadas oficialmente");
-    expect(detail).toContain('guide.status === "compensada" ? "Pago / compensado" : "Em aberto"');
+    expect(detail).toContain('isFinancialTestGuide(guide)');
+    expect(detail).toContain('"Simulação QA — não paga em banco"');
+    expect(detail).toContain('"Compensada no sistema"');
+    expect(detail).not.toContain('guide.status === "compensada" ? "Pago / compensado" : "Em aberto"');
   });
 });
 

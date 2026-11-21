@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import type { ProcessRecord, SessionUser } from "@/lib/platform";
+import { resolveVerifiedHabiteSePrint } from "@/lib/habiteSeSignedSnapshot";
 import { userCanSignPermitAsDirector, userCanSignPermitAsSecretary } from "@/lib/constructionPermit";
 import {
   openHabiteSePermitPdf,
@@ -247,7 +248,10 @@ export function HabiteSePermitPanel({
     () => mergeAutomaticPermitForm(process, null, initialVisual?.form),
   );
   // Permissão operacional continua sendo revalidada no banco.
-  const [canManage, setCanManage] = useState(false);
+  const [canManageFromServer, setCanManage] = useState(false);
+  // O administrador da Prefeitura consulta processos; não assina, altera ou arquiva.
+  const isReadOnlyMunicipalAdmin = ["prefeitura_admin", "admin_prefeitura", "admin_municipality"].includes(session.role);
+  const canManage = canManageFromServer && !isReadOnlyMunicipalAdmin;
   const [signatureState, setSignatureState] = useState<ArtifactSignatureSnapshot>(
     () => initialVisual?.signatureState ?? { block: null, signers: [] },
   );
@@ -262,7 +266,9 @@ export function HabiteSePermitPanel({
   const [lifecycleStatus, setLifecycleStatus] = useState<ProcessRecord["status"]>(process.status);
   const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
-  const lifecycleCompleted = ["deferido", "arquivado"].includes(lifecycleStatus);
+  // Emitido/deferido não significa encerramento administrativo. Somente a RPC
+  // complete_habite_se_process_v1 pode registrar a fase terminal arquivado.
+  const lifecycleCompleted = lifecycleStatus === "arquivado";
 
   useEffect(() => {
     setLifecycleStatus(process.status);
@@ -327,9 +333,11 @@ export function HabiteSePermitPanel({
   const isDirector = userCanSignPermitAsDirector(session);
   const isSecretary = userCanSignPermitAsSecretary(session);
   const canCloseProcess =
-    canManage ||
-    isDirector ||
-    ["prefeitura_admin", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role);
+    !isReadOnlyMunicipalAdmin && (
+      canManage ||
+      isDirector ||
+      ["prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role)
+    );
 
   const refresh = async () => {
     const snapshot = await getHabiteSePermit(process.id);
@@ -493,20 +501,31 @@ export function HabiteSePermitPanel({
     [form, permit, process],
   );
   const signedPayload = signatureState.block?.payload ?? null;
-  const signatureMatchesCurrent =
-    Boolean(currentPayload && signedPayload) &&
-    stableStringify(currentPayload) === stableStringify(signedPayload);
-  const directorSigner = signatureMatchesCurrent
-    ? signatureState.signers.find((item) => item.slot === "diretoria")
-    : undefined;
-  const secretarySigner = signatureMatchesCurrent
-    ? signatureState.signers.find((item) => item.slot === "secretaria")
-    : undefined;
-  const directorSigned = Boolean(directorSigner) || permit?.status === "emitido";
+  const verifiedIssuedPrint = permit?.status === "emitido"
+    ? resolveVerifiedHabiteSePrint(process, permit, signatureState)
+    : null;
+  const signatureMatchesCurrent = permit?.status === "emitido"
+    ? Boolean(verifiedIssuedPrint)
+    : Boolean(currentPayload && signedPayload) &&
+      stableStringify(currentPayload) === stableStringify(signedPayload);
+  const directorSigner = permit?.status === "emitido"
+    ? verifiedIssuedPrint?.director
+    : signatureMatchesCurrent
+      ? signatureState.signers.find((item) => item.slot === "diretoria")
+      : undefined;
+  const secretarySigner = permit?.status === "emitido"
+    ? verifiedIssuedPrint?.secretary ?? undefined
+    : signatureMatchesCurrent
+      ? signatureState.signers.find((item) => item.slot === "secretaria")
+      : undefined;
+  const directorSigned = Boolean(directorSigner);
   const secretarySigned = Boolean(secretarySigner);
-  const effectivePermitStatus = directorSigned ? "emitido" : permit?.status || "rascunho";
-  const effectiveDirectorName =
-    directorSigner?.name || permit?.directorName || null;
+  const issuedSignatureUnverified = permit?.status === "emitido" && !directorSigned;
+  const effectivePermitStatus = issuedSignatureUnverified
+    ? "verificacao_pendente"
+    : directorSigned ? "emitido" : permit?.status || "rascunho";
+  const effectiveDirectorName = issuedSignatureUnverified
+    ? null : directorSigner?.name || permit?.directorName || null;
 
   useEffect(() => {
     if (
@@ -703,7 +722,7 @@ export function HabiteSePermitPanel({
     setNotice("");
     try {
       await onCompleteProcess();
-      setLifecycleStatus("deferido");
+      setLifecycleStatus("arquivado");
       window.dispatchEvent(new Event("sigapro:data-changed"));
       await onProcessRefresh?.();
       setNotice("");
@@ -751,7 +770,7 @@ export function HabiteSePermitPanel({
 
   const openOfficialDocument = async (autoPrint = false) => {
     if (!permit) return;
-
+    const issued = permit.status === "emitido";
     const reservedWindow = reserveHabiteSePermitPdfWindow({
       permit,
       process,
@@ -768,10 +787,28 @@ export function HabiteSePermitPanel({
     setNotice("");
 
     try {
+      // Never sign or print a stale client cache as though it were the
+      // official director-signed version. Refresh BOTH server snapshots.
+      const official = issued
+        ? await Promise.all([
+            getHabiteSePermit(process.id),
+            getProcessArtifactSignatures(process.id, ARTIFACT_KEY),
+          ]).then(([saved, signature]) =>
+            resolveVerifiedHabiteSePrint(process, saved.permit, signature))
+        : null;
+      if (issued && !official) {
+        throw new Error(
+          "PDF oficial bloqueado: não foi possível conferir a versão assinada pela Diretoria. O documento não será reconstruído.",
+        );
+      }
+      const pdfPermit = official?.permit ?? permit;
+      const pdfProcess = official?.process ?? process;
+      const officialDirector = official?.director ?? directorSigner;
+      const officialSecretary = official?.secretary ?? secretarySigner;
       await openHabiteSePermitPdf(
         {
-          permit,
-          process,
+          permit: pdfPermit,
+          process: pdfProcess,
           municipalityName: municipalityName || "Prefeitura Municipal",
           municipalityLogoUrl,
           municipalityAddress,
@@ -779,30 +816,28 @@ export function HabiteSePermitPanel({
           municipalityEmail,
           secretariat,
           directorate,
-          directorSignature: directorSigner
+          directorSignature: officialDirector
             ? {
-                name: directorSigner.name,
-                role: directorSigner.role,
-                title: directorSigner.title,
-                registration: directorSigner.registration,
-                signedAt: directorSigner.signed_at,
+                name: officialDirector.name,
+                role: officialDirector.role,
+                title: officialDirector.title,
+                registration: officialDirector.registration,
+                signedAt: officialDirector.signed_at,
               }
             : null,
-          secretarySignature: secretarySigner
+          secretarySignature: officialSecretary
             ? {
-                name: secretarySigner.name,
-                role: secretarySigner.role,
-                title: secretarySigner.title,
-                registration: secretarySigner.registration,
-                signedAt: secretarySigner.signed_at,
+                name: officialSecretary.name,
+                role: officialSecretary.role,
+                title: officialSecretary.title,
+                registration: officialSecretary.registration,
+                signedAt: officialSecretary.signed_at,
               }
             : null,
-          verificationCode: signatureMatchesCurrent
-            ? signatureState.block?.verification_code
-            : null,
-          evidenceHash: signatureMatchesCurrent
-            ? signatureState.block?.artifact_hash
-            : null,
+          verificationCode: official?.verificationCode ??
+            (signatureMatchesCurrent ? signatureState.block?.verification_code : null),
+          evidenceHash: official?.evidenceHash ??
+            (signatureMatchesCurrent ? signatureState.block?.artifact_hash : null),
         },
         reservedWindow,
       );
@@ -820,6 +855,7 @@ export function HabiteSePermitPanel({
         }, 900);
       }
     } catch (error) {
+      if (issued && reservedWindow && !reservedWindow.closed) reservedWindow.close();
       setNotice(
         error instanceof Error
           ? error.message
@@ -891,29 +927,36 @@ export function HabiteSePermitPanel({
                   ? "Emitido pela Diretoria"
                   : effectivePermitStatus === "aguardando_diretor"
                     ? "Aguardando Diretoria"
-                    : "Em elaboração"}
+                    : effectivePermitStatus === "verificacao_pendente"
+                      ? "Conferência da assinatura"
+                      : "Em elaboração"}
               </span>
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-5 p-5">
+          {issuedSignatureUnverified ? (
+            <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-950 dark:border-amber-500/50 dark:bg-amber-950/40 dark:text-amber-100">
+              A emissão está registrada, mas a cópia assinada ainda não foi validada nesta sessão. Para consultar o documento oficial, use Abrir PDF oficial; o SIGAPRO verificará novamente a versão e a assinatura no servidor antes da abertura.
+            </div>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Número</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{permit?.permitNumber || "Gerado ao salvar"}</p>
+            <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
+              <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Número</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{permit?.permitNumber || "Gerado ao salvar"}</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Área certificada</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{Number(process.property.area || 0).toLocaleString("pt-BR")} m²</p>
+            <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
+              <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Área certificada</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{issuedSignatureUnverified ? "Aguardando conferência" : Number(verifiedIssuedPrint?.process.property.area ?? process.property.area ?? 0).toLocaleString("pt-BR") + " m²"}</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Analista responsável</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{permit?.analystName || process.analysis?.assignedTo || "Aguardando"}</p>
+            <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
+              <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Analista responsável</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{permit?.analystName || process.analysis?.assignedTo || "Aguardando"}</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Diretoria</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{effectiveDirectorName || (directorRequestPending ? "Assinatura pendente" : "Aguardando encaminhamento")}</p>
+            <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
+              <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Diretoria</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{effectiveDirectorName || (directorRequestPending ? "Assinatura pendente" : "Aguardando encaminhamento")}</p>
             </div>
           </div>
 

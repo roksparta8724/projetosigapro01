@@ -7,7 +7,8 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
 import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
 import { getMunicipalityBrandingSafe } from "@/integrations/backend/platform";
-import { mapMunicipalityBranding } from "@/integrations/backend/municipality";
+import { mapMunicipalityBranding, mapMunicipalitySettings } from "@/integrations/backend/municipality";
+import { backendClient } from "@/integrations/backend/databaseClient";
 import {
   buildTenantSettingsFromMunicipality,
   getMunicipalityTheme,
@@ -45,6 +46,10 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
     bootstrap.scopeType === "platform" ? null : bootstrap.municipalityBundle ?? tenant.municipalityBundle ?? null;
   const loading = bootstrap.loading || tenant.loading;
   const [resolvedBranding, setResolvedBranding] = useState<MunicipalityBranding | null>(null);
+  // The app bootstrap bundle is a snapshot. After an administrator updates only
+  // the zoom/offset, the image URL is unchanged, but settings MUST refresh too.
+  const [resolvedSettings, setResolvedSettings] = useState<MunicipalitySettings | null>(null);
+  const brandingRefreshGeneration = useRef(0);
   const brandingResolveRef = useRef<{ headerKey: string; footerKey: string }>({
     headerKey: "",
     footerKey: "",
@@ -83,11 +88,26 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
       if (detail?.municipalityId && detail.municipalityId !== bundle?.municipality?.id) return;
       const municipalityId = detail?.municipalityId || bundle?.municipality?.id;
       if (!municipalityId) return;
+      const generation = ++brandingRefreshGeneration.current;
       brandingFetchRef.current = { id: "", inFlight: false };
       brandingResolveRef.current = { headerKey: "", footerKey: "" };
+      // Reload BOTH tables: municipality_branding contains image references,
+      // municipality_settings.general_settings stores the actual framing.
       void (async () => {
-        const fetched = await getMunicipalityBrandingSafe(municipalityId);
-        if (!fetched || !active) return;
+        const [fetched, settingsResponse] = await Promise.all([
+          getMunicipalityBrandingSafe(municipalityId),
+          backendClient
+            ? backendClient.from("municipality_settings").select("*")
+                .eq("municipality_id", municipalityId).maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+        if (!active || generation !== brandingRefreshGeneration.current) return;
+        if (settingsResponse.error) {
+          console.warn("[SIGAPRO] Não foi possível atualizar o enquadramento municipal após salvar.");
+        } else if (settingsResponse.data) {
+          setResolvedSettings(mapMunicipalitySettings(settingsResponse.data as Record<string, unknown>));
+        }
+        if (!fetched) return;
         let next = mapMunicipalityBranding(fetched);
         const bucket = (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
         for (const variant of ["header", "footer"] as const) {
@@ -97,11 +117,13 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
             const url = getPublicUrl(objectKey) || await getSignedUrlForObject({ bucket, objectKey });
             if (url) next = { ...next, [variant === "header" ? "headerLogoUrl" : "footerLogoUrl"]: url };
           } catch {
-            // Keep the saved metadata; the card will use its neutral fallback.
+            // Retain official object key; no fallback to another municipality.
           }
         }
-        if (active) setResolvedBranding(next);
-      })();
+        if (active && generation === brandingRefreshGeneration.current) setResolvedBranding(next);
+      })().catch((error) => {
+        console.warn("[SIGAPRO] Falha ao revalidar identidade institucional após salvar", error);
+      });
     };
     window.addEventListener("sigapro-branding-updated", handler as EventListener);
     return () => {
@@ -245,7 +267,9 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
     const branding = resolvedBranding?.municipalityId === (municipality?.id ?? activeInstitutionId)
       ? resolvedBranding
       : bundle?.branding ?? null;
-    const settings = bundle?.settings ?? null;
+    const settings = resolvedSettings?.municipalityId === (municipality?.id ?? activeInstitutionId)
+      ? resolvedSettings
+      : bundle?.settings ?? null;
     const tenantSettingsCompat = buildTenantSettingsFromMunicipality(
       municipality,
       branding,
@@ -267,7 +291,7 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
       name: municipality?.name || institution?.name || "SIGAPRO",
       theme,
     };
-  }, [activeInstitutionId, bundle, fallbackInstitutionSettings, institution, loading, resolvedBranding]);
+  }, [activeInstitutionId, bundle, fallbackInstitutionSettings, institution, loading, resolvedBranding, resolvedSettings]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;

@@ -1,6 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
+import { assertPersonalProcessMarkerLimit } from "@/lib/processMarkerLimits";
+import { IdentityScopedSingleFlight } from "@/lib/identityScopedSingleFlight";
 import {
   type AccountStatus,
   buildProcessDocuments,
@@ -110,6 +113,8 @@ interface PlatformDataState {
   loading: boolean;
   dataError: string | null;
   dataReadyForCurrentUser: boolean;
+  /** True only after the official database revalidated this user and all required records. */
+  remoteSyncedForCurrentUser: boolean;
   refreshRemoteStore: (focusProcessRouteKey?: string | null) => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
@@ -989,6 +994,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     initialStateRef.current = getInitialPlatformStoreState();
   }
   const [store, setStore] = useState<PlatformStore>(() => initialStateRef.current?.store ?? defaultStore);
+  // A single authenticated browser tab cannot concurrently add a fourth
+  // marker to the same process from two desks.
+  const markerWritesInFlightRef = useRef<Set<string>>(new Set());
   const [loading, setLoading] = useState<boolean>(false);
   const [source, setSource] = useState<DataSource>(() => initialStateRef.current?.source ?? "demo");
   const [dataError, setDataError] = useState<string | null>(null);
@@ -996,6 +1004,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     () => initialStateRef.current?.contextUserId ?? null,
   );
   const lastFetchedUserId = useRef<string | null>(null);
+  // The 31-query store load must not multiply for multiple focus/change
+  // events, and an old account's request must never mutate the new account.
+  const refreshFlightsRef = useRef(new IdentityScopedSingleFlight());
+  const currentAuthIdentityRef = useRef(authenticatedUserId);
+  currentAuthIdentityRef.current = authenticatedUserId;
   const allowRemoteInLocal =
     isNeonBackend ||
     (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
@@ -1015,7 +1028,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     // autenticar. Só aquece o cache depois que o bootstrap remoto confirmou
     // que o contexto pertence ao usuário atual.
     const contextConfirmed =
-      !expectsRemoteStore || remoteContextUserId === authenticatedUserId;
+      !expectsRemoteStore || isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId);
 
     if (hasVisibleData && contextConfirmed) {
       syncWarmPlatformStore(store, warmIdentity);
@@ -1032,7 +1045,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     if (
       !authenticatedUserId ||
       !remoteContextUserId ||
-      authenticatedUserId === remoteContextUserId
+      isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId)
     ) {
       return;
     }
@@ -1050,7 +1063,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       ownerLinks: [],
       ownerMessages: [],
     }));
-  }, [authenticatedUserId, remoteContextUserId]);
+  }, [authenticatedProfileId, authenticatedUserId, remoteContextUserId]);
 
   useEffect(() => {
     let active = true;
@@ -1256,8 +1269,8 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           authenticatedEmail,
         );
         if (activeProfile) syncProfileVisualCache(activeProfile);
-        setStore(sanitized);
-        syncWarmPlatformStore(sanitized, authenticatedUserId);
+        setStore((current) => stabilizePlatformStore(current, sanitized));
+        syncWarmPlatformStore(sanitized, authenticatedProfileId || authenticatedUserId);
         syncStore(sanitized);
         setSource("remote");
         setDataError(null);
@@ -1328,8 +1341,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       throw error;
     }
 
-    try {
-      const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
+    const identity = authenticatedUserId;
+    return refreshFlightsRef.current.run(identity, focusProcessRouteKey ?? "", async () => {
+      try {
+        const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
+        // Never apply a late response from a previously signed-in account.
+        if (currentAuthIdentityRef.current !== identity) return;
       let sanitized = buildSanitizedStore(remote, false);
       const authoritativeProfile = findUserProfile(
         sanitized.userProfiles,
@@ -1358,20 +1375,23 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       );
       if (activeProfile) syncProfileVisualCache(activeProfile);
       setStore((current) => stabilizePlatformStore(current, sanitized));
-      syncWarmPlatformStore(sanitized, authenticatedUserId);
+      syncWarmPlatformStore(sanitized, authenticatedProfileId || authenticatedUserId);
       syncStore(sanitized);
       setSource("remote");
       setDataError(null);
       lastFetchedUserId.current = authenticatedUserId;
       setRemoteContextUserId(authenticatedUserId);
-    } catch (error) {
-      setDataError(
-        error instanceof Error && error.message
-          ? `Banco oficial indisponível: ${error.message}`
-          : "Banco oficial temporariamente indisponível.",
-      );
-      throw error;
-    }
+      } catch (error) {
+        if (currentAuthIdentityRef.current === identity) {
+          setDataError(
+            error instanceof Error && error.message
+              ? `Banco oficial indisponível: ${error.message}`
+              : "Banco oficial temporariamente indisponível.",
+          );
+        }
+        throw error;
+      }
+    });
   };
 
   // Revalidações periódicas/focus podem consultar o backend, mas nunca devem
@@ -1388,6 +1408,43 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   const value = useMemo<PlatformDataState>(() => {
     const metrics = getMasterMetrics(store.processes, store.tenants);
+
+    const savePersonalProcessMarker = async (
+      processId: string, label: string, color: string,
+    ) => {
+      const normalized = label.trim();
+      if (!normalized) return;
+      if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
+      const process = store.processes.find(item => item.id === processId);
+      if (!process) throw new Error("Processo não sincronizado. Atualize a lista e tente novamente.");
+      assertPersonalProcessMarkerLimit(process.tags ?? [], normalized);
+      if (markerWritesInFlightRef.current.has(processId)) {
+        throw new Error("Uma gravação de marcador já está em andamento neste processo.");
+      }
+      markerWritesInFlightRef.current.add(processId);
+      try {
+        await upsertRemoteProcessMarker(processId, normalized, color);
+        const serialized = serializeMarker(normalized, color);
+        updateStore((current) => ({
+          ...current,
+          processes: current.processes.map(item => {
+            if (item.id !== processId) return item;
+            const tags = item.tags ?? [];
+            const index = tags.findIndex(tag =>
+              parseMarker(tag).label.trim().toLowerCase() === normalized.toLowerCase()
+            );
+            // Recoloring an existing professional marker retains its order.
+            const nextTags = index >= 0
+              ? tags.map((tag, i) => i === index ? serialized : tag)
+              : [...tags, serialized];
+            return { ...item, tags: nextTags };
+          }),
+        }));
+      } finally {
+        markerWritesInFlightRef.current.delete(processId);
+      }
+    };
+
     const upsertInstitution: PlatformDataState["upsertInstitution"] = (input, options) => {
       if (hasBackendEnv && !options?.remoteConfirmed) {
         throw new Error(
@@ -1593,6 +1650,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         };
       });
 
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("sigapro:data-changed"));
       return nextPlan;
     };
 
@@ -1671,6 +1729,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { ...current, planAssignments, tenants };
       });
 
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("sigapro:data-changed"));
       return nextAssignment;
     };
 
@@ -1777,7 +1836,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
     const dataReadyForCurrentUser = Boolean(
       authenticatedUserId &&
-      remoteContextUserId === authenticatedUserId &&
+      isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId) &&
       !authLoading &&
       !loading &&
       (
@@ -1787,11 +1846,21 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       ),
     );
 
+    // A same-account warm cache is useful for F5 visual continuity, but it
+    // must never be counted as an authoritative bank refresh. In particular,
+    // an outage must not leave stale process counts labeled as current.
+    const remoteSyncedForCurrentUser = Boolean(
+      dataReadyForCurrentUser &&
+      !dataError &&
+      (!expectsRemoteStore || source === "remote")
+    );
+
     return {
       source,
       loading,
       dataError,
       dataReadyForCurrentUser,
+      remoteSyncedForCurrentUser,
       refreshRemoteStore,
       ...store,
       institutions: store.tenants,
@@ -2436,42 +2505,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       addProcessMarker: async (processId, marker, actor) => {
-        const normalized = marker.trim();
-        if (!normalized) return;
-        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
-
-        await upsertRemoteProcessMarker(processId, normalized, "#2563eb");
-        const serialized = serializeMarker(normalized, "#2563eb");
-
-        updateStore((current) => ({
-          ...current,
-          processes: current.processes.map((process) => {
-            if (process.id !== processId) return process;
-            const nextTags = (process.tags ?? []).filter(
-              (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized.toLowerCase(),
-            );
-            return { ...process, tags: [...nextTags, serialized] };
-          }),
-        }));
+        await savePersonalProcessMarker(processId, marker, "#2563eb");
       },
       addProcessMarkerWithColor: async (processId, marker, color, actor) => {
-        const normalized = marker.trim();
-        if (!normalized) return;
-        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
-
-        await upsertRemoteProcessMarker(processId, normalized, color);
-        const serialized = serializeMarker(normalized, color);
-
-        updateStore((current) => ({
-          ...current,
-          processes: current.processes.map((process) => {
-            if (process.id !== processId) return process;
-            const nextTags = (process.tags ?? []).filter(
-              (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized.toLowerCase(),
-            );
-            return { ...process, tags: [...nextTags, serialized] };
-          }),
-        }));
+        await savePersonalProcessMarker(processId, marker, color);
       },
       removeProcessMarker: async (processId, marker, actor) => {
         const parsedMarker = parseMarker(marker);
@@ -2623,6 +2660,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
   }, [
     authenticatedEmail,
+    authenticatedProfileId,
     authenticatedMunicipalityId,
     authenticatedRole,
     authenticatedUserId,

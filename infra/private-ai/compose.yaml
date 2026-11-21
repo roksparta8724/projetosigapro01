@@ -1,0 +1,75 @@
+# FUTURE GPU SERVER ONLY; DO NOT deploy to Vercel.
+services:
+  edge:
+    image: caddy:2.10.2
+    restart: unless-stopped
+    environment:
+      SIGAPRO_AI_HOST: ${SIGAPRO_AI_HOST:?set-the-ai-subdomain}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - gateway
+    networks:
+      - front
+    security_opt:
+      - no-new-privileges:true
+  gateway:
+    build:
+      context: ./gateway
+    restart: unless-stopped
+    environment:
+      SIGAPRO_AI_GATEWAY_TOKEN: ${SIGAPRO_AI_GATEWAY_TOKEN:?set-secure-service-token}
+      SIGAPRO_AI_MODEL: ${SIGAPRO_AI_MODEL:?set-model-id}
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    networks:
+      - front
+      - private_model
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('node:http').get('http://127.0.0.1:8080/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  vllm:
+    # Pin an exact compatible release/digest before enabling production.
+    image: ${SIGAPRO_VLLM_IMAGE:?set-verified-vllm-image}
+    restart: unless-stopped
+    ipc: private
+    shm_size: "8gb"
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+    command:
+      - --model
+      - ${SIGAPRO_AI_MODEL:?set-model-id}
+      - --max-model-len
+      - "8192"
+      - --disable-log-requests
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    networks:
+      - private_model
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+networks:
+  front:
+  private_model:
+volumes:
+  caddy_data:
+  caddy_config:
+  hf_cache:

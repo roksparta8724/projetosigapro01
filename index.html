@@ -10,6 +10,8 @@
     />
     <meta name="author" content="SIGAPRO" />
     <meta name="application-name" content="SIGAPRO" />
+    <!-- Marcador público: apenas este documento Vite pode entrar no cache de navegação. -->
+    <meta name="sigapro-static-app-document" content="v1" />
     <meta name="theme-color" content="#0b1d30" />
     <meta name="apple-mobile-web-app-title" content="SIGAPRO" />
     <link rel="icon" type="image/svg+xml" sizes="any" href="%BASE_URL%favicon-sigapro-v7.svg?v=7" />
@@ -17,9 +19,6 @@
     <link rel="shortcut icon" href="%BASE_URL%favicon-sigapro-v7.svg?v=7" />
     <link rel="apple-touch-icon" sizes="256x256" href="%BASE_URL%favicon.png?v=3" />
     <link rel="manifest" href="%BASE_URL%site.webmanifest?v=7" />
-    <link rel="stylesheet" href="/src/index.css" />
-    <link rel="stylesheet" href="/src/components/platform/ProcessIdentityPanel.css" />
-    <link rel="stylesheet" href="/src/components/platform/AnalysisReadinessPanel.css" />
     <link rel="preload" as="image" href="%BASE_URL%sigapro-logo.png" fetchpriority="high" />
 
     <meta property="og:type" content="website" />
@@ -80,16 +79,83 @@
         }
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
+        // Uma única paleta desde o primeiro frame; não revelar uma segunda cor enquanto o CSS carrega.
+        document.documentElement.style.setProperty("--sig-bg", initialBackground);
 
-        var initialAppZoom =
-          publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
+        // Em uma rota interna já autenticada, preserve também a faixa visual do
+        // topbar enquanto o bundle React executa. Isto não é um loading/shell:
+        // é apenas o fundo do documento vazio, evitando um flash totalmente
+        // branco entre F5 e o primeiro commit real da aplicação.
+        try {
+          var cachedSessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
+          var cachedSession = cachedSessionRaw ? JSON.parse(cachedSessionRaw) : null;
+          var isInternalRoute =
+            publicPaths.indexOf(path) < 0 &&
+            authPaths.indexOf(path) < 0 &&
+            path.indexOf("/cliente/") !== 0;
+          if (
+            isInternalRoute &&
+            cachedSession &&
+            cachedSession.id &&
+            cachedSession.id !== "unknown" &&
+            cachedSession.accountStatus !== "blocked" &&
+            cachedSession.accountStatus !== "inactive"
+          ) {
+            var rawEffectiveThemeForBoot = window.localStorage.getItem("sigapro.effective-theme.v2");
+            var effectiveThemeForBoot = rawEffectiveThemeForBoot
+              ? JSON.parse(rawEffectiveThemeForBoot)
+              : null;
+            var initialTopbar =
+              effectiveThemeForBoot &&
+              typeof effectiveThemeForBoot.primary === "string" &&
+              effectiveThemeForBoot.primary.trim()
+                ? effectiveThemeForBoot.primary.trim()
+                : "#0b3147";
+            document.documentElement.style.setProperty("--sig-initial-topbar", initialTopbar);
+            document.documentElement.setAttribute("data-sigapro-cached-internal", "true");
+          }
+        } catch (error) {
+          // Continuidade visual é opcional; nunca bloquear a aplicação.
+        }
+
+        // Mesma escala desde o primeiro frame.
+        var hostName = window.location.hostname.toLowerCase();
+        var rootDomain = "sigapromunicipal.com.br";
+        var forcedTenant = new URLSearchParams(window.location.search).get("tenant") ||
+          new URLSearchParams(window.location.search).get("subdomain") || "";
+        var subdomain = forcedTenant.toLowerCase() ||
+          (hostName.endsWith(".localhost") ? hostName.slice(0, -".localhost".length) : "") ||
+          (hostName.endsWith("." + rootDomain) ? hostName.slice(0, -(rootDomain.length + 1)) : "");
+        var reservedSubdomain = ["www", "app", "admin", "api", "support", "docs", "mail", "root", "status", "auth"];
+        var isTenantHost = !!subdomain && reservedSubdomain.indexOf(subdomain) === -1;
+        // Uma escala para todos os dominios e rotas.
+        var initialAppZoom = "1";
 
         document.documentElement.style.zoom = initialAppZoom;
-        document.documentElement.setAttribute(
-          "data-page-zoom",
-          initialAppZoom === "1" ? "100" : "85"
-        );
+        document.documentElement.setAttribute("data-page-zoom", "100");
+        document.documentElement.setAttribute("data-sigapro-document-route", isFullDocumentRoute ? "true" : "false");
         document.documentElement.setAttribute("data-sigapro-initial-render", "true");
+
+        // Atualiza o Service Worker mesmo quando o bundle da aplicação não inicia.
+        // Nunca apaga sessões, rascunhos ou dados e não força reload no usuário.
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", function () {
+            navigator.serviceWorker.getRegistration()
+              .then(function (registration) {
+                if (registration) return registration.update();
+              })
+              .catch(function () {});
+          }, { once: true });
+        }
+
+        // Apenas erro prolongado: jamais desenhar overlay durante F5 normal.
+        window.setTimeout(function () {
+          if (!document.documentElement.hasAttribute("data-sigapro-initial-render")) return;
+          document.documentElement.setAttribute("data-sigapro-boot-slow", "true");
+          var status = document.getElementById("sigapro-preboot-message");
+          if (status) status.textContent =
+            "Não foi possível concluir a inicialização. Atualize ou retorne ao acesso. Nenhum processo ou documento foi alterado.";
+        }, 15000);
       })();
     </script>
 
@@ -122,6 +188,69 @@
         min-height: 100dvh;
       }
 
+      /* Erro de inicialização somente após 15s: pequeno aviso, nunca uma tela substituta.
+         No F5 normal não existe camada sobre o SIGAPRO. */
+      #sigapro-preboot-recovery {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 80;
+        display: none;
+        width: min(350px, calc(100vw - 32px));
+        max-width: 100%;
+        color: #0f172a;
+        font-family: Inter, system-ui, sans-serif;
+      }
+      html[data-sigapro-initial-render="true"][data-sigapro-boot-slow="true"] #sigapro-preboot-recovery {
+        display: block;
+      }
+      #sigapro-preboot-recovery > section {
+        padding: 16px;
+        border: 1px solid #cbd5e1;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+      }
+      #sigapro-preboot-recovery h1 {
+        margin: 8px 0 0;
+        font-size: 15px;
+        line-height: 1.35;
+        color: #0f172a;
+      }
+      #sigapro-preboot-recovery p {
+        margin: 8px 0 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #475569;
+      }
+      #sigapro-preboot-recovery a {
+        display: inline-block;
+        margin-top: 12px;
+        padding: 8px 12px;
+        border-radius: 9px;
+        background: #075985;
+        color: #ffffff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery {
+        color: #e2e8f0;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery > section {
+        border-color: #475569;
+        background: #1e293b;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery h1 {
+        color: #ffffff;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery p {
+        color: #cbd5e1;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery strong {
+        color: #bae6fd !important;
+      }
+
       html[data-sigapro-initial-render="true"] *,
       html[data-sigapro-initial-render="true"] *::before,
       html[data-sigapro-initial-render="true"] *::after {
@@ -131,20 +260,25 @@
       }
     </style>
 
-    <!--
-      O módulo principal é render-blocking de propósito:
-      em F5 o novo documento não pode pintar #root vazio. O navegador só libera
-      o primeiro paint depois de main.tsx executar e o React concluir o commit inicial.
-    -->
-    <script
-      type="module"
-      src="/src/main.tsx"
-      blocking="render"
-      fetchpriority="high"
-    ></script>
+    <!-- Estilo principal depois da cor crítica. CSS de painéis carregado sob demanda. -->
+    <link rel="stylesheet" href="/src/index.css" />
+
+    <!-- O React inicia sem overlay; aviso de erro só após atraso anormal. -->
+    <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
   </head>
 
   <body>
     <div id="root"></div>
+    <div id="sigapro-preboot-recovery" role="status" aria-live="polite">
+      <section>
+        <strong style="color:#075985;font-size:12px;letter-spacing:.1em;text-transform:uppercase">SIGAPRO · Inicialização segura</strong>
+        <h1>Falha prolongada de inicialização</h1>
+        <p id="sigapro-preboot-message">Se a conexão ou o carregamento falhar, esta mensagem permanece visível. Seus processos e documentos não são alterados por esta etapa.</p>
+        <a href="/acesso">Ir para o acesso</a>
+      </section>
+    </div>
+    <noscript>
+      <p style="padding:24px;background:#fff;color:#0f172a">O SIGAPRO precisa de JavaScript habilitado para abrir a plataforma.</p>
+    </noscript>
   </body>
 </html>

@@ -27,11 +27,14 @@ describe("profile and branding persistence regressions", () => {
 
   it("keeps municipal header, footer and preview logos whole while preserving master framing", () => {
     expect(logo).toContain("const showCrop =");
-    expect(logo).toContain("isMaster &&");
-    expect(logo).toContain('(variant === "header" || variant === "footer" || variant === "preview")');
+    // Municipal branding supports explicit framing/zoom; still blocks master-logo
+    // fallback and renders the actual image with object-contain.
+    expect(logo).toContain('const showCrop = variant === "header" || variant === "footer" || variant === "preview"');
+    expect(logo).toContain("sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)");
     expect(logo).toContain("const configuredScale = Number.isFinite(branding.logoScale)");
     expect(logo).toContain("Math.max(0.35, Math.min(5, configuredScale))");
-    expect(logo).toContain("Math.max(1, Math.min(5, configuredScale))");
+    expect(logo).toContain("fitMunicipalLogoFrame({");
+    expect(logo).toContain("MUNICIPAL_LOGO_BASE_RATIO");
     expect(logo).toContain('transformOrigin: "center center"');
     // A moldura municipal usa todo o espaço sem padding antigo que cortava o logo.
     expect(logo).toContain('header: "h-[112px] w-[188px] p-0');
@@ -99,8 +102,9 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("resolvedImageUrl");
     expect(userAvatar).toContain("const preload = new Image()");
     expect(userAvatar).toContain("preload.onload");
-    expect(userAvatar).toContain("emptyClearTimerRef");
-    expect(userAvatar).toContain("1200");
+    expect(userAvatar).toContain("preservePhotoDuringRefresh && stableAccount && !photoRemovalConfirmed");
+    expect(userAvatar).toContain("photoRemovalConfirmed");
+    expect(userAvatar).not.toContain("emptyClearTimerRef");
     expect(imageFrameEditor).toContain("Stale-while-revalidate visual");
     expect(imageFrameEditor).not.toContain("setNaturalSize({ width: 0, height: 0 })");
     expect(userAvatar).toContain("const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl ||");
@@ -117,7 +121,7 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("await confirmSavedAvatarReadable(savedAvatarUrl)");
     expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
     expect(profilePage).toContain("imageUrl={avatarPreviewUrl}");
-    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(displayProfile) || null");
     expect(backend).toContain("useAvatarInHeader: Boolean(storedAvatar)");
     expect(backend).not.toContain("O banco não confirmou a exibição da foto no cabeçalho");
     expect(backend).toContain("O banco não confirmou o enquadramento da foto");
@@ -133,7 +137,7 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("avatarDraftDirty");
     expect(profilePage).toContain("if (nextFile.file) setForm((current) => ({ ...current, useAvatarInHeader: true }))");
     expect(profilePage).toContain("useAvatarInHeader: showPhotoInHeader");
-    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(displayProfile) || null");
     expect(profilePage).toContain("Pré-visualização pronta.");
     expect(profilePage).not.toContain("Salvando foto automaticamente...");
     expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");
