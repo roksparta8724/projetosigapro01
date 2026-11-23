@@ -52,7 +52,7 @@ import {
 import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
   fitMunicipalLogoFrame, fullMunicipalLogoFrame,
-  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_MAX_ZOOM, MUNICIPAL_FOOTER_LOGO_MAX_ZOOM,
+  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_FULL_FIT_ZOOM, MUNICIPAL_LOGO_MAX_ZOOM, MUNICIPAL_FOOTER_LOGO_MAX_ZOOM,
 } from "@/lib/municipalLogoFraming";
 import { getLegislationOpenUrl, getStableMunicipalLegislationReference, getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
@@ -247,6 +247,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     bootstrap.scopeType === "platform" ||
     session.role === "master_admin" ||
     session.role === "master_ops";
+  const isPlatformContractAdmin = session.role === "master_admin";
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
   const platformBrandingLoadedRef = useRef(false);
@@ -946,12 +947,12 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     });
   }, [draftLogoFiles]);
   const [draftHeaderLogoConfig, setDraftHeaderLogoConfig] = useState(() => fitMunicipalLogoFrame({
-    scale: settings?.headerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+    scale: settings?.headerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   }));
   const [draftFooterLogoConfig, setDraftFooterLogoConfig] = useState(() => fitMunicipalLogoFrame({
-    scale: settings?.footerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+    scale: settings?.footerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
     offsetX: settings?.footerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.footerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   }, "footer"));
@@ -1160,7 +1161,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     });
 
     const nextHeaderConfig = fitMunicipalLogoFrame({
-      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
       offsetX: nextSettings?.headerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.headerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     });
@@ -1172,7 +1173,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     );
 
     const nextFooterConfig = fitMunicipalLogoFrame({
-      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
       offsetX: nextSettings?.footerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     }, "footer");
@@ -1842,8 +1843,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       name: tenantForm.name,
       city: tenantForm.city,
       state: tenantForm.state,
-      status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
-      plan: tenantForm.plan,
+      status: (isPlatformContractAdmin ? tenantForm.status : (tenant?.status ?? tenantForm.status)) as "ativo" | "implantacao" | "suspenso",
+      plan: isPlatformContractAdmin ? tenantForm.plan : (tenant?.plan ?? tenantForm.plan),
       subdomain: normalizedSubdomain,
       primaryColor: tenantForm.primaryColor,
       accentColor: tenantForm.accentColor,
@@ -1925,7 +1926,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
             name: tenantForm.name,
             city: tenantForm.city,
             state: tenantForm.state,
-            status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
+            status: (isPlatformContractAdmin ? tenantForm.status : (tenant?.status ?? tenantForm.status)) as "ativo" | "implantacao" | "suspenso",
             subdomain: normalizedSubdomain,
             cnpj: settingsForm.cnpj || "",
             primaryColor: tenantForm.primaryColor,
@@ -1946,8 +1947,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
             name: tenantForm.name,
             city: tenantForm.city,
             state: tenantForm.state,
-            status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
-            plan: tenantForm.plan,
+            status: (isPlatformContractAdmin ? tenantForm.status : (tenant?.status ?? tenantForm.status)) as "ativo" | "implantacao" | "suspenso",
+            plan: isPlatformContractAdmin ? tenantForm.plan : (tenant?.plan ?? tenantForm.plan),
             subdomain: normalizedSubdomain,
             primaryColor: tenantForm.primaryColor,
             accentColor: tenantForm.accentColor,
@@ -2142,7 +2143,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       const existingObjectKey = variant === "header"
         ? settingsWithVariants.headerLogoObjectKey
         : settingsWithVariants.footerLogoObjectKey;
-      persistedVariantUrl = existingObjectKey || variantLogoUrl.startsWith("blob:") || variantLogoUrl.startsWith("data:")
+      persistedVariantUrl = (existingObjectKey || variantLogoUrl.startsWith("blob:") || variantLogoUrl.startsWith("data:"))
         ? ""
         : variantLogoUrl;
     }
@@ -2389,12 +2390,12 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
         logoOffsetY: nextSettings.logoOffsetY ?? 0,
       }));
       setDraftHeaderLogoConfig(fitMunicipalLogoFrame({
-        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
         offsetX: nextSettings.headerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.headerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       }));
       setDraftFooterLogoConfig(fitMunicipalLogoFrame({
-        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
         offsetX: nextSettings.footerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.footerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       }, "footer"));
@@ -2821,8 +2822,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
           name: tenantForm.name,
           city: tenantForm.city,
           state: tenantForm.state,
-          status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
-          plan: tenantForm.plan,
+          status: (isPlatformContractAdmin ? tenantForm.status : (tenant?.status ?? tenantForm.status)) as "ativo" | "implantacao" | "suspenso",
+          plan: isPlatformContractAdmin ? tenantForm.plan : (tenant?.plan ?? tenantForm.plan),
           subdomain: normalizedSubdomain,
           primaryColor: tenantForm.primaryColor,
           accentColor: tenantForm.accentColor,
@@ -3659,25 +3660,36 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                 <Label>Estado</Label>
                 <Input value={tenantForm.state} onChange={(event) => setTenantField("state", event.target.value)} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" data-contract-status-role={isPlatformContractAdmin ? "master" : "read-only"}>
                 <Label>Status do contrato</Label>
-                <Select value={tenantForm.status} onValueChange={(value) => setTenantField("status", value)}>
-                  <SelectTrigger className="h-12 rounded-2xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativo">Ativo</SelectItem>
-                    <SelectItem value="implantacao">Implantação</SelectItem>
-                    <SelectItem value="suspenso">Suspenso</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isPlatformContractAdmin ? (
+                  <Select value={tenantForm.status} onValueChange={(value) => setTenantField("status", value)}>
+                    <SelectTrigger className="h-12 rounded-2xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ativo">Ativo</SelectItem>
+                      <SelectItem value="implantacao">Implantação</SelectItem>
+                      <SelectItem value="suspenso">Suspenso</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <>
+                    <div role="status" aria-label="Status do contrato somente leitura"
+                      className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-700">
+                      {tenantForm.status === "ativo" ? "Ativo" : tenantForm.status === "suspenso" ? "Suspenso" : "Implantação"}
+                    </div>
+                    <p className="text-xs text-slate-500">Alteração exclusiva do Administrador Geral da plataforma.</p>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Plano comercial</Label>
-                <Input value={tenantForm.plan} onChange={(event) => setTenantField("plan", event.target.value)} />
+                <Input value={tenantForm.plan} readOnly={!isPlatformContractAdmin}
+                  aria-readonly={!isPlatformContractAdmin}
+                  className={!isPlatformContractAdmin ? "cursor-not-allowed bg-slate-100 text-slate-700" : undefined}
+                  onChange={(event) => { if (isPlatformContractAdmin) setTenantField("plan", event.target.value); }} />
               </div>
               <div className="space-y-2">
                 <Label>Link do cliente</Label>
@@ -3802,13 +3814,13 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={(next) => setDraftHeaderLogoConfig(fitMunicipalLogoFrame(next))}
                       label="Ajuste do logo do cabeçalho"
-                      hint="O brasão permanece inteiro. O máximo de 1,50x corresponde ao encaixe completo mostrado no cabeçalho."
+                      hint="O encaixe completo é 1,50x. Amplie até 5,00x e arraste para ajustar posição e recorte, sem deformar a imagem. Confira a prévia real antes de confirmar."
                       fitMode="contain"
                       containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
-                      keepWholeImageVisible
+                      keepWholeImageVisible={draftHeaderLogoConfig.scale <= MUNICIPAL_LOGO_FULL_FIT_ZOOM}
                       minScale={1}
                       maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
-                      zoomStep={0.1}
+                      zoomStep={0.05}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-header"
                       viewportClassName="!h-[188px] !w-[188px]"
@@ -3956,13 +3968,13 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={(next) => setDraftFooterLogoConfig(fitMunicipalLogoFrame(next, "footer"))}
                       label="Ajuste do logo do rodapé"
-                      hint="Até 1,50x mostra o arquivo inteiro. Amplie até 3,00x para aproximar o brasão e reduzir bordas vazias, sempre com proporção preservada. Confira o resultado na prévia real."
+                      hint="O encaixe inteiro é 1,50x; é possível ampliar até 5,00x e reposicionar por arraste com proporção preservada."
                       fitMode="contain"
                       containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
-                      keepWholeImageVisible
+                      keepWholeImageVisible={draftFooterLogoConfig.scale <= MUNICIPAL_LOGO_FULL_FIT_ZOOM}
                       minScale={1}
                       maxScale={MUNICIPAL_FOOTER_LOGO_MAX_ZOOM}
-                      zoomStep={0.1}
+                      zoomStep={0.05}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
                       viewportClassName="!h-[188px] !w-[188px]"
