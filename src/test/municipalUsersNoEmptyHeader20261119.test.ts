@@ -41,7 +41,7 @@ describe("SIGAPRO — usuários da prefeitura acima da dobra, sem painel vazio",
     const users = page.slice(page.indexOf('{workspaceView === "usuarios" ? ('), page.indexOf('{workspaceView === "organograma" ? ('));
     expect(users).toContain('municipalRegistryConfirmed ? tenantUsers.length : "—"');
     expect(users).toContain("data-municipal-users-sync=");
-    expect(users).toContain("onClick={() => setCreateUserOpen((current) => !current)}");
+    expect(page).toContain('navigate("/prefeitura/usuarios/novo")');
     expect(users).toContain("renderDetails={renderUserCard}");
     expect(users).toContain("label=\"Usuários da Prefeitura\"");
   });
