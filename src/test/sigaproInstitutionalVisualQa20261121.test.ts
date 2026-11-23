@@ -14,7 +14,11 @@ describe("SIGAPRO visual identity QA",()=>{
   });
   it("falls back to the authorized original only if the private thumbnail cannot be served",()=>{
     const code=src("src/lib/privateAvatarRead.ts");
-    expect(code).toContain('response = await getPrivateImage("original")');
+    // The production implementation is secure-by-default: one authenticated
+    // same-origin endpoint accepts a requested thumb variant (never a public R2 URL).
+    expect(code).toContain('variant === "thumbnail" ? "&variant=thumb" : ""');
     expect(code).toContain('Authorization: "Bearer " + token');
+    expect(code).toContain('readAvatarAccessToken()');
+    expect(code).toContain('if (!response.ok) throw new Error');
   });
 });

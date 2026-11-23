@@ -59,7 +59,7 @@ describe("SIGAPRO — falta de chunk PortalFrame após atualização Vercel", ()
   });
 
   it("rejeita resposta HTML em pedidos de módulo, nunca grava HTML como chunk", async () => {
-    const callbacks = new Map<string, (event: any) => void>();
+    const callbacks = new Map<string, (event: unknown) => void>();
     const put = vi.fn();
     const cache = { match: vi.fn(async () => undefined), put, delete: vi.fn(async () => true) };
     const documentHTML = new Response("<html>fallback errado</html>", {
@@ -69,7 +69,7 @@ describe("SIGAPRO — falta de chunk PortalFrame após atualização Vercel", ()
     runInNewContext(sw, {
       self: {
         location: { origin: "https://campolimpopaulista.sigapromunicipal.com.br", hostname: "campolimpopaulista.sigapromunicipal.com.br" },
-        addEventListener: (name: string, handler: (event: any) => void) => callbacks.set(name, handler),
+        addEventListener: (name: string, handler: (event: unknown) => void) => callbacks.set(name, handler),
       },
       caches: { open: vi.fn(async () => cache) },
       fetch: network, URL, Request, Response,
