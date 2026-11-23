@@ -3788,6 +3788,50 @@ async function createDetachedNeonEmailAccount(input: {
   throw new Error(message);
 }
 
+
+/** Onboard a platform operator only after canonical Master authorization in Neon.
+ * sign-up/email uses credentials:omit, so the current Master login is untouched.
+ */
+export async function createRemotePlatformStaffAccount(input: {
+  email: string;
+  fullName: string;
+  temporaryPassword: string;
+}): Promise<{ profileId: string; email: string }> {
+  if (!db || !isNeonBackend) throw new Error("Cadastro de funcionários SIGAPRO exige Neon Auth.");
+  const email = input.email.trim().toLowerCase();
+  const fullName = input.fullName.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("E-mail institucional inválido.");
+  if (fullName.length < 3 || fullName.length > 120) throw new Error("Informe o nome completo do funcionário.");
+  if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(input.temporaryPassword)) {
+    throw new Error("A senha exige oito caracteres, maiúscula, minúscula, número e símbolo.");
+  }
+
+  const provision = async () => {
+    const { data, error } = await db.rpc("provision_platform_staff_account", {
+      _email: email, _full_name: fullName,
+    });
+    if (error) throw new Error(error.message || "Não foi possível autorizar a conta na plataforma.");
+    return data as { ready?: boolean; reason?: string; profile_id?: string; email?: string } | null;
+  };
+
+  // Master authorization is checked in the database BEFORE any detached signup.
+  let saved = await provision();
+  if (!saved?.ready && saved?.reason === "auth_missing") {
+    await createDetachedNeonEmailAccount({
+      email, name: fullName, password: input.temporaryPassword,
+    });
+    for (const delayMs of [0, 150, 350, 800]) {
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+      saved = await provision();
+      if (saved?.ready) break;
+    }
+  }
+  if (!saved?.ready || !saved.profile_id) {
+    throw new Error("O Neon Auth não confirmou o vínculo do funcionário. Confira a conta antes de repetir.");
+  }
+  return { profileId: saved.profile_id, email: saved.email || email };
+}
+
 export async function manageRemoteUserAccess(input: {
   userId: string;
   municipalityId: string;

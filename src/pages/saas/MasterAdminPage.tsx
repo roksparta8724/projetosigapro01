@@ -133,6 +133,7 @@ export function MasterAdminPage() {
     getInstitutionPlanAssignment,
     saveClientPlanAssignment,
     getUserProfile,
+    refreshRemoteStore,
   } = usePlatformData();
   const planCapacity = usePlanCapacityLive(null, { enabled: true, intervalMs: 8000 });
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
@@ -1381,6 +1382,7 @@ export function MasterAdminPage() {
               getAvatarProfile={(user) => getUserProfile(user.id, user.email) ?? null}
               renderDetails={renderUserCard}
               onManageMunicipality={handleSelectTenant}
+              onPlatformStaffCreated={refreshRemoteStore}
             />
           </PageMainContent>
         ) : null}
