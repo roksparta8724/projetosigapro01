@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { ShieldAlert, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,11 +7,11 @@ import { Label } from "@/components/ui/label";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { createRemotePlatformStaffAccount } from "@/integrations/backend/platform";
 
-type Props = { onCreated: () => Promise<unknown> };
+type Props = { onCreated?: () => Promise<unknown>; standalone?: boolean };
 
-export function PlatformStaffCreator({ onCreated }: Props) {
+export function PlatformStaffCreator({ onCreated, standalone = false }: Props) {
   const { session } = usePlatformSession();
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -53,7 +54,7 @@ export function PlatformStaffCreator({ onCreated }: Props) {
       setPassword("");
       setConfirmation("");
       try {
-        await onCreated();
+        if (onCreated) await onCreated();
         setFeedback({ success: true, message: "Conta da equipe SIGAPRO vinculada: " + saved.email + ". O funcionário deve confirmar seu e-mail e alterar a senha provisória." });
       } catch {
         setFeedback({ success: true, message: "Conta criada para " + saved.email + ", mas a lista ainda precisa ser atualizada para exibi-la." });
@@ -66,18 +67,31 @@ export function PlatformStaffCreator({ onCreated }: Props) {
   };
 
   return (
-    <section data-platform-staff-creator="true" className="mt-4 rounded-2xl border border-sky-200 bg-white p-4 text-slate-800 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section data-platform-staff-creator={standalone ? "dedicated" : "summary"}
+      className={standalone
+        ? "min-w-0 overflow-hidden rounded-[24px] border border-[#bfd5e4] bg-[#f7fafd] text-slate-900 shadow-[0_16px_36px_rgba(12,41,65,0.11)] dark:border-slate-700 dark:bg-slate-900"
+        : "mt-4 min-w-0 rounded-2xl border border-sky-200 bg-white p-4 text-slate-800 shadow-sm"}>
+      <div className={standalone
+        ? "flex min-w-0 flex-wrap items-center justify-between gap-4 bg-[linear-gradient(112deg,#0d304a,#14526f)] px-5 py-6 text-white sm:px-7"
+        : "flex min-w-0 flex-wrap items-center justify-between gap-3"}>
         <div>
-          <p className="text-sm font-bold text-slate-900">Equipe própria SIGAPRO</p>
-          <p className="mt-1 text-xs text-slate-600">Cadastre contas da plataforma, separadas dos usuários municipais.</p>
+          <p className={standalone ? "text-2xl font-bold text-white" : "text-sm font-bold text-slate-900"}>
+            {standalone ? "Cadastrar funcionário SIGAPRO" : "Equipe própria SIGAPRO"}
+          </p>
+          <p className={standalone ? "mt-2 text-sm leading-6 text-sky-100" : "mt-1 text-xs leading-5 text-slate-600"}>
+            {standalone ? "Operação Geral da plataforma, sem vínculo municipal e sem conceder acesso de Administrador Geral." : "O cadastro de funcionários é feito em subpágina própria, separada dos usuários municipais."}
+          </p>
         </div>
-        <Button type="button" className="rounded-xl" onClick={() => setOpen((value) => !value)}>
-          <UserPlus className="mr-2 h-4 w-4" />{open ? "Fechar cadastro" : "Criar funcionário"}
+        <Button type="button"
+          className={standalone
+            ? "h-10 w-full rounded-xl border border-white/30 bg-white/10 !text-white hover:bg-white/20 sm:w-auto"
+            : "h-10 w-full rounded-xl bg-[#103d58] !text-white hover:bg-[#18536e] sm:w-auto"}
+          onClick={() => navigate(standalone ? "/master?secao=usuarios" : "/master/equipe/novo")}>
+          <UserPlus aria-hidden="true" className="mr-2 h-4 w-4" />{standalone ? "Voltar à equipe" : "Criar funcionário"}
         </Button>
       </div>
-      {open ? (
-        <form className="mt-4 space-y-4 border-t border-slate-200 pt-4" onSubmit={submit}>
+      {standalone ? (
+        <form data-platform-staff-form="dedicated" className="min-w-0 space-y-5 px-5 py-6 sm:px-7" onSubmit={submit}>
           <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
             O perfil Operação Geral possui permissões administrativas amplas na plataforma. Cadastre somente funcionários autorizados. Este formulário nunca cria outro Administrador Geral.
@@ -98,12 +112,12 @@ export function PlatformStaffCreator({ onCreated }: Props) {
               <Input id="sigapro-staff-confirm" type="password" required autoComplete="new-password"
                 value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></div>
           </div>
-          <Button type="submit" disabled={saving || name.trim().length < 3 || !email.trim()} className="rounded-xl">
+          <Button type="submit" disabled={saving || name.trim().length < 3 || !email.trim()} className="h-11 w-full rounded-xl bg-[#103d58] !text-white hover:bg-[#18536e] sm:w-auto">
             {saving ? "Validando e criando acesso..." : "Criar acesso SIGAPRO"}
           </Button>
         </form>
       ) : null}
-      {feedback ? (
+      {standalone && feedback ? (
         <p role={feedback.success ? "status" : "alert"}
           className={"mt-3 rounded-xl border p-3 text-sm " +
             (feedback.success ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-900")}>

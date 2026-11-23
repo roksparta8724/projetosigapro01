@@ -90,6 +90,7 @@ const PersistentPortalFrameLayout = lazy(() =>
 // Component identity stays stable: never define lazy routes inside AppRoutes.
 const MasterAdminPage = lazy(() => import("@/pages/saas/MasterAdminPage").then((module) => ({ default: module.MasterAdminPage })));
 const TenantAdminPage = lazy(() => import("@/pages/saas/TenantAdminPage").then((module) => ({ default: module.TenantAdminPage })));
+const PlatformStaffCreationPage = lazy(() => import("@/pages/saas/PlatformStaffCreationPage").then((module) => ({ default: module.PlatformStaffCreationPage })));
 const CollectionSettingsPage = lazy(() => import("@/pages/saas/CollectionSettingsPage").then((module) => ({ default: module.CollectionSettingsPage })));
 const MunicipalOrganizationPage = lazy(() => import("@/pages/saas/MunicipalOrganizationPage").then((module) => ({ default: module.MunicipalOrganizationPage })));
 const MunicipalProcessRegistryPage = lazy(() => import("@/pages/saas/MunicipalProcessRegistryPage").then((module) => ({ default: module.MunicipalProcessRegistryPage })));
@@ -127,6 +128,7 @@ const AiAssistantPage = lazy(() => import("@/pages/saas/AiAssistantPage").then((
 function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null {
   if (pathname.startsWith("/dashboard")) return import("@/pages/saas/DashboardHomePage");
   if (pathname.startsWith("/master/planos")) return import("@/pages/saas/MasterPlansPage");
+  if (pathname.startsWith("/master/equipe/novo")) return import("@/pages/saas/PlatformStaffCreationPage");
   if (pathname.startsWith("/master")) return import("@/pages/saas/MasterAdminPage");
   // The filmed screen /prefeitura/arrecadacao must prefetch its real chunk, not TenantAdminPage.
   if (pathname.startsWith("/prefeitura/arrecadacao")) return import("@/pages/saas/CollectionSettingsPage");
@@ -305,6 +307,14 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="view_master_dashboard">
               <MasterAdminPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/master/equipe/novo"
+          element={
+            <PermissionRoute permission="view_master_dashboard">
+              <PlatformStaffCreationPage />
             </PermissionRoute>
           }
         />
