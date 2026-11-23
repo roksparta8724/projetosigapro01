@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Building2, ChevronRight, CircleAlert, Landmark, Search, ShieldCheck, Users2 } from "lucide-react";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
+import { PlatformStaffCreator } from "@/components/platform/PlatformStaffCreator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +21,7 @@ type Props = {
   renderDetails: (user: SessionUser) => ReactNode;
   getAvatarProfile?: (user: SessionUser) => UserProfile | null;
   onManageMunicipality: (id: string) => void;
+  onPlatformStaffCreated: () => Promise<unknown>;
 };
 
 export function resolveMasterUserMunicipalityScope(
@@ -39,7 +41,7 @@ export function resolveMasterUserMunicipalityScope(
   return REVIEW_SCOPE;
 }
 
-export function MasterUserGovernance({ institutions, users, renderDetails, getAvatarProfile, onManageMunicipality }: Props) {
+export function MasterUserGovernance({ institutions, users, renderDetails, getAvatarProfile, onManageMunicipality, onPlatformStaffCreated }: Props) {
   const [selectedScope, setSelectedScope] = useState("");
   const [municipalityQuery, setMunicipalityQuery] = useState("");
   const [userQuery, setUserQuery] = useState("");
@@ -215,6 +217,9 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
               </div>
             ))}
           </div>
+          {activeScope === PLATFORM_SCOPE ? (
+            <PlatformStaffCreator onCreated={onPlatformStaffCreated} />
+          ) : null}
           {activeScope === REVIEW_SCOPE ? (
             <div role="status" className="sig-master-governance-alert mt-4 flex items-start gap-2 rounded-xl border p-3 text-xs leading-5">
               <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />

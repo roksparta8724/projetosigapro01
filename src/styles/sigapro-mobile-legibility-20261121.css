@@ -1,0 +1,281 @@
+/*
+ * SIGAPRO 2026-11-21: mobile legibility across authenticated departments.
+ *
+ * Priority: protect the municipality/brand name from action icons, retain
+ * all actions, keep the fixed-topbar/content offset in sync, and present the
+ * compact user directory as readable cards without changing table semantics
+ * or invoking renderDetails twice.
+ */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] {
+    flex: 1 1 0%;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-copy {
+    min-width: 0;
+    flex: 1 1 0%;
+    overflow: hidden;
+  }
+  .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-title {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 639px) {
+  /* Two deliberate rows rather than forcing four 44px icons over text.
+     Both header and content offset read the SAME design token, so no overlay. */
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] {
+    --sig-topbar-height-mobile: 104px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar,
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-shell {
+    min-height: var(--sig-topbar-height-mobile) !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-shell {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 52px) minmax(0, 40px);
+    align-items: center;
+    row-gap: 0 !important;
+    padding: 5px 10px 7px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding-right: 0;
+    overflow: hidden;
+    gap: 8px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-logo {
+    width: 38px !important;
+    height: 38px !important;
+    flex: 0 0 38px;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-badge {
+    width: 38px !important;
+    height: 38px !important;
+    padding: 1px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-copy {
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 0%;
+    overflow: hidden;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-title {
+    display: -webkit-box;
+    max-width: 100%;
+    max-height: 2.7em;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.35;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    font-size: 11px;
+    letter-spacing: 0.07em !important;
+    color: #fff !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-actions-viewport="mobile"] {
+    display: flex;
+    justify-content: flex-end;
+    justify-self: stretch;
+    align-self: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 6px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-actions-viewport="mobile"] > :is(a,button) {
+    flex: 0 0 40px;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-actions-viewport="mobile"] > button[aria-label="Abrir conta do usuário"] {
+    flex: 0 0 56px;
+    width: 56px !important;
+    min-width: 56px !important;
+    justify-content: center;
+  }
+}
+
+/* Keep readable data rather than hide behind badges or fixed-width icons.
+   These rules apply to all authenticated desks but only at phone sizes. */
+@media (max-width: 767px) {
+  .sig-app-frame .sig-main-shell :is(
+    .sig-page-shell, .sig-page-header, .sig-section-card,
+    .sig-main-grid, .sig-main-content, .sig-side-content,
+    .sig-header-actions, .sig-section-actions
+  ) {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sig-app-frame .sig-main-shell :is(
+    .sig-page-title, .sig-section-title,
+    .sig-page-header .sig-fit-title, .sig-section-card .sig-fit-title
+  ) {
+    max-width: 100%;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    hyphens: none;
+    text-overflow: clip;
+  }
+  .sig-app-frame .sig-main-shell :is(.sig-header-actions,.sig-section-actions) > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sig-app-frame .sig-main-shell :is(.sig-header-actions,.sig-section-actions) :is(button,a) {
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  /* Same table and same details form as desktop, presented as real phone
+     cards rather than requiring a 900px horizontal scroll. */
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] [data-mobile-registry-scroll="true"] {
+    max-width: 100%;
+    overflow-x: visible !important;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] table {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100%;
+    table-layout: auto;
+    border: 0;
+    background: transparent;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] table > thead {
+    display: none;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] table > tbody {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px;
+    min-width: 0;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 0 10px;
+    padding: 10px 12px 12px;
+    min-width: 0;
+    border: 1px solid #dbe4ed !important;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 6px 16px rgba(15,23,42,.045);
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    padding: 7px 0;
+    text-align: left;
+    border: 0;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td:first-child,
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td:last-child {
+    grid-column: 1 / -1;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td:first-child {
+    padding-bottom: 9px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 4px;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] td[data-mobile-label]::before {
+    content: attr(data-mobile-label);
+    display: block;
+    margin-bottom: 5px;
+    color: #475569;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] :is(.truncate,p,span) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] .truncate {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td:last-child button {
+    width: 100%;
+    min-height: 42px;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-details-row="true"] {
+    display: block;
+    min-width: 0;
+    margin-top: -10px;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] td[data-sigapro-user-expanded="true"] {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    border-radius: 0 0 16px 16px;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] {
+    background: #1b364c !important;
+    border-color: #49677f !important;
+    color: #f6fbff;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td:first-child {
+    border-color: #49677f;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-user-registry="compact"] td[data-mobile-label]::before {
+    color: #d5e9f7;
+  }
+}
+
+@media (max-width: 360px) {
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] {
+    gap: 6px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-logo {
+    width: 34px !important;
+    height: 34px !important;
+    flex-basis: 34px;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
+  [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-badge {
+    width: 34px !important;
+    height: 34px !important;
+  }
+}

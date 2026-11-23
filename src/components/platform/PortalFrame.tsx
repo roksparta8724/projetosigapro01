@@ -82,6 +82,7 @@ import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { TopbarBrandMark } from "@/components/platform/TopbarBrandMark";
 import { MunicipalDepartmentSwitcher } from "@/components/platform/MunicipalDepartmentSwitcher";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { MARKER_COLOR_OPTIONS, SYSTEM_MARKER_IDS, useMarkerPresets, type MarkerPreset } from "@/hooks/useMarkerPresets";
@@ -1483,37 +1484,37 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
           boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 ${withAlpha(primaryColor, "0.24")}, 0 8px 24px ${withAlpha(primaryColor, "0.18")}`,
         }}
       >
-        <div className="sig-topbar-shell flex min-h-[60px] items-center gap-2 px-2.5 sm:px-3 lg:min-h-[60px] lg:gap-2.5 lg:px-4 2xl:px-5">
+        <div className="sig-topbar-shell flex min-h-[60px] min-w-0 items-center gap-2 px-2.5 sm:px-3 lg:min-h-[60px] lg:gap-2.5 lg:px-4 2xl:px-5">
           <div
-            className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4"
+            className="sig-topbar-brand-cluster flex min-w-0 flex-1 items-center gap-2.5 pr-1 lg:hidden lg:pr-4"
             style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
             data-topbar-brand-viewport="mobile"
           >
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
-              className="inline-flex h-[40px] w-[40px] items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.06] text-white transition hover:bg-white/10 lg:hidden"
+              className="inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.06] text-white transition hover:bg-white/10 lg:hidden"
               aria-label="Abrir menu"
             >
               <Menu className="h-4.5 w-4.5" />
             </button>
-            <div className="sig-topbar-brand-logo flex h-[46px] w-[46px] items-center justify-center">
+            <div className="sig-topbar-brand-logo flex h-[46px] w-[46px] shrink-0 items-center justify-center">
               <div className="sig-topbar-brand-badge flex items-center justify-center">
-                <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
+                <TopbarBrandMark />
               </div>
             </div>
-            <div className="min-w-0">
-              <p className="sig-topbar-brand-title text-[11px] font-semibold uppercase tracking-[0.14em] leading-none lg:text-[12px]">
+            <div className="sig-topbar-brand-copy min-w-0 flex-1">
+              <p className="sig-topbar-brand-title min-w-0 text-[11px] font-semibold uppercase tracking-[0.14em] leading-none lg:text-[12px]" title={topbarBrandTitle}>
                 {topbarBrandTitle}
               </p>
-              <p className="sig-topbar-brand-subtitle mt-1 max-w-[220px] text-[11px] font-medium leading-[1.28] lg:max-w-[320px] lg:text-[12px]">
+              <p className="sig-topbar-brand-subtitle mt-1 max-w-[220px] text-[11px] font-medium leading-[1.28] lg:max-w-[320px] lg:text-[12px]" title={topbarBrandSubtitle}>
                 {topbarBrandSubtitle}
               </p>
             </div>
           </div>
 
           <div
-            className="flex shrink-0 items-center gap-2 lg:hidden"
+            className="sig-topbar-mobile-actions flex min-w-0 shrink-0 items-center gap-1.5 lg:hidden"
             style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
             data-topbar-actions-viewport="mobile"
           >
@@ -1625,7 +1626,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
                 <div className="sig-topbar-brand-logo flex h-[46px] w-[46px] items-center justify-center">
                   <div className="sig-topbar-brand-badge flex items-center justify-center">
-                    <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
+                    <TopbarBrandMark />
                   </div>
                 </div>
                 <div className="sig-topbar-brand-copy min-w-0">

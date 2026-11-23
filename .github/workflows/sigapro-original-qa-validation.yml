@@ -1,0 +1,42 @@
+name: SIGAPRO - Validacao da Homologacao Original
+on:
+  push:
+    branches:
+      - fix/homologacao-geral-sei-dashboard-bank-20261113
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa-original:
+    name: TypeScript, logo, contratos e equipe SIGAPRO
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Tests for the requested corrections
+        run: >
+          npx vitest run
+          src/lib/municipalLogoFraming.test.ts
+          src/components/platform/InstitutionalLogo.test.tsx
+          src/test/masterContractAndMunicipalZoom20261123.test.ts
+          src/test/platformStaffProvisionMasterOnly20261123.test.ts
+          src/test/footerZoomPixSharing.test.ts
+          src/test/municipalBrandingFramePersistence.test.ts
+          src/test/municipalBrandingRuntime.test.ts
+          src/test/ownerProfessionalConversation20261123.test.ts
+          src/test/ownerPortalPrivateInteraction.test.tsx
+          src/test/ownerInvitationInitiation20261123.test.ts
+      - name: Production-equivalent build for preview
+        run: npm run build
