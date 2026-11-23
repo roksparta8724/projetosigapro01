@@ -340,6 +340,7 @@ export function TenantAdminPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const overviewSubpage = municipalOverviewSubpageFromPath(location.pathname);
+  const isCreateUserPage = location.pathname === "/prefeitura/usuarios/novo";
   const isNestedOverview = isMunicipalOverviewSubpagePath(location.pathname);
   const { session } = usePlatformSession();
   const { isAuthenticated, authResolved, authenticatedUserId, authenticatedProfileId } = useAuthGateway();
@@ -358,6 +359,7 @@ export function TenantAdminPage() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => {
     // Respect a direct Users link on first paint, without a temporary queue/hero.
     if (isNestedOverview) return "visao-geral";
+    if (location.pathname === "/prefeitura/usuarios/novo") return "usuarios";
     const selected = new URLSearchParams(location.search).get("secao");
     return selected === "usuarios" || selected === "organograma" ||
       selected === "historico" || selected === "visao-geral" || selected === "fila"
@@ -459,7 +461,6 @@ export function TenantAdminPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [segment, setSegment] = useState<UserSegment>("todos");
   const [userPage, setUserPage] = useState(1);
-  const [createUserOpen, setCreateUserOpen] = useState(false);
 
   // A direct link, browser back/forward, or copied URL must always display the
   // requested overview subpage instead of a previously selected operational tab.
@@ -469,7 +470,8 @@ export function TenantAdminPage() {
       return;
     }
     if (isNestedOverview) setWorkspaceView("visao-geral");
-  }, [isNestedOverview, location.pathname, navigate]);
+    if (isCreateUserPage) setWorkspaceView("usuarios");
+  }, [isNestedOverview, isCreateUserPage, location.pathname, navigate]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | AccountStatus>("todos");
   const [roleFilter, setRoleFilter] = useState<"todos" | UserRole>("todos");
@@ -1261,6 +1263,46 @@ export function TenantAdminPage() {
     { label: "Pendências financeiras", value: `${metrics.pendingPayments}`, description: "Processos com guia emitida pendente", icon: Wallet, tone: "rose" as const },
   ];
 
+
+  // Separate, routable create screen: no registry, modal, or stacked card.
+  // Reuse the same database mutation, tenant scope, validation and audit path.
+  if (isCreateUserPage) {
+    return (
+      <PortalFrame eyebrow="Administração da Prefeitura" title="Cadastrar servidor" hideSectionHeader>
+        <PageShell>
+          <section data-sigapro-create-user-page="dedicated" aria-labelledby="create-municipal-staff-title"
+            className="min-w-0 overflow-hidden rounded-[24px] border border-[#bfd5e4] bg-[#f7fafd] shadow-[0_16px_40px_rgba(12,41,65,0.11)] dark:border-slate-700 dark:bg-slate-900">
+            <header className="flex min-w-0 flex-wrap items-center justify-between gap-4 bg-[linear-gradient(112deg,#0d304a,#14526f)] px-5 py-6 text-white sm:px-7">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-200">Prefeitura / Usuários / Novo servidor</p>
+                <h1 id="create-municipal-staff-title" className="mt-1.5 text-2xl font-bold text-white">Cadastrar servidor</h1>
+                <p className="mt-2 max-w-[700px] text-sm leading-6 text-sky-100">Cadastro de acesso institucional com perfil, lotação e nível de responsabilidade vinculados à Prefeitura atual.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => navigate("/prefeitura?secao=usuarios")}
+                className="h-10 w-full rounded-xl border-white/25 bg-white/10 px-4 !text-white hover:bg-white/20 hover:!text-white sm:w-auto">
+                <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />Voltar aos usuários
+              </Button>
+            </header>
+            <div className="px-5 py-6 sm:px-7">
+              <div className="mb-5 border-b border-slate-200 pb-4 dark:border-slate-700">
+                <h2 className="text-base font-bold text-[#183c54] dark:text-white">Dados do servidor e permissões</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">Cada conta pertence exclusivamente à Prefeitura autenticada. Vínculos adicionais de departamento poderão ser configurados na lista de usuários.</p>
+              </div>
+              <form data-municipal-staff-create-form="dedicated" className="grid min-w-0 gap-4 sm:grid-cols-2" onSubmit={handleCreateUser}>
+                <div className="space-y-2 sm:col-span-2"><Label>Prefeitura</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div><p className="text-xs leading-5 text-slate-500">Este vínculo é fixo: a conta será criada apenas neste subdomínio/prefeitura.</p></div><div className="space-y-2"><Label htmlFor="municipal-new-name">Nome completo</Label><Input id="municipal-new-name" required value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label htmlFor="municipal-new-email">E-mail institucional / acesso</Label><Input id="municipal-new-email" required type="email" autoComplete="off" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil interno</Label><Select value={getMunicipalProfileSelectValue(form.role, form.title)} onValueChange={(value) => setForm((current) => applyMunicipalProfileSelection(value, current))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger><SelectContent>{municipalInternalRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}{municipalProfilePresets.map((profile) => <SelectItem key={profile.key} value={profile.key}>{profile.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Departamento / unidade</Label><Select value={form.department || "__none__"} onValueChange={(value) => setForm((current) => ({ ...current, department: value === "__none__" ? "" : value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{activeDepartments.map((department) => <SelectItem key={department.id} value={department.name}>{department.code ? `${department.code} — ${department.name}` : department.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-500">A unidade é usada para limitar o acesso operacional do servidor às áreas corretas.</p></div><div className="space-y-2"><Label htmlFor="municipal-new-title">Cargo / função</Label><Input id="municipal-new-title" required list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Ex.: Analista Técnico, Diretor, Fiscal de Obras" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><div className="grid gap-4 sm:col-span-2 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="municipal-new-password">Senha provisória</Label><Input id="municipal-new-password" required type="password" autoComplete="new-password" value={form.temporaryPassword} onChange={(event) => setForm((current) => ({ ...current, temporaryPassword: event.target.value }))} placeholder="Mínimo 8 caracteres" /></div><div className="space-y-2"><Label htmlFor="municipal-new-confirm">Confirmar senha</Label><Input id="municipal-new-confirm" required type="password" autoComplete="new-password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} placeholder="Repita a senha" /></div></div><p className="text-xs leading-5 text-slate-500 sm:col-span-2">Use maiúscula, minúscula, número e caractere especial. Se o e-mail já existir no SIGAPRO, a senha informada não altera a senha atual; o sistema apenas confirma o vínculo desta Prefeitura.</p><Button type="submit" disabled={Boolean(savingUserId)} className="sig-force-dark-action h-12 w-full rounded-xl bg-[#103d58] !text-white hover:bg-[#18536e] sm:col-span-2">{savingUserId === "new" ? "Salvando..." : "Criar conta de servidor"}</Button>{createUserFeedback.message ? <div role={createUserFeedback.tone === "error" ? "alert" : "status"} aria-live="polite" className={`sm:col-span-2 rounded-xl border px-4 py-3 text-sm font-semibold leading-5 ${createUserFeedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : createUserFeedback.tone === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-sky-200 bg-sky-50 text-sky-700"}`}>{createUserFeedback.message}</div> : null}
+                <div className="sm:col-span-2 border-t border-slate-200 pt-3 dark:border-slate-700">
+                  <Button type="button" variant="outline" disabled={savingUserId === "new"}
+                    onClick={() => navigate("/prefeitura?secao=usuarios")}
+                    className="h-11 w-full rounded-xl border-slate-300 bg-white !text-slate-900 hover:bg-slate-50 sm:w-auto">Voltar à lista</Button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </PageShell>
+      </PortalFrame>
+    );
+  }
+
   return (
     <PortalFrame eyebrow="Administração da Prefeitura"
       title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}
@@ -1690,11 +1732,13 @@ export function TenantAdminPage() {
                   </div>
                 </div>
                 <Button type="button" variant="outline"
-                  aria-expanded={createUserOpen}
-                  onClick={() => setCreateUserOpen((current) => !current)}
+                  onClick={() => {
+                    setCreateUserFeedback({ tone: "idle", message: "" });
+                    navigate("/prefeitura/usuarios/novo");
+                  }}
                   className="sig-dark-action-btn h-9 min-h-9 rounded-[11px] border-white/25 bg-white/10 px-3 text-white hover:border-white/40 hover:bg-white/20 hover:text-white">
                   <Plus className="mr-1.5 h-4 w-4 text-sky-100" />
-                  {createUserOpen ? "Fechar cadastro" : "Criar servidor"}
+                  Criar servidor
                 </Button>
               </header>
               <div data-municipal-users-content="true" className="min-w-0 space-y-2.5 p-3 sm:p-4">
@@ -1728,11 +1772,6 @@ export function TenantAdminPage() {
               </div>
               </div>
             </section>
-            {createUserOpen ? (
-              <div data-sigapro-create-user-panel="expanded" className="min-w-0 max-w-[780px]">
-                <SectionCard title="Criar conta de servidor" description="O administrador cria acessos internos somente para esta Prefeitura. Contas Master permanecem protegidas e não podem ser criadas ou alteradas aqui." className="shadow-[0_10px_28px_rgba(15,23,42,0.06)]" contentClassName="space-y-4" actions={<Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => setCreateUserOpen(false)}><ArrowLeft className="mr-2 h-4 w-4 text-sky-200" />Fechar cadastro</Button>}><form className="space-y-4" onSubmit={handleCreateUser}><div className="space-y-2"><Label>Prefeitura</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div><p className="text-xs leading-5 text-slate-500">Este vínculo é fixo: a conta será criada apenas neste subdomínio/prefeitura.</p></div><div className="space-y-2"><Label>Nome completo</Label><Input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label>E-mail institucional / acesso</Label><Input type="email" autoComplete="off" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil interno</Label><Select value={getMunicipalProfileSelectValue(form.role, form.title)} onValueChange={(value) => setForm((current) => applyMunicipalProfileSelection(value, current))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger><SelectContent>{municipalInternalRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}{municipalProfilePresets.map((profile) => <SelectItem key={profile.key} value={profile.key}>{profile.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Departamento / unidade</Label><Select value={form.department || "__none__"} onValueChange={(value) => setForm((current) => ({ ...current, department: value === "__none__" ? "" : value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{activeDepartments.map((department) => <SelectItem key={department.id} value={department.name}>{department.code ? `${department.code} — ${department.name}` : department.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-500">A unidade é usada para limitar o acesso operacional do servidor às áreas corretas.</p></div><div className="space-y-2"><Label>Cargo / função</Label><Input list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Ex.: Analista Técnico, Diretor, Fiscal de Obras" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label>Senha provisória</Label><Input type="password" autoComplete="new-password" value={form.temporaryPassword} onChange={(event) => setForm((current) => ({ ...current, temporaryPassword: event.target.value }))} placeholder="Mínimo 8 caracteres" /></div><div className="space-y-2"><Label>Confirmar senha</Label><Input type="password" autoComplete="new-password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} placeholder="Repita a senha" /></div></div><p className="text-xs leading-5 text-slate-500">Use maiúscula, minúscula, número e caractere especial. Se o e-mail já existir no SIGAPRO, a senha informada não altera a senha atual; o sistema apenas confirma o vínculo desta Prefeitura.</p><Button type="submit" disabled={Boolean(savingUserId)} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">{savingUserId === "new" ? "Salvando..." : "Criar conta de servidor"}</Button>{createUserFeedback.message ? <div role={createUserFeedback.tone === "error" ? "alert" : "status"} aria-live="polite" className={`rounded-2xl border px-4 py-3 text-sm font-semibold leading-5 ${createUserFeedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : createUserFeedback.tone === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-sky-200 bg-sky-50 text-sky-700"}`}>{createUserFeedback.message}</div> : null}</form></SectionCard>
-              </div>
-            ) : null}
           </PageMainContent>
         ) : null}
 
