@@ -4504,7 +4504,10 @@ export async function saveRemoteInstitutionSettings(
       }),
       "save_municipality_configuration",
       12000,
-    );
+    ) as {
+      data?: { municipality_id?: string } | null;
+      error?: { message?: string; details?: string; hint?: string; code?: string } | null;
+    };
     if (error) throw new Error(formatDatabaseError(error));
     if (String(data?.municipality_id ?? "") !== remoteTenantId) {
       throw new Error("O banco nao confirmou a atualizacao institucional desta Prefeitura.");
