@@ -21,6 +21,13 @@ describe("proprietário ↔ profissional: conversa segura e pronta para uso", ()
     expect(formatOwnerConversationTime(null)).toBe("Horário indisponível");
     expect(formatOwnerConversationTime("2026-11-23T15:00:00Z")).toContain("23/11/2026");
   });
+  it("denies legacy unverified requests and protects private messages from Master reading", () => {
+    const migration=read("neon/migrations/20261123_owner_professional_private_permissions_v2.sql");
+    expect(migration).toContain("revoke all on function public.create_owner_request(uuid,uuid,text) from authenticated");
+    expect(migration).toContain("owner_profile_id=public.current_profile_id()");
+    expect(migration).toContain("professional_profile_id=public.current_profile_id()");
+    expect(migration).not.toContain("or public.is_master()");
+  });
   it("validates full CPF/CNPJ in secured RPC instead of trusting masked digits", () => {
     const sql=read("neon/migrations/20261123_owner_professional_private_chat_v1.sql");
     expect(sql).toContain("create or replace function public.create_owner_request_by_protocol(");

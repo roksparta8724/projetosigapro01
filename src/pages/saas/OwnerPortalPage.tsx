@@ -192,6 +192,11 @@ export function OwnerPortalPage() {
           </div>
         ) : null}
 
+        {inbox.error ? (
+          <p role="alert" className="rounded-xl border border-amber-200/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+            Não foi possível sincronizar seus acompanhamentos: {inbox.error}
+          </p>
+        ) : null}
         <InternalTabs items={tabs} value={activeTab} onChange={(value) => setActiveTab(value as OwnerTab)} />
 
         {activeTab === "acompanhamentos" ? (
@@ -220,6 +225,7 @@ export function OwnerPortalPage() {
                     </p>
                     <Textarea
                       rows={3}
+                      maxLength={1000}
                       value={requestNote}
                       onChange={(event) => setRequestNote(event.target.value)}
                       placeholder="Mensagem opcional ao profissional (ex.: identificação do imóvel)"
@@ -248,10 +254,10 @@ export function OwnerPortalPage() {
                     </div>
                     <Button
                       onClick={() => void handleRequest()}
-                      disabled={!protocolSearch.trim() || !(documentValue || profile?.cpfCnpj || "").trim()}
+                      disabled={sendingRequest || !protocolSearch.trim() || !(documentValue || profile?.cpfCnpj || "").trim()}
                       className="rounded-full bg-slate-950 hover:bg-slate-900"
                     >
-                      Validar e enviar solicitação
+                      {sendingRequest ? "Validando protocolo..." : "Validar e enviar solicitação"}
                     </Button>
                   </div>
 
@@ -441,7 +447,7 @@ export function OwnerPortalPage() {
                           maxLength={4000}
                           aria-label="Mensagem privada ao profissional"
                           value={messageDraft}
-                          onChange={(event) => setMessageDraft(event.target.value)
+                          onChange={(event) => setMessageDraft(event.target.value)}
                           placeholder="Escreva uma mensagem clara e objetiva"
                           className="rounded-2xl"
                         />
