@@ -3297,7 +3297,7 @@ export function getOwnerMessagesForLink(
       item.projectId === link.projectId &&
       item.ownerUserId === link.ownerUserId &&
       item.professionalUserId === link.professionalUserId,
-  );
+  ).sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? "") || a.id.localeCompare(b.id));
 }
 
 export function getMasterMetrics(records: ProcessRecord[] = processRecords, items: Tenant[] = tenants) {

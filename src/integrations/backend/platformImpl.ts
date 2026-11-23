@@ -2142,6 +2142,89 @@ export async function setRemoteOwnerChatEnabled(input: {
   };
 }
 
+
+/** Read-only, participant-scoped inbox. Neon RLS is the primary authorization. */
+export async function listRemoteOwnerAccessInbox(): Promise<{
+  requests: OwnerProjectRequest[];
+  links: OwnerProjectLink[];
+}> {
+  if (!db) throw new Error("Banco indisponível para consultar acompanhamentos.");
+  const [requestsResult, linksResult] = await Promise.all([
+    db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }).limit(150),
+    db.from("project_owner_links").select("*").order("linked_at", { ascending: false }).limit(150),
+  ]);
+  if (requestsResult.error) throw new Error(requestsResult.error.message || "Falha ao consultar solicitações.");
+  if (linksResult.error) throw new Error(linksResult.error.message || "Falha ao consultar proprietários vinculados.");
+  return {
+    requests: (requestsResult.data ?? []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+      professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+      status: row.status ?? "pending",
+      requestedAt: row.requested_at ?? new Date().toISOString(),
+      respondedAt: row.responded_at ?? null,
+      respondedBy: (isNeonBackend ? row.responded_by_profile_id : null) ?? row.responded_by ?? null,
+      notes: row.notes ?? undefined,
+    })) as OwnerProjectRequest[],
+    links: (linksResult.data ?? []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+      professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+      chatEnabled: row.chat_enabled ?? false,
+      linkedAt: row.linked_at ?? new Date().toISOString(),
+      linkedBy: (isNeonBackend ? row.linked_by_profile_id : null) ?? row.linked_by ?? "",
+    })) as OwnerProjectLink[],
+  };
+}
+
+/** Load only the selected private chat, rather than reloading all processes.
+ * Verifies RLS-visible link and its canonical participants before returning messages.
+ */
+export async function listRemoteOwnerConversationMessages(
+  link: OwnerProjectLink,
+): Promise<OwnerProfessionalMessage[]> {
+  if (!db) throw new Error("Banco indisponível para atualizar a conversa.");
+  const { data: linked, error: linkError } = await db
+    .from("project_owner_links").select("*").eq("id", link.id).maybeSingle();
+  if (linkError) throw new Error(linkError.message || "Não foi possível validar a conversa.");
+  const storedOwner = (isNeonBackend ? linked?.owner_profile_id : null) ?? linked?.owner_user_id;
+  const storedProfessional = (isNeonBackend ? linked?.professional_profile_id : null) ?? linked?.professional_user_id;
+  if (!linked || linked.project_id !== link.projectId ||
+      storedOwner !== link.ownerUserId || storedProfessional !== link.professionalUserId) {
+    throw new Error("Conversa não encontrada ou sem permissão para este usuário.");
+  }
+
+  const query = db.from("owner_professional_messages").select("*")
+    .eq("project_id", link.projectId)
+    .eq(isNeonBackend ? "owner_profile_id" : "owner_user_id", link.ownerUserId)
+    .eq(isNeonBackend ? "professional_profile_id" : "professional_user_id", link.professionalUserId)
+    .order("created_at", { ascending: false })
+    .limit(250);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message || "Falha ao consultar mensagens da conversa.");
+  return ((data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+    senderUserId: (isNeonBackend ? row.sender_profile_id : null) ?? row.sender_user_id,
+    message: row.message,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    readAt: row.read_at ?? null,
+    isSystemMessage: row.is_system_message ?? false,
+  })) as OwnerProfessionalMessage[]).reverse();
+}
+
+export async function markRemoteOwnerConversationRead(linkId: string): Promise<number> {
+  if (!db) throw new Error("Banco indisponível para confirmar leitura.");
+  if (!isNeonBackend) return 0; // Supabase legada não tem a RPC de leitura.
+  const { data, error } = await db.rpc("mark_owner_conversation_read", { _link_id: linkId });
+  if (error) throw new Error(error.message || "Não foi possível confirmar leitura.");
+  return Number(data || 0);
+}
+
 export async function createRemoteOwnerMessage(input: {
   linkId?: string;
   projectId: string;
