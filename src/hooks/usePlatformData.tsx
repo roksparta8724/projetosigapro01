@@ -1690,7 +1690,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
     const saveClientPlanAssignment: PlatformDataState["saveClientPlanAssignment"] = async (assignment) => {
       const now = new Date().toISOString();
-      const nextAssignment: ClientPlanAssignment = {
+      let nextAssignment: ClientPlanAssignment = {
         ...assignment,
         id: assignment.id ?? `assignment-${crypto.randomUUID()}`,
         createdAt:
@@ -1703,7 +1703,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         throw new Error("Banco oficial indisponível para salvar o vínculo comercial.");
       }
 
-      await saveRemoteClientPlanAssignment(nextAssignment);
+      nextAssignment = await saveRemoteClientPlanAssignment(nextAssignment);
 
       updateStore((current) => {
         const linkedPlan = current.plans.find((item) => item.id === nextAssignment.planId);
