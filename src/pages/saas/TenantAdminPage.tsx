@@ -22,6 +22,7 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
@@ -38,6 +39,7 @@ import { buildPlanCapacityMetrics } from "@/lib/planUsageDashboard";
 import {
   assignRemoteProfileDepartment,
   listRemoteMunicipalDepartments,
+  listRemoteMunicipalUserRegistry,
   upsertRemoteMunicipalDepartment,
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
@@ -340,6 +342,9 @@ export function TenantAdminPage() {
   const overviewSubpage = municipalOverviewSubpageFromPath(location.pathname);
   const isNestedOverview = isMunicipalOverviewSubpagePath(location.pathname);
   const { session } = usePlatformSession();
+  const { isAuthenticated, authResolved, authenticatedUserId, authenticatedProfileId } = useAuthGateway();
+  const authorizedAvatarViewerId = isAuthenticated && authResolved
+    ? (authenticatedUserId || authenticatedProfileId) : null;
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
   const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore, remoteSyncedForCurrentUser, dataError: platformDataError, loading: platformDataLoading } = usePlatformData();
@@ -350,8 +355,62 @@ export function TenantAdminPage() {
     enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
     intervalMs: 8000,
   });
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => {
+    // Respect a direct Users link on first paint, without a temporary queue/hero.
+    if (isNestedOverview) return "visao-geral";
+    const selected = new URLSearchParams(location.search).get("secao");
+    return selected === "usuarios" || selected === "organograma" ||
+      selected === "historico" || selected === "visao-geral" || selected === "fila"
+      ? selected
+      : "fila";
+  });
+  const [municipalRegistryRefresh, setMunicipalRegistryRefresh] = useState(0);
+  const [municipalRegistry, setMunicipalRegistry] = useState<{
+    identity: string; municipalityId: string; loaded: boolean;
+    users: SessionUser[]; error: string | null;
+  }>({ identity: "", municipalityId: "", loaded: false, users: [], error: null });
+  const municipalRegistryConfirmed =
+    municipalRegistry.loaded && municipalRegistry.identity === session.id &&
+    municipalRegistry.municipalityId === effectiveScopeId;
+
+  // Read the signed-in municipality roster independently from the general
+  // bootstrap, which may continue even if a non-critical profile SELECT failed.
+  useEffect(() => {
+    if (workspaceView !== "usuarios" || !effectiveScopeId || !session.id ||
+        session.id === "unknown" ||
+        !["prefeitura_admin", "prefeitura_supervisor"].includes(session.role)) return;
+    let active = true;
+    setMunicipalRegistry({
+      identity: session.id, municipalityId: effectiveScopeId,
+      loaded: false, users: [], error: null,
+    });
+    void listRemoteMunicipalUserRegistry()
+      .then((result) => {
+        if (!active) return;
+        if (!result || result.municipalityId !== effectiveScopeId) {
+          throw new Error("A Prefeitura autenticada não corresponde aos cadastros retornados pelo banco.");
+        }
+        setMunicipalRegistry({
+          identity: session.id, municipalityId: effectiveScopeId,
+          loaded: true, users: result.users, error: null,
+        });
+      })
+      .catch((error) => {
+        if (!active) return;
+        setMunicipalRegistry({
+          identity: session.id, municipalityId: effectiveScopeId, loaded: false,
+          users: [],
+          error: error instanceof Error ? error.message : "A lista de servidores não pôde ser confirmada.",
+        });
+      });
+    return () => { active = false; };
+  }, [effectiveScopeId, session.id, session.role, workspaceView, municipalRegistryRefresh]);
+
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
-  const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
+  const tenantUsers = useMemo(() => {
+    if (municipalRegistryConfirmed) return municipalRegistry.users;
+    return sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user));
+  }, [effectiveScopeId, sessionUsers, municipalRegistryConfirmed, municipalRegistry.users]);
   const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)), [effectiveScopeId, processes]);
   const internalTenantUsers = useMemo(
     () =>
@@ -392,7 +451,6 @@ export function TenantAdminPage() {
     message: string;
   }>({ tone: "idle", message: "" });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("fila");
   const [queueSearch] = useState("");
   const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
   const [overviewProcessSearch, setOverviewProcessSearch] = useState("");
@@ -647,11 +705,13 @@ export function TenantAdminPage() {
             message: `A conta foi criada, mas o vínculo com o departamento não foi concluído: ${detail}`,
           });
           await refreshRemoteStore();
+          setMunicipalRegistryRefresh((current) => current + 1);
           return;
         }
       }
 
       await refreshRemoteStore();
+      setMunicipalRegistryRefresh((current) => current + 1);
 
       setCreateUserFeedback({
         tone: "success",
@@ -689,6 +749,7 @@ export function TenantAdminPage() {
     try {
       const updated = await command();
       if (!updated) throw new Error("Usuário não encontrado no banco.");
+      setMunicipalRegistryRefresh((current) => current + 1);
       setStatusMessage(success(updated));
       return true;
     } catch (error) {
@@ -768,6 +829,7 @@ export function TenantAdminPage() {
       }
 
       await refreshRemoteStore();
+      setMunicipalRegistryRefresh((current) => current + 1);
       setEditStatusMessage("Alterações salvas no banco e confirmadas com sucesso.");
     } catch (error) {
       setEditStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar as alterações.");
@@ -956,6 +1018,7 @@ export function TenantAdminPage() {
                 className={`rounded-[18px] border p-1.5 shadow-sm ${roleVisual.icon}`}
               >
                 <UserAvatar
+                  authenticatedOwnerId={authorizedAvatarViewerId}
                   name={user.name}
                   imageUrl={resolveProfileAvatarDisplayUrl(profile)}
                   crop={profile ? {
@@ -1199,7 +1262,9 @@ export function TenantAdminPage() {
   ];
 
   return (
-    <PortalFrame eyebrow="Administração da Prefeitura" title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}>
+    <PortalFrame eyebrow="Administração da Prefeitura"
+      title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}
+      hideSectionHeader={workspaceView === "usuarios"}>
       <PageShell>
         <InternalTabs
           className="border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
@@ -1610,37 +1675,49 @@ export function TenantAdminPage() {
         ) : null}
 
         {workspaceView === "usuarios" ? (
-          <PageMainContent className="min-w-0 gap-5">
-            {!remoteSyncedForCurrentUser ? (
-              <div role={platformDataError ? "alert" : "status"} data-municipal-users-sync={platformDataError ? "error" : "pending"}
-                className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-900 dark:border-sky-700 dark:bg-sky-950/40 dark:text-white">
-                <div className="min-w-0">
-                  <p className="font-bold">{platformDataError ? "Não foi possível confirmar a lista oficial de usuários" : "Validando os usuários vinculados à Prefeitura..."}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">{platformDataError || (platformDataLoading ? "Conferindo os cadastros no banco oficial." : "Os números serão confirmados após sincronização; o cache não define o cadastro oficial.")}</p>
+          <PageMainContent className="min-w-0 gap-3">
+            <section data-municipal-users-pane="premium-v7"
+              className="min-w-0 !h-auto !min-h-0 !self-start overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(12,41,65,0.10)]">
+              <header data-municipal-users-toolbar="compact-v7"
+                className="flex min-w-0 flex-wrap items-center justify-between gap-2.5 bg-[#10364f] px-3 py-2.5 text-white sm:px-4">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-white/20 bg-white/10">
+                    <Users2 aria-hidden="true" className="h-4.5 w-4.5 text-sky-100" />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="text-[15px] font-semibold leading-5 text-white">Gestão de usuários</h2>
+                    <p className="mt-0.5 text-[11px] leading-4 text-sky-100">Servidores, perfis e lotações da Prefeitura</p>
+                  </div>
                 </div>
-                <Button type="button" variant="outline" className="rounded-xl border-slate-300 bg-white text-slate-900"
-                  onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>Tentar sincronizar</Button>
-              </div>
-            ) : null}
-            <PageStatsRow className="md:grid-cols-4 [&>*]:min-w-0">
-              <StatCard label="Equipe interna" value={String(internalTenantUsers.length)} description="Servidores e contas operacionais internas" icon={Users2} tone="blue" />
-              <StatCard label="Vínculos municipais" value={String(tenantUsers.length)} description="Todos os perfis da Prefeitura, inclusive externos" icon={Users2} tone="default" />
-              <StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" />
-              <StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" />
-            </PageStatsRow>
-            <TableCard title="Gestão de usuários"
-              description="Tabela paginada e compacta. Consulte um cadastro por vez, sem empilhar fichas nem comprometer a navegação."
-              icon={Users2} className="min-w-0 shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
-              actions={
                 <Button type="button" variant="outline"
                   aria-expanded={createUserOpen}
                   onClick={() => setCreateUserOpen((current) => !current)}
-                  className="sig-dark-action-btn min-h-10 rounded-xl text-slate-50">
-                  <Users2 className="mr-2 h-4 w-4 text-sky-200" />
+                  className="sig-dark-action-btn h-9 min-h-9 rounded-[11px] border-white/25 bg-white/10 px-3 text-white hover:border-white/40 hover:bg-white/20 hover:text-white">
+                  <Plus className="mr-1.5 h-4 w-4 text-sky-100" />
                   {createUserOpen ? "Fechar cadastro" : "Criar servidor"}
                 </Button>
-              }>
-              <div className="min-w-0 space-y-4">
+              </header>
+              <div data-municipal-users-content="true" className="min-w-0 space-y-2.5 p-3 sm:p-4">
+            {(!municipalRegistryConfirmed) ? (
+              <div role={platformDataError || municipalRegistry.error ? "alert" : "status"} data-municipal-users-sync={platformDataError || municipalRegistry.error ? "error" : "pending"}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-300/75 bg-sky-50 px-3 py-2 text-xs text-slate-900 dark:border-sky-600 dark:bg-sky-950/45 dark:text-white">
+                <div className="min-w-0">
+                  <p className="font-bold">{platformDataError || municipalRegistry.error ? "Não foi possível confirmar a lista oficial de usuários" : "Validando os usuários vinculados à Prefeitura..."}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">{municipalRegistry.error || platformDataError || (platformDataLoading || !municipalRegistryConfirmed ? "Conferindo a lista protegida de usuários no banco oficial." : "Os números serão confirmados após sincronização; o cache não define o cadastro oficial.")}</p>
+                </div>
+                <Button type="button" variant="outline" className="rounded-xl border-slate-300 bg-white text-slate-900"
+                  onClick={() => { setMunicipalRegistryRefresh((current) => current + 1); void refreshRemoteStore().catch(() => undefined); }}>Tentar sincronizar</Button>
+              </div>
+            ) : null}
+              <div data-municipal-users-list-first="premium-v6" className="min-w-0 space-y-3">
+                <div data-municipal-users-summary="compact-v6"
+                  className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-[#2f6384] bg-[#123d5b] px-3.5 py-2.5 text-xs text-white shadow-[0_4px_14px_rgba(9,37,64,0.12)]"
+                  aria-label="Resumo do cadastro municipal">
+                  <span className="text-sky-100">Vínculos municipais <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? tenantUsers.length : "—"}</strong></span>
+                  <span className="text-sky-100">Equipe interna <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? internalTenantUsers.length : "—"}</strong></span>
+                  <span className="text-sky-100">Administradores <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? tenantUsers.filter((user) => user.role === "prefeitura_admin").length : "—"}</strong></span>
+                  <span className="text-sky-100">Bloqueados <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? tenantUsers.filter((user) => user.accountStatus === "blocked").length : "—"}</strong></span>
+                </div>
                 <Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div>
                 <CompactUserRegistry users={filteredUsers} page={userPage}
                   onPageChange={setUserPage}
@@ -1649,7 +1726,8 @@ export function TenantAdminPage() {
                   renderDetails={renderUserCard}
                   label="Usuários da Prefeitura" />
               </div>
-            </TableCard>
+              </div>
+            </section>
             {createUserOpen ? (
               <div data-sigapro-create-user-panel="expanded" className="min-w-0 max-w-[780px]">
                 <SectionCard title="Criar conta de servidor" description="O administrador cria acessos internos somente para esta Prefeitura. Contas Master permanecem protegidas e não podem ser criadas ou alteradas aqui." className="shadow-[0_10px_28px_rgba(15,23,42,0.06)]" contentClassName="space-y-4" actions={<Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => setCreateUserOpen(false)}><ArrowLeft className="mr-2 h-4 w-4 text-sky-200" />Fechar cadastro</Button>}><form className="space-y-4" onSubmit={handleCreateUser}><div className="space-y-2"><Label>Prefeitura</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div><p className="text-xs leading-5 text-slate-500">Este vínculo é fixo: a conta será criada apenas neste subdomínio/prefeitura.</p></div><div className="space-y-2"><Label>Nome completo</Label><Input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label>E-mail institucional / acesso</Label><Input type="email" autoComplete="off" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil interno</Label><Select value={getMunicipalProfileSelectValue(form.role, form.title)} onValueChange={(value) => setForm((current) => applyMunicipalProfileSelection(value, current))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger><SelectContent>{municipalInternalRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}{municipalProfilePresets.map((profile) => <SelectItem key={profile.key} value={profile.key}>{profile.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Departamento / unidade</Label><Select value={form.department || "__none__"} onValueChange={(value) => setForm((current) => ({ ...current, department: value === "__none__" ? "" : value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{activeDepartments.map((department) => <SelectItem key={department.id} value={department.name}>{department.code ? `${department.code} — ${department.name}` : department.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-500">A unidade é usada para limitar o acesso operacional do servidor às áreas corretas.</p></div><div className="space-y-2"><Label>Cargo / função</Label><Input list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Ex.: Analista Técnico, Diretor, Fiscal de Obras" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label>Senha provisória</Label><Input type="password" autoComplete="new-password" value={form.temporaryPassword} onChange={(event) => setForm((current) => ({ ...current, temporaryPassword: event.target.value }))} placeholder="Mínimo 8 caracteres" /></div><div className="space-y-2"><Label>Confirmar senha</Label><Input type="password" autoComplete="new-password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} placeholder="Repita a senha" /></div></div><p className="text-xs leading-5 text-slate-500">Use maiúscula, minúscula, número e caractere especial. Se o e-mail já existir no SIGAPRO, a senha informada não altera a senha atual; o sistema apenas confirma o vínculo desta Prefeitura.</p><Button type="submit" disabled={Boolean(savingUserId)} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">{savingUserId === "new" ? "Salvando..." : "Criar conta de servidor"}</Button>{createUserFeedback.message ? <div role={createUserFeedback.tone === "error" ? "alert" : "status"} aria-live="polite" className={`rounded-2xl border px-4 py-3 text-sm font-semibold leading-5 ${createUserFeedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : createUserFeedback.tone === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-sky-200 bg-sky-50 text-sky-700"}`}>{createUserFeedback.message}</div> : null}</form></SectionCard>

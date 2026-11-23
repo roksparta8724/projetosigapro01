@@ -49,6 +49,7 @@ describe("foto do topo não pisca durante revalidação", () => {
     expect(portal).toContain("const cachedHasAvatar = Boolean(resolveProfileAvatarDisplayUrl(cachedHeaderProfile))");
     expect(portal).toContain("const displayProfile = userProfile && (profileHasAvatar || !cachedHasAvatar)");
     expect(portal).toContain("authenticatedOwnerId={authenticatedAvatarOwnerId}");
-    expect(portal).toContain("refreshWithoutPageReload");
+    expect(portal).toContain("readCachedProfileAvatar");
+    expect(portal).toContain("preservePhotoDuringRefresh");
   });
 });

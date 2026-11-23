@@ -1055,6 +1055,14 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
+        // Reuse only the municipality already resolved for THIS hostname on
+        // the public login screen. A fresh auth profile and the backend
+        // has_tenant_access check still validate that it belongs to this user.
+        // This avoids redoing 3+ municipality/branding/settings reads on login.
+        const hostMunicipalityAtSignIn = resolution.mode === "tenant" &&
+          municipalityBundle?.municipality?.id
+          ? municipalityBundle
+          : null;
         const clearIdentity = () => {
           writeBootstrapSnapshot(null);
           clearPlatformSessionSnapshot();
@@ -1143,11 +1151,15 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
 
           if (nextScopeType !== "platform") {
             if (resolution.mode === "tenant") {
-              nextBundle = await loadCurrentMunicipalityBundle({
-                hostname: resolution.hostname,
-                subdomain: resolution.subdomain,
-                isLocalhost: resolution.isLocalhost,
-              });
+              // Only retain the warm municipal branding if it matches the
+              // CURRENT authenticated profile; never trust it for access.
+              nextBundle = hostMunicipalityAtSignIn?.municipality?.id === nextProfile?.municipalityId
+                ? hostMunicipalityAtSignIn
+                : await loadCurrentMunicipalityBundle({
+                    hostname: resolution.hostname,
+                    subdomain: resolution.subdomain,
+                    isLocalhost: resolution.isLocalhost,
+                  });
               if (!nextBundle?.municipality?.id) {
                 throw new Error("Prefeitura deste subdomínio não encontrada.");
               }

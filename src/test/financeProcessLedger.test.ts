@@ -67,9 +67,10 @@ describe("finance process accounting ledger", () => {
 
   it("keeps the clicked ledger row bound to the exact guide instead of falling back to another guide in the same process", () => {
     expect(desk).toContain('&guia=${encodeURIComponent(guide.code)}#guia-selecionada');
-    expect(desk).toMatch(
-      /key=\{`\$\{process\.id\}-\$\{guide\.kind\}-\$\{guide\.code\}`\}[\s\S]{0,380}to=\{`\$\{buildProcessPath\(process, "financeiro"\)\}&guia=\$\{encodeURIComponent\(guide\.code\)\}#guia-selecionada`\}/,
-    );
+    expect(desk).toContain('const guideLink = buildProcessPath(process, "financeiro") +');
+    expect(desk).toContain('"&guia=" + encodeURIComponent(guide.code) + "#guia-selecionada"');
+    expect(desk).toContain('key={process.id + ":" + guide.kind + ":" + guide.code}');
+    expect(desk).toContain('<Link to={guideLink}');
     expect(detail).toContain('new URLSearchParams(location.search).get("guia")');
     expect(detail).toContain("paymentGuides.find((guide) => guide.code === requestedGuideCode)");
     expect(detail).toContain("const displayGuide = requestedPaymentGuide ?? approvalGuide ?? constructionGuide ?? protocolGuide;");
@@ -92,7 +93,8 @@ describe("finance process accounting ledger", () => {
     expect(desk).toContain("getPaymentGuideDisplayReference");
     expect(desk).toContain("bSequence.number - aSequence.number");
     expect(desk).toContain("bIssued - aIssued");
-    expect(desk).toContain("lg:grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px]");
+    expect(desk).toContain('role="table" aria-label="Ordem oficial das guias financeiras"');
+    expect(desk).toContain('className="sig-finance-ledger__grid sig-finance-ledger__row"');
     expect(desk).toContain("Ordem oficial dos processos");
     expect(desk).toContain("Pré-protocolos ainda não pagos aparecem como PRE");
     expect(desk).toContain("Guia paga no pré-protocolo:");

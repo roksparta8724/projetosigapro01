@@ -40,6 +40,15 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Tests
-        run: npm test
+      # Complete suite is enforced by the four required quality-gate shards.
+      - name: Neon and SEI regressions
+        run: >
+          npx vitest run
+          src/test/municipalMultiDepartmentStaff20261118.test.ts
+          src/test/municipalStaffLegacyAssignment20261119.test.tsx
+          src/test/seiUnitMarkerActions20261117.test.tsx
+          src/test/processMarkerLimit20261117.test.ts
+          src/test/officialProcessCanonicalStatusAndList.test.ts
+          src/test/municipalProcessRegistry.test.ts
+          src/test/municipalAdminRegistryProduction20261119.test.ts
 

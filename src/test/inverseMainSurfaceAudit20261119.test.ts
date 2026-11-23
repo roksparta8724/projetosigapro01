@@ -80,8 +80,8 @@ describe("SIGAPRO — pente-fino de contraste no tema inverse-main", () => {
   });
 
   it("acompanha o topbar: pesquisar escuro nos dois temas sem tocar na busca ou no destino", () => {
-    expect(portal).toContain('data-search-surface="dark"');
-    expect(portal).not.toContain('data-search-surface={inverseMainTheme ? "light" : "dark"}');
+    expect(portal).toContain('data-search-surface={inverseMainTheme ? "light" : "dark"}');
+    expect(portal).not.toContain('data-search-surface="dark"');
     expect(portal).toContain('aria-label="Busca global"');
     expect(portal).toContain("onClick={() => setCommandOpen(true)}");
   });

@@ -12,11 +12,12 @@ import { readAvatarSessionThumbnail } from "@/lib/avatarSessionThumbnail";
  */
 export function useAuthorizedAvatarUrl(
   source: string | null | undefined, authenticatedOwnerId?: string | null,
+  variant: "original" | "thumbnail" = "original",
 ): string {
   const raw = String(source || "");
   const objectKey = privateAvatarObjectKey(raw);
   const owner = String(authenticatedOwnerId || "").trim();
-  const cacheHit = owner && objectKey ? getAuthorizedAvatarRuntimeUrl(owner, raw) : "";
+  const cacheHit = owner && objectKey ? getAuthorizedAvatarRuntimeUrl(owner, raw, variant) : "";
   // A miniature is bound to the same authenticated browser session, user
   // and exact R2 object reference. Never reuse a thumbnail for another account.
   const previewHit = owner && objectKey && !cacheHit ? readAvatarSessionThumbnail(owner, raw) : "";
@@ -26,7 +27,7 @@ export function useAuthorizedAvatarUrl(
     if (!objectKey) return;
     if (owner) {
       let active = true;
-      void loadAuthorizedAvatarRuntimeUrl(owner, raw).then((url) => {
+      void loadAuthorizedAvatarRuntimeUrl(owner, raw, variant).then((url) => {
         if (active) setLoaded({ source: raw, owner, url });
       }).catch(() => {
         if (active) setLoaded({ source: raw, owner, url: "" });
@@ -40,7 +41,7 @@ export function useAuthorizedAvatarUrl(
     let disposed = false;
     let release = () => {};
 
-    void resolveAuthorizedAvatarUrl(raw, controller.signal).then((asset) => {
+    void resolveAuthorizedAvatarUrl(raw, controller.signal, variant).then((asset) => {
       if (disposed) {
         asset.revoke();
         return;
@@ -56,7 +57,7 @@ export function useAuthorizedAvatarUrl(
       controller.abort();
       release();
     };
-  }, [objectKey, raw, owner]);
+  }, [objectKey, raw, owner, variant]);
 
   // For account-scoped images, only use the live cache. A blob revoked on
   // logout must never be returned from a stale React state.

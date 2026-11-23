@@ -79,6 +79,28 @@ describe("SIGAPRO QA — leitura de foto privada vinculada ao perfil", () => {
     expect(await authorizePrivateAvatarRead(session as never,municipal)).toMatchObject({ok:true});
   });
 
+  it("avalia permissões municipais independentes em paralelo sem conceder acesso parcial", async () => {
+    const barrier = () => {
+      let release: ((value: ReturnType<typeof success>) => void) | null = null;
+      const promise = new Promise<ReturnType<typeof success>>((resolve) => { release = resolve; });
+      return { promise, release: (value: ReturnType<typeof success>) => release?.(value) };
+    };
+    const master = barrier();
+    const admin = barrier();
+    const tenant = barrier();
+    vi.mocked(callDataApiRpc)
+      .mockResolvedValueOnce(success(other))
+      .mockImplementationOnce(() => master.promise as never)
+      .mockImplementationOnce(() => admin.promise as never)
+      .mockImplementationOnce(() => tenant.promise as never);
+    const pending = authorizePrivateAvatarRead(session as never, municipal);
+    await vi.waitFor(() => expect(callDataApiRpc).toHaveBeenCalledTimes(4));
+    master.release(success(false));
+    admin.release(success(true));
+    tenant.release(success(false));
+    await expect(pending).resolves.toMatchObject({ ok: false, status: 403 });
+  });
+
   it("não fornece foto de outro usuário nem por assinatura de bucket logos", async () => {
     vi.mocked(callDataApiRpc)
       .mockResolvedValueOnce(success(other))
@@ -94,8 +116,8 @@ describe("SIGAPRO QA — leitura de foto privada vinculada ao perfil", () => {
       .toMatchObject({ok:false,status:503});
     const qa = {VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:"fix/qa-triagem-analise-pagamento-20261101"};
     expect(enforceAuthenticatedAvatarRead(qa)).toBe(true);
-    expect(enforceAuthenticatedAvatarRead({...qa,VERCEL_ENV:"production"})).toBe(false);
-    expect(enforceAuthenticatedAvatarRead({...qa,VERCEL_GIT_COMMIT_REF:"main"})).toBe(false);
+    expect(enforceAuthenticatedAvatarRead({...qa,VERCEL_ENV:"production"})).toBe(true);
+    expect(enforceAuthenticatedAvatarRead({...qa,VERCEL_GIT_COMMIT_REF:"main"})).toBe(true);
   });
 
   it("proteção GET roda antes da leitura R2; PDFs e branding permanecem separados", () => {

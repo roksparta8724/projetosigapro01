@@ -10,7 +10,7 @@
  * previamente verificada é entregue de imediato, e revalidada em segundo plano.
  * Recargas que ignoram o Service Worker continuam sendo recargas nativas.
  */
-const CACHE_VERSION = "sigapro-enterprise-v9";
+const CACHE_VERSION = "sigapro-enterprise-v10";
 const ASSET_CACHE = `${CACHE_VERSION}:assets`;
 const NAVIGATION_CACHE = `${CACHE_VERSION}:public-html`;
 const DOCUMENT_URL = new URL("/index.html", self.location.origin).href;
@@ -21,13 +21,15 @@ const IS_SIGAPRO_PREVIEW = /^projetosigapro01-[a-z0-9-]+\.vercel\.app$/i.test(se
 // public HTML is safe to serve from the local cache on F5.
 const IS_MUTABLE_PREVIEW_ALIAS = IS_SIGAPRO_PREVIEW &&
   /^projetosigapro01-git-/i.test(self.location.hostname);
+// Production root and municipality subdomains also point to changing releases.
+const IS_MUTABLE_APP_HOST = !IS_SIGAPRO_PREVIEW || IS_MUTABLE_PREVIEW_ALIAS;
 
 // Durante a ativação do novo SW, preservar a última geração dos bundles
 // versionados: abas ainda abertas podem solicitar um chunk da release anterior.
 const KEEP_CACHES = new Set([
   ASSET_CACHE,
   NAVIGATION_CACHE,
-  ...(IS_SIGAPRO_PREVIEW ? [] : ["sigapro-enterprise-v8:assets"]),
+  ...(IS_SIGAPRO_PREVIEW ? [] : ["sigapro-enterprise-v9:assets"]),
 ]);
 
 function isPublicAppDocument(response) {
@@ -92,7 +94,7 @@ self.addEventListener("activate", (event) => {
         // Navigation Preload begins the fresh HTML request while Chrome boots
         // the Service Worker. The moving preview alias MUST remain network-
         // first to avoid reusing a previous deploy's Neon/Auth configuration.
-        if (IS_MUTABLE_PREVIEW_ALIAS) {
+        if (IS_MUTABLE_APP_HOST) {
           try {
             await self.registration?.navigationPreload?.enable?.();
           } catch {
@@ -126,6 +128,15 @@ async function cacheFirst(request, cacheName) {
   const response = await fetch(request);
   if (safeAssetResponse(request, response)) {
     await cache.put(request, response.clone());
+    return response;
+  }
+  // A missing chunk was incorrectly rewritten to index.html with HTTP 200.
+  // Never pass HTML to JavaScript/CSS module loading or cache as a bundle.
+  if (/\.(?:m?js|cjs|css)$/i.test(new URL(request.url).pathname) && response.ok) {
+    return new Response("Arquivo da versao anterior indisponivel.", {
+      status: 404,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+    });
   }
   return response;
 }
@@ -167,6 +178,14 @@ async function precacheBootAssets(html) {
 // o cliente informa SOMENTE URLs JS/CSS de /assets/ já usadas naquela aba.
 // A solicitação não inclui credenciais, DOM, imagens, dados nem rotas privadas.
 self.addEventListener("message", (event) => {
+  if (event.data?.type === "SIGAPRO_CLEAR_STALE_APP_SHELL") {
+    // Only public HTML and bundles are removed, never session or business data.
+    event.waitUntil(Promise.all([
+      caches.delete(NAVIGATION_CACHE),
+      caches.delete(ASSET_CACHE),
+    ]));
+    return;
+  }
   if (!event.data || event.data.type !== "SIGAPRO_PRECACHE_USED_ASSETS") return;
   const urls = Array.isArray(event.data.urls) ? event.data.urls.slice(0, 64) : [];
   event.waitUntil(precachePublicAssetUrls(urls.filter((url) => typeof url === "string")));
@@ -261,12 +280,13 @@ async function respondToNavigation(request, event) {
   const path = new URL(request.url).pathname;
   const isIdentityRoute = path === "/acesso" || path === "/recuperar-senha" || path === "/criar-conta";
 
-  // CRITICAL: A preview is not a pinned offline release. The old cache-first
+  // CRITICAL: Production domains and moving previews must receive fresh HTML.
+  // Former cache-first production HTML referenced removed Vite chunks.
   // handler could keep serving yesterday's Vite HTML and its embedded Neon
   // Auth/Data endpoints after a READY deployment, making real login fail even
   // when Vercel and Neon settings were correct. Always fetch the CURRENT
   // app document for previews and for identity flows.
-  if (IS_MUTABLE_PREVIEW_ALIAS || isIdentityRoute) {
+  if (IS_MUTABLE_APP_HOST || isIdentityRoute) {
     try {
       // A browser-provided preload is the CURRENT network response; never a
       // cached document from a previous commit. It avoids a second serialized
@@ -312,7 +332,7 @@ async function respondToNavigation(request, event) {
   if (await isVerifiedPublicAppDocument(cached)) {
     // A pinned Vercel preview is immutable, so its verified public HTML is
     // safe to deliver immediately. Mutable branch aliases never use this path.
-    // In production keep the fast offline HTML; refresh in the background.
+    // Production is network-first; this branch is for immutable previews only.
     event.waitUntil(updatePublicDocumentCache());
     return cached;
   }

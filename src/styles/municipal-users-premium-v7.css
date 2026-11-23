@@ -1,0 +1,118 @@
+/*
+ * SIGAPRO — Cadastro municipal compacto. Apenas a aba Usuários.
+ * Mantém largura natural da tabela e não altera os quadros dos outros setores.
+ */
+html body #root .sig-main-shell [data-municipal-users-pane="premium-v7"] {
+  display: block !important;
+  align-self: start !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+html body #root .sig-main-shell [data-municipal-users-toolbar="compact-v7"] {
+  min-height: 0 !important;
+  height: auto !important;
+  background: linear-gradient(113deg,#10364f 0%,#145072 100%) !important;
+  border-bottom: 1px solid #3e7390;
+}
+html body #root .sig-main-shell [data-municipal-users-toolbar="compact-v7"] :is(h2,p) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #root .sig-main-shell [data-municipal-users-toolbar="compact-v7"] p {
+  color: #d8eafb !important;
+  -webkit-text-fill-color: #d8eafb !important;
+}
+html body #root .sig-main-shell [data-municipal-users-content="true"] {
+  min-height: 0 !important;
+  height: auto !important;
+  align-content: start !important;
+}
+html body #root .sig-main-shell [data-municipal-users-list-first="premium-v6"] {
+  min-height: 0 !important;
+  height: auto !important;
+  display: block !important;
+}
+html body #root .sig-main-shell [data-municipal-users-list-first="premium-v6"] > * + * {
+  margin-top: 10px;
+}
+html body #root .sig-main-shell [data-municipal-users-summary="compact-v6"] {
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  background: #123d5b !important;
+  border-color: #386f8c !important;
+}
+html body #root .sig-main-shell [data-municipal-users-summary="compact-v6"] :is(span,strong) {
+  color: #f0f9ff !important;
+  -webkit-text-fill-color: #f0f9ff !important;
+}
+/* Modo escuro inverso: nenhum bloco branco fica sobre a superfície escura. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] {
+  background: #142d43 !important;
+  border-color: #47657f !important;
+  color: #f4faff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-municipal-users-content="true"] {
+  background: #142d43 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"] > div:nth-child(2),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"] table {
+  background: #1b364c !important;
+  border-color: #49677f !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"] thead {
+  background: #23445c !important;
+  border-color: #577990 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"] tbody tr {
+  background: #1b364c !important;
+  border-color: #3e6076 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"] tbody tr:hover {
+  background: #254b64 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"]
+:is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700) {
+  color: #f6fbff !important;
+  -webkit-text-fill-color: #f6fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"]
+:is(.text-slate-600,.text-slate-500) {
+  color: #d1e1ec !important;
+  -webkit-text-fill-color: #d1e1ec !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"] thead th {
+  color: #d9ecf9 !important;
+  -webkit-text-fill-color: #d9ecf9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [data-sigapro-user-registry="compact"] [data-sigapro-user-expanded="true"] {
+  background: #213f57 !important;
+  border-color: #577990 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [role="tablist"] {
+  background: #203d55 !important;
+  border-color: #4c6880 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+[data-municipal-users-pane="premium-v7"] [role="tab"][data-state="inactive"] {
+  color: #d2e4f1 !important;
+}
+@media (max-width: 767px) {
+  html body #root .sig-main-shell [data-municipal-users-toolbar="compact-v7"] { padding: 10px 12px !important; }
+  html body #root .sig-main-shell [data-municipal-users-content="true"] { padding: 12px !important; }
+}

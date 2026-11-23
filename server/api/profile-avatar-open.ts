@@ -7,6 +7,37 @@ type Req = import("http").IncomingMessage & { method?: string };
 type Res = import("http").ServerResponse;
 
 const MAX_AVATAR_BYTES = 12 * 1024 * 1024;
+const MAX_AVATAR_THUMB_BYTES = 400_000;
+
+/** Every profile upload has a unique UUID prefix, so a derived key cannot
+ * collide with a later profile photo. This derived image remains PRIVATE in
+ * the same /profiles/avatars/ R2 path; it is never published by a CDN.
+ */
+export function privateAvatarThumbnailKey(originalKey: string): string {
+  const prefix = originalKey.slice(0, originalKey.lastIndexOf("/") + 1);
+  const fingerprint = createHash("sha256").update(originalKey).digest("hex").slice(0, 32);
+  return prefix + ".thumb-v1-" + fingerprint + ".webp";
+}
+
+/** Make a compact display raster without overwriting the full-resolution
+ * original used by the photo editor. Deny decompression bombs.
+ */
+export async function buildPrivateAvatarThumbnail(original: Uint8Array): Promise<Buffer | null> {
+  try {
+    const { default: sharp } = await import("sharp");
+    const encoded = await sharp(Buffer.from(original), { limitInputPixels: 40_000_000, animated: false })
+      .rotate()
+      .resize({ width: 384, height: 384, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 76, effort: 3 })
+      .toBuffer();
+    return encoded.length > 0 && encoded.length <= MAX_AVATAR_THUMB_BYTES &&
+      safeAvatarMime(encoded) === "image/webp" ? encoded : null;
+  } catch {
+    // Never break access to a verified original if a native thumbnail codec
+    // is unavailable on a particular Vercel function instance.
+    return null;
+  }
+}
 
 function readEnv(key: string) {
   const raw = process.env[key];
@@ -172,50 +203,61 @@ async function streamAvatarFromAnyClient(
   return false;
 }
 
-async function streamCachedAvatar(
-  client: S3Client,
-  bucket: string,
-  objectKey: string,
-  res: Res,
-) {
+type LoadedAvatar = { bytes: Buffer; mime: string; client: S3Client };
+
+async function readAvatarFromClient(
+  client: S3Client, bucket: string, objectKey: string,
+): Promise<LoadedAvatar | null> {
   try {
-    const object = await client.send(
-      new GetObjectCommand({ Bucket: bucket, Key: objectKey }),
-    );
-
-    if (!object.Body) return false;
-    // Read R2 bodies incrementally. Checking size only after
-    // transformToByteArray() would already allocate an oversized object.
+    const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: objectKey }));
+    if (!object.Body) return null;
     const bytes = await readBoundedR2Avatar(
-      object.Body as AsyncIterable<Uint8Array>,
-      object.ContentLength,
+      object.Body as AsyncIterable<Uint8Array>, object.ContentLength,
     );
-    if (!bytes) return false;
-    const verifiedMime = safeAvatarMime(bytes);
-    if (!verifiedMime) return false;
-
-    setCors(res);
-    res.statusCode = 200;
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Content-Type", verifiedMime);
-    if (res.getHeader("Cross-Origin-Resource-Policy") === "same-origin") {
-      // An authenticated photo must not survive logout in the HTTP cache or
-      // become readable by another origin via wildcard CORS.
-      res.removeHeader("Access-Control-Allow-Origin");
-      res.setHeader("Cache-Control", "private, no-store");
-    } else {
-      res.setHeader("Cache-Control", "private, max-age=21600, stale-while-revalidate=86400");
-    }
-    res.end(bytes);
-    return true;
-  } catch (error) {
-    const name =
-      error && typeof error === "object" && "name" in error
-        ? String((error as { name?: unknown }).name || "")
-        : "";
-    if (/NoSuchKey|NotFound|404/i.test(name)) return false;
-    return false;
+    if (!bytes) return null;
+    const mime = safeAvatarMime(bytes);
+    return mime ? { bytes, mime, client } : null;
+  } catch {
+    // NotFound, transient endpoint errors and invalid bodies must never leak
+    // R2 paths or secrets. The next configured R2 endpoint is still tried.
+    return null;
   }
+}
+
+async function readAvatarFromAnyClient(
+  clients: S3Client[], bucket: string, objectKey: string,
+): Promise<LoadedAvatar | null> {
+  for (const client of clients) {
+    const result = await readAvatarFromClient(client, bucket, objectKey);
+    if (result) return result;
+  }
+  return null;
+}
+
+function respondWithAvatar(res: Res, bytes: Buffer, mime: string): void {
+  setCors(res);
+  res.statusCode = 200;
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Type", mime);
+  res.setHeader("Content-Length", String(bytes.length));
+  if (res.getHeader("Cross-Origin-Resource-Policy") === "same-origin") {
+    // Private photos require auth and cannot cross tenant sessions or be
+    // stored as HTTP/public CDN cache entries.
+    res.removeHeader("Access-Control-Allow-Origin");
+    res.setHeader("Cache-Control", "private, no-store");
+  } else {
+    res.setHeader("Cache-Control", "private, max-age=21600, stale-while-revalidate=86400");
+  }
+  res.end(bytes);
+}
+
+async function streamCachedAvatar(
+  client: S3Client, bucket: string, objectKey: string, res: Res,
+) {
+  const avatar = await readAvatarFromClient(client, bucket, objectKey);
+  if (!avatar) return false;
+  respondWithAvatar(res, avatar.bytes, avatar.mime);
+  return true;
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -261,6 +303,39 @@ export default async function handler(req: Req, res: Res) {
     }
     if (!clients.length) {
       json(res, 503, { error: "Armazenamento de fotos indisponível." });
+      return;
+    }
+
+    const variant = new URL(req.url || "/", "https://sigapro.local").searchParams.get("variant");
+    if (variant === "thumb") {
+      // Each request was authorized against the ORIGINAL profile and tenant.
+      // A stored, small derivative avoids sending a multi-MB original to every
+      // 32-80px circle on each subsequent page opening.
+      const thumbnailKey = privateAvatarThumbnailKey(request.objectKey);
+      if (await streamAvatarFromAnyClient(clients, bucket, thumbnailKey, res)) return;
+      const original = await readAvatarFromAnyClient(clients, bucket, request.objectKey);
+      if (!original) {
+        json(res, 404, { error: "Foto de perfil não encontrada." });
+        return;
+      }
+      const thumbnail = await buildPrivateAvatarThumbnail(original.bytes);
+      if (thumbnail) {
+        // Respond as soon as the compact image is ready; best-effort storage
+        // continues only while this handler is alive. Failure changes no data.
+        respondWithAvatar(res, thumbnail, "image/webp");
+        try {
+          await original.client.send(new PutObjectCommand({
+            Bucket: bucket, Key: thumbnailKey, Body: thumbnail,
+            ContentType: "image/webp", CacheControl: "private, no-store",
+          }));
+        } catch {
+          console.warn("[SIGAPRO][Avatar] miniatura nao persistida; original preservado");
+        }
+        return;
+      }
+      // Codec unavailable: show the authorized original instead of a blank
+      // avatar, keeping the user's saved crop/photo unchanged.
+      respondWithAvatar(res, original.bytes, original.mime);
       return;
     }
 

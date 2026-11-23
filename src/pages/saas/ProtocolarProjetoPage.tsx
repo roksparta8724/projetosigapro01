@@ -2255,7 +2255,7 @@ export function ProtocolarProjetoPage({
             description={
               remotePreProtocolNumber
                 ? "Salve sem sair da tela. Quando estiver tudo conferido, use Prosseguir para pagamento para abrir a guia inicial; o número oficial continua reservado somente após a compensação."
-                : "Salve o rascunho para continuar depois ou gere a abertura com a guia inicial quando tudo estiver validado."
+                : "Salve o rascunho para continuar depois ou gere a abertura com a guia inicial quando tudo estiver validado; o processo entra na Prefeitura somente depois da compensação do pagamento."
             }
             icon={ShieldCheck}
             contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"

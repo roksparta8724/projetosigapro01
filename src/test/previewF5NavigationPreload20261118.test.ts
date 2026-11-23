@@ -3,17 +3,18 @@ import { describe, expect, it } from "vitest";
 const sw = readFileSync("public/sigapro-sw.js", "utf8");
 const main = readFileSync("src/main.tsx", "utf8");
 describe("SIGAPRO — Chrome F5 with fresh deploy and fast first HTML paint", () => {
-  it("starts network preload only on moving Vercel previews, without serving old code", () => {
+  it("starts network preload on moving previews and official production hosts", () => {
     expect(sw).toContain("const IS_MUTABLE_PREVIEW_ALIAS =");
+    expect(sw).toContain("const IS_MUTABLE_APP_HOST = !IS_SIGAPRO_PREVIEW || IS_MUTABLE_PREVIEW_ALIAS;");
     expect(sw).toContain("self.registration?.navigationPreload?.enable?.()");
     expect(sw).toContain("preloaded = await event.preloadResponse;");
-    expect(sw).toContain('if (IS_MUTABLE_PREVIEW_ALIAS || isIdentityRoute)');
+    expect(sw).toContain('if (IS_MUTABLE_APP_HOST || isIdentityRoute)');
     expect(sw).toContain('cache: "no-store", credentials: "same-origin"');
     expect(sw).toContain("await isVerifiedPublicAppDocument(response)");
   });
-  it("allows cache-first public HTML only for immutable deploy hosts or official site", () => {
+  it("allows cache-first public HTML only for immutable, pinned deployment previews", () => {
     expect(sw).toContain("const IS_SIGAPRO_PREVIEW =");
-    expect(sw).toContain("if (IS_MUTABLE_PREVIEW_ALIAS || isIdentityRoute)");
+    expect(sw).toContain("if (IS_MUTABLE_APP_HOST || isIdentityRoute)");
     expect(sw).toContain("if (await isVerifiedPublicAppDocument(cached))");
     expect(sw).toContain("event.waitUntil(updatePublicDocumentCache())");
     expect(sw).toContain("if (IS_SIGAPRO_PREVIEW) return Response.error()");

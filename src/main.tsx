@@ -1,6 +1,7 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import { recoverStaleChunkOnce } from "./lib/chunkRecovery";
 import "./index.css";
 import "./styles/surface-polarity.css";
 import "./styles/premium-navigation-contrast.css";
@@ -13,6 +14,16 @@ import "./styles/sigapro-operational-header-premium.css";
 import "./styles/sigapro-finance-premium.css";
 import "./styles/sigapro-inverse-workspace-premium.css";
 import "./styles/sigapro-authenticated-dark-surface-audit.css";
+import "./styles/municipal-users-premium-v7.css";
+import "./styles/sigapro-mobile-legibility-20261121.css";
+
+// Vite emits this event if a lazy screen points at a chunk removed by a
+// newer deployment. Recover ONCE without exposing session data or showing
+// the previous release's broken PortalFrame module error.
+window.addEventListener("vite:preloadError", (event: Event) => {
+  const payload = (event as Event & { payload?: unknown }).payload;
+  if (recoverStaleChunkOnce(payload)) event.preventDefault();
+});
 
 const CONTINUITY_KEY = "sigapro.refresh.continuity.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";

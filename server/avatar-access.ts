@@ -52,31 +52,40 @@ export async function authorizePrivateAvatarRead(
     return { ok: true };
   }
 
-  const master = await callDataApiRpc<boolean>(req, "is_master", {});
-  if (master.ok && master.payload === true) return { ok: true };
-  if (!avatar.municipalityId) return DENIED;
+  if (!avatar.municipalityId) {
+    const master = await callDataApiRpc<boolean>(req, "is_master", {});
+    return master.ok && master.payload === true ? { ok: true } : DENIED;
+  }
 
-  const admin = await callDataApiRpc<boolean>(req, "is_municipality_admin", {});
-  if (!admin.ok || admin.payload !== true) return DENIED;
-  const tenant = await callDataApiRpc<boolean>(req, "has_tenant_access", {
-    target_tenant: avatar.municipalityId,
-  });
-  if (!tenant.ok || tenant.payload !== true) return DENIED;
-  return { ok: true };
+  // These read-only checks are independent. On a municipal users page the
+  // previous serial sequence (is_master -> is_admin -> membership) multiplied
+  // Neon round-trips for every private photo. Parallel calls reduce latency
+  // without relaxing either condition required for a municipal administrator.
+  const [masterResult, adminResult, tenantResult] = await Promise.allSettled([
+    callDataApiRpc<boolean>(req, "is_master", {}),
+    callDataApiRpc<boolean>(req, "is_municipality_admin", {}),
+    callDataApiRpc<boolean>(req, "has_tenant_access", {
+      target_tenant: avatar.municipalityId,
+    }),
+  ]);
+  // One failing role lookup never grants access. A verified Master can still
+  // read its permitted photo even if an unrelated tenant RPC is unavailable.
+  const master = masterResult.status === "fulfilled" ? masterResult.value : null;
+  const admin = adminResult.status === "fulfilled" ? adminResult.value : null;
+  const tenant = tenantResult.status === "fulfilled" ? tenantResult.value : null;
+  if (master?.ok && master.payload === true) return { ok: true };
+  if (admin?.ok && admin.payload === true && tenant?.ok && tenant.payload === true)
+    return { ok: true };
+  return DENIED;
 }
 
 /**
- * Private R2 photos on explicitly reviewed QA branches require the verified
- * Bearer -> current_profile_id ACL before returning any image bytes. The
- * R2_AUTH_DATA_API_URL server setting MUST point at the matching isolated QA
- * Neon branch; if absent or mismatched, getDataApiUrl() fails closed.
- *
- * The production rollout is intentionally unchanged until live QA is approved.
+ * SECURE BY DEFAULT: private R2 profile photos always require a verified
+ * Bearer identity and role/municipality ACL, including previews, production
+ * and local development. New branches MUST NOT silently bypass the check.
+ * The server's Data API selection independently fails closed if no matching
+ * environment is configured.
  */
-export function enforceAuthenticatedAvatarRead(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.VERCEL_ENV === "preview" &&
-    (
-      env.VERCEL_GIT_COMMIT_REF === "fix/qa-triagem-analise-pagamento-20261101" ||
-      env.VERCEL_GIT_COMMIT_REF === "fix/homologacao-geral-sei-dashboard-bank-20261113"
-    );
+export function enforceAuthenticatedAvatarRead(_env: NodeJS.ProcessEnv = process.env): boolean {
+  return true;
 }
