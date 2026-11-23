@@ -19,6 +19,7 @@ import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
+import { captureOwnerPreviewAccess } from "@/lib/ownerInvitation";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 
 
@@ -162,6 +163,7 @@ function isWorkspaceBootPath(pathname: string): boolean {
 }
 
 if (typeof window !== "undefined") {
+  captureOwnerPreviewAccess();
   // Import the REAL persistent frame and REAL route in parallel; no fake shell,
   // DOM snapshot, cached protected state or change to routing/authorization.
   const initialPath = window.location.pathname;

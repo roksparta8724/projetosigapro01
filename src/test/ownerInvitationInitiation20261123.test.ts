@@ -29,6 +29,11 @@ describe("convite para chat a partir do processo do profissional",()=>{
     expect(signup).toContain('const invitedTenantSlug = tenantSlug || tenant.subdomain || ""');
     expect(login).toContain('createAccountParams.set("tenant", tenantSlug || tenant.subdomain || "")');
     expect(login).toContain("rememberOwnerInvitation(effectiveSlug, invitationProtocol)");
+    const app = readFileSync("src/App.tsx","utf8");
+    const invite = readFileSync("src/lib/ownerInvitation.ts","utf8");
+    expect(app).toContain("captureOwnerPreviewAccess()");
+    expect(invite).toContain('url.searchParams.set("_vercel_share", shareToken)');
+
 
   });
 });
