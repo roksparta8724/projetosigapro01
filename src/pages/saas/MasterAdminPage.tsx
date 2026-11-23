@@ -676,9 +676,40 @@ export function MasterAdminPage() {
           })));
           if (linked.linked) linkedAdminCount += 1;
           else if (linked.reason === "not_found") unresolvedAdminEmails.push(admin.email);
-        } catch (error) {
+        } catch (adminError) {
+          adminWarnings.push(admin.email + ": " + explainMasterSaveError(adminError));
+        }
+      }
+
+      const savedTenant = upsertInstitution({
+        institutionId: savedTenantId,
+        name: form.name,
+        city: form.city,
+        state: form.state,
+        status: form.status,
+        plan: selectedPlan.name,
+        subdomain: slug,
+        primaryColor: form.primaryColor,
+        accentColor: form.accentColor,
+      }, { remoteConfirmed: true });
+      await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
+      setIsCreatingNewInstitution(false);
+      setSelectedTenantId(savedTenant.id);
+
+      if (adminWarnings.length > 0) {
+        setStatusMessage("Prefeitura e contrato confirmados. Contatos a revisar: " + adminWarnings.join(" | "));
+      } else if (normalizedAdminContacts.length === 0) {
+        setStatusMessage("Prefeitura salva no banco oficial e pronta para operação comercial.");
+      } else if (unresolvedAdminEmails.length > 0) {
+        setStatusMessage(
+          `Prefeitura salva no banco oficial. ${linkedAdminCount} administrador(es) foram vinculados e os contatos ${unresolvedAdminEmails.join(", ")} aguardam conta existente no sistema para vínculo automático.`,
+        );
+      } else {
+        setStatusMessage(`Prefeitura salva no banco oficial e ${linkedAdminCount} administrador(es) foram vinculados ao município.`);
+      }
+    } catch (error) {
       const partial = planConfirmed
-        ? "Prefeitura e contrato salvos, mas a etapa seguinte falhou."
+        ? "Prefeitura e plano salvos, mas a etapa seguinte falhou."
         : municipalityConfirmed
           ? "Prefeitura salva, mas o contrato nao foi confirmado."
           : "A Prefeitura nao foi confirmada no banco.";
