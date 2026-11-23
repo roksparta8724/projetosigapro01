@@ -168,6 +168,7 @@ interface PlatformDataState {
   }) => Promise<OwnerProjectRequest | null>;
   setOwnerChatEnabled: (input: { linkId: string; enabled: boolean; actor: string }) => Promise<OwnerProjectLink | null>;
   sendOwnerMessage: (input: {
+    linkId?: string;
     projectId: string;
     ownerUserId: string;
     professionalUserId: string;
@@ -1754,11 +1755,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           notes: input.notes?.trim() || undefined,
         });
 
-        await refreshRemoteStore();
-        return {
-          request: result.request,
-          process: result.process,
-        };
+        if (result.request) updateStore((current) => ({
+          ...current,
+          ownerRequests: [result.request!, ...current.ownerRequests.filter((item) => item.id !== result.request!.id)],
+        }));
+        return { request: result.request, process: result.process };
       } catch (error) {
         return {
           request: null,
@@ -1771,20 +1772,25 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
 
     const respondOwnerRequest: PlatformDataState["respondOwnerRequest"] = async (input) => {
-      const existingRequest = store.ownerRequests.find((item) => item.id === input.requestId);
-      if (!existingRequest) return null;
       if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível. A solicitação não foi alterada.");
       }
 
-      const { request: remoteRequest } = await respondRemoteOwnerRequest({
+      const { request: remoteRequest, link: remoteLink } = await respondRemoteOwnerRequest({
         requestId: input.requestId,
         status: input.status,
         professionalUserId: input.professionalUserId,
         notes: input.notes,
       });
 
-      await refreshRemoteStore();
+      if (!remoteRequest) throw new Error("O banco não confirmou a resposta ao proprietário.");
+      updateStore((current) => ({
+        ...current,
+        ownerRequests: [remoteRequest, ...current.ownerRequests.filter((item) => item.id !== remoteRequest.id)],
+        ownerLinks: remoteLink
+          ? [remoteLink, ...current.ownerLinks.filter((item) => item.id !== remoteLink.id)]
+          : current.ownerLinks,
+      }));
       return remoteRequest;
     };
 
@@ -1799,13 +1805,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         actor: input.actor,
       });
 
-      await refreshRemoteStore();
+      if (!updated) throw new Error("O banco não confirmou a alteração do chat.");
+      updateStore((current) => ({
+        ...current,
+        ownerLinks: current.ownerLinks.map((item) => item.id === updated.id ? updated : item),
+      }));
       return updated;
     };
 
     const sendOwnerMessage: PlatformDataState["sendOwnerMessage"] = async (input) => {
       const normalized = input.message.trim();
-      if (!normalized) return null;
+      if (!normalized) throw new Error("Digite uma mensagem para enviar.");
+      if (normalized.length > 4000) throw new Error("O limite de cada mensagem é 4.000 caracteres.");
 
       const linkSnapshot = store.ownerLinks.find(
         (item) =>
@@ -1814,14 +1825,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           item.professionalUserId === input.professionalUserId,
       );
 
-      if (!linkSnapshot) return null;
-      if (input.senderUserId === input.ownerUserId && !linkSnapshot.chatEnabled) return null;
+      const confirmedLinkId = input.linkId || linkSnapshot?.id;
+      if (!confirmedLinkId) throw new Error("O vínculo aprovado ainda não está disponível para a conversa.");
       if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível. A mensagem não foi enviada.");
       }
 
       const message = await createRemoteOwnerMessage({
-        linkId: linkSnapshot.id,
+        linkId: confirmedLinkId,
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
         professionalUserId: input.professionalUserId,
@@ -1830,7 +1841,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         isSystemMessage: input.isSystemMessage ?? false,
       });
 
-      await refreshRemoteStore();
+      if (!message) throw new Error("O banco não confirmou a gravação da mensagem.");
+      updateStore((current) => ({
+        ...current,
+        ownerMessages: [...current.ownerMessages.filter((item) => item.id !== message.id), message],
+      }));
       return message;
     };
 

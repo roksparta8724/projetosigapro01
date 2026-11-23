@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { MessageSquare, Search, ShieldCheck, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,11 +22,15 @@ import {
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useOwnerAccessInbox } from "@/hooks/useOwnerAccessInbox";
+import { useOwnerPrivateConversation } from "@/hooks/useOwnerPrivateConversation";
+import { formatOwnerConversationTime } from "@/lib/ownerConversationDisplay";
 
 type OwnerTab = "acompanhamentos" | "solicitacoes" | "mensagens" | "perfil";
 
 export function OwnerPortalPage() {
   const { session } = usePlatformSession();
+  const location = useLocation();
   const {
     processes,
     ownerLinks,
@@ -37,7 +42,10 @@ export function OwnerPortalPage() {
     getInstitutionSettings,
   } = usePlatformData();
 
-  const [activeTab, setActiveTab] = useState<OwnerTab>("acompanhamentos");
+  const [activeTab, setActiveTab] = useState<OwnerTab>(() => {
+    const requested = new URLSearchParams(location.search).get("aba");
+    return requested === "mensagens" || requested === "solicitacoes" ? requested : "acompanhamentos";
+  });
   const [protocolSearch, setProtocolSearch] = useState("");
   const [documentValue, setDocumentValue] = useState("");
   const [requestNote, setRequestNote] = useState("");
@@ -48,9 +56,18 @@ export function OwnerPortalPage() {
     title: string;
     status: ProcessStatus;
   } | null>(null);
-  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(() => new URLSearchParams(location.search).get("conversa"));
   const [messageDraft, setMessageDraft] = useState("");
   const [messageStatus, setMessageStatus] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [sendingRequest, setSendingRequest] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const requestedTab = params.get("aba");
+    if (requestedTab === "mensagens" || requestedTab === "solicitacoes") setActiveTab(requestedTab);
+    const requestedConversation = params.get("conversa");
+    if (requestedConversation) setSelectedLinkId(requestedConversation);
+  }, [location.search]);
 
   const profile = getUserProfile(session.id, session.email);
 
@@ -60,13 +77,21 @@ export function OwnerPortalPage() {
     }
   }, [documentValue, profile?.cpfCnpj]);
 
-  const ownerLinksForUser = useMemo(() => getOwnerLinksForOwner(session.id, ownerLinks), [ownerLinks, session.id]);
-  const ownerRequestsForUser = useMemo(() => getOwnerRequestsForOwner(session.id, ownerRequests), [ownerRequests, session.id]);
+  const inbox = useOwnerAccessInbox(session.id, ownerRequests, ownerLinks);
+  const ownerLinksForUser = useMemo(() => getOwnerLinksForOwner(session.id, inbox.links), [inbox.links, session.id]);
+  const ownerRequestsForUser = useMemo(() => getOwnerRequestsForOwner(session.id, inbox.requests), [inbox.requests, session.id]);
 
   const selectedLink = ownerLinksForUser.find((link) => link.id === selectedLinkId) ?? ownerLinksForUser[0] ?? null;
   const selectedProcess = selectedLink ? processes.find((process) => process.id === selectedLink.projectId) : null;
 
   const messagesForSelected = selectedLink ? getOwnerMessagesForLink(selectedLink, ownerMessages) : [];
+  const conversation = useOwnerPrivateConversation({
+    link: selectedLink,
+    initialMessages: messagesForSelected,
+    actorProfileId: session.id,
+    active: activeTab === "mensagens" && Boolean(selectedLink),
+  });
+  useEffect(() => { setMessageStatus(""); setMessageDraft(""); }, [selectedLink?.id]);
   const tenantSettings = selectedProcess ? getInstitutionSettings(selectedProcess.tenantId) : undefined;
   const paymentGuides = selectedProcess ? getExternallyVisibleProcessPaymentGuides(selectedProcess, tenantSettings) : [];
 
@@ -78,6 +103,8 @@ export function OwnerPortalPage() {
   ];
 
   const handleRequest = async () => {
+    if (sendingRequest) return;
+    setSendingRequest(true);
     setRequestStatus("");
     setRequestError("");
     setRequestProcessSummary(null);
@@ -87,6 +114,7 @@ export function OwnerPortalPage() {
       ownerDocument: documentValue || profile?.cpfCnpj || "",
       notes: requestNote,
     });
+    setSendingRequest(false);
 
     if (response.error) {
       setRequestError(response.error);
@@ -107,14 +135,17 @@ export function OwnerPortalPage() {
         : "Solicitação registrada no banco oficial. Aguarde a aprovação do profissional.",
     );
     setRequestNote("");
+    void inbox.refresh();
   };
 
   const handleSendMessage = async () => {
-    if (!selectedLink || !selectedProcess || !messageDraft.trim()) return;
+    if (!selectedLink || !messageDraft.trim() || sendingMessage) return;
 
+    setSendingMessage(true);
     setMessageStatus("");
     try {
       const saved = await sendOwnerMessage({
+        linkId: selectedLink.id,
         projectId: selectedLink.projectId,
         ownerUserId: selectedLink.ownerUserId,
         professionalUserId: selectedLink.professionalUserId,
@@ -129,12 +160,15 @@ export function OwnerPortalPage() {
 
       setMessageDraft("");
       setMessageStatus("Mensagem enviada e salva no banco oficial.");
+      await conversation.refresh();
     } catch (error) {
       setMessageStatus(
         error instanceof Error
           ? `Não foi possível enviar a mensagem: ${error.message}`
           : "Não foi possível enviar a mensagem no banco oficial.",
       );
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -262,17 +296,16 @@ export function OwnerPortalPage() {
                   ) : (
                     ownerLinksForUser.map((link) => {
                       const process = processes.find((item) => item.id === link.projectId);
-                      if (!process) return null;
                       return (
                         <div key={link.id} className="rounded-[16px] border border-white/10 bg-white/5 p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-sm text-slate-300">Protocolo</p>
-                              <p className="text-base font-semibold text-white">{formatOfficialProcessNumber(process.protocol)}</p>
-                              <p className="mt-1 text-sm text-slate-300">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+                              <p className="text-base font-semibold text-white">{process ? formatOfficialProcessNumber(process.protocol) : "Acompanhamento vinculado"}</p>
+                              <p className="mt-1 text-sm text-slate-300">{process ? formatOfficialProcessTitle({ title: process.title, type: process.type }) : "Os detalhes do protocolo serão exibidos quando disponíveis."}</p>
                             </div>
                             <Badge variant="outline" className="rounded-full text-slate-200">
-                              {statusLabel(process.status)}
+                              {process ? statusLabel(process.status) : "Vínculo aprovado"}
                             </Badge>
                           </div>
                           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -343,40 +376,61 @@ export function OwnerPortalPage() {
                 title="Conversa com o responsável técnico"
                 description="Mensagens visíveis apenas para você e o profissional responsável."
               >
-                {selectedLink && selectedProcess ? (
+                {selectedLink ? (
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
                       Este canal é exclusivo entre você e o profissional responsável. A Prefeitura não participa dessa conversa.
                     </div>
                     <div className="rounded-[16px] border border-white/10 bg-white/5 p-4">
                       <p className="text-sm text-slate-300">Protocolo</p>
-                      <p className="text-lg font-semibold text-white">{formatOfficialProcessNumber(selectedProcess.protocol)}</p>
-                      <p className="mt-1 text-sm text-slate-300">{formatOfficialProcessTitle({ title: selectedProcess.title, type: selectedProcess.type })}</p>
-                      <p className="mt-2 text-xs text-slate-400">Status atual: {statusLabel(selectedProcess.status)}</p>
+                      <p className="text-lg font-semibold text-white">{selectedProcess ? formatOfficialProcessNumber(selectedProcess.protocol) : "Acompanhamento vinculado"}</p>
+                      <p className="mt-1 text-sm text-slate-300">{selectedProcess ? formatOfficialProcessTitle({ title: selectedProcess.title, type: selectedProcess.type }) : "Histórico privado liberado para este proprietário."}</p>
+                      {selectedProcess ? <p className="mt-2 text-xs text-slate-400">Status atual: {statusLabel(selectedProcess.status)}</p> : null}
                     </div>
 
-                    <div className="space-y-3">
-                      {messagesForSelected.length === 0 ? (
+                    {ownerLinksForUser.length > 1 ? (
+                      <div className="flex flex-wrap gap-2" aria-label="Escolher acompanhamento para conversar">
+                        {ownerLinksForUser.map((link) => {
+                          const process = processes.find((item) => item.id === link.projectId);
+                          return (
+                            <Button key={link.id} type="button" size="sm"
+                              variant={link.id === selectedLink.id ? "default" : "outline"}
+                              className="max-w-full rounded-full"
+                              onClick={() => setSelectedLinkId(link.id)}>
+                              <span className="max-w-[210px] truncate">{process ? formatOfficialProcessNumber(process.protocol) : "Acompanhamento"}</span>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
+                      <span>{conversation.isLoading ? "Sincronizando conversa..." : "Mensagens privadas · atualizadas automaticamente"}</span>
+                      <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => void conversation.refresh()}>
+                        Atualizar
+                      </Button>
+                    </div>
+                    {conversation.error ? <p role="alert" className="rounded-xl border border-amber-200/50 bg-amber-500/10 p-3 text-xs text-amber-100">{conversation.error}</p> : null}
+                    <div className="max-h-[540px] space-y-3 overflow-y-auto pr-1" aria-live="polite" aria-label="Histórico da conversa privada">
+                      {conversation.messages.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-slate-300">
                           Nenhuma mensagem enviada ainda. Use o campo abaixo para iniciar o contato.
                         </div>
                       ) : (
-                        messagesForSelected.map((message) => (
-                          <div
-                            key={message.id}
-                            className={`rounded-2xl border border-white/10 p-4 text-sm ${
-                              message.senderUserId === session.id ? "bg-white/10 text-white" : "bg-white/5 text-slate-200"
-                            }`}
-                          >
-                            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                              {message.senderUserId === session.id ? "Você" : "Profissional responsável"}
-                            </p>
-                            <p className="mt-2 leading-6">{message.message}</p>
-                            <p className="mt-2 text-xs text-slate-400">
-                              {new Date(message.createdAt).toLocaleString("pt-BR")}
-                            </p>
-                          </div>
-                        ))
+                        conversation.messages.map((message) => {
+                          const mine = message.senderUserId === session.id;
+                          return (
+                            <div
+                              key={message.id}
+                              className={`min-w-0 max-w-[96%] rounded-[16px] border p-3.5 text-sm sm:max-w-[88%] ${mine ? "ml-auto border-sky-400/30 bg-sky-500/15 text-white" : "mr-auto border-white/15 bg-white/[0.07] text-slate-100"}`}>
+                              <p className="text-xs font-semibold text-slate-300">{mine ? "Você" : "Profissional responsável"}</p>
+                              <p className="mt-2 whitespace-pre-wrap break-words leading-6">{message.message}</p>
+                              <p className="mt-2 text-right text-[11px] text-slate-400">
+                                {formatOwnerConversationTime(message.createdAt)}
+                                {mine ? (message.readAt ? " · Lida" : " · Enviada") : ""}
+                              </p>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
 
@@ -384,18 +438,21 @@ export function OwnerPortalPage() {
                       <div className="space-y-3">
                         <Textarea
                           rows={3}
+                          maxLength={4000}
+                          aria-label="Mensagem privada ao profissional"
                           value={messageDraft}
-                          onChange={(event) => setMessageDraft(event.target.value)}
+                          onChange={(event) => setMessageDraft(event.target.value)
                           placeholder="Escreva uma mensagem clara e objetiva"
                           className="rounded-2xl"
                         />
-                        <Button onClick={handleSendMessage} className="rounded-full bg-slate-950 hover:bg-slate-900">
-                          Enviar mensagem
+                        <p className="text-right text-xs text-slate-400">{messageDraft.length}/4000 caracteres</p>
+                        <Button disabled={sendingMessage || !messageDraft.trim()} onClick={handleSendMessage} className="rounded-full bg-slate-950 hover:bg-slate-900">
+                          {sendingMessage ? "Enviando..." : "Enviar mensagem"}
                         </Button>
                       </div>
                     ) : (
                       <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
-                        A conversa foi desativada pelo profissional responsável. Você ainda pode acompanhar o andamento do protocolo. Você ainda pode acompanhar o andamento do protocolo.
+                        A conversa foi desativada pelo profissional responsável. Você ainda pode acompanhar o andamento do protocolo.
                       </div>
                     )}
                   </div>
