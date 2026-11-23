@@ -4138,6 +4138,28 @@ export async function upsertRemoteInstitution(input: {
   const tenantId = normalizeUuid(input.institutionId ?? input.tenantId) ?? crypto.randomUUID();
   const municipalitySlug = buildMunicipalitySlug(input.subdomain || input.city || input.name);
 
+  // Neon usa a RPC master com authorization server-side. UPSERT direto em
+  // municipalities exige INSERT que nao e concedido ao usuario autenticado.
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("upsert_municipality_master", {
+      _id: normalizeUuid(input.institutionId ?? input.tenantId),
+      _name: normalizedName,
+      _city: normalizedCity,
+      _state: normalizedState,
+      _slug: municipalitySlug,
+      _subdomain: normalizedSubdomain,
+      _status: normalizeMunicipalityStatus(input.status),
+      _secretariat_name: input.secretariat.trim() || null,
+      _primary_color: input.primaryColor,
+      _accent_color: input.accentColor,
+      _cnpj: input.cnpj || null,
+    });
+    if (error) throw new Error(formatDatabaseError(error));
+    const savedId = normalizeUuid(String(data?.id ?? ""));
+    if (!savedId) throw new Error("O banco nao confirmou o identificador da Prefeitura salva.");
+    return { id: savedId };
+  }
+
   const municipalityPayload: Record<string, unknown> = {
     id: tenantId,
     name: normalizedName,
@@ -4468,6 +4490,33 @@ export async function saveRemoteInstitutionSettings(
     throw new Error(formatDatabaseError(municipalityUpdateResult.error));
   }
 
+  // A RPC protege o escopo por Prefeitura e atualiza as configuracoes
+  // existentes sem exigir INSERT/UPDATE direto nas tabelas protegidas.
+  // O merge de general_settings preserva chaves que outros modulos salvaram.
+  if (isNeonBackend) {
+    const { municipality_id: _settingsId, ...settingsChanges } = municipalitySettingsPayload;
+    const { municipality_id: _brandingId, updated_at: _brandingUpdatedAt, ...brandingChanges } = municipalityBrandingPayload;
+    const { data, error } = await withTimeout(
+      db.rpc("save_municipality_configuration", {
+        _municipality_id: remoteTenantId,
+        _settings: options?.skipMunicipalitySettings ? {} : settingsChanges,
+        _branding: options?.skipMunicipalityBranding ? {} : brandingChanges,
+      }),
+      "save_municipality_configuration",
+      12000,
+    );
+    if (error) throw new Error(formatDatabaseError(error));
+    if (String(data?.municipality_id ?? "") !== remoteTenantId) {
+      throw new Error("O banco nao confirmou a atualizacao institucional desta Prefeitura.");
+    }
+    if (!options?.skipMunicipalityBranding && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sigapro-branding-updated", {
+        detail: { municipalityId: remoteTenantId },
+      }));
+    }
+    return;
+  }
+
   const municipalitySettingsResult = options?.skipMunicipalitySettings
     ? { error: null }
     : await withTimeout(
@@ -4780,6 +4829,15 @@ export async function upsertRemotePlan(plan: PlanItem) {
     updated_at: new Date().toISOString(),
   };
 
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("upsert_plan_master", { _payload: payload });
+    if (error) throw new Error(formatDatabaseError(error));
+    if (String(data?.id ?? "") !== plan.id) {
+      throw new Error("O banco nao confirmou a atualizacao do plano comercial.");
+    }
+    return plan;
+  }
+
   const { error } = await upsertWithColumnRetry("plans", payload, "id");
 
   if (error) {
@@ -4810,6 +4868,21 @@ export async function saveRemoteClientPlanAssignment(assignment: ClientPlanAssig
     is_custom: assignment.isCustom,
     updated_at: new Date().toISOString(),
   };
+
+  // O contrato tem UNIQUE(municipality_id), e o banco reserva a
+  // escrita a RPC master. Ela preserva o ID existente no ON CONFLICT e
+  // revalida os limites contratados antes de confirmar a alteracao.
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("save_client_plan_assignment_master", {
+      _payload: payload,
+    });
+    if (error) throw new Error(formatDatabaseError(error));
+    if (String(data?.municipality_id ?? "") !== assignment.municipalityId ||
+        String(data?.plan_id ?? "") !== assignment.planId) {
+      throw new Error("O banco nao confirmou o novo vinculo contratual da Prefeitura.");
+    }
+    return { ...assignment, id: String(data.id) };
+  }
 
   const { error } = await upsertWithColumnRetry("client_plan_assignments", payload, "id");
 
