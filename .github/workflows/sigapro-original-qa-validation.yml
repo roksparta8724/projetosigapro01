@@ -31,6 +31,11 @@ jobs:
           src/lib/municipalLogoFraming.test.ts
           src/components/platform/InstitutionalLogo.test.tsx
           src/test/masterContractAndMunicipalZoom20261123.test.ts
+          src/test/masterTrustedMunicipalPlanWrites20261123.test.ts
+          src/test/masterMunicipalityPremiumPlans20261123.test.ts
+          src/test/masterNewMunicipalityIsolation.test.ts
+          src/test/masterInstitutionalGovernance20261119.test.ts
+          src/test/masterPlansPremiumContrast.test.ts
           src/test/platformStaffProvisionMasterOnly20261123.test.ts
           src/test/footerZoomPixSharing.test.ts
           src/test/municipalBrandingFramePersistence.test.ts
