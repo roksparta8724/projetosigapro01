@@ -26,6 +26,8 @@ describe("convite para chat a partir do processo do profissional",()=>{
     expect(owner).toContain("readOwnerInvitation()?.protocol");
     expect(owner).toContain("clearOwnerInvitation()");
     expect(signup).toContain('role: (isInvitedOwner ? "property_owner" : "profissional_externo")');
+    expect(signup).toContain('const invitedTenantSlug = tenantSlug || tenant.subdomain || ""');
+    expect(login).toContain('createAccountParams.set("tenant", tenantSlug || tenant.subdomain || "")');
     expect(login).toContain("rememberOwnerInvitation(effectiveSlug, invitationProtocol)");
 
   });

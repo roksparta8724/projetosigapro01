@@ -55,10 +55,11 @@ export function CriarContaPage() {
   const tenantSlug = searchParams.get("tenant");
   const invitedProtocol = searchParams.get("perfil") === "proprietario"
     ? normalizeInvitedProtocol(searchParams.get("protocolo")) : "";
-  const isInvitedOwner = Boolean(invitedProtocol && tenantSlug);
+  const invitedTenantSlug = tenantSlug || tenant.subdomain || "";
+  const isInvitedOwner = Boolean(invitedProtocol && invitedTenantSlug);
   useEffect(() => {
-    if (isInvitedOwner && tenantSlug) rememberOwnerInvitation(tenantSlug, invitedProtocol);
-  }, [isInvitedOwner, invitedProtocol, tenantSlug]);
+    if (isInvitedOwner) rememberOwnerInvitation(invitedTenantSlug, invitedProtocol);
+  }, [isInvitedOwner, invitedProtocol, invitedTenantSlug]);
 
   const availableInstitutions = useMemo(() => {
     if (tenant.mode === "tenant" && tenant.municipalityId) {
@@ -348,7 +349,7 @@ export function CriarContaPage() {
     });
 
     const accessParams = new URLSearchParams();
-    if (tenantSlug) accessParams.set("tenant", tenantSlug);
+    if (tenantSlug || (isInvitedOwner && invitedTenantSlug)) accessParams.set("tenant", invitedTenantSlug);
     if (isInvitedOwner) accessParams.set("protocolo", invitedProtocol);
     const emailRedirectTo =
       typeof window !== "undefined"
@@ -826,7 +827,7 @@ export function CriarContaPage() {
                 <div className="mt-4 text-center text-sm text-slate-700">
                   Já possui conta de proprietário?{" "}
                   <Link className="font-semibold text-sky-800 underline"
-                    to={`/acesso?tenant=${encodeURIComponent(tenantSlug || "")}&protocolo=${encodeURIComponent(invitedProtocol)}`}>
+                    to={`/acesso?tenant=${encodeURIComponent(invitedTenantSlug)}&protocolo=${encodeURIComponent(invitedProtocol)}`}>
                     Entrar e validar o protocolo
                   </Link>
                 </div>

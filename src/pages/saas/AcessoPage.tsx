@@ -57,7 +57,11 @@ export function AcessoPage() {
     if (invitationProtocol && effectiveSlug) rememberOwnerInvitation(effectiveSlug, invitationProtocol);
   }, [invitationProtocol, tenantSlug, tenant.subdomain]);
   const createAccountParams = new URLSearchParams();
-  if (tenant.mode !== "tenant" && tenantSlug) createAccountParams.set("tenant", tenantSlug);
+  if (invitationProtocol && (tenantSlug || tenant.subdomain)) {
+    createAccountParams.set("tenant", tenantSlug || tenant.subdomain || "");
+  } else if (tenant.mode !== "tenant" && tenantSlug) {
+    createAccountParams.set("tenant", tenantSlug);
+  }
   if (invitationProtocol) {
     createAccountParams.set("perfil", "proprietario");
     createAccountParams.set("protocolo", invitationProtocol);
