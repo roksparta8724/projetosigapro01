@@ -958,6 +958,9 @@ export function TenantAdminPage() {
                   onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))}
                   placeholder="Ex.: Chefe de Divisão de Urbanismo"
                 />
+                <datalist id="tenant-position-options">
+                  {availablePositionOptions.map((option) => <option key={option} value={option} />)}
+                </datalist>
                 <p className="text-xs leading-5 text-slate-500">
                   Campo livre: pode digitar qualquer cargo existente na Prefeitura ou escolher uma sugestão.
                 </p>
