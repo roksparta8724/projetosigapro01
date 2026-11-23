@@ -91,6 +91,7 @@ const PersistentPortalFrameLayout = lazy(() =>
 const MasterAdminPage = lazy(() => import("@/pages/saas/MasterAdminPage").then((module) => ({ default: module.MasterAdminPage })));
 const PlatformStaffCreationPage = lazy(() => import("@/pages/saas/PlatformStaffCreationPage").then((module) => ({ default: module.PlatformStaffCreationPage })));
 const TenantAdminPage = lazy(() => import("@/pages/saas/TenantAdminPage").then((module) => ({ default: module.TenantAdminPage })));
+const MunicipalStaffCreationPage = lazy(() => import("@/pages/saas/MunicipalStaffCreationPage").then((module) => ({ default: module.MunicipalStaffCreationPage })));
 const CollectionSettingsPage = lazy(() => import("@/pages/saas/CollectionSettingsPage").then((module) => ({ default: module.CollectionSettingsPage })));
 const MunicipalOrganizationPage = lazy(() => import("@/pages/saas/MunicipalOrganizationPage").then((module) => ({ default: module.MunicipalOrganizationPage })));
 const MunicipalProcessRegistryPage = lazy(() => import("@/pages/saas/MunicipalProcessRegistryPage").then((module) => ({ default: module.MunicipalProcessRegistryPage })));
@@ -138,6 +139,7 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   if (pathname.startsWith("/prefeitura/financeiro/protocolos")) return import("@/pages/saas/FinanceProtocolsPage");
   if (pathname.startsWith("/prefeitura/financeiro/iptu")) return import("@/pages/saas/IptuDeskPage");
   if (pathname.startsWith("/prefeitura/financeiro")) return import("@/pages/saas/FinanceDeskPage");
+  if (pathname.startsWith("/prefeitura/usuarios/novo")) return import("@/pages/saas/MunicipalStaffCreationPage");
   if (pathname.startsWith("/prefeitura/organograma")) return import("@/pages/saas/MunicipalOrganizationPage");
   if (pathname.startsWith("/prefeitura/processos")) return import("@/pages/saas/MunicipalProcessRegistryPage");
   if (pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage");
@@ -341,7 +343,7 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="manage_tenant_users">
               <PlanModuleRoute module="Configurações">
-                <TenantAdminPage />
+                <MunicipalStaffCreationPage />
               </PlanModuleRoute>
             </PermissionRoute>
           }

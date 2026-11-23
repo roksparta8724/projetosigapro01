@@ -19,12 +19,13 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const migration = read("neon/migrations/20261017_municipal_admin_create_staff_accounts.sql");
 
   it("creates internal municipal server accounts instead of requiring a pre-existing profile", () => {
-    expect(admin).toContain("Criar conta de servidor");
-    expect(admin).toContain("Senha provisória");
-    expect(admin).toContain("Departamento / unidade");
-    expect(admin).toContain("temporaryPassword");
-    expect(admin).toContain("Salvo com sucesso.");
-    expect(admin).toContain('aria-live="polite"');
+    const registration = read("src/pages/saas/MunicipalStaffCreationPage.tsx");
+    expect(registration).toContain("Criar conta de servidor");
+    expect(registration).toContain("Senha provisória");
+    expect(registration).toContain("Departamento / unidade");
+    expect(registration).toContain("temporaryPassword");
+    expect(registration).toContain('tone: "success"');
+    expect(registration).toContain('aria-live="polite"');
     expect(dataHook).toContain("temporaryPassword: input.temporaryPassword");
     expect(backend).toContain('db.rpc("link_municipal_user_by_email"');
     expect(backend).toContain('credentials: "omit"');
