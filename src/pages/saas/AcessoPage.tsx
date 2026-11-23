@@ -1,4 +1,4 @@
-import { FormEvent, useLayoutEffect, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useState } from "react";
 import {
   BadgeCheck,
   CheckCircle2,
@@ -19,6 +19,7 @@ import { getRoleLandingPath } from "@/lib/platform";
 import { preloadLoginLanding, verifyLoginLandingAccess } from "@/lib/loginLandingAccess";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
+import { normalizeInvitedProtocol, rememberOwnerInvitation } from "@/lib/ownerInvitation";
 
 const institutionalHighlights = [
   {
@@ -50,8 +51,18 @@ export function AcessoPage() {
   const [searchParams] = useSearchParams();
 
   const tenantSlug = searchParams.get("tenant");
-  const tenantQuery =
-    tenant.mode === "tenant" || !tenantSlug ? "" : `?tenant=${tenantSlug}`;
+  const invitationProtocol = normalizeInvitedProtocol(searchParams.get("protocolo"));
+  useEffect(() => {
+    const effectiveSlug = tenantSlug || tenant.subdomain || "";
+    if (invitationProtocol && effectiveSlug) rememberOwnerInvitation(effectiveSlug, invitationProtocol);
+  }, [invitationProtocol, tenantSlug, tenant.subdomain]);
+  const createAccountParams = new URLSearchParams();
+  if (tenant.mode !== "tenant" && tenantSlug) createAccountParams.set("tenant", tenantSlug);
+  if (invitationProtocol) {
+    createAccountParams.set("perfil", "proprietario");
+    createAccountParams.set("protocolo", invitationProtocol);
+  }
+  const tenantQuery = createAccountParams.toString() ? `?${createAccountParams.toString()}` : "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

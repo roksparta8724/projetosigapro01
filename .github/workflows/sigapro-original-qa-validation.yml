@@ -37,5 +37,6 @@ jobs:
           src/test/municipalBrandingRuntime.test.ts
           src/test/ownerProfessionalConversation20261123.test.ts
           src/test/ownerPortalPrivateInteraction.test.tsx
+          src/test/ownerInvitationInitiation20261123.test.ts
       - name: Production-equivalent build for preview
         run: npm run build

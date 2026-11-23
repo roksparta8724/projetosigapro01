@@ -25,6 +25,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useOwnerAccessInbox } from "@/hooks/useOwnerAccessInbox";
 import { useOwnerPrivateConversation } from "@/hooks/useOwnerPrivateConversation";
 import { formatOwnerConversationTime } from "@/lib/ownerConversationDisplay";
+import { clearOwnerInvitation, normalizeInvitedProtocol, readOwnerInvitation, rememberOwnerInvitation } from "@/lib/ownerInvitation";
 
 type OwnerTab = "acompanhamentos" | "solicitacoes" | "mensagens" | "perfil";
 
@@ -46,7 +47,10 @@ export function OwnerPortalPage() {
     const requested = new URLSearchParams(location.search).get("aba");
     return requested === "mensagens" || requested === "solicitacoes" ? requested : "acompanhamentos";
   });
-  const [protocolSearch, setProtocolSearch] = useState("");
+  const [protocolSearch, setProtocolSearch] = useState(() =>
+    normalizeInvitedProtocol(new URLSearchParams(location.search).get("protocolo"))
+      || readOwnerInvitation()?.protocol || "",
+  );
   const [documentValue, setDocumentValue] = useState("");
   const [requestNote, setRequestNote] = useState("");
   const [requestStatus, setRequestStatus] = useState("");
@@ -61,6 +65,17 @@ export function OwnerPortalPage() {
   const [messageStatus, setMessageStatus] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendingRequest, setSendingRequest] = useState(false);
+  const invitation = readOwnerInvitation();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const number = normalizeInvitedProtocol(params.get("protocolo"));
+    const slug = params.get("tenant");
+    if (number) {
+      setProtocolSearch(number);
+      if (slug) rememberOwnerInvitation(slug, number);
+      setActiveTab("acompanhamentos");
+    }
+  }, [location.search]);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const requestedTab = params.get("aba");
@@ -135,6 +150,7 @@ export function OwnerPortalPage() {
         : "Solicitação registrada no banco oficial. Aguarde a aprovação do profissional.",
     );
     setRequestNote("");
+    clearOwnerInvitation();
     void inbox.refresh();
   };
 
@@ -196,6 +212,13 @@ export function OwnerPortalPage() {
           <p role="alert" className="rounded-xl border border-amber-200/40 bg-amber-500/10 p-3 text-sm text-amber-100">
             Não foi possível sincronizar seus acompanhamentos: {inbox.error}
           </p>
+        ) : null}
+        {invitation?.protocol && !requestStatus ? (
+          <div className="rounded-2xl border border-sky-300/30 bg-sky-500/10 p-4 text-sm text-sky-100">
+            Você recebeu um convite do profissional para o protocolo <strong>{invitation.protocol}</strong>.
+            Confira o número preenchido abaixo, informe seu CPF/CNPJ e selecione
+            "Validar e enviar solicitação". O link não libera acesso sem sua confirmação.
+          </div>
         ) : null}
         <InternalTabs items={tabs} value={activeTab} onChange={(value) => setActiveTab(value as OwnerTab)} />
 
