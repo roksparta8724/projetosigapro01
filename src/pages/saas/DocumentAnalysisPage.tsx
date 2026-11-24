@@ -36,6 +36,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import {
   canAnalyzeProcessDocument,
   canViewMunicipalProcessDocument,
@@ -125,7 +126,7 @@ export function DocumentAnalysisPage() {
     session.tenantId ??
     null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
-  const [showReopenAnalysis, setShowReopenAnalysis] = useState(false);
+  const [showReopenAnalysis, setShowReopenAnalysis] = useState(() => searchParams.get("reabrir") === "1");
   const [reopenReason, setReopenReason] = useState("");
   const [accessError, setAccessError] = useState("");
   const [tool, setTool] = useState<AnalysisTool>(() => {
@@ -164,6 +165,8 @@ export function DocumentAnalysisPage() {
   const canUseAnalysis =
     !!process &&
     !!document &&
+    document.uploaded &&
+    !isSignedAnalysisArchiveDocument(document) &&
     canAnalyzeProcessDocument(session, process, effectiveScopeId);
 
   // SIGAPRO_ANALYSIS_ROUTE_READONLY_REDIRECT_V2
@@ -175,7 +178,7 @@ export function DocumentAnalysisPage() {
 
   useEffect(() => {
     if (!process || !document || !dataReadyForCurrentUser || canUseAnalysis || !canConsultDocument) return;
-    navigate(buildProcessPath(process) + "/documentos/" + document.id + "/visualizar", {
+    navigate(buildProcessPath(process) + "/documentos/" + document.id + "/visualizar" + (searchParams.get("janela") === "1" ? "?janela=1" : ""), {
       replace: true,
       state: {
         returnTo: routeState.returnTo || buildProcessPath(process, "documentos"),
@@ -253,13 +256,6 @@ export function DocumentAnalysisPage() {
       };
     }
 
-    if (prefetchedDocumentAccessUrl) {
-      setAccessUrl(prefetchedDocumentAccessUrl);
-      return () => {
-        cancelled = true;
-      };
-    }
-
     if (!document?.filePath) {
       setAccessUrl(document?.previewUrl || "");
       return () => {
@@ -267,6 +263,7 @@ export function DocumentAnalysisPage() {
       };
     }
 
+    setAccessUrl("");
     const bucket =
       (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
       "sigapro-documentos";
@@ -519,7 +516,7 @@ export function DocumentAnalysisPage() {
   };
 
   const reopenApprovedDocument = async () => {
-    if (!process || !document) return;
+    if (!process || !document || !canUseAnalysis || busy) return;
 
     const normalizedReason = reopenReason.trim();
     if (!normalizedReason) {
@@ -707,10 +704,10 @@ export function DocumentAnalysisPage() {
               <FileText className="h-3.5 w-3.5" />
               Mesa de análise documental
             </div>
-            <h1 className="mt-1 truncate text-[15px] font-semibold text-white">
+            <h1 className="mt-1 break-words text-[15px] font-semibold text-white [overflow-wrap:anywhere]">
               {document.label}
             </h1>
-            <p className="mt-0.5 truncate text-[11px] text-slate-300">
+            <p className="mt-0.5 break-words text-[11px] text-slate-300 [overflow-wrap:anywhere]">
               {formatOfficialProcessNumber(process.protocol)}
               {document.fileName ? ` · ${document.fileName}` : ""}
             </p>

@@ -761,7 +761,6 @@ export function ProcessDetailPage() {
   const [habiteSeConstructionStandardInput, setHabiteSeConstructionStandardInput] = useState("");
   const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
-  const documentWorkspaceWindowRef = useRef<Window | null>(null);
 
   useEffect(() => {
     let lastAutomaticDate = currentLocalDateValue();
@@ -2697,24 +2696,17 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = (documentId: string, forceAnalysis = false, openAi = false) => {
+  const openDocumentWorkspace = (documentId: string, forceAnalysis = false, openAi = false, reopen = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
-    if (!selectedDocument || openingDocumentId || !canConsultProcessDocuments) return;
+    if (!selectedDocument || !selectedDocument.uploaded || !canConsultProcessDocuments) return;
 
-    // SIGAPRO_DOCUMENT_ROUTING_READONLY_V2
-    // Clicar em "analisar" nao concede acesso de escrita. A rota real depende da titularidade.
+    // A consulta não concede edição. Cada clique abre uma guia independente.
     const shouldAnalyze = Boolean(forceAnalysis &&
+      !isSignedAnalysisArchiveDocument(selectedDocument) &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId));
     const route = shouldAnalyze ? "analisar" : "visualizar";
-    if (!shouldAnalyze) {
-      // Open consultation in the current tab so a popup blocker cannot hide the PDF.
-      navigate(`${buildProcessPath(process)}/documentos/${documentId}/visualizar`, {
-        state: { returnTo: buildProcessPath(process, "documentos") },
-      });
-      return;
-    }
     const query = shouldAnalyze
-      ? openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
+      ? reopen ? "?ferramenta=navigate&reabrir=1" : openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
       : "";
     const workspaceUrl =
       `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}${query ? "&" : "?"}janela=1`;
@@ -2734,31 +2726,15 @@ export function ProcessDetailPage() {
       );
     }
 
-    // Abre diretamente a rota real da mesa documental. Não existe mais
-    // about:blank, shell, skeleton ou página de preparação entre o clique e o PDF.
-    const existingWorkspace = documentWorkspaceWindowRef.current;
-    const openedTab =
-      existingWorkspace && !existingWorkspace.closed
-        ? existingWorkspace
-        : window.open(workspaceUrl, "sigapro-document-workspace");
-
+    // A abertura é síncrona no clique, sem substituir a ficha nem outro PDF.
+    const openedTab = window.open(workspaceUrl, "_blank");
+    setOpeningDocumentId("");
     if (!openedTab) {
-      setOpeningDocumentId("");
-      navigate(`${buildProcessPath(process)}/documentos/${documentId}/${route}${query}`, {
-        state: { returnTo: buildProcessPath(process, "documentos") },
-      });
+      setProcessActionStatus("O navegador bloqueou a nova guia. Permita a abertura de guias para o SIGAPRO e tente novamente.");
       return;
     }
-
-    documentWorkspaceWindowRef.current = openedTab;
-
-    if (existingWorkspace && !existingWorkspace.closed) {
-      openedTab.location.replace(workspaceUrl);
-    }
-
     openedTab.opener = null;
     openedTab.focus();
-    window.setTimeout(() => setOpeningDocumentId(""), 180);
   };
 
   const openViewer = (documentId: string) => void openDocumentWorkspace(documentId, false);
@@ -4123,14 +4099,14 @@ export function ProcessDetailPage() {
                     {document.uploaded && (canReviewDocuments || isApproved || hasCommunique) ? (
                       <div
                         data-process-document-review-strip="true"
-                        className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3"
+                        className="mt-4 flex flex-wrap items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/80"
                       >
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
                           isApproved
-                            ? "bg-emerald-50 text-emerald-700"
+                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                             : hasCommunique
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-sky-50 text-sky-700"
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                              : "bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300"
                         }`}>
                           {isApproved ? (
                             <CheckCircle2 className="h-4 w-4" />
@@ -4140,7 +4116,7 @@ export function ProcessDetailPage() {
                             <Clock3 className="h-4 w-4" />
                           )}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-[1_1_240px] break-words [overflow-wrap:anywhere]">
                           <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                             {isApproved
                               ? "Documento conferido e aprovado."
@@ -4154,20 +4130,29 @@ export function ProcessDetailPage() {
                               : canReviewDocuments ? "Use a mesa de análise para marcações, comentários e decisão técnica." : "Consulta disponível. A edição é restrita à equipe técnica autorizada."}
                           </p>
                           {isApproved ? (
-                            <p data-sigapro-document-reviewer="true" className="mt-1 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-    {approvalEvidence?.name
-      ? "Aprovado pelo analista: " + approvalEvidence.name
-      : "Aprovação registrada. Autor técnico ainda não identificado com segurança."}
-  </p>
+                            <>
+                              <p data-sigapro-document-reviewer="true" className="mt-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                                {approvalEvidence?.name
+                                  ? "Aprovado pelo analista: " + approvalEvidence.name
+                                  : "Aprovação registrada · autoria histórica não identificada"}
+                              </p>
+                              <p data-document-approval-audit="true" className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                                {approvalEvidence?.at
+                                  ? "Aprovado em: " + approvalEvidence.at
+                                  : "Data e hora: não disponíveis no registro histórico."}
+                              </p>
+                            </>
                           ) : null}
-                          {isApproved ? (
-  <p data-document-approval-audit="true" className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-    {approvalEvidence?.at
-      ? "Aprovado em: " + approvalEvidence.at
-      : "Data e hora: consultar a auditoria oficial quando disponível."}
-  </p>
-) : null}
                         </div>
+                        {isApproved && canAnalyzeProcessDocument(session, process, effectiveScopeId) && !isSignedAnalysisArchiveDocument(document) ? (
+                          <Button type="button" variant="outline"
+                            data-document-reopen-shortcut="true"
+                            onClick={() => openDocumentWorkspace(document.id, true, false, true)}
+                            className="h-auto min-h-10 max-w-full shrink-0 whitespace-normal rounded-xl border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950/50 dark:text-amber-200 dark:hover:bg-amber-950">
+                            <PencilLine className="mr-2 h-4 w-4 shrink-0" />
+                            Reabrir para nova análise
+                          </Button>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

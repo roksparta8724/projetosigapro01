@@ -142,7 +142,7 @@ export function DocumentViewerPage() {
     if (!process || !document || !canAnalyzeDocument) return;
     const query = tool ? `?ferramenta=${tool}` : "";
     navigate(
-      `${buildProcessPath(process)}/documentos/${document.id}/analisar${query}`,
+      `${buildProcessPath(process)}/documentos/${document.id}/analisar${query}${new URLSearchParams(location.search).get("janela") === "1" ? (query ? "&janela=1" : "?janela=1") : ""}`,
       {
         state: {
           documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
@@ -373,13 +373,15 @@ export function DocumentViewerPage() {
             variant="outline"
             className="h-9 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm hover:bg-slate-50"
             onClick={() => {
-              if (routeState.returnTo) navigate(routeState.returnTo);
-              else if (window.history.length > 1) navigate(-1);
-              else navigate("/dashboard/processos");
+              if (new URLSearchParams(location.search).get("janela") === "1") {
+                window.close();
+                return;
+              }
+              navigate(routeState.returnTo || buildProcessPath(process, "documentos"));
             }}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar ao processo
+            {new URLSearchParams(location.search).get("janela") === "1" ? "Fechar guia" : "Voltar ao processo"}
           </Button>
 
           <span className="hidden h-8 items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 md:inline-flex">

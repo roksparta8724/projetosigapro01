@@ -76,7 +76,7 @@ describe("direct PDF workspace opening", () => {
 
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
-    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
+    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
     expect(analysis).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(viewer).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(analysis).toContain('data-document-loading-surface="silent"');
@@ -148,18 +148,26 @@ describe("annotation draft and professional handoff", () => {
     expect(analysis).toContain('"rejeitado"');
   });
 
-  it("opens the document in exactly one dedicated browser tab", () => {
+  it("opens each document in its own browser tab without replacing the process or previous PDFs", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(viewer).not.toContain('target="_blank"');
     expect(viewer).not.toContain("Abrir original");
     expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
-    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
+    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("openedTab.opener = null");
     expect(detail).toContain("openedTab.focus()");
+    expect(detail).not.toContain("documentWorkspaceWindowRef");
+    expect(detail).not.toContain("openedTab.location.replace");
+    expect(detail).not.toContain("Open consultation in the current tab");
+    expect(detail).toContain("O navegador bloqueou a nova guia");
+    expect(detail).toContain('data-document-reopen-shortcut="true"');
+    expect(detail).toContain("!isSignedAnalysisArchiveDocument(selectedDocument)");
+    expect(detail).not.toContain("Aprova??o");
+    expect(detail).not.toContain("dispon?vel");
   });
 });
 
@@ -185,7 +193,7 @@ describe("analyst PDF markup entry", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
-    expect(viewer).toContain("replaceAnalystViewerWithAnalysis");
+    expect(viewer).toContain("openAnalysisWorkspace");
     expect(viewer).toContain("analisar?ferramenta=highlight");
     expect(detail).toContain("openDocumentWorkspace");
     expect(detail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
@@ -193,7 +201,7 @@ describe("analyst PDF markup entry", () => {
     expect(detail).toContain('"?ferramenta=highlight"');
     expect(detail).toContain('"?ferramenta=navigate&painel=ia"');
     expect(detail).toContain("const route = shouldAnalyze");
-    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
+    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
   });
 
   it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {

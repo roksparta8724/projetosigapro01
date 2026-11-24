@@ -14,6 +14,9 @@ describe("audited document reanalysis", () => {
     expect(page).toContain("Reabertura auditada");
     expect(page).toContain("Confirmar reabertura");
     expect(page).toContain("A aprovação anterior não será apagada");
+    expect(page).toContain('searchParams.get("reabrir") === "1"');
+    expect(page).toContain("!isSignedAnalysisArchiveDocument(document)");
+    expect(page).toContain("!canUseAnalysis || busy");
   });
 
   it("requires a reason and returns the document to pending without deleting history", () => {
