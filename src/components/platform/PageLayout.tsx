@@ -13,7 +13,7 @@ export function PageContainer({
     <div
       data-content-flow="page"
       className={cn(
-        "sig-page-shell mx-auto flex min-w-0 w-full max-w-[1760px] flex-col gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:max-w-[1880px] xl:px-3 2xl:max-w-[1940px] 2xl:px-4",
+        "sig-page-shell mx-auto grid min-w-0 w-full max-w-full grid-cols-1 items-start gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:px-3 2xl:px-4",
       className,
     )}
   >

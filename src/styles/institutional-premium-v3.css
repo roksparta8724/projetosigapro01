@@ -263,8 +263,14 @@ html body #root [data-premium-design="institutional-v3"][data-layout-mode="inver
    Do not stretch ordinary cards to the height of their neighbouring column.
    Explicit metric, editor, viewer and document surfaces remain untouched. */
 html body #root [data-premium-design="institutional-v3"] .sig-main-shell [data-content-flow="page"] {
-  align-content:start!important;justify-content:flex-start!important;grid-auto-rows:max-content!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+  align-content:start!important;justify-content:stretch!important;justify-items:stretch!important;grid-auto-rows:max-content!important;
+  inline-size:100%!important;max-inline-size:100%!important;min-inline-size:0!important;
   min-block-size:0!important;block-size:auto!important;
+  box-sizing:border-box;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell [data-content-flow="page"] > :not([hidden]):not(.contents) {
+  min-inline-size:0;max-inline-size:100%;justify-self:stretch;
 }
 html body #root [data-premium-design="institutional-v3"] .sig-main-shell [data-content-flow="grid"] {
   align-items:start!important;align-content:start!important;grid-auto-rows:max-content!important;

@@ -247,13 +247,19 @@ html body #root .sig-main-shell .sig-master-admin-workspace [data-master-preserv
 html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] {
   display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-rows:max-content!important;
   align-items:start!important;align-content:start!important;gap:16px!important;min-height:0!important;height:auto!important;
-  container-type:inline-size;
+  width:100%!important;min-width:0!important;max-width:100%!important;
 }
 html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] > :is(.sig-main-content,.sig-side-content) {
   display:flex!important;flex-direction:column!important;min-height:0!important;height:auto!important;
   align-self:start!important;justify-content:flex-start!important;gap:16px!important;width:100%!important;
 }
-@media(min-width:1180px) {
+/* Measure the real workspace (sidebar open/closed, browser zoom or mobile),
+   not the viewport. One column until both cards have enough room. */
+html body #root .sig-main-shell .sig-master-admin-workspace {
+  container-type:inline-size;
+  container-name:master-workspace;
+}
+@container master-workspace (min-width:800px) {
   html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] {
     grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr)!important;
   }

@@ -31,3 +31,19 @@ describe("Content-sized institutional layout",()=>{
   expect(()=>postcss.parse(master)).not.toThrow();
  });
 });
+
+
+it("stretches the common page track across the available width without stretching its height",()=>{
+ const root=postcss.parse(css);
+ const rule=root.nodes.find(n=>n.type==="rule"&&n.selector.endsWith('[data-content-flow="page"]'));
+ if(!rule||rule.type!=="rule") throw new Error("Missing page geometry rule");
+ const declarations=new Map(rule.nodes.filter(n=>n.type==="decl").map(n=>[n.prop,n.value]));
+ expect(declarations.get("display")).toBe("grid");
+ expect(declarations.get("grid-template-columns")).toBe("minmax(0,1fr)");
+ expect(declarations.get("justify-content")).toBe("stretch");
+ expect(declarations.get("justify-items")).toBe("stretch");
+ expect(declarations.get("inline-size")).toBe("100%");
+ expect(declarations.get("grid-auto-rows")).toBe("max-content");
+ expect(master).toContain("@container master-workspace (min-width:800px)");
+ expect(master).not.toContain("@media(min-width:1180px)");
+});
