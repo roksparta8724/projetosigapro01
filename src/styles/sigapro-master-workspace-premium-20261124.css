@@ -273,3 +273,126 @@ html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organog
 html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-form="true"] button[type="submit"]:disabled {
   background:#475569!important;color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
 }
+
+/* Master organogram: a dedicated layout, free of legacy generic card rules.
+   Each panel has two intrinsic rows only: its header and its real content.
+   No blank placeholder, viewport-height panel or nested equal-height tiles. */
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] {
+  --org-bg:#f5f9fc;--org-raised:#fff;--org-line:#c6d9e7;--org-ink:#173650;--org-muted:#496379;--org-icon:#e3eff7;--org-focus:#176e98;
+  grid-auto-rows:max-content!important;align-content:start!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"],
+html.dark body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] {
+  --org-bg:#17344b;--org-raised:#1e405a;--org-line:#597c96;--org-ink:#f4f9ff;--org-muted:#c7dceb;--org-icon:#294c65;--org-focus:#8edbff;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-column] {
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-rows:max-content!important;
+  align-content:start!important;align-items:start!important;gap:14px!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;min-height:0!important;max-height:none!important;align-self:start!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-panel] {
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto!important;grid-auto-rows:max-content!important;
+  align-content:start!important;align-items:start!important;justify-items:stretch!important;gap:0!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+  block-size:auto!important;min-block-size:0!important;max-block-size:none!important;box-sizing:border-box!important;
+  padding:0!important;margin:0!important;border:1px solid var(--org-line,#c6d9e7)!important;border-radius:18px!important;
+  background:var(--org-bg,#f5f9fc)!important;color:var(--org-ink,#173650)!important;
+  box-shadow:0 5px 14px rgb(13 45 68 / 7%)!important;overflow:visible!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-panel-header] {
+  display:flex!important;flex-flow:row wrap!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;
+  width:auto!important;min-width:0!important;height:auto!important;min-height:0!important;max-height:none!important;
+  padding:14px 16px!important;margin:0!important;border:0!important;border-bottom:1px solid var(--org-line,#c6d9e7)!important;
+  background:transparent!important;position:static!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-heading] {
+  display:flex!important;align-items:center!important;gap:10px!important;flex:1 1 200px!important;min-width:0!important;
+  height:auto!important;min-height:0!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-heading-copy] {
+  display:block!important;flex:1 1 auto!important;min-width:0!important;height:auto!important;min-height:0!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-heading-copy] h2 {
+  display:block!important;visibility:visible!important;opacity:1!important;margin:0!important;
+  font-size:15px!important;line-height:1.4!important;font-weight:700!important;overflow-wrap:anywhere;
+  color:var(--org-ink,#173650)!important;-webkit-text-fill-color:var(--org-ink,#173650)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-heading-copy] p {
+  display:block!important;visibility:visible!important;opacity:1!important;margin:3px 0 0!important;
+  font-size:12px!important;line-height:1.45!important;color:var(--org-muted,#496379)!important;-webkit-text-fill-color:var(--org-muted,#496379)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-icon] {
+  display:grid!important;place-items:center!important;flex:0 0 34px!important;width:34px!important;height:34px!important;min-height:34px!important;
+  border:1px solid var(--org-line,#c6d9e7)!important;border-radius:10px!important;background:var(--org-icon,#e3eff7)!important;
+  color:var(--org-ink,#173650)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-actions] {
+  display:flex!important;flex:0 0 auto!important;align-items:center!important;min-width:0!important;max-width:100%!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-actions] button {
+  width:auto!important;max-width:100%!important;min-height:36px!important;height:auto!important;padding:8px 12px!important;
+  color:var(--org-ink,#173650)!important;-webkit-text-fill-color:var(--org-ink,#173650)!important;
+  background:var(--org-raised,#fff)!important;border:1px solid var(--org-line,#c6d9e7)!important;
+  border-radius:10px!important;white-space:normal!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-panel-body] {
+  display:block!important;width:auto!important;min-width:0!important;max-width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+  block-size:auto!important;min-block-size:0!important;max-block-size:none!important;position:static!important;padding:14px 16px!important;margin:0!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-directory] {
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-rows:max-content!important;gap:9px!important;height:auto!important;min-height:0!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-summary] {
+  margin:0!important;font-size:12px!important;line-height:1.45!important;color:var(--org-muted)!important;-webkit-text-fill-color:var(--org-muted)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-directory] ul {
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-rows:max-content!important;align-content:start!important;gap:0!important;
+  list-style:none!important;padding:0!important;margin:0!important;border:1px solid var(--org-line)!important;border-radius:12px!important;
+  background:var(--org-raised)!important;overflow:hidden!important;height:auto!important;min-height:0!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-unit] {
+  display:flex!important;align-items:center!important;gap:9px!important;min-width:0!important;min-height:0!important;height:auto!important;
+  padding-block:9px!important;padding-inline-end:12px!important;margin:0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-unit]+[data-organogram-unit] {border-top:1px solid var(--org-line)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-unit][data-depth="0"] {background:var(--org-icon)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-unit-copy] {display:grid!important;flex:1 1 auto!important;min-width:0!important;gap:2px!important;overflow-wrap:anywhere;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-unit-copy] strong {
+  font-size:13px!important;font-weight:650!important;line-height:1.4!important;color:var(--org-ink)!important;-webkit-text-fill-color:var(--org-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace :is([data-organogram-unit-copy] span,[data-organogram-unit-count]) {
+  font-size:11px!important;line-height:1.4!important;color:var(--org-muted)!important;-webkit-text-fill-color:var(--org-muted)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-unit-count] {flex:0 0 auto!important;max-width:32%!important;overflow-wrap:anywhere;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-unit-icon] {flex:0 0 18px!important;color:var(--org-muted)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-context] {
+  margin:0!important;padding:8px 10px!important;grid-column:1/-1;
+  font-size:12px!important;border-radius:9px!important;background:var(--org-icon)!important;color:var(--org-ink)!important;-webkit-text-fill-color:var(--org-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-context] strong {color:var(--org-ink)!important;-webkit-text-fill-color:var(--org-ink)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-form] {
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-rows:max-content!important;align-content:start!important;gap:11px!important;height:auto!important;min-height:0!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-assignment] {
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-rows:max-content!important;align-items:end!important;gap:10px!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-panel] label {
+  color:var(--org-ink,#173650)!important;-webkit-text-fill-color:var(--org-ink,#173650)!important;font-size:12px!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-panel] :is(input,[role="combobox"]) {
+  min-height:40px!important;min-width:0!important;max-width:100%!important;
+  background:var(--org-raised,#fff)!important;border-color:var(--org-line,#c6d9e7)!important;
+  color:var(--org-ink,#173650)!important;-webkit-text-fill-color:var(--org-ink,#173650)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-panel] [data-organogram-command="primary"] {
+  grid-column:1/-1;width:100%!important;min-height:40px!important;height:auto!important;
+  background:#124766!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-radius:10px!important;opacity:1!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-panel] [data-organogram-command="primary"]:disabled {
+  background:#475569!important;color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+}
+@container master-workspace (min-width:1000px) {
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-form] {grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-organogram-assignment] {grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+}
