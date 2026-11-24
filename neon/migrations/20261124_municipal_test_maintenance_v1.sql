@@ -57,7 +57,7 @@ BEGIN
          (SELECT count(*) FROM public.mp_prod_settlement_evidence_v1 WHERE guide_id=ANY(_guide_ids))+
          (SELECT count(*) FROM public.mp_prod_signed_order_receipts_v1 WHERE guide_id=ANY(_guide_ids))
     INTO _legacy;
-  _allowed := _municipality.status::text='suspenso' AND cardinality(_ids)>0 AND _protected=0 AND _external=0 AND _legacy=0;
+  _allowed := _municipality.status IN ('blocked','inactive') AND cardinality(_ids)>0 AND _protected=0 AND _external=0 AND _legacy=0;
   _counts := jsonb_build_object('municipality_id',_municipality_id,'process_count',cardinality(_ids),
     'document_count',(SELECT count(*) FROM public.process_documents WHERE process_id=ANY(_ids)),
     'guide_count',cardinality(_guide_ids),'protected_guides',_protected,'external_guides',_external,'legacy_links',_legacy,'reset_allowed',_allowed);
@@ -100,7 +100,7 @@ BEGIN
   END IF;
   UPDATE private.municipal_test_maintenance_backups_v1 SET reset_at=now() WHERE id=_old.id;
   RETURN _counts || jsonb_build_object('process_count',0,'document_count',0,'guide_count',0,'reset_allowed',false,'reset_done',true,'backup_id',_old.id);
-END
+END;
 $function$;
 REVOKE ALL ON FUNCTION public.municipal_test_maintenance_v1(uuid,text,uuid,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.municipal_test_maintenance_v1(uuid,text,uuid,text) TO authenticated;
