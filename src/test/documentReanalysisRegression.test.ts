@@ -100,3 +100,16 @@ describe("server-authoritative document reanalysis authorization", () => {
     expect(sql).toContain("p.municipality_id=coalesce(_process.municipality_id,_process.tenant_id)");
   });
 });
+
+describe("document re-evaluation visual state", () => {
+  it("distinguishes an open re-evaluation from the preserved original approval", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const component = read("src/components/platform/IndividualDocumentReview.tsx");
+    expect(detail).toContain('isReevaluationOpen ? "reopened"');
+    expect(detail).toContain('label: "Em reavaliação"');
+    expect(detail).toContain("!bg-orange-50 dark:!border-orange-500/70 dark:!bg-orange-950/45");
+    expect(detail).toContain("Aprovação original preservada.");
+    expect(detail).toContain("Nova avaliação em andamento");
+    expect(component).toContain("!bg-orange-700 !text-white");
+  });
+});

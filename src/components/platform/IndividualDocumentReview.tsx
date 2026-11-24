@@ -68,7 +68,7 @@ export function IndividualDocumentReview({ process, document, onRefresh, compact
     <>
       <Button type="button" variant="outline" data-document-independent-reopen="true"
         onClick={() => { setFormOpen(true); setMessage(""); setError(""); }}
-        className="h-9 max-w-full shrink-0 whitespace-nowrap rounded-full border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200">
+        className={`h-9 max-w-full shrink-0 whitespace-nowrap rounded-full px-3 text-xs font-semibold ${pending ? "!border-orange-800 !bg-orange-700 !text-white hover:!bg-orange-800 dark:!border-orange-400 dark:!bg-orange-400 dark:!text-orange-950 dark:hover:!bg-orange-300" : "!border-amber-400 !bg-amber-100 !text-amber-950 hover:!bg-amber-200 dark:!border-amber-500/70 dark:!bg-amber-900/60 dark:!text-amber-100"}`}>
         <RotateCcw className="mr-1.5 h-4 w-4 shrink-0" />{pending ? "Concluir reavaliação" : "Reabrir documento"}
       </Button>
       <Dialog open={formOpen} onOpenChange={open => { if (!busy) { setFormOpen(open); if (!open) { setReason(""); setError(""); } } }}>

@@ -3837,12 +3837,22 @@ export function ProcessDetailPage() {
               ) : null}
 
               {visibleDocumentRows.map((document, index) => {
-                const reviewVisual = getDocumentReviewVisual(document);
+                const baseReviewVisual = getDocumentReviewVisual(document);
                 const isApproved = document.reviewStatus === "aprovado";
                 const hasCommunique = document.reviewStatus === "rejeitado";
                 const documentMarkerTags = documentMarkers.getTags(process.id, document.id);
                 const approvalEvidence = isApproved ? getApprovalEvidence(document) : null;
                 const evaluationHistory = getDocumentReviewHistory(process, document.id).filter(entry => !isExternalProcessViewer || entry.visibleToExternal);
+                const latestIndividualReview = evaluationHistory.filter(entry => entry.title.startsWith("Reavaliação individual ")).at(-1);
+                const latestOfficialReview = evaluationHistory.filter(entry => ["Documento aprovado", "Documento rejeitado", "Análise documental reaberta"].includes(entry.title)).at(-1);
+                const isReevaluationOpen = latestIndividualReview?.title === "Reavaliação individual aberta" ||
+                  (document.reviewStatus === "pendente" && latestOfficialReview?.title === "Análise documental reaberta");
+                const reviewVisual = isReevaluationOpen ? {
+                  ...baseReviewVisual,
+                  label: "Em reavaliação",
+                  card: "!border-orange-400 !bg-orange-50 dark:!border-orange-500/70 dark:!bg-orange-950/45",
+                  badge: "!border-orange-400 !bg-orange-100 !text-orange-950 dark:!border-orange-500/70 dark:!bg-orange-900/60 dark:!text-orange-100",
+                } : baseReviewVisual;
                 const showReopenDocument = !isExternalProcessViewer && document.uploaded && (isApproved || hasCommunique) && !isSignedAnalysisArchiveDocument(document);
                 const canStandardReopen = showReopenDocument && !isFinalProcessStatus && canAnalyzeProcessDocument(session, process, effectiveScopeId);
                 const canSupplementalReopen = showReopenDocument && reviewCapabilities.allows(document.id);
@@ -3853,6 +3863,7 @@ export function ProcessDetailPage() {
                     data-process-document-card="true"
                     data-force-card-contrast="adaptive"
                     data-document-state={
+                      isReevaluationOpen ? "reopened" :
                       isApproved
                         ? "approved"
                         : hasCommunique
@@ -3866,6 +3877,7 @@ export function ProcessDetailPage() {
                   >
                     <div
                       className={`absolute inset-y-0 left-0 w-1 ${
+                        isReevaluationOpen ? "bg-orange-600 dark:bg-orange-400" :
                         isApproved
                           ? "bg-emerald-500"
                           : hasCommunique
@@ -3883,7 +3895,7 @@ export function ProcessDetailPage() {
                             Documento {String(index + 1).padStart(2, "0")} de {String(visibleDocumentRows.length).padStart(2, "0")}
                           </span>
                           <Badge variant="outline" className={`rounded-full font-semibold ${reviewVisual.badge}`}>
-                            {isApproved ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : hasCommunique ? <ShieldAlert className="mr-1 h-3.5 w-3.5" /> : <Clock3 className="mr-1 h-3.5 w-3.5" />}
+                            {isReevaluationOpen ? <Clock3 className="mr-1 h-3.5 w-3.5" /> : isApproved ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : hasCommunique ? <ShieldAlert className="mr-1 h-3.5 w-3.5" /> : <Clock3 className="mr-1 h-3.5 w-3.5" />}
                             {reviewVisual.label}
                           </Badge>
                         </div>
@@ -4128,6 +4140,15 @@ export function ProcessDetailPage() {
                       </div>
                     ) : null}
 
+                    {isReevaluationOpen ? (
+                      <div data-document-reevaluation-notice="true" className="mt-4 flex items-start gap-3 rounded-xl border border-orange-300 bg-orange-100/80 px-4 py-3 text-orange-950 dark:border-orange-500/60 dark:bg-orange-900/40 dark:text-orange-100">
+                        <Clock3 className="mt-0.5 h-5 w-5 shrink-0" />
+                        <div className="min-w-0 break-words">
+                          <p className="text-sm font-bold">Nova avaliação em andamento</p>
+                          <p className="mt-1 text-xs leading-5">Este documento foi reaberto. As decisões anteriores permanecem no histórico; os demais documentos não foram alterados.</p>
+                        </div>
+                      </div>
+                    ) : null}
                     {document.uploaded && (canReviewDocuments || isApproved || hasCommunique) ? (
                       <div
                         data-process-document-review-strip="true"
@@ -4151,7 +4172,7 @@ export function ProcessDetailPage() {
                         <div className="min-w-0 flex-[1_1_240px] break-words [overflow-wrap:anywhere]">
                           <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                             {isApproved
-                              ? "Documento conferido e aprovado."
+                              ? isReevaluationOpen ? "Aprovação original preservada." : "Documento conferido e aprovado."
                               : hasCommunique
                                 ? "Comunique-se registrado para correção."
                                 : "Aguardando conferência técnica."}
