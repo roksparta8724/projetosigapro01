@@ -113,7 +113,7 @@ export function PlatformStaffCreator({ onCreated, standalone = false }: Props) {
                 value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></div>
           </div>
           <Button type="submit" disabled={saving || name.trim().length < 3 || !email.trim()} className="h-11 w-full rounded-xl bg-[#103d58] !text-white hover:bg-[#18536e] sm:w-auto">
-            {saving ? "Validando e criando acesso..." : "Cadastrar gestor operacional"}
+            {saving ? "Validando e criando acesso..." : "Criar acesso SIGAPRO"}
           </Button>
         </form>
       ) : null}
