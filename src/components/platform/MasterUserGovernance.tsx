@@ -1,7 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Building2, ChevronRight, CircleAlert, Landmark, Search, ShieldCheck, Users2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Building2, ChevronLeft, ChevronRight, CircleAlert, Landmark, Plus, Search, ShieldCheck, Users2 } from "lucide-react";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
 import { PlatformStaffCreator } from "@/components/platform/PlatformStaffCreator";
+import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +16,13 @@ const REVIEW_SCOPE = "__sigapro_unlinked__";
 const EXTERNAL_ROLES = new Set<UserRole>(["profissional_externo", "proprietario_consulta"]);
 const MASTER_ROLES = new Set<UserRole>(["master_admin", "master_ops"]);
 const ADMIN_ROLES = new Set<UserRole>(["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor"]);
+const DIRECTORY_PAGE_SIZE = 15;
+
+/** The platform's technical tenant is not a municipality or a municipal client. */
+export function isSigaproPlatformInstitution(item: Pick<Institution, "subdomain" | "name">): boolean {
+  return item.subdomain?.trim().toLowerCase() === "sigapro-plataforma"
+    || item.name.trim().toLowerCase() === "sigapro plataforma";
+}
 
 type Props = {
   institutions: readonly Institution[];
@@ -42,7 +51,13 @@ export function resolveMasterUserMunicipalityScope(
 }
 
 export function MasterUserGovernance({ institutions, users, renderDetails, getAvatarProfile, onManageMunicipality, onPlatformStaffCreated }: Props) {
+  const navigate = useNavigate();
+  const { session } = usePlatformSession();
+  const canCreatePlatformOperator = session.role === "master_admin";
   const [selectedScope, setSelectedScope] = useState("");
+  const [municipalityStatus, setMunicipalityStatus] = useState("todos");
+  const [municipalityPlan, setMunicipalityPlan] = useState("todos");
+  const [directoryPage, setDirectoryPage] = useState(1);
   const [municipalityQuery, setMunicipalityQuery] = useState("");
   const [userQuery, setUserQuery] = useState("");
   const [group, setGroup] = useState<Group>("todos");
@@ -51,7 +66,8 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
   const [page, setPage] = useState(1);
 
   const municipalities = useMemo(
-    () => [...institutions].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    () => institutions.filter((item) => !isSigaproPlatformInstitution(item))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR") || a.id.localeCompare(b.id)),
     [institutions],
   );
   const knownIds = useMemo(() => new Set(municipalities.map((item) => item.id)), [municipalities]);
@@ -82,11 +98,22 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
     : activeScope === PLATFORM_SCOPE
       ? "Administradores e operadores da plataforma; não são usuários de uma prefeitura"
       : "Identidade municipal ausente ou divergente; nenhuma prefeitura foi presumida";
-  const filteredMunicipalities = municipalities.filter((item) => {
+  const municipalityPlanOptions = useMemo(
+    () => [...new Set(municipalities.map((item) => item.plan?.trim()).filter((value): value is string => Boolean(value)))]
+      .sort((a,b) => a.localeCompare(b,"pt-BR")),
+    [municipalities],
+  );
+  const filteredMunicipalities = useMemo(() => municipalities.filter((item) => {
     const q = municipalityQuery.trim().toLocaleLowerCase("pt-BR");
-    return !q || [item.name, item.city, item.state, item.subdomain]
+    const matchesName = !q || [item.name, item.city, item.state, item.subdomain, item.id]
       .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(q));
-  });
+    return matchesName && (municipalityStatus === "todos" || item.status === municipalityStatus)
+      && (municipalityPlan === "todos" || item.plan === municipalityPlan);
+  }), [municipalities, municipalityQuery, municipalityStatus, municipalityPlan]);
+  const directoryTotalPages = Math.max(1, Math.ceil(filteredMunicipalities.length / DIRECTORY_PAGE_SIZE));
+  const safeDirectoryPage = Math.min(directoryPage, directoryTotalPages);
+  const directoryStart = (safeDirectoryPage - 1) * DIRECTORY_PAGE_SIZE;
+  const directoryItems = filteredMunicipalities.slice(directoryStart, directoryStart + DIRECTORY_PAGE_SIZE);
   const visibleUsers = scopedUsers.filter((user) => {
     if (status !== "todos" && user.accountStatus !== status) return false;
     if (role !== "todos" && user.role !== role) return false;
@@ -115,16 +142,39 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
       <header className="sig-master-governance-hero flex min-w-0 flex-wrap items-start justify-between gap-4 rounded-[22px] border px-5 py-5 sm:px-6">
         <div className="flex min-w-0 items-start gap-3">
           <div className="sig-master-governance-hero-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border"><Landmark className="h-5 w-5" /></div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em]">Administração geral · Controle institucional</p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Governança por Prefeitura</h2>
-            <p className="mt-1 max-w-[75ch] text-sm leading-6">Gestão dos acessos por município, com a equipe SIGAPRO separada dos cadastros municipais e vínculos inconsistentes.</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em]">Administração geral · Cadastro e Gestão</p>
+            <h2 className="mt-1 break-words text-xl font-semibold tracking-tight sm:text-2xl">Diretório institucional SIGAPRO</h2>
+            <p className="mt-1 max-w-[75ch] text-sm leading-6">Prefeituras, administradores municipais e equipe própria da plataforma em escopos independentes, com filtros e paginação.</p>
           </div>
         </div>
         <span className="sig-master-scope-counter rounded-full border px-3 py-2 text-xs font-semibold">{municipalities.length} prefeituras · {users.length} contas</span>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-master-governance-metrics="true">
+      <nav className="grid min-w-0 gap-2.5 sm:grid-cols-3" aria-label="Divisões do cadastro SIGAPRO" data-master-governance-sections="true">
+        <button type="button" onClick={() => changeScope(municipalities[0]?.id ?? PLATFORM_SCOPE)}
+          aria-current={selectedMunicipality ? "page" : undefined}
+          className="sig-master-governance-section min-w-0 rounded-2xl border px-4 py-3 text-left"
+          data-master-section="municipalities" data-active={Boolean(selectedMunicipality)}>
+          <span className="flex items-center gap-2 text-sm font-bold"><Building2 className="h-4 w-4 shrink-0" />Prefeituras</span>
+          <span className="mt-1 block text-xs leading-5">{municipalities.length.toLocaleString("pt-BR")} cadastros municipais e seus acessos</span>
+        </button>
+        <button type="button" onClick={() => changeScope(PLATFORM_SCOPE)}
+          aria-current={activeScope === PLATFORM_SCOPE ? "page" : undefined}
+          className="sig-master-governance-section min-w-0 rounded-2xl border px-4 py-3 text-left"
+          data-master-section="platform" data-active={activeScope === PLATFORM_SCOPE}>
+          <span className="flex items-center gap-2 text-sm font-bold"><ShieldCheck className="h-4 w-4 shrink-0" />Equipe SIGAPRO</span>
+          <span className="mt-1 block text-xs leading-5">Administradores e operadores da plataforma</span>
+        </button>
+        <button type="button" onClick={() => changeScope(REVIEW_SCOPE)}
+          aria-current={activeScope === REVIEW_SCOPE ? "page" : undefined}
+          className="sig-master-governance-section min-w-0 rounded-2xl border px-4 py-3 text-left"
+          data-master-section="review" data-active={activeScope === REVIEW_SCOPE}>
+          <span className="flex items-center gap-2 text-sm font-bold"><CircleAlert className="h-4 w-4 shrink-0" />Vínculos para revisão</span>
+          <span className="mt-1 block text-xs leading-5">Contas sem Prefeitura confirmada</span>
+        </button>
+      </nav>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-master-governance-metrics="true">
         {[
           { name: "Prefeituras", value: municipalities.length, detail: "Carteira institucional" },
           { name: "Usuários municipais", value: users.length - (byScope.get(PLATFORM_SCOPE)?.length ?? 0) - (byScope.get(REVIEW_SCOPE)?.length ?? 0), detail: "Contas com vínculo identificado" },
@@ -139,23 +189,45 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
         ))}
       </div>
 
-      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(260px,0.86fr)_minmax(0,2.14fr)]">
+      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(280px,0.86fr)_minmax(0,2.14fr)]">
         <aside className="sig-master-governance-panel min-w-0 rounded-[22px] border p-4" aria-label="Diretório de prefeituras">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-bold">Diretório institucional</h3>
-            <span className="text-xs font-medium">{municipalities.length} municípios</span>
+            <h3 className="text-sm font-bold">Prefeituras cadastradas</h3>
+            <span className="text-xs font-medium tabular-nums">{filteredMunicipalities.length.toLocaleString("pt-BR")} / {municipalities.length.toLocaleString("pt-BR")}</span>
           </div>
           <label className="relative block">
             <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
             <span className="sr-only">Buscar prefeitura</span>
             <Input aria-label="Buscar prefeitura" value={municipalityQuery}
-              onChange={(event) => setMunicipalityQuery(event.target.value)}
+              onChange={(event) => { setMunicipalityQuery(event.target.value); setDirectoryPage(1); }}
               placeholder="Buscar prefeitura ou cidade"
               className="sig-master-governance-search h-10 rounded-xl pl-9 text-sm" />
           </label>
-          <div className="mt-3 max-h-[500px] space-y-2 overflow-y-auto pr-1" data-master-municipality-directory="true">
+          <div className="mt-2 grid min-w-0 grid-cols-2 gap-2" data-master-directory-filters="true">
+            <Select value={municipalityStatus} onValueChange={(value) => { setMunicipalityStatus(value); setDirectoryPage(1); }}>
+              <SelectTrigger aria-label="Filtrar prefeituras por situação" className="sig-master-governance-search h-10 min-w-0 w-full rounded-xl text-xs">
+                <SelectValue placeholder="Situação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as situações</SelectItem>
+                <SelectItem value="ativo">Ativas</SelectItem>
+                <SelectItem value="implantacao">Implantação</SelectItem>
+                <SelectItem value="suspenso">Suspensas</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={municipalityPlan} onValueChange={(value) => { setMunicipalityPlan(value); setDirectoryPage(1); }}>
+              <SelectTrigger aria-label="Filtrar prefeituras por plano" className="sig-master-governance-search h-10 min-w-0 w-full rounded-xl text-xs">
+                <SelectValue placeholder="Plano" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os planos</SelectItem>
+                {municipalityPlanOptions.map((plan) => <SelectItem key={plan} value={plan}>{plan}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="mt-3 grid min-w-0 gap-2" data-master-municipality-directory="true">
             {filteredMunicipalities.length === 0 ? <p className="py-6 text-center text-xs">Nenhuma prefeitura corresponde à busca.</p> : null}
-            {filteredMunicipalities.map((municipality) => {
+            {directoryItems.map((municipality) => {
               const assignedUsers = byScope.get(municipality.id) ?? [];
               const admins = assignedUsers.filter((user) => user.role === "prefeitura_admin").length;
               const active = activeScope === municipality.id;
@@ -165,8 +237,8 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
                   className="sig-master-governance-option flex w-full min-w-0 items-center gap-3 rounded-[14px] border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400">
                   <span className="sig-master-governance-option-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"><Building2 className="h-4 w-4" /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-semibold" title={municipality.name}>{municipality.name}</span>
-                    <span className="mt-0.5 block truncate text-[11px]" title={municipality.city + " / " + municipality.state}>
+                    <span className="block break-words text-[13px] font-semibold leading-5" title={municipality.name}>{municipality.name}</span>
+                    <span className="mt-0.5 block break-words text-[11px] leading-4" title={municipality.city + " / " + municipality.state}>
                       {municipality.city || "Cidade não informada"} / {municipality.state || "UF"} · {assignedUsers.length} usuários
                     </span>
                     <span className="mt-1 block text-[10px] font-medium">{admins} administrador(es) · {municipality.status === "ativo" ? "Ativa" : municipality.status === "suspenso" ? "Suspensa" : "Implantação"}</span>
@@ -176,6 +248,26 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
               );
             })}
           </div>
+          <nav className="sig-master-governance-directory-pagination mt-3 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t pt-3"
+            aria-label="Paginação do diretório de prefeituras" data-master-directory-pagination="true">
+            <span className="text-xs leading-5" aria-live="polite">
+              {filteredMunicipalities.length === 0 ? "Nenhum município" :
+                `${directoryStart + 1}–${Math.min(directoryStart + DIRECTORY_PAGE_SIZE, filteredMunicipalities.length)} de ${filteredMunicipalities.length.toLocaleString("pt-BR")}`}
+              {" · "}Página {safeDirectoryPage} de {directoryTotalPages}
+            </span>
+            <span className="flex min-w-0 items-center gap-2">
+              <button type="button" aria-label="Página anterior de prefeituras" disabled={safeDirectoryPage === 1}
+                onClick={() => setDirectoryPage(Math.max(1, safeDirectoryPage - 1))}
+                className="sig-master-governance-page-btn inline-flex h-9 w-9 items-center justify-center rounded-xl border">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button type="button" aria-label="Próxima página de prefeituras" disabled={safeDirectoryPage >= directoryTotalPages}
+                onClick={() => setDirectoryPage(Math.min(directoryTotalPages, safeDirectoryPage + 1))}
+                className="sig-master-governance-page-btn inline-flex h-9 w-9 items-center justify-center rounded-xl border">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </span>
+          </nav>
           <div className="mt-4 space-y-2 border-t pt-4" data-master-special-scopes="true">
             <button type="button" onClick={() => changeScope(PLATFORM_SCOPE)} aria-pressed={activeScope === PLATFORM_SCOPE}
               data-master-platform-option="true" className="sig-master-governance-option flex w-full items-center gap-3 rounded-[14px] border p-3 text-left">
@@ -201,15 +293,24 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
             </div>
             {selectedMunicipality ? (
               <button type="button" onClick={() => onManageMunicipality(selectedMunicipality.id)}
-                className="sig-master-governance-action inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-semibold">
-                Gerenciar cadastro <ChevronRight className="h-4 w-4" />
+                className="sig-master-governance-action inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-xs font-semibold">
+                Gerenciar Prefeitura <ChevronRight className="h-4 w-4 shrink-0" />
+              </button>
+            ) : activeScope === PLATFORM_SCOPE && canCreatePlatformOperator ? (
+              <button type="button" onClick={() => navigate("/master/equipe/novo")}
+                data-master-platform-create="true"
+                className="sig-master-governance-action inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-xl border px-4 text-xs font-semibold">
+                <Plus className="h-4 w-4 shrink-0" /> Novo acesso SIGAPRO
               </button>
             ) : null}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4" data-master-selected-summary="true">
             {[
               ["Total", scopedUsers.length], ["Ativos", countActive],
-              ["Administradores", countAdmins], ["Bloqueados", countBlocked],
+              [activeScope === PLATFORM_SCOPE ? "Admin. gerais" : "Administradores",
+                activeScope === PLATFORM_SCOPE ? scopedUsers.filter((user) => user.role === "master_admin").length : countAdmins],
+              [activeScope === PLATFORM_SCOPE ? "Operadores" : "Bloqueados",
+                activeScope === PLATFORM_SCOPE ? scopedUsers.filter((user) => user.role === "master_ops").length : countBlocked],
             ].map(([label, count]) => (
               <div key={label} className="sig-master-governance-stat rounded-xl border px-3 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.06em]">{label}</p>
@@ -218,7 +319,14 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
             ))}
           </div>
           {activeScope === PLATFORM_SCOPE ? (
-            <PlatformStaffCreator onCreated={onPlatformStaffCreated} />
+            <div className="min-w-0 space-y-3" data-master-platform-team="true">
+              <p className="sig-master-governance-role-note rounded-xl border px-4 py-3 text-xs leading-5">
+                <strong>Administrador Geral</strong>: acesso proprietário e protegido. <strong>Operação Geral</strong>:
+                acesso administrativo para colaboradores SIGAPRO, cadastrado exclusivamente pelo Administrador Geral.
+                Nenhuma dessas contas é um servidor municipal.
+              </p>
+              {canCreatePlatformOperator ? <PlatformStaffCreator onCreated={onPlatformStaffCreated} /> : null}
+            </div>
           ) : null}
           {activeScope === REVIEW_SCOPE ? (
             <div role="status" className="sig-master-governance-alert mt-4 flex items-start gap-2 rounded-xl border p-3 text-xs leading-5">
