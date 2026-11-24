@@ -86,6 +86,31 @@ describe("SIGAPRO — troca de plano e leitura fiel ao contrato oficial", () => 
     });
     expect(planHasModule(downgraded,"Assinatura")).toBe(false);
   });
+  it("usa o preço e a vigência do contrato efetivo em vez do cadastro antigo", async () => {
+    const { readMunicipalContractQuote } = await import("@/lib/masterCommercialContract");
+    const quote=readMunicipalContractQuote({
+      municipalityId:clp.id,plans:[pro,premium],assignments:[assignment],snapshots:[live],
+    });
+    expect(quote.plan?.name).toBe("Premium");
+    expect(quote.price).toBe(4890);
+    expect(quote.billingCycle).toBe("mensal");
+    expect(quote.endsAt).toBe("2027-01-10");
+
+    const upgradedWhileCacheOld=readMunicipalContractQuote({
+      municipalityId:clp.id,plans:[pro,premium],
+      assignments:[{...assignment,planId:"plan-pro",isCustom:true,customPrice:1999}],
+      snapshots:[live],
+    });
+    // Never apply a Pro custom-price override to an unrelated Premium plan.
+    expect(upgradedWhileCacheOld.price).toBe(4890);
+    const explicit=readMunicipalContractQuote({
+      municipalityId:clp.id,plans:[premium],assignments:[{
+        ...assignment,isCustom:true,customPrice:3550,
+      }],
+    });
+    expect(explicit.price).toBe(3550);
+  });
+
   it("contabiliza a mensalidade do Premium contratado, não o campo legado zerado", () => {
     expect(summarizeMasterCommercialContracts({
       institutions:[clp,other],plans:[premium,pro],assignments:[assignment],

@@ -89,3 +89,41 @@ export function summarizeMasterCommercialContracts(
     monthlyContractValue: Math.round(monthlyContractValue * 100) / 100,
   };
 }
+
+
+/**
+ * A contract quote comes from its plan definition and optional explicit
+ * custom price. Legacy tenant_settings.monthly_fee is NOT a reliable quote
+ * after an in-place plan upgrade.
+ */
+export function readMunicipalContractQuote(input: {
+  municipalityId: string;
+  plans: readonly PlanItem[];
+  assignments: readonly ClientPlanAssignment[];
+  snapshots?: readonly PlanUsageSnapshot[];
+}): {
+  plan: PlanItem | null;
+  assignment: ClientPlanAssignment | null;
+  price: number | null;
+  billingCycle: ClientPlanAssignment["billingCycle"] | null;
+  startsAt: string;
+  endsAt: string;
+} {
+  const assignment = input.assignments.find((item) => item.municipalityId === input.municipalityId) ?? null;
+  const live = (input.snapshots ?? []).find((item) => item.municipalityId === input.municipalityId);
+  const effectivePlanId = live?.configured && live.planId ? live.planId : assignment?.planId;
+  const plan = input.plans.find((item) => item.id === effectivePlanId) ?? null;
+  const customApplies = Boolean(assignment && plan &&
+    assignment.planId === plan.id && assignment.isCustom && assignment.customPrice !== null);
+  const price = plan
+    ? customApplies ? Number(assignment!.customPrice) : Number(plan.price)
+    : null;
+  return {
+    plan,
+    assignment,
+    price: price !== null && Number.isFinite(price) && price >= 0 ? price : null,
+    billingCycle: assignment?.billingCycle ?? plan?.billingCycle ?? null,
+    startsAt: assignment?.startsAt ?? "",
+    endsAt: assignment?.endsAt ?? "",
+  };
+}
