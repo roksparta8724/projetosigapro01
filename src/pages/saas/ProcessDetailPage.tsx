@@ -2701,7 +2701,7 @@ export function ProcessDetailPage() {
 
     // SIGAPRO_DOCUMENT_ROUTING_READONLY_V2
     // Clicar em "analisar" nao concede acesso de escrita. A rota real depende da titularidade.
-    const shouldAnalyze = Boolean((forceAnalysis || canReviewDocuments) &&
+    const shouldAnalyze = Boolean(forceAnalysis &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId));
     const route = shouldAnalyze ? "analisar" : "visualizar";
     const query = shouldAnalyze
@@ -2734,10 +2734,10 @@ export function ProcessDetailPage() {
         : window.open(workspaceUrl, "sigapro-document-workspace");
 
     if (!openedTab) {
-      setProcessActionStatus(
-        "O navegador bloqueou a guia do documento. Libere pop-ups para o SIGAPRO e tente novamente.",
-      );
       setOpeningDocumentId("");
+      navigate(`${buildProcessPath(process)}/documentos/${documentId}/${route}${query}`, {
+        state: { returnTo: buildProcessPath(process, "documentos") },
+      });
       return;
     }
 
@@ -3671,9 +3671,9 @@ export function ProcessDetailPage() {
                 <div data-sigapro-document-editor-locked="true" role="note"
                   className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-100">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-extrabold">Para editar e marcar o PDF, assuma ou distribua a análise</p>
+                    <p className="text-sm font-extrabold">Consulta documental disponível · edição restrita à etapa técnica</p>
                     <p className="mt-1 text-xs leading-5">
-                      A entrega dos documentos está concluída, mas a mesa técnica exige um responsável autorizado.
+                      A consulta é independente da atribuição. A edição depende da unidade e da etapa técnica autorizada.
                       Abrir documento é somente visualização; Adicionar marcador não cria apontamentos no PDF.
                     </p>
                   </div>
@@ -3890,7 +3890,7 @@ export function ProcessDetailPage() {
                             type="button"
                             onClick={() => openViewer(document.id)}
                             className="block max-w-full text-left font-semibold text-slate-950 hover:text-sky-700 hover:underline dark:text-slate-100 dark:hover:text-sky-300"
-                            title={canReviewDocuments ? "Abrir documento na mesa de análise" : "Abrir documento"}
+                            title="Visualizar documento"
                           >
                             {document.label}
                           </button>
@@ -3902,8 +3902,8 @@ export function ProcessDetailPage() {
                           type="button"
                           disabled={!document.uploaded}
                           onClick={() => document.uploaded && openViewer(document.id)}
-                          className="mt-1 block max-w-full truncate text-left text-sm text-slate-500 enabled:hover:text-sky-700 enabled:hover:underline disabled:cursor-default dark:text-slate-400 dark:enabled:hover:text-sky-300"
-                          title={document.uploaded ? (canReviewDocuments ? "Abrir documento na mesa de análise" : "Abrir documento") : undefined}
+                          className="mt-1 block max-w-full whitespace-normal break-words text-left text-sm text-slate-600 [overflow-wrap:anywhere] enabled:hover:text-sky-700 enabled:hover:underline disabled:cursor-default dark:text-slate-300 dark:enabled:hover:text-sky-300"
+                          title={document.uploaded ? "Visualizar documento" : undefined}
                         >
                           {document.fileName || "Arquivo ainda não enviado"}
                           {document.mimeType ? ` • ${document.mimeType}` : ""}

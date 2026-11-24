@@ -63,7 +63,7 @@ describe("assigned analyst document access", () => {
     ).toBe(true);
   });
 
-  it("blocks another analyst until the process is formally reassigned", () => {
+  it("allows another analyst of the same analysis unit to collaborate", () => {
     expect(
       canAnalyzeProcessDocument(
         {
@@ -74,7 +74,7 @@ describe("assigned analyst document access", () => {
         analysisStageProcess,
         municipalityId,
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("keeps the Prefeitura administrator out of technical analysis", () => {

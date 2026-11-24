@@ -187,32 +187,6 @@ export function DocumentViewerPage() {
     }
   };
 
-  const replaceAnalystViewerWithAnalysis = canAnalyzeDocument && Boolean(process && document);
-
-  useEffect(() => {
-    if (!replaceAnalystViewerWithAnalysis || !process || !document) return;
-    navigate(
-      `${buildProcessPath(process)}/documentos/${document.id}/analisar?ferramenta=highlight`,
-      {
-        replace: true,
-        state: {
-          documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
-          returnTo:
-            routeState.returnTo ||
-            buildProcessPath(process, "documentos"),
-        },
-      },
-    );
-  }, [
-    accessUrl,
-    document?.id,
-    navigate,
-    prefetchedDocumentAccessUrl,
-    process?.id,
-    replaceAnalystViewerWithAnalysis,
-    routeState.returnTo,
-  ]);
-
   useEffect(() => {
     let cancelled = false;
     setError("");
@@ -276,10 +250,6 @@ export function DocumentViewerPage() {
     prefetchedDocumentAccessUrl,
   ]);
 
-  if (replaceAnalystViewerWithAnalysis) {
-    return null;
-  }
-
   if (!process || !document) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
       return null;
@@ -304,6 +274,7 @@ export function DocumentViewerPage() {
   }
 
   if (!allowed) {
+    if (platformDataLoading || !dataReadyForCurrentUser || session.id === "unknown") return null;
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#dfe5ec] p-6">
         <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
@@ -636,7 +607,7 @@ export function DocumentViewerPage() {
                     </p>
                     <p className="break-words text-xs leading-5 text-slate-700 [overflow-wrap:anywhere]">
                       {process.analysis?.assignedProfileId || process.analysis?.assignedTo
-                        ? "Este processo tem um analista responsável. Para editar, solicite redistribuição formal à Diretoria."
+                        ? "A edição depende da etapa e da lotação autorizadas. A consulta permanece disponível."
                         : "O processo chegou ao Urbanismo, mas ainda não foi assumido ou distribuído. Assuma a análise para abrir o editor de marcações."}
                     </p>
                     <p className="break-words text-[11px] leading-5 text-slate-500 [overflow-wrap:anywhere]">

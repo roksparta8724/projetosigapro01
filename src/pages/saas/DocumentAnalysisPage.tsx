@@ -675,7 +675,7 @@ export function DocumentAnalysisPage() {
           <FileText className="mx-auto h-9 w-9 text-slate-500" />
           <h1 className="mt-4 text-xl font-bold text-slate-950">Análise protegida</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Esta área é exclusiva da equipe interna responsável pela análise deste processo.
+            A edição é exclusiva da equipe técnica autorizada na etapa de análise. A consulta não exige atribuição.
           </p>
         </div>
       </main>

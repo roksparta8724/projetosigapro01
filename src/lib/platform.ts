@@ -2979,24 +2979,13 @@ export function canViewMunicipalProcessDocument(
   scopeId?: string | null,
 ) {
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
-  // A equipe técnica não pode abrir anexos na Análise antes da compensação,
-  // conclusão da triagem e despacho. Protocolo/Admin mantém seu acesso próprio.
-  if (
-    (session.role === "analista" || session.role === "prefeitura_supervisor") &&
-    resolveSessionOperationalArea(session) === "analise" &&
-    !isProcessReleasedToUrbanAnalysis(process)
-  ) return false;
   if (session.role !== "master_admin" && session.role !== "master_ops") {
     const actorScope = getOperationalScopeId(session);
     if (!actorScope || !matchesOperationalScope(actorScope, process)) return false;
   }
-  if (!canTrackProcess(session, process, scopeId)) return false;
-  if (canAccessProcess(session, process, scopeId)) return true;
-  if (!isInternalRole(session.role)) return false;
-  // A lotacao no organograma precisa identificar a area de Analise/Urbanismo.
-  if (resolveSessionOperationalArea(session) !== "analise") return false;
-  return session.role === "analista" || session.role === "prefeitura_supervisor" ||
-    /diretor|diretora|secretari[oa]/i.test(session.title || "");
+  // Consultation is independent of assignment and current operational queue.
+  // The signed URL still requires the authenticated document row and server ACL.
+  return canTrackProcess(session, process, scopeId);
 }
 
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
@@ -3140,7 +3129,8 @@ export function canEditProcessAnalysis(
   if (session.role === "prefeitura_admin") return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
 
-  const sessionScopeId = scopeId || getOperationalScopeId(session);
+  const sessionScopeId = getOperationalScopeId(session);
+  if (scopeId && scopeId !== sessionScopeId) return false;
   if (!sessionScopeId || !matchesOperationalScope(sessionScopeId, process)) {
     return false;
   }
@@ -3149,29 +3139,10 @@ export function canEditProcessAnalysis(
     canAccessMunicipalArea(session, "analise") &&
     isProcessOwnedBySessionDepartment(session, process);
 
-  const normalizeIdentity = (value: string | null | undefined) =>
-    String(value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLocaleLowerCase("pt-BR");
-
-  const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
-  const assignedName = normalizeIdentity(process.analysis?.assignedTo);
-  const sessionName = normalizeIdentity(session.name);
-  const isAssignedAnalyst =
-    session.role === "analista" &&
-    (
-      (assignedProfileId && assignedProfileId === session.id) ||
-      (!assignedProfileId && assignedName && sessionName && assignedName === sessionName)
-    );
-
-  // A análise tem um responsável técnico por vez. Outro Analista pode acompanhar,
-  // mas não pode editar documentos, checklist, exigências ou despachos até que a
-  // Diretoria faça a redistribuição formal. A troca de responsável revoga o
-  // direito anterior e concede o mesmo direito ao novo Analista imediatamente.
+  // The assigned analyst remains the reference for workload and signatures.
+  // Every authorized analyst in this municipality's current Analysis area may collaborate.
   if (session.role === "analista") {
-    return worksInAnalysis && isAssignedAnalyst;
+    return worksInAnalysis;
   }
 
   if (session.role === "prefeitura_supervisor") {

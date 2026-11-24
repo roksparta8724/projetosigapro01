@@ -74,7 +74,7 @@ describe("QA release gate: Protocolo -> Triagem -> Análise Urbanística", () =>
     const process = { ...processFixture(), triage: { status: "em_triagem" } } as ProcessRecord;
     expect(isProcessReleasedToUrbanAnalysis(process)).toBe(false);
     expect(canAnalyzeProcessDocument(analyst, process, tenantId)).toBe(false);
-    expect(canViewMunicipalProcessDocument(analyst, process, tenantId)).toBe(false);
+    expect(canViewMunicipalProcessDocument(analyst, process, tenantId)).toBe(true);
   });
 
   it("bloqueia retificação assinada e intervenção de diretor enquanto a triagem estiver pendente", () => {
