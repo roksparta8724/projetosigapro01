@@ -134,6 +134,8 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/f5ActualRouteFirstPaintRegression.test.ts",
     "src/components/platform/PermissionRoute.test.tsx",
     "src/test/routeAuthorizationHydration20261124.test.tsx",
+    "src/hooks/usePlatformSession.test.tsx",
+    "src/test/urbanLegislationRoleAccess.test.ts",
     "src/test/protocolRegistrationSource20261117.test.ts",
     "src/test/processPersonalUnitFilters20261117.test.tsx",
     "src/test/unifiedMunicipalProcessWorkspace20261117.test.tsx",

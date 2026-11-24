@@ -330,7 +330,9 @@ export function PersistentPortalFrameLayout() {
     session.accountStatus !== "blocked" &&
     session.accountStatus !== "inactive" && !session.deletedAt;
   const verifiedSession = auth.authResolved && auth.isAuthenticated &&
-    Boolean(auth.authenticatedUserId) && admissibleSession;
+    Boolean(auth.authenticatedUserId) &&
+    session.id === (auth.authenticatedProfileId || auth.authenticatedUserId) &&
+    admissibleSession;
   // On a same-tab F5, PermissionRoute already knows the exact owner/route
   // snapshot and can temporarily present that account while auth hydrates.
   // Mount the SAME persistent frame immediately instead of first mounting a
@@ -682,7 +684,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       // o estado contratual atual estiver definitivamente resolvido.
       if (
         item.module &&
-        !planEntitlements.isResolving &&
+        planEntitlements.isDenialConfirmed &&
         !planEntitlements.canUseModule(item.module)
       ) {
         return null;
