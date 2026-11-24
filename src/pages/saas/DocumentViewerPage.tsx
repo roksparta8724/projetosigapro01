@@ -16,7 +16,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
-import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
+import { consumeDocumentWorkspaceAccessUrl, maintainAuthorizedDocumentAccess, PRIVATE_DOCUMENT_ACCESS_SECONDS } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import {
@@ -97,6 +97,7 @@ export function DocumentViewerPage() {
     null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [error, setError] = useState("");
+  const [accessRetry, setAccessRetry] = useState(0);
   const [assumingAnalysis, setAssumingAnalysis] = useState(false);
   const [assumeAnalysisError, setAssumeAnalysisError] = useState("");
   const document = useMemo(
@@ -138,9 +139,9 @@ export function DocumentViewerPage() {
       canAnalyzeProcessDocument(session, process, effectiveScopeId),
   );
 
-  const openAnalysisWorkspace = (tool?: "highlight" | "text") => {
+  const openAnalysisWorkspace = (tool?: "highlight" | "text", reopen = false) => {
     if (!process || !document || !canAnalyzeDocument) return;
-    const query = tool ? `?ferramenta=${tool}` : "";
+    const query = reopen ? "?ferramenta=navigate&reabrir=1" : tool ? `?ferramenta=${tool}` : "";
     navigate(
       `${buildProcessPath(process)}/documentos/${document.id}/analisar${query}${new URLSearchParams(location.search).get("janela") === "1" ? (query ? "&janela=1" : "?janela=1") : ""}`,
       {
@@ -190,63 +191,26 @@ export function DocumentViewerPage() {
   };
 
   useEffect(() => {
-    let cancelled = false;
     setError("");
-
-    if (!allowed || !document) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    // File-backed documents always request a fresh, authorized signed URL.
-    // Do not reuse an expired access URL from the previous window.
+    setAccessUrl("");
+    if (!allowed || !document) return;
     if (!document.filePath) {
       setAccessUrl(document.previewUrl || "");
-      if (!document.previewUrl) {
-        setError("Este documento não possui arquivo disponível para visualização.");
-      }
-      return () => {
-        cancelled = true;
-      };
+      if (!document.previewUrl) setError("Este documento não possui arquivo disponível para visualização.");
+      return;
     }
-
-    setAccessUrl("");
+    const objectKey = document.filePath;
     const bucket =
-      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
-      "sigapro-documentos";
-
-    void getSignedUrlForObjectStrict({
-      bucket,
-      objectKey: document.filePath,
-      expiresIn: 21600,
-    })
-      .then((url) => {
-        if (!cancelled) {
-          if (url) setAccessUrl(url);
-          else setError("Não foi possível gerar o acesso seguro ao documento.");
-        }
-      })
-      .catch((reason) => {
-        if (!cancelled) {
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : "Não foi possível abrir o documento armazenado.",
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    allowed,
-    document?.id,
-    document?.filePath,
-    document?.previewUrl,
-    prefetchedDocumentAccessUrl,
-  ]);
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) || "sigapro-documentos";
+    return maintainAuthorizedDocumentAccess({
+      request: () => getSignedUrlForObjectStrict({ bucket, objectKey, expiresIn: PRIVATE_DOCUMENT_ACCESS_SECONDS }),
+      onAccess: (url) => { setError(""); setAccessUrl(url); },
+      onError: (reason) => {
+        setAccessUrl("");
+        setError(reason instanceof Error ? reason.message : "Não foi possível abrir o documento armazenado.");
+      },
+    });
+  }, [allowed, session.id, document?.id, document?.filePath, document?.previewUrl, accessRetry]);
 
   if (!process || !document) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
@@ -440,7 +404,10 @@ export function DocumentViewerPage() {
               <div className="flex h-full items-center justify-center p-8">
                 <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-7 text-center shadow-xl">
                   <p className="text-base font-semibold text-slate-950">Não foi possível abrir o documento.</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+                  <p className="mt-2 break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{error}</p>
+                  <Button type="button" className="mt-4 rounded-xl bg-slate-950 !text-white hover:bg-slate-800" onClick={() => setAccessRetry(value => value + 1)}>
+                    Tentar abrir novamente
+                  </Button>
                 </div>
               </div>
             ) : !accessUrl ? (
@@ -583,10 +550,26 @@ export function DocumentViewerPage() {
             ) : null}
 
             <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-800">Visualização protegida</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                O arquivo é exibido por acesso temporário assinado nesta mesma guia.
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-sky-800"><ShieldCheck className="h-4 w-4 shrink-0" /> Visualização segura</p>
+              <p className="mt-2 break-words text-sm leading-6 text-slate-700">
+                Este documento integra o acervo do processo no SIGAPRO. A consulta é protegida pelas permissões do seu perfil e o acesso é renovado durante a sessão autorizada.
               </p>
+              {document.reviewStatus === "aprovado" ? (
+                <div data-document-review-status="approved" className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-emerald-800">Documento aprovado</p>
+                  {canAnalyzeDocument ? (
+                    <Button type="button" variant="outline" data-document-viewer-reopen="true" onClick={() => openAnalysisWorkspace(undefined, true)} className="mt-2 h-auto min-h-10 w-full whitespace-normal rounded-xl border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100">
+                      Reabrir para nova análise
+                    </Button>
+                  ) : (
+                    <p className="mt-1 break-words text-xs leading-5 text-slate-600">
+                      {["deferido", "indeferido", "arquivado"].includes(process.status)
+                        ? "Processo concluído. Uma nova avaliação exige reabertura administrativa ou retificação formal."
+                        : "A reavaliação é exclusiva da equipe técnica autorizada na etapa atual."}
+                    </p>
+                  )}
+                </div>
+              ) : null}
               {canAnalyzeDocument ? (
                 <Button
                   type="button"

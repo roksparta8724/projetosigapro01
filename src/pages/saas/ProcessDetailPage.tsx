@@ -4152,6 +4152,10 @@ export function ProcessDetailPage() {
                             <PencilLine className="mr-2 h-4 w-4 shrink-0" />
                             Reabrir para nova análise
                           </Button>
+                        ) : isApproved && isFinalProcessStatus && !isExternalProcessViewer ? (
+                          <p data-document-reopen-unavailable="true" className="basis-full break-words text-xs leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
+                            Processo concluído. Uma nova avaliação exige reabertura administrativa ou retificação formal, preservando o histórico.
+                          </p>
                         ) : null}
                       </div>
                     ) : null}

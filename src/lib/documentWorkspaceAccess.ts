@@ -57,3 +57,56 @@ export function consumeDocumentWorkspaceAccessUrl(
     return "";
   }
 }
+
+// The server caps private document credentials at 900 seconds. Refresh before
+// that deadline, not after the PDF viewer has started failing range requests.
+export const PRIVATE_DOCUMENT_ACCESS_SECONDS = 900;
+export const PRIVATE_DOCUMENT_RENEW_AFTER_MS = 12 * 60_000;
+
+export function maintainAuthorizedDocumentAccess(input: {
+  request: () => Promise<string>;
+  onAccess: (url: string) => void;
+  onError: (error: unknown) => void;
+}) {
+  let disposed = false;
+  let pending = false;
+  let nextRefresh = 0;
+  let timer: number | undefined;
+
+  const refresh = async () => {
+    if (disposed || pending) return;
+    pending = true;
+    const requestedAt = Date.now();
+    try {
+      const url = await input.request();
+      if (!url) throw new Error("Não foi possível confirmar o acesso seguro ao documento.");
+      if (disposed) return;
+      nextRefresh = requestedAt + PRIVATE_DOCUMENT_RENEW_AFTER_MS;
+      input.onAccess(url);
+    } catch (error) {
+      if (disposed) return;
+      // Never retain a stale credential after a failed authorization check.
+      nextRefresh = Date.now() + 60_000;
+      input.onError(error);
+    } finally {
+      pending = false;
+      if (!disposed) {
+        if (timer !== undefined) window.clearTimeout(timer);
+        timer = window.setTimeout(() => void refresh(), Math.max(0, nextRefresh - Date.now()));
+      }
+    }
+  };
+
+  const resume = () => {
+    if (window.document.visibilityState !== "hidden" && Date.now() >= nextRefresh) void refresh();
+  };
+  window.addEventListener("focus", resume);
+  window.document.addEventListener("visibilitychange", resume);
+  void refresh();
+  return () => {
+    disposed = true;
+    if (timer !== undefined) window.clearTimeout(timer);
+    window.removeEventListener("focus", resume);
+    window.document.removeEventListener("visibilitychange", resume);
+  };
+}

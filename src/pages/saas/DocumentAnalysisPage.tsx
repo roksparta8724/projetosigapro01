@@ -34,7 +34,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
-import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
+import { consumeDocumentWorkspaceAccessUrl, maintainAuthorizedDocumentAccess, PRIVATE_DOCUMENT_ACCESS_SECONDS } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import {
@@ -129,6 +129,7 @@ export function DocumentAnalysisPage() {
   const [showReopenAnalysis, setShowReopenAnalysis] = useState(() => searchParams.get("reabrir") === "1");
   const [reopenReason, setReopenReason] = useState("");
   const [accessError, setAccessError] = useState("");
+  const [accessRetry, setAccessRetry] = useState(0);
   const [tool, setTool] = useState<AnalysisTool>(() => {
     const requested = searchParams.get("ferramenta");
     return requested === "highlight" || requested === "text" ? requested : "navigate";
@@ -247,54 +248,26 @@ export function DocumentAnalysisPage() {
   }, [draftAnnotations, draftHydrated, reviewDraftStorageKey]);
 
   useEffect(() => {
-    let cancelled = false;
     setAccessError("");
-
-    if (!canUseAnalysis) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (!document?.filePath) {
-      setAccessUrl(document?.previewUrl || "");
-      return () => {
-        cancelled = true;
-      };
-    }
-
     setAccessUrl("");
+    if (!canUseAnalysis || !document) return;
+    if (!document.filePath) {
+      setAccessUrl(document.previewUrl || "");
+      if (!document.previewUrl) setAccessError("Este documento não possui arquivo disponível para visualização.");
+      return;
+    }
+    const objectKey = document.filePath;
     const bucket =
-      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
-      "sigapro-documentos";
-
-    void getSignedUrlForObjectStrict({
-      bucket,
-      objectKey: document.filePath,
-      expiresIn: 21600,
-    })
-      .then((url) => {
-        if (!cancelled) setAccessUrl(url);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setAccessError(
-            error instanceof Error
-              ? error.message
-              : "Não foi possível abrir o arquivo armazenado.",
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    canUseAnalysis,
-    document?.filePath,
-    document?.previewUrl,
-    prefetchedDocumentAccessUrl,
-  ]);
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) || "sigapro-documentos";
+    return maintainAuthorizedDocumentAccess({
+      request: () => getSignedUrlForObjectStrict({ bucket, objectKey, expiresIn: PRIVATE_DOCUMENT_ACCESS_SECONDS }),
+      onAccess: (url) => { setAccessError(""); setAccessUrl(url); },
+      onError: (error) => {
+        setAccessUrl("");
+        setAccessError(error instanceof Error ? error.message : "Não foi possível abrir o arquivo armazenado.");
+      },
+    });
+  }, [canUseAnalysis, session.id, document?.id, document?.filePath, document?.previewUrl, accessRetry]);
 
   const isPdf =
     document?.mimeType === "application/pdf" ||
@@ -1056,7 +1029,10 @@ export function DocumentAnalysisPage() {
                   <div className="flex min-h-[calc(100vh-164px)] items-center justify-center bg-[#2f343b] p-6">
                     <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-6 text-center shadow-xl">
                       <p className="font-semibold text-slate-950">Não foi possível abrir o arquivo.</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">{accessError}</p>
+                      <p className="mt-2 break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{accessError}</p>
+                      <Button type="button" className="mt-4 rounded-xl bg-slate-950 !text-white hover:bg-slate-800" onClick={() => setAccessRetry(value => value + 1)}>
+                        Tentar abrir novamente
+                      </Button>
                     </div>
                   </div>
                 ) : (

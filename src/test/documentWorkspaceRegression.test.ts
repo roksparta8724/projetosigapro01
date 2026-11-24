@@ -265,3 +265,26 @@ describe("precise PDF annotation interaction", () => {
     expect(css).toContain("DOCUMENT ANALYSIS INSPECTOR: HARD OVERFLOW CONTRACT");
   });
 });
+
+describe("permanent municipal records with renewable private access", () => {
+  it("renews authorization in both document workspaces without weakening the server limit", () => {
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const editor = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const access = read("src/lib/documentWorkspaceAccess.ts");
+    const server = read("server/r2-object-key-validation.ts");
+    for (const page of [viewer, editor]) {
+      expect(page).toContain("return maintainAuthorizedDocumentAccess");
+      expect(page).toContain("expiresIn: PRIVATE_DOCUMENT_ACCESS_SECONDS");
+      expect(page).toContain("Tentar abrir novamente");
+      expect(page).toContain('setAccessUrl("")');
+    }
+    expect(access).toContain("PRIVATE_DOCUMENT_ACCESS_SECONDS = 900");
+    expect(access).toContain("PRIVATE_DOCUMENT_RENEW_AFTER_MS = 12 * 60_000");
+    expect(access).toContain('removeEventListener("visibilitychange", resume)');
+    expect(server).toContain("privateDocument ? 900 : 3600");
+    expect(viewer).toContain("Visualização segura");
+    expect(viewer).not.toContain("acesso temporário assinado");
+    expect(viewer).toContain('data-document-viewer-reopen="true"');
+    expect(viewer).toContain("Uma nova avaliação exige reabertura administrativa");
+  });
+});
