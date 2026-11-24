@@ -1,6 +1,7 @@
 ﻿import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, Plus, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { MunicipalMaintenancePanel } from "@/components/platform/MunicipalMaintenancePanel";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { MetricCard } from "@/components/platform/MetricCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -132,6 +133,7 @@ const ensureBackendAvailable = async () => {
 
 export function MasterAdminPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, authResolved, authenticatedUserId, authenticatedProfileId } = useAuthGateway();
   const authorizedAvatarViewerId = isAuthenticated && authResolved
     ? (authenticatedUserId || authenticatedProfileId) : null;
@@ -157,7 +159,8 @@ export function MasterAdminPage() {
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>(() => new URLSearchParams(window.location.search).get("secao") === "cadastro" ? "" : institutions[0]?.id ?? "");
   const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(() => new URLSearchParams(window.location.search).get("secao") === "cadastro");
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("carteira");
+  const requestedSection = new URLSearchParams(location.search).get("secao");
+  const workspaceView: WorkspaceView = ["visao-geral","carteira","cadastro","organograma","usuarios"].includes(requestedSection || "") ? requestedSection as WorkspaceView : "carteira";
   const [form, setForm] = useState(emptyTenantForm);
   const [admins, setAdmins] = useState<AdminContactDraft[]>([createAdminDraft()]);
   const [statusMessage, setStatusMessage] = useState("");
@@ -411,7 +414,6 @@ export function MasterAdminPage() {
     hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(false);
     setSelectedTenantId(tenantId);
-    setWorkspaceView("cadastro");
     setStatusMessage("");
     const params = new URLSearchParams(window.location.search);
     params.set("secao", "cadastro");
@@ -776,7 +778,6 @@ export function MasterAdminPage() {
     setIsCreatingNewInstitution(true);
     setSelectedTenantId("");
     setForm({ ...emptyTenantForm });
-    setWorkspaceView("cadastro");
     const params = new URLSearchParams(window.location.search);
     params.set("secao", "cadastro");
     navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
@@ -793,7 +794,6 @@ export function MasterAdminPage() {
     const params = new URLSearchParams(window.location.search);
     params.set("secao", section);
     navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
-    setWorkspaceView(section);
   };
 
   const renderInstitutionCard = (tenant: Institution) => {
@@ -962,6 +962,7 @@ export function MasterAdminPage() {
             </Badge>
           )}
         </div>
+        <MunicipalMaintenancePanel key={tenant.id} institution={tenant} onChanged={async () => { await refreshRemoteStore(); window.dispatchEvent(new Event("sigapro:data-changed")); }} />
       </div>
     );
   };
@@ -994,8 +995,8 @@ export function MasterAdminPage() {
         <InternalTabs value={workspaceView} disabled={saving || savingPlanOnly || orgBusy} reselectValue={!isCreatingNewInstitution ? "cadastro" : undefined} onChange={(value) => {
           if (saving || savingPlanOnly) return;
           if (value === "cadastro" && (workspaceView !== "cadastro" || !isCreatingNewInstitution)) resetForNewInstitution();
-          else setWorkspaceView(value as WorkspaceView);
-        }} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Nova Prefeitura", helper: "Formulário limpo" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
+          else openMasterSection(value as WorkspaceView);
+        }} urlParam="secao" persistInUrl={false} items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Nova Prefeitura", helper: "Formulário limpo" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
 
         {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
           <div data-master-contract-capacity="true" className={workspaceView === "carteira" ? "order-[80] min-w-0" : "contents"}>

@@ -82,3 +82,10 @@ describe("Master — proteção do organograma por município", () => {
     expect(page).toContain('Selecione um usuário e uma unidade da Prefeitura atual.');
   });
 });
+
+
+it("usa a URL como fonte única das subpáginas Master", () => {
+  expect(page).toContain('const requestedSection = new URLSearchParams(location.search).get("secao")');
+  expect(page).toContain('persistInUrl={false} items=');
+  expect(page).not.toContain('setWorkspaceView(');
+});
