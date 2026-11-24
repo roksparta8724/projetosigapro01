@@ -19,6 +19,7 @@ import {
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { reopenRemoteProcessForReview } from "@/integrations/backend/platform";
 import {
   canApplyPersonalProcessMarker, composeProfessionalMarkerLabel,
   PERSONAL_PROCESS_MARKER_LIMIT_ERROR,
@@ -27,6 +28,7 @@ import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
   isInternalRole, isProcessOwnedBySessionDepartment, matchesOperationalScope, parseMarker,
+  canReopenProcessForReview, buildProcessPath,
   resolveSessionOperationalArea,
   type ProcessRecord,
 } from "@/lib/platform";
@@ -197,7 +199,7 @@ export function MunicipalProcessRegistryPage() {
     if (!request || !remoteSyncedForCurrentUser) return;
     const action = request.action;
     const knownActions: Array<ProcessWorkspaceAction | "concluir"> =
-      ["prioridade", "atribuir", "encaminhar", "decisao", "etiquetas", "concluir"];
+      ["prioridade", "atribuir", "encaminhar", "decisao", "etiquetas", "reabrir", "concluir"];
     const ids = request.processIds;
     const validIds = Array.isArray(ids) && ids.length > 0 && ids.length <= 25 &&
       ids.every(id => typeof id === "string" && id.length > 0) &&
@@ -338,6 +340,20 @@ export function MunicipalProcessRegistryPage() {
     if (batchSelected.length === 0 || batchSelected.length > 25 ||
         batchSelected.some(item => !allowedIds.has(item.id))) {
       throw new Error("Seleção fora do município ou acima de 25 processos.");
+    }
+    if (action === "reabrir") {
+      const latest = municipalityProcesses.find(item => item.id === batchSelected[0]?.id);
+      if (batchSelected.length !== 1 || !latest || !canReopenProcessForReview(session, latest, effectiveScopeId)) {
+        throw new Error("A reabertura exige um processo concluído e autorização técnica confirmada.");
+      }
+      if (!payload.reason || payload.reason.trim().length < 8) throw new Error("Informe a justificativa da reabertura.");
+      await reopenRemoteProcessForReview(latest.id, payload.reason.trim());
+      await refreshRemoteStore(latest.id);
+      window.dispatchEvent(new Event("sigapro:data-changed"));
+      setSelectedProcessIds([]);
+      setBatchActionFeedback("Reabertura registrada. Arquivos e avaliações anteriores preservados.");
+      navigate(buildProcessPath(latest, "documentos"));
+      return;
     }
     // Only formal assignment/dispatch changes require the current unit to
     // own the process. Personal markers/operational priority do not.
@@ -648,7 +664,8 @@ export function MunicipalProcessRegistryPage() {
           selected={batchSelected}
           canOperate={mayOperate &&
             (activeBatchAction !== "atribuir" || session.role === "prefeitura_supervisor") &&
-            (activeBatchAction === "prioridade" || activeBatchAction === "etiquetas" ||
+            (activeBatchAction === "reabrir" ? batchSelected.length === 1 && canReopenProcessForReview(session, batchSelected[0], effectiveScopeId) :
+              activeBatchAction === "prioridade" || activeBatchAction === "etiquetas" ||
               activeBatchAction === "decisao" ||
               batchSelected.every(item => isProcessOwnedBySessionDepartment(session, item))
             )}

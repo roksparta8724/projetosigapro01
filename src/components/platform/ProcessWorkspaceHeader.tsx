@@ -7,7 +7,7 @@ import { buildProcessPath, type ProcessRecord } from "@/lib/platform";
 
 export type ProcessQuickFilter = "todos" | "meus" | "unidade" | "criticos" | "pendencias" | "guias" | "exigencias" | "analise" | "vistoria" | "decisao";
 export type ProcessMarkerOption = { label: string; color: string; emoji?: string };
-export type ProcessWorkspaceAction = "prioridade" | "atribuir" | "encaminhar" | "decisao" | "etiquetas";
+export type ProcessWorkspaceAction = "prioridade" | "atribuir" | "encaminhar" | "decisao" | "etiquetas" | "reabrir";
 export function processIsCritical(p: ProcessRecord) {
   return Boolean(p.sla?.breached || (typeof p.sla?.hoursRemaining === "number" && p.sla.hoursRemaining <= 12));
 }
@@ -215,6 +215,15 @@ export function ProcessWorkspaceHeader({
               <CheckCircle2 className="h-4 w-4" />}
             {selectedAllCompleted ? "Reabrir na unidade" : "Concluir nesta unidade"}
           </Button>
+          {onToolbarAction ? (
+            <Button type="button" size="sm" variant="outline" data-operation="reabrir"
+              className="sig-workspace-action sig-workspace-action-operational"
+              disabled={selectedCount !== 1 || bulkBusy || !showSensitiveDetails}
+              onClick={() => onToolbarAction("reabrir")}
+              title="Reabrir um processo concluído para nova avaliação técnica">
+              <RotateCcw className="h-4 w-4" />Reabrir processo
+            </Button>
+          ) : null}
           {([
             { label: "Prioridade", Icon: SlidersHorizontal, dispatch: false },
             { label: "Atribuir", Icon: UsersRound, dispatch: false },

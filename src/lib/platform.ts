@@ -764,6 +764,8 @@ export interface AuditEntry {
   actor: string;
   /** Identificador auditável de quem executou a ação, sem comparação por nome. */
   actorProfileId?: string;
+  /** ID exato do documento, presente nas avaliações auditadas mais recentes. */
+  documentId?: string;
   visibleToExternal: boolean;
   at: string;
 }
@@ -3150,6 +3152,25 @@ export function canEditProcessAnalysis(
   }
 
   return false;
+}
+
+export function canReopenProcessForReview(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
+  if (session.accountStatus !== "active" || !["deferido", "indeferido", "arquivado"].includes(process.status)) return false;
+  if (!["analista", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role)) return false;
+  const ownScope = getOperationalScopeId(session);
+  if (session.role !== "master_admin" && session.role !== "master_ops") {
+    if (!ownScope || (scopeId && scopeId !== ownScope) || !matchesOperationalScope(ownScope, process) ||
+        !canAccessMunicipalArea(session, "analise")) return false;
+  }
+  return canEditAssignedAnalysisArtifact(session, process, scopeId);
+}
+
+export function getDocumentReviewHistory(process: ProcessRecord, documentId: string) {
+  // Backend already sorts newest first; reverse for a chronological evaluation history.
+  // Never infer a document association from ambiguous historical audit text.
+  return (process.auditTrail || []).filter(entry => entry.category === "documento" &&
+    entry.documentId === documentId &&
+    ["Documento aprovado", "Documento rejeitado", "Análise documental reaberta"].includes(entry.title)).slice().reverse();
 }
 
 export function canAnalyzeProcessDocument(

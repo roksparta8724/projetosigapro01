@@ -32,3 +32,20 @@ describe("audited document reanalysis", () => {
     expect(migration).toContain("Somente a equipe da Análise Urbanística pode reabrir esta análise.");
   });
 });
+
+describe("append-only document evaluations and official process reopening", () => {
+  it("associates the official audit with the exact document and preserves chronological history", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const backend = read("src/integrations/backend/platformImpl.ts");
+    const registry = read("src/pages/saas/MunicipalProcessRegistryPage.tsx");
+    const migration = read("neon/migrations/20261124_document_evaluation_history_and_process_reopen.sql");
+    expect(detail).toContain('data-document-evaluation-history="true"');
+    expect(detail).toContain("getDocumentReviewHistory(process, document.id)");
+    expect(backend).toContain("documentId:");
+    expect(migration).toContain("'[documento:'||_document_id::text||'] '");
+    expect(migration).toContain("Autor anterior:");
+    expect(migration).toContain("public.reopen_process(_process_id,btrim(_reason))");
+    expect(registry).toContain("canReopenProcessForReview(session, latest, effectiveScopeId)");
+    expect(registry).toContain("reopenRemoteProcessForReview");
+  });
+});

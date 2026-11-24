@@ -80,6 +80,8 @@ import {
   canAnalyzeProcessDocument,
   canViewMunicipalProcessDocument,
   canEditAssignedAnalysisArtifact,
+  canReopenProcessForReview,
+  getDocumentReviewHistory,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -1507,6 +1509,8 @@ export function ProcessDetailPage() {
       ) || null;
     };
 
+    const linkedApproval = process.auditTrail.find(entry => entry.documentId === doc.id && entry.title === "Documento aprovado");
+    if (linkedApproval) return { name: linkedApproval.actor === "Identificação não registrada" ? "" : linkedApproval.actor, at: linkedApproval.at };
     const audit = process.auditTrail.find(entry => {
       const description = normal(entry.title + " " + entry.detail);
       const matches = [doc.id, doc.label, doc.fileName].some(value => {
@@ -3066,6 +3070,13 @@ export function ProcessDetailPage() {
         restrictedView={isExternalProcessViewer || isProtocolTrackingOnly}
         actions={
           <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {!isExternalProcessViewer && canReopenProcessForReview(session, process, effectiveScopeId) ? (
+              <Button type="button" variant="outline" data-process-reopen-action="true"
+                className="rounded-xl border-amber-300 bg-amber-50 px-3 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950 dark:text-amber-200"
+                onClick={() => navigate("/prefeitura/processos", {state: {sigaproProcessBatchRequest: {action: "reabrir", processIds: [process.id]}}})}>
+                Reabrir processo
+              </Button>
+            ) : null}
             {!isExternalProcessViewer && !isProtocolTrackingOnly ? (
               <MarkerSelector
                 processId={process.id}
@@ -3828,6 +3839,7 @@ export function ProcessDetailPage() {
                 const hasCommunique = document.reviewStatus === "rejeitado";
                 const documentMarkerTags = documentMarkers.getTags(process.id, document.id);
                 const approvalEvidence = isApproved ? getApprovalEvidence(document) : null;
+                const evaluationHistory = getDocumentReviewHistory(process, document.id).filter(entry => !isExternalProcessViewer || entry.visibleToExternal);
 
                 return (
                   <div
@@ -4158,6 +4170,21 @@ export function ProcessDetailPage() {
                           </p>
                         ) : null}
                       </div>
+                    ) : null}
+                    {evaluationHistory.length > 0 ? (
+                      <section data-document-evaluation-history="true" className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Histórico de avaliações</h4>
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Registros anteriores preservados. As novas avaliações são acrescentadas abaixo.</p>
+                        <ol className="mt-3 space-y-2 border-l-2 border-slate-200 pl-3 dark:border-slate-700">
+                          {evaluationHistory.map(entry => (
+                            <li key={entry.id} className="min-w-0 break-words rounded-xl border border-slate-200 p-3 text-xs leading-5 [overflow-wrap:anywhere] dark:border-slate-700">
+                              <p className="font-semibold text-slate-900 dark:text-slate-100">{entry.title}</p>
+                              <p className="text-slate-600 dark:text-slate-300">{entry.actor} · {entry.at}</p>
+                              <p className="mt-1 text-slate-700 dark:text-slate-200">{entry.detail}</p>
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
                     ) : null}
                   </div>
                 );
