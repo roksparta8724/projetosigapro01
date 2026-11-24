@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(path, "utf8");
@@ -9,6 +10,7 @@ const main = read("src/main.tsx");
 
 describe("SIGAPRO — cards mobile premium sem truncamento", () => {
   it("importa regras responsivas por ultimo e sem mudar o desktop", () => {
+    expect(() => postcss.parse(css)).not.toThrow();
     expect(main.indexOf("sigapro-mobile-cards-premium-20261124.css"))
       .toBeGreaterThan(main.indexOf("sigapro-mobile-legibility-20261121.css"));
     expect(css).toContain("@media (max-width: 1023px)");

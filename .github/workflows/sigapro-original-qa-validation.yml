@@ -36,6 +36,13 @@ jobs:
           src/test/masterNewMunicipalityIsolation.test.ts
           src/test/masterInstitutionalGovernance20261119.test.ts
           src/test/masterPlansPremiumContrast.test.ts
+          src/test/mobileCardsPremium20261124.test.ts
+          src/test/mobileLegibilityAcrossDepartments20261121.test.ts
+          src/test/layoutIntegrityRegression.test.ts
+          src/test/premiumCardHierarchy20261117.test.tsx
+          src/test/processCardGeometryRegression.test.ts
+          src/test/triageCardTextContainment.test.ts
+          src/test/financeSharedPremium20261118.test.tsx
           src/test/platformStaffProvisionMasterOnly20261123.test.ts
           src/test/footerZoomPixSharing.test.ts
           src/test/municipalBrandingFramePersistence.test.ts
