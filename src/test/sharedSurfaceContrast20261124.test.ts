@@ -51,3 +51,14 @@ it("prevents legacy light card text rules from repainting control labels",()=>{
  expect(block).toContain('[data-nav-active] *');
  expect(block).toContain('[data-ui="badge"] *');
 });
+
+it("keeps exclusions attached to the primary button itself, not a descendant",()=>{
+ const root=postcss.parse(css);
+ const rules=root.nodes.filter(n=>n.type==="rule"&&n.selector.includes('[data-button-variant="default"]')&&n.selector.includes(":not([data-maintenance-action])"));
+ expect(rules).toHaveLength(4);
+ for(const rule of rules) {
+  if(rule.type!=="rule")continue;
+  expect(rule.selector).not.toMatch(/\)\s+:not\(\[data-maintenance-action\]\)/);
+  expect(rule.selector).toContain('):not([data-maintenance-action])');
+ }
+});

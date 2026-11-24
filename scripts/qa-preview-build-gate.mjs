@@ -172,6 +172,7 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/masterTabNavigationProtection20261124.test.tsx",
     "src/test/municipalTestMaintenance20261124.test.ts",
     "src/test/sharedSurfaceContrast20261124.test.ts",
+    "src/test/protocolPaymentCardContrast20261124.test.tsx",
     "src/test/masterWorkspaceScope20261124.test.ts",
     "src/test/contentSizedAdministrativeLayout20261124.test.tsx",
     "src/test/masterOrganogramCompactPanels20261124.test.tsx",
