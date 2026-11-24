@@ -67,3 +67,18 @@ describe("Master — edição protegida durante sincronização", () => {
     expect(styles).toContain('--master-field-ink:#f4fbff');
   });
 });
+
+
+describe("Master — proteção do organograma por município", () => {
+  it("não exibe setores de outro município durante troca de seleção", () => {
+    expect(page).toContain('departmentScopeId === selectedTenantId ? masterDepartments.filter');
+    expect(page).toContain('setDepartmentScopeId(selectedTenantId)');
+    expect(page).toContain('setDepartmentScopeId("")');
+  });
+  it("valida a unidade e o usuário antes de gravar lotação", () => {
+    expect(page).toContain('departmentScopeId !== selectedTenantId');
+    expect(page).toContain('!activeTenantUsers.some((user) => user.id === assignmentUserId)');
+    expect(page).toContain('!activeMasterDepartments.some((item) => item.id === assignmentDepartmentId)');
+    expect(page).toContain('Selecione um usuário e uma unidade da Prefeitura atual.');
+  });
+});

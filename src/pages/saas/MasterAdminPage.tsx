@@ -167,6 +167,7 @@ export function MasterAdminPage() {
   const [savingPlanOnly, setSavingPlanOnly] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [masterDepartments, setMasterDepartments] = useState<MunicipalDepartmentRecord[]>([]);
+  const [departmentScopeId, setDepartmentScopeId] = useState("");
   const [orgBusy, setOrgBusy] = useState(false);
   const [orgForm, setOrgForm] = useState({
     name: "",
@@ -193,13 +194,18 @@ export function MasterAdminPage() {
 
   useEffect(() => {
     let active = true;
+    setDepartmentScopeId("");
+    setMasterDepartments([]);
+    setAssignmentUserId("");
+    setAssignmentDepartmentId("");
+    setAssignmentUserSearch("");
+    setOrgForm({ name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
     if (!selectedTenantId) {
-      setMasterDepartments([]);
       return () => { active = false; };
     }
     void listRemoteMunicipalDepartments(selectedTenantId)
       .then((rows) => {
-        if (active) setMasterDepartments(rows);
+        if (active) { setMasterDepartments(rows); setDepartmentScopeId(selectedTenantId); }
       })
       .catch((error) => {
         if (active) setStatusMessage(error instanceof Error ? error.message : "Não foi possível carregar o organograma da Prefeitura.");
@@ -261,8 +267,8 @@ export function MasterAdminPage() {
   }, [activeTenantUsers, assignmentUserId, assignmentUserSearch]);
 
   const activeMasterDepartments = useMemo(
-    () => masterDepartments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
-    [masterDepartments],
+    () => departmentScopeId === selectedTenantId ? masterDepartments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")) : [],
+    [masterDepartments, departmentScopeId, selectedTenantId],
   );
   const rootMasterDepartments = useMemo(
     () => activeMasterDepartments.filter((item) => !item.parentDepartmentId),
@@ -347,7 +353,11 @@ export function MasterAdminPage() {
 
   const handleMasterCreateDepartment = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedTenantId || !orgForm.name.trim() || orgBusy) return;
+    if (!activeTenant || !selectedTenantId || departmentScopeId !== selectedTenantId || !orgForm.name.trim() || orgBusy) return;
+    if (orgForm.parentDepartmentId && !activeMasterDepartments.some((item) => item.id === orgForm.parentDepartmentId)) {
+      setStatusMessage("A unidade superior não pertence à Prefeitura selecionada.");
+      return;
+    }
     setOrgBusy(true);
     setStatusMessage("Salvando unidade na Prefeitura selecionada...");
     try {
@@ -373,7 +383,11 @@ export function MasterAdminPage() {
   };
 
   const handleMasterAssignDepartment = async () => {
-    if (!selectedTenantId || !assignmentUserId) return;
+    if (!activeTenant || !selectedTenantId || departmentScopeId !== selectedTenantId || !assignmentUserId || orgBusy) return;
+    if (!activeTenantUsers.some((user) => user.id === assignmentUserId) || (assignmentDepartmentId && !activeMasterDepartments.some((item) => item.id === assignmentDepartmentId))) {
+      setStatusMessage("Selecione um usuário e uma unidade da Prefeitura atual.");
+      return;
+    }
     setOrgBusy(true);
     setStatusMessage("Atualizando lotação do usuário...");
     try {
@@ -393,7 +407,7 @@ export function MasterAdminPage() {
   };
 
   const handleSelectTenant = (tenantId: string) => {
-    if (saving || savingPlanOnly || !municipalIds.has(tenantId)) return;
+    if (saving || savingPlanOnly || orgBusy || !municipalIds.has(tenantId)) return;
     hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(false);
     setSelectedTenantId(tenantId);
@@ -757,7 +771,7 @@ export function MasterAdminPage() {
   };
 
   const resetForNewInstitution = () => {
-    if (saving || savingPlanOnly) return;
+    if (saving || savingPlanOnly || orgBusy) return;
     hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(true);
     setSelectedTenantId("");
@@ -775,7 +789,7 @@ export function MasterAdminPage() {
   };
 
   const openMasterSection = (section: WorkspaceView) => {
-    if (saving || savingPlanOnly) return;
+    if (saving || savingPlanOnly || orgBusy) return;
     const params = new URLSearchParams(window.location.search);
     params.set("secao", section);
     navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
@@ -970,14 +984,14 @@ export function MasterAdminPage() {
                 <CreditCard className="mr-2 h-4 w-4 text-sky-200" />
                 Planos e níveis
               </Button>
-              <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" disabled={saving || savingPlanOnly} onClick={resetForNewInstitution}>
+              <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" disabled={saving || savingPlanOnly || orgBusy} onClick={resetForNewInstitution}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nova prefeitura
               </Button>
             </div>
           }
         />
-        <InternalTabs value={workspaceView} disabled={saving || savingPlanOnly} reselectValue={!isCreatingNewInstitution ? "cadastro" : undefined} onChange={(value) => {
+        <InternalTabs value={workspaceView} disabled={saving || savingPlanOnly || orgBusy} reselectValue={!isCreatingNewInstitution ? "cadastro" : undefined} onChange={(value) => {
           if (saving || savingPlanOnly) return;
           if (value === "cadastro" && (workspaceView !== "cadastro" || !isCreatingNewInstitution)) resetForNewInstitution();
           else setWorkspaceView(value as WorkspaceView);
@@ -1014,7 +1028,7 @@ export function MasterAdminPage() {
                   <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 2xl:col-span-2">
                     <span>Exibindo 2 de {visibleCapacityRows.length} prefeituras. Os demais contratos continuam disponíveis na Carteira.</span>
                     <Button type="button" variant="outline" className="shrink-0 rounded-xl border-sky-300 bg-white text-sky-900"
-                      onClick={() => setWorkspaceView("carteira")}>Ver todas</Button>
+                      onClick={() => openMasterSection("carteira")}>Ver todas</Button>
                   </div>
                 ) : null}
               </div>
@@ -1050,7 +1064,7 @@ export function MasterAdminPage() {
                 </p>
               </div>
               <Button type="button" className="h-10 w-full rounded-xl bg-[#123b58] !text-white hover:bg-[#1b587c] sm:w-auto"
-                disabled={saving || savingPlanOnly} onClick={resetForNewInstitution}><Plus className="mr-2 h-4 w-4" />Nova Prefeitura</Button>
+                disabled={saving || savingPlanOnly || orgBusy} onClick={resetForNewInstitution}><Plus className="mr-2 h-4 w-4" />Nova Prefeitura</Button>
             </header>
             <div className="mt-5 min-w-0">
               {institutionCatalog.length === 0 ? (
@@ -1357,7 +1371,7 @@ export function MasterAdminPage() {
                       <Button type="submit" className="h-11 w-full rounded-xl bg-[#0d3853] px-6 !text-white hover:bg-[#195775] sm:w-auto" disabled={saving || savingPlanOnly}>
                         {saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}
                       </Button>
-                      <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" disabled={saving || savingPlanOnly} onClick={resetForNewInstitution}>
+                      <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" disabled={saving || savingPlanOnly || orgBusy} onClick={resetForNewInstitution}>
                         {isCreatingNewInstitution ? "Limpar novo cadastro" : "Cadastrar outra Prefeitura"}
                       </Button>
                     </div>
@@ -1368,7 +1382,7 @@ export function MasterAdminPage() {
         {workspaceView === "organograma" ? (
           !activeTenant ? (
             <SectionCard title="Organograma municipal" description="Selecione uma Prefeitura na Carteira para administrar a estrutura interna." icon={Network}>
-              <Button type="button" className="rounded-full bg-slate-950 text-white hover:bg-slate-900" onClick={() => setWorkspaceView("carteira")}>
+              <Button type="button" className="rounded-full bg-slate-950 text-white hover:bg-slate-900" onClick={() => openMasterSection("carteira")}>
                 Escolher Prefeitura
               </Button>
             </SectionCard>
@@ -1381,7 +1395,9 @@ export function MasterAdminPage() {
                   icon={Network}
                 >
                   <div className="space-y-5">
-                    {activeMasterDepartments.length === 0 ? (
+                    {departmentScopeId !== selectedTenantId ? (
+                      <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm !text-slate-800">Organograma ainda não confirmado. As alterações estão bloqueadas até a consulta ser concluída.</p>
+                    ) : activeMasterDepartments.length === 0 ? (
                       <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                         Esta Prefeitura ainda não possui organograma cadastrado.
                       </div>
@@ -1448,7 +1464,7 @@ export function MasterAdminPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button type="button" disabled={!assignmentUserId || orgBusy} className="h-11 rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => void handleMasterAssignDepartment()}>
+                    <Button type="button" disabled={!assignmentUserId || orgBusy || departmentScopeId !== selectedTenantId} className="h-11 rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => void handleMasterAssignDepartment()}>
                       Salvar lotação
                     </Button>
                   </div>
@@ -1506,7 +1522,7 @@ export function MasterAdminPage() {
                       <Label>Telefone</Label>
                       <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} />
                     </div>
-                    <Button type="submit" disabled={orgBusy || !orgForm.name.trim()} className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900">
+                    <Button type="submit" disabled={orgBusy || departmentScopeId !== selectedTenantId || !orgForm.name.trim()} className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900">
                       {orgBusy ? "Salvando..." : "Adicionar unidade"}
                     </Button>
                   </form>
