@@ -13,6 +13,7 @@ import { UserAvatar } from "@/components/platform/UserAvatar";
 import { MasterUserGovernance } from "@/components/platform/MasterUserGovernance";
 import { CompactPortfolioRegistry } from "@/components/platform/CompactPortfolioRegistry";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
+import { reconcileInstitutionCommercialPlans, summarizeMasterCommercialContracts } from "@/lib/masterCommercialContract";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +139,7 @@ export function MasterAdminPage() {
     sessionUsers,
     metrics,
     plans,
+    planAssignments,
     upsertInstitution,
     saveInstitutionSettings,
     setInstitutionStatus,
@@ -214,8 +216,13 @@ export function MasterAdminPage() {
       merged.set(institution.id, institution);
     });
 
-    return Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
-  }, [institutions, remoteInstitutions]);
+    return reconcileInstitutionCommercialPlans({
+      institutions: Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR")),
+      plans,
+      assignments: planAssignments,
+      snapshots: planCapacity.loaded && !planCapacity.error ? planCapacity.rows : [],
+    });
+  }, [institutions, remoteInstitutions, plans, planAssignments, planCapacity.error, planCapacity.loaded, planCapacity.rows]);
   const capacityPageData = paginateMunicipalItems(planCapacity.rows, contractCapacityPage, 2);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
   const activeCommercialPlans = useMemo(
@@ -257,8 +264,14 @@ export function MasterAdminPage() {
     return [...map.values()];
   }, [sessionUsers]);
   const activeUsersCount = useMemo(() => sessionUsers.filter((user) => user.accountStatus === "active").length, [sessionUsers]);
-  const monthlyRevenue = useMemo(() => institutionCatalog.reduce((sum, tenant) => sum + Number(getInstitutionSettings(tenant.id)?.monthlyFee ?? 0), 0), [getInstitutionSettings, institutionCatalog]);
-  const activePlansCount = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo" && Number(getInstitutionSettings(tenant.id)?.monthlyFee ?? 0) > 0).length, [getInstitutionSettings, institutionCatalog]);
+  // A recorrência vem do plano efetivamente contratado e do preço personalizado,
+  // não de um campo legado de mensalidade que pode permanecer em zero após upgrade.
+  const commercialSummary = useMemo(
+    () => summarizeMasterCommercialContracts({ institutions: institutionCatalog, plans, assignments: planAssignments }),
+    [institutionCatalog, plans, planAssignments],
+  );
+  const monthlyRevenue = commercialSummary.monthlyContractValue;
+  const activePlansCount = commercialSummary.activePlansCount;
   const activeInstitutionCount = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").length, [institutionCatalog]);
   const overviewInstitutions = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").slice(0, 3), [institutionCatalog]);
   const recentActivity = useMemo(() => [...sessionUsers].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5), [sessionUsers]);
@@ -958,7 +971,7 @@ export function MasterAdminPage() {
           </SectionCard>
         ) : null}
 
-        {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita mensal" value={formatCurrency(monthlyRevenue)} helper="Base institucional ativa" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => (
+        {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita contratada/mês" value={formatCurrency(monthlyRevenue)} helper="Recorrência prevista, não arrecadação" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => (
   <div key={tenant.id} className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
     <div className="min-w-0">
       <p className="truncate text-sm font-semibold text-slate-950" title={tenant.name}>{tenant.name}</p>
@@ -971,7 +984,7 @@ export function MasterAdminPage() {
       Abrir carteira
     </Button>
   </div>
-))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Receita média</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length > 0 ? formatCurrency(monthlyRevenue / institutionCatalog.length) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
+))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Ticket mensal contratado</p><p className="mt-2 text-lg font-semibold text-slate-950"{institutionCatalog.length > 0 ? formatCurrency(monthlyRevenue / institutionCatalog.length) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
 
         {workspaceView === "carteira" ? <TableCard title="Prefeituras" description="Carteira municipal, contratos e ações de governança." icon={Building2}><div className="space-y-4">{institutionCatalog.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}<CompactPortfolioRegistry institutions={institutionCatalog} renderDetails={renderInstitutionCard} /></div></TableCard> : null}
 

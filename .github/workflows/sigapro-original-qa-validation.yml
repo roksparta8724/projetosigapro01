@@ -33,6 +33,9 @@ jobs:
           src/test/masterContractAndMunicipalZoom20261123.test.ts
           src/test/masterTrustedMunicipalPlanWrites20261123.test.ts
           src/test/masterMunicipalityPremiumPlans20261123.test.ts
+          src/test/masterCommercialPlanSynchronization20261124.test.ts
+          src/test/planEntitlements.test.ts
+          src/test/planEnforcementRegression.test.ts
           src/test/masterNewMunicipalityIsolation.test.ts
           src/test/masterInstitutionalGovernance20261119.test.ts
           src/test/masterPlansPremiumContrast.test.ts
