@@ -219,3 +219,40 @@ html body #root .sig-main-shell [data-sigapro-user-registry="compact"] {
     gap: 10px;
   }
 }
+
+/* Registry surfaces: status colors must stay readable even inside inverse mobile rows. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) :is([data-mobile-portfolio-scroll="true"],[data-mobile-registry-scroll="true"],thead,[data-portfolio-empty="true"]) {
+  background:#19364c!important;border-color:#49677f!important;color:#dceefa!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) :is(tr[data-sigapro-portfolio-row="true"],tr[data-sigapro-user-row="true"]) {
+  background:#1b364c!important;border-color:#49677f!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) :is(tr[data-sigapro-portfolio-row="true"],tr[data-sigapro-user-row="true"]):hover {
+  background:#23465f!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) :is(tr[data-sigapro-portfolio-row="true"],tr[data-sigapro-user-row="true"]) :is(p,.truncate):not([data-registry-status]) {
+  color:#e4f2fc!important;-webkit-text-fill-color:#e4f2fc!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) :is(thead th,nav > span,[data-portfolio-empty="true"]) {
+  color:#c9e1f2!important;-webkit-text-fill-color:#c9e1f2!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) :is(td > button,nav button) {
+  background:#264a63!important;border-color:#668ba5!important;color:#f4fbff!important;-webkit-text-fill-color:#f4fbff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) :is(td > button,nav button):hover:not(:disabled) {background:#32627f!important;}
+html body #root .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) tr td span[data-registry-status] {
+  --registry-status-ink:#334155;--registry-status-bg:#f1f5f9;--registry-status-border:#94a3b8;
+  color:var(--registry-status-ink)!important;-webkit-text-fill-color:var(--registry-status-ink)!important;
+  background:var(--registry-status-bg)!important;border-color:var(--registry-status-border)!important;
+}
+html body #root .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) tr td span:is([data-registry-status="ativo"],[data-registry-status="active"]) {--registry-status-ink:#065f46;--registry-status-bg:#ecfdf5;--registry-status-border:#6ee7b7;}
+html body #root .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) tr td span:is([data-registry-status="suspenso"],[data-registry-status="blocked"]) {--registry-status-ink:#9f1239;--registry-status-bg:#fff1f2;--registry-status-border:#fda4af;}
+html body #root .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) tr td span[data-registry-status="implantacao"] {--registry-status-ink:#78350f;--registry-status-bg:#fffbeb;--registry-status-border:#fcd34d;}
+@container sigapro-portfolio (max-width:920px) {
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-sigapro-portfolio-registry="compact"] [data-mobile-portfolio-scroll="true"] {background:transparent!important;}
+}
+@container sigapro-users (max-width:920px) {
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-sigapro-user-registry="compact"] [data-mobile-registry-scroll="true"] {background:transparent!important;}
+}
+
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell :is([data-sigapro-portfolio-registry="compact"],[data-sigapro-user-registry="compact"]) tr td span[data-registry-status] {color:var(--registry-status-ink)!important;-webkit-text-fill-color:var(--registry-status-ink)!important;}

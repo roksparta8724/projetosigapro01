@@ -10,16 +10,20 @@ type Props = {
   pageSize?: number;
 };
 
+export function normalizeMunicipalSearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR");
+}
+
 /** Only municipality clients belong in the municipal portfolio, not SIGAPRO's technical tenant. */
 export function filterInstitutionPortfolio(
   institutions: readonly Institution[], query = "", status = "todos", plan = "todos",
 ): Institution[] {
-  const q = query.trim().toLocaleLowerCase("pt-BR");
+  const q = normalizeMunicipalSearch(query);
   return institutions.filter((item) => {
     if (item.subdomain?.toLowerCase() === "sigapro-plataforma" || item.name.trim().toLowerCase() === "sigapro plataforma") return false;
     return (status === "todos" || item.status === status) && (plan === "todos" || item.plan === plan)
       && (!q || [item.name,item.city,item.state,item.subdomain,item.id]
-        .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(q)));
+        .some((value) => normalizeMunicipalSearch(String(value || "")).includes(q)));
   });
 }
 
@@ -30,6 +34,7 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("todos");
   const [plan, setPlan] = useState("todos");
+  const municipalCount = useMemo(() => filterInstitutionPortfolio(institutions).length, [institutions]);
   const planOptions = useMemo(() => [...new Set(
     institutions.filter((item) => item.subdomain !== "sigapro-plataforma")
       .map((item) => item.plan).filter(Boolean),
@@ -52,7 +57,7 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
           <p className="sig-portfolio-count text-sm leading-5">
             <span className="font-bold tabular-nums">{paged.total.toLocaleString("pt-BR")}</span>
-            {" "}prefeituras encontradas de {filterInstitutionPortfolio(institutions).length.toLocaleString("pt-BR")} cadastradas
+            {" "}prefeituras encontradas de {municipalCount.toLocaleString("pt-BR")} cadastradas
           </p>
           <span className="sig-portfolio-context rounded-full border px-3 py-1 text-[11px] font-semibold">
             Prefeituras · contratos municipais
@@ -84,7 +89,7 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
         </div>
       </div>
       {paged.total === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">Nenhuma Prefeitura cadastrada.</p>
+        <p role="status" data-portfolio-empty="true" className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">{municipalCount === 0 ? "Nenhuma Prefeitura cadastrada." : "Nenhuma Prefeitura corresponde aos filtros atuais."}</p>
       ) : (
         <div data-mobile-portfolio-scroll="true" className="min-w-0 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <table data-sigapro-portfolio-table="true" className="w-full min-w-[740px] table-fixed text-left text-sm" aria-label="Prefeituras da carteira">
@@ -116,7 +121,7 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
                       <td data-mobile-label="Município" className="max-w-0 px-4 py-3"><p className="truncate text-slate-700" title={institution.city}>{institution.city || "Não informado"}{institution.state ? " / " + institution.state : ""}</p></td>
                       <td data-mobile-label="Plano" className="max-w-0 px-4 py-3"><p className="truncate text-slate-700" title={institution.plan}>{institution.plan || "A definir"}</p></td>
                       <td data-mobile-label="Situação" className="px-4 py-3">
-                        <span className={"inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold " +
+                        <span data-registry-status={institution.status} className={"inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold " +
                           (institution.status === "ativo" ? "border-emerald-200 bg-emerald-50 text-emerald-800" :
                            institution.status === "suspenso" ? "border-rose-200 bg-rose-50 text-rose-800" :
                            "border-amber-200 bg-amber-50 text-amber-900")}>

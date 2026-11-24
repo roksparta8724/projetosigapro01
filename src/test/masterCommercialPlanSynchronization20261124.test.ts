@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reconcileInstitutionCommercialPlans, summarizeMasterCommercialContracts } from "@/lib/masterCommercialContract";
+import { reconcileInstitutionCommercialPlans, summarizeMasterCommercialContracts, readMunicipalContractQuote } from "@/lib/masterCommercialContract";
 import type { ClientPlanAssignment, Institution, PlanItem } from "@/lib/platform";
 import type { PlanUsageSnapshot } from "@/lib/planUsageDashboard";
 import { resolvePlanEntitlements, planHasModule } from "@/lib/planEntitlements";
@@ -134,5 +134,21 @@ describe("SIGAPRO — troca de plano e leitura fiel ao contrato oficial", () => 
     expect(summarizeMasterCommercialContracts({...base,assignments:[{
       ...assignment,contractStatus:"suspenso",
     }]})).toEqual({activePlansCount:0,monthlyContractValue:0});
+  });
+});
+
+
+describe("Sincronização contratual sem reaproveitar dados obsoletos", () => {
+  it("não mostra contrato em cache quando o banco confirma que não há configuração", () => {
+    const quote = readMunicipalContractQuote({municipalityId:clp.id,plans:[premium],assignments:[assignment],snapshots:[{...live,configured:false,planId:null,planName:null}]});
+    expect(quote.plan).toBeNull();
+    expect(quote.assignment).toBeNull();
+    expect(quote.price).toBeNull();
+  });
+  it("não mistura vigência ou ciclo antigo com novo plano", () => {
+    const quote = readMunicipalContractQuote({municipalityId:clp.id,plans:[premium,pro],assignments:[{...assignment,planId:pro.id,billingCycle:"anual"}],snapshots:[live]});
+    expect(quote.plan?.id).toBe(premium.id);
+    expect(quote.billingCycle).toBe("mensal");
+    expect(quote.endsAt).toBe("");
   });
 });

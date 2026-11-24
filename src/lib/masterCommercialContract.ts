@@ -111,19 +111,21 @@ export function readMunicipalContractQuote(input: {
 } {
   const assignment = input.assignments.find((item) => item.municipalityId === input.municipalityId) ?? null;
   const live = (input.snapshots ?? []).find((item) => item.municipalityId === input.municipalityId);
-  const effectivePlanId = live?.configured && live.planId ? live.planId : assignment?.planId;
+  // An authoritative unconfigured snapshot must not resurrect a stale local contract.
+  const effectivePlanId = live ? (live.configured ? live.planId : null) : assignment?.planId;
+  const matchingAssignment = assignment && effectivePlanId && assignment.planId === effectivePlanId ? assignment : null;
   const plan = input.plans.find((item) => item.id === effectivePlanId) ?? null;
-  const customApplies = Boolean(assignment && plan &&
-    assignment.planId === plan.id && assignment.isCustom && assignment.customPrice !== null);
+  const customApplies = Boolean(matchingAssignment && plan &&
+    matchingAssignment.isCustom && matchingAssignment.customPrice !== null);
   const price = plan
-    ? customApplies ? Number(assignment!.customPrice) : Number(plan.price)
+    ? customApplies ? Number(matchingAssignment!.customPrice) : Number(plan.price)
     : null;
   return {
     plan,
-    assignment,
+    assignment: matchingAssignment,
     price: price !== null && Number.isFinite(price) && price >= 0 ? price : null,
-    billingCycle: assignment?.billingCycle ?? plan?.billingCycle ?? null,
-    startsAt: assignment?.startsAt ?? "",
-    endsAt: assignment?.endsAt ?? "",
+    billingCycle: matchingAssignment?.billingCycle ?? plan?.billingCycle ?? null,
+    startsAt: matchingAssignment?.startsAt ?? "",
+    endsAt: matchingAssignment?.endsAt ?? "",
   };
 }

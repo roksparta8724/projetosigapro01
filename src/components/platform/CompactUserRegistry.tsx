@@ -119,7 +119,7 @@ export function CompactUserRegistry({
                         <p className="truncate text-slate-600" title={user.department || user.title || ""}>{user.department || user.title || "Não informada"}</p>
                       </td>
                       <td data-mobile-label="Situação" className="px-4 py-3">
-                        <span className={"inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold " + statusClass(user.accountStatus)}>
+                        <span data-registry-status={user.accountStatus} className={"inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold " + statusClass(user.accountStatus)}>
                           {statusText[user.accountStatus] || "Indefinido"}
                         </span>
                       </td>

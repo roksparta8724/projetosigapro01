@@ -110,3 +110,20 @@ describe("SIGAPRO Master escalável — milhares de prefeituras e separação de
     expect(backend).toContain("processCountByMunicipality.get");
   });
 });
+
+
+describe("Carteira Master — busca acessível e estados vazios", () => {
+  it("encontra municípios com ou sem acentos e não confunde filtro vazio com ausência de cadastro", () => {
+    const accented = {...institutions[0],name:"Prefeitura de São João",city:"São João"};
+    expect(filterInstitutionPortfolio([accented],"sao joao")).toHaveLength(1);
+    render(<CompactPortfolioRegistry institutions={[accented]} renderDetails={() => null} />);
+    fireEvent.change(screen.getByRole("textbox",{name:"Pesquisar prefeitura, cidade, UF ou subdomínio"}),{target:{value:"inexistente"}});
+    expect(screen.getByText("Nenhuma Prefeitura corresponde aos filtros atuais.")).toBeInTheDocument();
+  });
+  it("preserva cores semânticas de status no tema inverso", () => {
+    const css = source("src/styles/sigapro-adaptive-registries-20261124.css");
+    expect(()=>postcss.parse(css)).not.toThrow();
+    expect(css).toContain("span[data-registry-status]");
+    expect(css).toContain("--registry-status-ink:#065f46");
+  });
+});

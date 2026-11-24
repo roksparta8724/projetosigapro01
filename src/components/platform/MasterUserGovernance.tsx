@@ -19,6 +19,10 @@ const ADMIN_ROLES = new Set<UserRole>(["master_admin", "master_ops", "prefeitura
 const DIRECTORY_PAGE_SIZE = 15;
 
 /** The platform's technical tenant is not a municipality or a municipal client. */
+function normalizeDirectorySearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR");
+}
+
 export function isSigaproPlatformInstitution(item: Pick<Institution, "subdomain" | "name">): boolean {
   return item.subdomain?.trim().toLowerCase() === "sigapro-plataforma"
     || item.name.trim().toLowerCase() === "sigapro plataforma";
@@ -104,9 +108,9 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
     [municipalities],
   );
   const filteredMunicipalities = useMemo(() => municipalities.filter((item) => {
-    const q = municipalityQuery.trim().toLocaleLowerCase("pt-BR");
+    const q = normalizeDirectorySearch(municipalityQuery);
     const matchesName = !q || [item.name, item.city, item.state, item.subdomain, item.id]
-      .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(q));
+      .some((value) => normalizeDirectorySearch(String(value || "")).includes(q));
     return matchesName && (municipalityStatus === "todos" || item.status === municipalityStatus)
       && (municipalityPlan === "todos" || item.plan === municipalityPlan);
   }), [municipalities, municipalityQuery, municipalityStatus, municipalityPlan]);
@@ -120,9 +124,9 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
     if (group === "administradores" && !ADMIN_ROLES.has(user.role)) return false;
     if (group === "externos" && !EXTERNAL_ROLES.has(user.role)) return false;
     if (group === "internos" && EXTERNAL_ROLES.has(user.role)) return false;
-    const q = userQuery.trim().toLocaleLowerCase("pt-BR");
+    const q = normalizeDirectorySearch(userQuery);
     return !q || [user.name, user.email, user.department, user.title, user.userType]
-      .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(q));
+      .some((value) => normalizeDirectorySearch(String(value || "")).includes(q));
   });
   const countAdmins = scopedUsers.filter((user) => ADMIN_ROLES.has(user.role)).length;
   const countActive = scopedUsers.filter((user) => user.accountStatus === "active").length;
