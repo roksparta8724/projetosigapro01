@@ -80,20 +80,20 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
   const canonicalSessionUser = useMemo(
     () =>
       sessionUsers.find((item) => item.id === businessUserId) ??
-      sessionUsers.find(
+      (!authenticatedProfileId ? sessionUsers.find(
         (item) =>
           Boolean(authenticatedEmail) &&
           item.email?.trim().toLowerCase() === authenticatedEmail?.trim().toLowerCase(),
-      ) ??
+      ) : undefined) ??
       null,
-    [authenticatedEmail, businessUserId, sessionUsers],
+    [authenticatedEmail, authenticatedProfileId, businessUserId, sessionUsers],
   );
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
     const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
 
-    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId || canonicalSessionUser?.id === businessUserId)) {
+    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(
         canonicalSessionUser?.role ??
         (businessUserId ? authenticatedRole : cachedSession.role),

@@ -2,7 +2,6 @@ import { type ReactNode } from "react";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import type { PlanModuleName } from "@/lib/planEntitlements";
-import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 
 export function PlanModuleRoute({
@@ -14,16 +13,9 @@ export function PlanModuleRoute({
 }) {
   const entitlements = usePlanEntitlements();
 
-  if (entitlements.isResolving) {
-    // F5: se a mesma conta e a mesma rota possuem continuidade válida,
-    // manter a própria tela real montada. Nunca substituir o conteúdo por
-    // uma página intermediária de "validação".
-    if (hasValidRefreshContinuity()) {
-      return <>{children}</>;
-    }
-
-    // Cold start/troca de conta: permanecer fechado sem exibir uma página branca.
-    // Não renderizar a página protegida enquanto o contrato é verificado.
+  if (entitlements.isResolving || (!entitlements.isMaster && !entitlements.canUseModule(module) && !entitlements.isDenialConfirmed)) {
+    // Missing or stale contract data is not a confirmed refusal. Never bypass
+    // this gate using a client-side refresh marker, including on account changes.
     return (
       <SecureRoutePending
         title="Conferindo o módulo contratado"
