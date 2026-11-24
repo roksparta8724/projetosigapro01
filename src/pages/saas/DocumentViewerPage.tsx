@@ -18,6 +18,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import {
   canAnalyzeProcessDocument,
   canAccessMunicipalArea,
@@ -133,6 +134,7 @@ export function DocumentViewerPage() {
     process &&
       document &&
       document.uploaded &&
+      !isSignedAnalysisArchiveDocument(document) &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId),
   );
 
@@ -197,13 +199,8 @@ export function DocumentViewerPage() {
       };
     }
 
-    if (prefetchedDocumentAccessUrl) {
-      setAccessUrl(prefetchedDocumentAccessUrl);
-      return () => {
-        cancelled = true;
-      };
-    }
-
+    // File-backed documents always request a fresh, authorized signed URL.
+    // Do not reuse an expired access URL from the previous window.
     if (!document.filePath) {
       setAccessUrl(document.previewUrl || "");
       if (!document.previewUrl) {
@@ -214,6 +211,7 @@ export function DocumentViewerPage() {
       };
     }
 
+    setAccessUrl("");
     const bucket =
       (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
       "sigapro-documentos";
@@ -313,8 +311,8 @@ export function DocumentViewerPage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200/70">
               Visualizador documental
             </p>
-            <p className="mt-1 truncate text-[15px] font-semibold text-white">{document.label}</p>
-            <p className="mt-0.5 truncate text-[11px] text-slate-300">
+            <p className="mt-1 break-words text-[15px] font-semibold text-white [overflow-wrap:anywhere]">{document.label}</p>
+            <p className="mt-0.5 break-words text-[11px] text-slate-300 [overflow-wrap:anywhere]">
               {document.fileName || "Documento técnico"} · {formatOfficialProcessNumber(process.protocol)}
             </p>
           </div>

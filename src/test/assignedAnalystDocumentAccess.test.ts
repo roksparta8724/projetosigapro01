@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canAnalyzeProcessDocument,
+  canViewMunicipalProcessDocument,
   type ProcessRecord,
   type SessionUser,
 } from "@/lib/platform";
@@ -110,4 +111,14 @@ describe("assigned analyst document access", () => {
       ),
     ).toBe(true);
   });
+});
+
+it("separates read rights from editing across departments and municipal boundaries", () => {
+ const finance = {...assignedAnalyst,role:"financeiro",department:"Financeiro"} as SessionUser;
+ expect(canViewMunicipalProcessDocument(finance,analysisStageProcess,municipalityId)).toBe(true);
+ expect(canAnalyzeProcessDocument(finance,analysisStageProcess,municipalityId)).toBe(false);
+ const other = {...assignedAnalyst,municipalityId:"other",tenantId:"other"};
+ expect(canViewMunicipalProcessDocument(other,analysisStageProcess,municipalityId)).toBe(false);
+ expect(canAnalyzeProcessDocument(other,analysisStageProcess,municipalityId)).toBe(false);
+ expect(canViewMunicipalProcessDocument({...assignedAnalyst,accountStatus:"blocked"},analysisStageProcess,municipalityId)).toBe(false);
 });

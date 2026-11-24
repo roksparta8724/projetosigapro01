@@ -78,6 +78,7 @@ import {
   calculateIssGuideAmount,
   canAccessMunicipalArea,
   canAnalyzeProcessDocument,
+  canViewMunicipalProcessDocument,
   canEditAssignedAnalysisArtifact,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
@@ -910,19 +911,19 @@ export function ProcessDetailPage() {
     const preferredTab: ProcessTab = requested && ["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)
       ? requested as ProcessTab
       : "imovel";
-    setActiveTab(stableProtocolTrackingOnly && preferredTab !== "resumo" ? "historico" : preferredTab);
+    setActiveTab(stableProtocolTrackingOnly && preferredTab !== "resumo" && preferredTab !== "documentos" ? "historico" : preferredTab);
   }, [stableProtocolTrackingOnly, processId, location.search]);
 
   useEffect(() => {
     if (!processId) return;
     const requested = new URLSearchParams(location.search).get("aba");
     if (!requested || !["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)) return;
-    setActiveTab(stableProtocolTrackingOnly && requested !== "resumo" ? "historico" : requested as ProcessTab);
+    setActiveTab(stableProtocolTrackingOnly && requested !== "resumo" && requested !== "documentos" ? "historico" : requested as ProcessTab);
   }, [location.search, stableProtocolTrackingOnly, processId]);
 
   useEffect(() => {
     if (!stableProtocolTrackingOnly) return;
-    if (activeTab === "historico" || activeTab === "resumo") return;
+    if (activeTab === "historico" || activeTab === "resumo" || activeTab === "documentos") return;
     setActiveTab("historico");
   }, [activeTab, stableProtocolTrackingOnly]);
 
@@ -1364,9 +1365,10 @@ export function ProcessDetailPage() {
     );
   };
 
+  const canConsultProcessDocuments = canViewMunicipalProcessDocument(session, process, effectiveScopeId);
   const visibleDocumentRows =
     isProtocolTrackingOnly
-      ? []
+      ? canConsultProcessDocuments ? regularProcessDocuments.filter(document => document.uploaded) : []
       : isInternalRole(session.role) || canUploadProcessDocuments
         ? regularProcessDocuments
         : regularProcessDocuments.filter((document) => document.uploaded);
@@ -1871,7 +1873,7 @@ export function ProcessDetailPage() {
   });
   const tabItems = [
     { key: "imovel" as ProcessTab, label: "Imóvel", enabled: !isProtocolTrackingOnly },
-    { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: !isProtocolTrackingOnly },
+    { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: canConsultProcessDocuments },
     {
       key: "analise" as ProcessTab,
       label: "Análise / Ficha técnica",
@@ -2697,13 +2699,20 @@ export function ProcessDetailPage() {
   };
   const openDocumentWorkspace = (documentId: string, forceAnalysis = false, openAi = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
-    if (!selectedDocument || openingDocumentId) return;
+    if (!selectedDocument || openingDocumentId || !canConsultProcessDocuments) return;
 
     // SIGAPRO_DOCUMENT_ROUTING_READONLY_V2
     // Clicar em "analisar" nao concede acesso de escrita. A rota real depende da titularidade.
     const shouldAnalyze = Boolean(forceAnalysis &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId));
     const route = shouldAnalyze ? "analisar" : "visualizar";
+    if (!shouldAnalyze) {
+      // Open consultation in the current tab so a popup blocker cannot hide the PDF.
+      navigate(`${buildProcessPath(process)}/documentos/${documentId}/visualizar`, {
+        state: { returnTo: buildProcessPath(process, "documentos") },
+      });
+      return;
+    }
     const query = shouldAnalyze
       ? openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
       : "";
@@ -3125,7 +3134,7 @@ export function ProcessDetailPage() {
         <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           <p className="font-semibold">Modo acompanhamento do Protocolo</p>
           <p className="mt-1 leading-6">
-            Este processo está sob responsabilidade de outro departamento. O Protocolo pode acompanhar apenas a tramitação e o status geral, sem acessar documentos técnicos, análise interna, financeiro ou executar ações da etapa atual.
+            Este processo está sob responsabilidade de outro departamento. O Protocolo pode consultar os documentos e acompanhar a tramitação, sem alterar a análise, o financeiro ou executar ações da etapa atual.
           </p>
         </div>
       ) : null}
@@ -3476,7 +3485,7 @@ export function ProcessDetailPage() {
             />
           )}
 
-          {activeTab === "documentos" && (
+          {activeTab === "documentos" && canConsultProcessDocuments && (
           <Card
             data-process-document-workspace="true"
             className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}
@@ -3873,8 +3882,8 @@ export function ProcessDetailPage() {
                       }`}
                     />
 
-                    <div className="flex flex-wrap items-start justify-between gap-4 pl-2">
-                      <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-3 pl-2">
+                      <div className="min-w-0 flex-[1_1_280px]">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
                             Documento {String(index + 1).padStart(2, "0")} de {String(visibleDocumentRows.length).padStart(2, "0")}
@@ -3917,7 +3926,7 @@ export function ProcessDetailPage() {
                         ) : null}
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2">
+                      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
                         <MarkerSelector
                           tags={documentMarkerTags}
                           actor={session.name}
@@ -4096,7 +4105,7 @@ export function ProcessDetailPage() {
                                 <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
                                   Página {annotation.page || 1} • {annotation.kind === "highlight" ? "Área marcada" : "Texto / comentário"}
                                 </p>
-                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                <p className="mt-1 break-words text-xs leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
                                   {annotation.note}
                                 </p>
                               </div>
@@ -4142,20 +4151,20 @@ export function ProcessDetailPage() {
                           <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
                             {hasCommunique
                               ? "As marcações e observações permanecem vinculadas ao documento."
-                              : "Use “Analisar / marcar PDF” para marca-texto, comentários pontuais e decisão técnica."}
+                              : canReviewDocuments ? "Use a mesa de análise para marcações, comentários e decisão técnica." : "Consulta disponível. A edição é restrita à equipe técnica autorizada."}
                           </p>
                           {isApproved ? (
                             <p data-sigapro-document-reviewer="true" className="mt-1 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
     {approvalEvidence?.name
       ? "Aprovado pelo analista: " + approvalEvidence.name
-      : "Aprova??o registrada. Autor t?cnico ainda n?o identificado com seguran?a."}
+      : "Aprovação registrada. Autor técnico ainda não identificado com segurança."}
   </p>
                           ) : null}
                           {isApproved ? (
   <p data-document-approval-audit="true" className="mt-1 text-xs text-slate-600 dark:text-slate-300">
     {approvalEvidence?.at
       ? "Aprovado em: " + approvalEvidence.at
-      : "Data e hora: consultar a auditoria oficial quando dispon?vel."}
+      : "Data e hora: consultar a auditoria oficial quando disponível."}
   </p>
 ) : null}
                         </div>
