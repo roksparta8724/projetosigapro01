@@ -170,3 +170,60 @@ html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeit
 html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form :is(input,textarea,[role="combobox"]):focus-visible {
   outline:2px solid var(--master-field-focus)!important;outline-offset:2px;
 }
+
+/* Self-contained accessible palette; inverse-main and standard dark mode are independent. */
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] {
+  --mm-surface:#f3f8fc;--mm-raised:#fff;--mm-ink:#163650;--mm-muted:#415c72;--mm-border:#91a9bd;--mm-field:#fff;--mm-focus:#126a91;
+  --mm-secondary:#e2edf6;--mm-secondary-hover:#cce2f1;--mm-primary:#124766;--mm-primary-hover:#195c80;--mm-danger:#a11c35;--mm-danger-hover:#85172b;
+  --mm-warning-bg:#fff4da;--mm-warning-ink:#704000;--mm-warning-border:#d2a451;
+  --mm-ok-bg:#e6f8ef;--mm-ok-ink:#12563b;--mm-ok-border:#73b79b;
+  --mm-error-bg:#fff0f2;--mm-error-ink:#86182c;--mm-error-border:#d692a0;
+  background:var(--mm-surface)!important;border-color:var(--mm-border)!important;color:var(--mm-ink)!important;
+  min-width:0;max-width:100%;overflow-wrap:anywhere;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"],
+html.dark body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] {
+  --mm-surface:#132d43;--mm-raised:#1e3d55;--mm-ink:#f3faff;--mm-muted:#c3d9e9;--mm-border:#65869f;--mm-field:#10263b;--mm-focus:#8edbff;
+  --mm-secondary:#284f69;--mm-secondary-hover:#37657e;--mm-primary:#17618a;--mm-primary-hover:#22759b;--mm-danger:#98273e;--mm-danger-hover:#b0324b;
+  --mm-warning-bg:#493718;--mm-warning-ink:#ffe6ae;--mm-warning-border:#b68a43;
+  --mm-ok-bg:#173f36;--mm-ok-ink:#bcf0d6;--mm-ok-border:#589e83;
+  --mm-error-bg:#502638;--mm-error-ink:#ffd8e1;--mm-error-border:#b66980;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-text="title"] {
+  color:var(--mm-ink)!important;-webkit-text-fill-color:var(--mm-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-text="muted"] {
+  color:var(--mm-muted)!important;-webkit-text-fill-color:var(--mm-muted)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-metric] {
+  background:var(--mm-raised)!important;border-color:var(--mm-border)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-tone="warning"],[data-maintenance-mode="producao_protegida"]) {
+  background:var(--mm-warning-bg)!important;border-color:var(--mm-warning-border)!important;color:var(--mm-warning-ink)!important;-webkit-text-fill-color:var(--mm-warning-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-tone="success"],[data-maintenance-mode="homologacao"]) {
+  background:var(--mm-ok-bg)!important;border-color:var(--mm-ok-border)!important;color:var(--mm-ok-ink)!important;-webkit-text-fill-color:var(--mm-ok-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-tone="error"] {
+  background:var(--mm-error-bg)!important;border-color:var(--mm-error-border)!important;color:var(--mm-error-ink)!important;-webkit-text-fill-color:var(--mm-error-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-tone="info"] {
+  background:var(--mm-raised)!important;border-color:var(--mm-border)!important;color:var(--mm-ink)!important;-webkit-text-fill-color:var(--mm-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-field] {
+  background:var(--mm-field)!important;border-color:var(--mm-border)!important;color:var(--mm-ink)!important;-webkit-text-fill-color:var(--mm-ink)!important;min-height:44px;max-width:100%;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action] {
+  min-height:44px;height:auto;max-width:100%;white-space:normal;overflow-wrap:anywhere;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="secondary"] {
+  background:var(--mm-secondary)!important;border-color:var(--mm-border)!important;color:var(--mm-ink)!important;-webkit-text-fill-color:var(--mm-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="secondary"]:hover:not(:disabled) {background:var(--mm-secondary-hover)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="primary"] {background:var(--mm-primary)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="primary"]:hover:not(:disabled) {background:var(--mm-primary-hover)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="danger"] {background:var(--mm-danger)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="danger"]:hover:not(:disabled) {background:var(--mm-danger-hover)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-action],[data-maintenance-field]):disabled {opacity:1!important;cursor:not-allowed;filter:saturate(.25);}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-action],[data-maintenance-field]):focus-visible {outline:2px solid var(--mm-focus)!important;outline-offset:2px;}

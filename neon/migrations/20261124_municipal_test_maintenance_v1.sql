@@ -12,6 +12,42 @@ CREATE TABLE IF NOT EXISTS private.municipal_test_maintenance_backups_v1 (
 );
 REVOKE ALL ON private.municipal_test_maintenance_backups_v1 FROM PUBLIC, authenticated;
 
+-- Existing municipalities are protected by default. Only newly provisioned implementation accounts
+-- are enrolled in test maintenance; activation is irreversible for this lifecycle.
+CREATE TABLE IF NOT EXISTS private.municipal_operational_lifecycle_v1 (
+  municipality_id uuid PRIMARY KEY REFERENCES public.municipalities(id) ON DELETE RESTRICT,
+  mode text NOT NULL CHECK (mode IN ('homologacao','producao_protegida')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  sealed_at timestamptz
+);
+REVOKE ALL ON private.municipal_operational_lifecycle_v1 FROM PUBLIC, authenticated;
+INSERT INTO private.municipal_operational_lifecycle_v1(municipality_id,mode,sealed_at)
+SELECT id,'producao_protegida',now() FROM public.municipalities ON CONFLICT DO NOTHING;
+CREATE OR REPLACE FUNCTION private.sync_municipal_operational_lifecycle_v1() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog,public SET row_security TO off AS $lifecycle$
+BEGIN
+  IF TG_OP='INSERT' THEN
+    INSERT INTO private.municipal_operational_lifecycle_v1(municipality_id,mode,sealed_at)
+    VALUES(NEW.id,CASE WHEN NEW.status='implementation' AND NEW.subdomain<>'sigapro-plataforma' THEN 'homologacao' ELSE 'producao_protegida' END,
+      CASE WHEN NEW.status='implementation' AND NEW.subdomain<>'sigapro-plataforma' THEN NULL ELSE now() END)
+    ON CONFLICT DO NOTHING;
+  ELSIF NEW.status='active' THEN
+    IF EXISTS (SELECT 1 FROM private.municipal_operational_lifecycle_v1 WHERE municipality_id=NEW.id AND mode='homologacao') THEN
+      IF EXISTS (SELECT 1 FROM public.processes WHERE tenant_id=NEW.id OR municipality_id=NEW.id)
+         OR EXISTS (SELECT 1 FROM public.payment_guides WHERE tenant_id=NEW.id OR municipality_id=NEW.id) THEN
+        RAISE EXCEPTION 'Conclua a limpeza dos testes antes da ativação comercial.';
+      END IF;
+      UPDATE private.municipal_operational_lifecycle_v1 SET mode='producao_protegida',sealed_at=now() WHERE municipality_id=NEW.id AND mode='homologacao';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$lifecycle$;
+REVOKE ALL ON FUNCTION private.sync_municipal_operational_lifecycle_v1() FROM PUBLIC, authenticated;
+DROP TRIGGER IF EXISTS trg_municipal_operational_lifecycle_v1 ON public.municipalities;
+CREATE TRIGGER trg_municipal_operational_lifecycle_v1 AFTER INSERT OR UPDATE OF status ON public.municipalities
+FOR EACH ROW EXECUTE FUNCTION private.sync_municipal_operational_lifecycle_v1();
+
 CREATE OR REPLACE FUNCTION public.municipal_test_maintenance_v1(
   _municipality_id uuid, _action text, _backup_id uuid DEFAULT NULL, _confirmation text DEFAULT ''
 ) RETURNS jsonb
@@ -24,7 +60,7 @@ DECLARE
   _table text; _rows jsonb; _snapshot jsonb := '{}'::jsonb;
   _counts jsonb; _protected integer; _external integer; _legacy integer; _backup uuid;
   _old private.municipal_test_maintenance_backups_v1%ROWTYPE;
-  _allowed boolean;
+  _allowed boolean; _mode text;
 BEGIN
   IF _actor IS NULL OR coalesce(public.current_role_code(),'') NOT IN ('master_admin','admin_master') THEN
     RAISE EXCEPTION 'Operação exclusiva do Master proprietário.';
@@ -47,7 +83,7 @@ BEGIN
   SELECT coalesce(array_agg(id ORDER BY id),ARRAY[]::uuid[]) INTO _ids FROM public.processes WHERE tenant_id=_municipality_id AND municipality_id=_municipality_id;
   SELECT coalesce(array_agg(id ORDER BY id),ARRAY[]::uuid[]),
     count(*) FILTER (WHERE original_pdf_key IS NOT NULL OR document_snapshot IS NOT NULL OR coalesce(paid,false) OR lower(coalesce(status,'')) IN ('compensada','paid','pago','confirmed','confirmado')),
-    count(*) FILTER (WHERE provider_environment IS NOT NULL OR bank_payment_id IS NOT NULL OR bank_reference IS NOT NULL OR provider_charge_saved_at IS NOT NULL)
+    count(*) FILTER (WHERE provider_environment IS NOT NULL OR bank_payment_id IS NOT NULL OR bank_reference IS NOT NULL OR provider_charge_saved_at IS NOT NULL OR bank_authenticated_at IS NOT NULL)
     INTO _guide_ids,_protected,_external FROM public.payment_guides WHERE process_id=ANY(_ids);
   SELECT coalesce(array_agg(id ORDER BY id),ARRAY[]::uuid[]) INTO _signature_ids FROM public.signature_blocks WHERE process_id=ANY(_ids);
   SELECT (SELECT count(*) FROM public.imoveis WHERE project_id=ANY(_ids))+
@@ -57,10 +93,11 @@ BEGIN
          (SELECT count(*) FROM public.mp_prod_settlement_evidence_v1 WHERE guide_id=ANY(_guide_ids))+
          (SELECT count(*) FROM public.mp_prod_signed_order_receipts_v1 WHERE guide_id=ANY(_guide_ids))
     INTO _legacy;
-  _allowed := _municipality.status IN ('blocked','inactive') AND cardinality(_ids)>0 AND _protected=0 AND _external=0 AND _legacy=0;
+  SELECT coalesce((SELECT mode FROM private.municipal_operational_lifecycle_v1 WHERE municipality_id=_municipality_id),'producao_protegida') INTO _mode;
+  _allowed := _mode='homologacao' AND _municipality.status IN ('blocked','inactive') AND cardinality(_ids)>0 AND _protected=0 AND _external=0 AND _legacy=0;
   _counts := jsonb_build_object('municipality_id',_municipality_id,'process_count',cardinality(_ids),
     'document_count',(SELECT count(*) FROM public.process_documents WHERE process_id=ANY(_ids)),
-    'guide_count',cardinality(_guide_ids),'protected_guides',_protected,'external_guides',_external,'legacy_links',_legacy,'reset_allowed',_allowed);
+    'guide_count',cardinality(_guide_ids),'protected_guides',_protected,'external_guides',_external,'legacy_links',_legacy,'reset_allowed',_allowed,'lifecycle_mode',_mode);
   IF _action='preview' THEN RETURN _counts; END IF;
   -- Explicit table allowlist, never include accounts, credentials, legislation or tenant configuration.
   SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY t.id),'[]'::jsonb) INTO _rows FROM public.processes t WHERE id=ANY(_ids);
@@ -85,7 +122,7 @@ BEGIN
     RETURN _counts || jsonb_build_object('backup_id',_backup);
   END IF;
   IF NOT _allowed OR _confirmation IS DISTINCT FROM 'REINICIAR '||_municipality.subdomain THEN
-    RAISE EXCEPTION 'Reinício bloqueado: suspensão, confirmação e ausência de guias protegidas, referências bancárias e vínculos legados são obrigatórias.';
+    RAISE EXCEPTION 'Reinício bloqueado: homologação autorizada, suspensão, confirmação e ausência de guias protegidas, referências bancárias e vínculos legados são obrigatórias.';
   END IF;
   SELECT * INTO _old FROM private.municipal_test_maintenance_backups_v1 WHERE id=_backup_id AND municipality_id=_municipality_id AND created_by_profile_id=_actor AND reset_at IS NULL FOR UPDATE;
   IF _old.id IS NULL OR _old.created_at < now()-interval '30 minutes' OR _old.snapshot IS DISTINCT FROM _snapshot THEN

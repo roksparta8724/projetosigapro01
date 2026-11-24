@@ -20,3 +20,20 @@ describe("Municipal test maintenance safety",()=>{
     expect(ui).toContain("Arquivos externos não foram copiados");
   });
 });
+
+
+it("locks existing/activated municipalities and never reopens commercial operation for reset",()=>{
+  expect(sql).toContain("SELECT id,'producao_protegida',now() FROM public.municipalities");
+  expect(sql).toContain("_mode='homologacao' AND _municipality.status");
+  expect(sql).toContain("Conclua a limpeza dos testes antes da ativação comercial.");
+  expect(sql).toContain("SET mode='producao_protegida',sealed_at=now()");
+  expect(ui).toContain("data-maintenance-mode={result.lifecycle_mode}");
+});
+it("keeps all maintenance UI states on explicit contrasting tokens",()=>{
+ const css=readFileSync("src/styles/sigapro-master-workspace-premium-20261124.css","utf8");
+ expect(css).toContain("--mm-ink:#f3faff");
+ expect(css).toContain("--mm-warning-ink:#ffe6ae");
+ expect(css).toContain("--mm-error-ink:#ffd8e1");
+ expect(css).toContain('[data-maintenance-field]):focus-visible');
+ expect(ui).toContain('data-maintenance-action="danger"');
+});
