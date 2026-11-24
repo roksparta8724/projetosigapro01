@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Building2, Search } from "lucide-react";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import type { Institution } from "@/lib/platform";
+import "@/styles/compact-portfolio-directory-20261124.css";
 
 type Props = {
   institutions: readonly Institution[];
@@ -9,24 +10,79 @@ type Props = {
   pageSize?: number;
 };
 
-/** Portfolio overview stays shallow even with hundreds of cities. */
+/** Only municipality clients belong in the municipal portfolio, not SIGAPRO's technical tenant. */
+export function filterInstitutionPortfolio(
+  institutions: readonly Institution[], query = "", status = "todos", plan = "todos",
+): Institution[] {
+  const q = query.trim().toLocaleLowerCase("pt-BR");
+  return institutions.filter((item) => {
+    if (item.subdomain?.toLowerCase() === "sigapro-plataforma" || item.name.trim().toLowerCase() === "sigapro plataforma") return false;
+    return (status === "todos" || item.status === status) && (plan === "todos" || item.plan === plan)
+      && (!q || [item.name,item.city,item.state,item.subdomain,item.id]
+        .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(q)));
+  });
+}
+
+/** Client-side page rendering stays shallow; no full municipality detail cards are mounted. */
 export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize = 12 }: Props) {
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("todos");
+  const [plan, setPlan] = useState("todos");
+  const planOptions = useMemo(() => [...new Set(
+    institutions.filter((item) => item.subdomain !== "sigapro-plataforma")
+      .map((item) => item.plan).filter(Boolean),
+  )].sort((a,b) => a.localeCompare(b,"pt-BR")), [institutions]);
+  const filtered = useMemo(
+    () => filterInstitutionPortfolio(institutions,query,status,plan),
+    [institutions,query,status,plan],
+  );
   const paged = useMemo(
-    () => paginateMunicipalItems(institutions, page, pageSize),
-    [institutions, page, pageSize],
+    () => paginateMunicipalItems(filtered, page, pageSize),
+    [filtered, page, pageSize],
   );
   useEffect(() => {
     if (paged.page !== page) setPage(paged.page);
   }, [page, paged.page]);
 
   return (
-    <section className="min-w-0 space-y-3" data-sigapro-portfolio-registry="compact" aria-label="Carteira institucional">
-      <p className="text-sm text-slate-600">
-        <span className="font-semibold text-slate-950">{paged.total.toLocaleString("pt-BR")}</span>
-        {" "}prefeituras na carteira. Fichas completas apenas sob consulta.
-      </p>
+    <section className="min-w-0 space-y-4" data-sigapro-portfolio-registry="compact" aria-label="Carteira institucional">
+      <div data-sigapro-portfolio-filters="true" className="sig-portfolio-toolbar min-w-0 rounded-2xl border p-3 sm:p-4">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <p className="sig-portfolio-count text-sm leading-5">
+            <span className="font-bold tabular-nums">{paged.total.toLocaleString("pt-BR")}</span>
+            {" "}prefeituras encontradas de {filterInstitutionPortfolio(institutions).length.toLocaleString("pt-BR")} cadastradas
+          </p>
+          <span className="sig-portfolio-context rounded-full border px-3 py-1 text-[11px] font-semibold">
+            Prefeituras · contratos municipais
+          </span>
+        </div>
+        <div className="mt-3 grid min-w-0 gap-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(125px,0.24fr)_minmax(125px,0.24fr)]">
+          <label className="relative block min-w-0">
+            <Search aria-hidden="true" className="sig-portfolio-search-icon absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+            <span className="sr-only">Pesquisar prefeitura, cidade, UF ou subdomínio</span>
+            <input aria-label="Pesquisar prefeitura, cidade, UF ou subdomínio" value={query}
+              onChange={(event) => { setQuery(event.target.value); setPage(1); setOpenId(null); }}
+              placeholder="Pesquisar prefeitura, cidade ou subdomínio..."
+              className="sig-portfolio-control h-11 w-full min-w-0 rounded-xl border py-2 pl-10 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-sky-400" />
+          </label>
+          <select aria-label="Filtrar prefeitura por situação" value={status}
+            onChange={(event) => { setStatus(event.target.value); setPage(1); setOpenId(null); }}
+            className="sig-portfolio-control h-11 min-w-0 w-full rounded-xl border px-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <option value="todos">Todos os status</option>
+            <option value="ativo">Ativas</option>
+            <option value="implantacao">Implantação</option>
+            <option value="suspenso">Suspensas</option>
+          </select>
+          <select aria-label="Filtrar prefeitura por plano" value={plan}
+            onChange={(event) => { setPlan(event.target.value); setPage(1); setOpenId(null); }}
+            className="sig-portfolio-control h-11 min-w-0 w-full rounded-xl border px-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <option value="todos">Todos os planos</option>
+            {planOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </div>
+      </div>
       {paged.total === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">Nenhuma Prefeitura cadastrada.</p>
       ) : (
