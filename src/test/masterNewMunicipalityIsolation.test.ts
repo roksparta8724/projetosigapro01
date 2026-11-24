@@ -10,7 +10,8 @@ describe("new municipality isolation", () => {
     expect(source).toContain("if (isCreatingNewInstitution) return;");
     expect(source).toContain("setIsCreatingNewInstitution(true)");
     expect(source).toContain("setSelectedTenantId(\"\")");
-    expect(source).toContain("setForm(emptyTenantForm)");
+    expect(source).toContain("setForm({ ...emptyTenantForm })");
+    expect(source).toContain('get("secao") === "cadastro"');
     expect(source).toContain("institutionId: isCreatingNewInstitution ? undefined");
   });
 
