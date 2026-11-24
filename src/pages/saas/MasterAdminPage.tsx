@@ -292,7 +292,7 @@ export function MasterAdminPage() {
   const recentActivity = useMemo(() => [...sessionUsers].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5), [sessionUsers]);
   useEffect(() => {
     // Never switch the explicitly edited municipality during a refresh.
-    if (isCreatingNewInstitution || workspaceView === "cadastro") return;
+    if (isCreatingNewInstitution || workspaceView === "cadastro" || workspaceView === "organograma") return;
     if (institutionCatalog.length === 0) {
       if (selectedTenantId) setSelectedTenantId("");
       return;
@@ -977,7 +977,7 @@ export function MasterAdminPage() {
             </div>
           }
         />
-        <InternalTabs value={workspaceView} onChange={(value) => {
+        <InternalTabs value={workspaceView} disabled={saving || savingPlanOnly} reselectValue={!isCreatingNewInstitution ? "cadastro" : undefined} onChange={(value) => {
           if (saving || savingPlanOnly) return;
           if (value === "cadastro" && (workspaceView !== "cadastro" || !isCreatingNewInstitution)) resetForNewInstitution();
           else setWorkspaceView(value as WorkspaceView);
@@ -1032,7 +1032,7 @@ export function MasterAdminPage() {
       </p>
     </div>
     <Button type="button" variant="outline" className="shrink-0 rounded-xl border-slate-300 bg-white text-slate-800"
-      onClick={() => { setSelectedTenantId(tenant.id); setWorkspaceView("carteira"); }}>
+      onClick={() => { setSelectedTenantId(tenant.id); openMasterSection("carteira"); }}>
       Abrir carteira
     </Button>
   </div>

@@ -53,7 +53,7 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
 
 describe("Master — edição protegida durante sincronização", () => {
   it("não substitui a Prefeitura explicitamente selecionada durante o refresh", () => {
-    expect(page).toContain('if (isCreatingNewInstitution || workspaceView === "cadastro") return;');
+    expect(page).toContain('if (isCreatingNewInstitution || workspaceView === "cadastro" || workspaceView === "organograma") return;');
     expect(page).toContain('}, [institutionCatalog, isCreatingNewInstitution, selectedTenantId, workspaceView]);');
   });
   it("bloqueia gravação institucional e contratual quando a seleção não está hidratada", () => {

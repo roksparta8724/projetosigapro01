@@ -201,6 +201,8 @@ export function InternalSectionNav({
   className,
   summaryFirst = false,
   staticSelection = false,
+  disabled = false,
+  reselectValue,
 }: {
   items: Array<{ value: string; label: string; helper?: string }>;
   value: string;
@@ -208,6 +210,8 @@ export function InternalSectionNav({
   className?: string;
   summaryFirst?: boolean;
   staticSelection?: boolean;
+  disabled?: boolean;
+  reselectValue?: string;
 }) {
   const summary = (item: { label: string }) => /^(resumo|vis[aã]o geral)$/i.test(item.label.trim());
   const summaryItems = items.filter(summary);
@@ -235,13 +239,15 @@ export function InternalSectionNav({
             <button
               key={item.value}
               type="button"
-              onClick={() => { if (!active) onChange(item.value); }}
+              disabled={disabled}
+              onClick={() => { if (!active || item.value === reselectValue) onChange(item.value); }}
               data-nav-active={active ? "true" : "false"}
               data-premium-nav-active={active ? "true" : "false"}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "sig-nav-item flex min-h-[52px] min-w-[145px] flex-1 snap-start flex-col items-start justify-center rounded-[12px] border px-3 py-2.5 text-left sm:min-w-[154px] xl:min-w-[160px]",
                 staticSelection ? "transition-none" : "transition-colors duration-150",
+                "disabled:cursor-not-allowed disabled:opacity-60",
                 active
                   ? "sig-nav-item-active !border-sky-300/30 !bg-[linear-gradient(135deg,#0f4a7a_0%,#2f6ea8_100%)] !text-white shadow-[0_12px_24px_rgba(15,23,42,0.24)]"
                   : "border-slate-200/80 bg-slate-50/92 text-slate-700 hover:border-slate-300 hover:bg-white",
