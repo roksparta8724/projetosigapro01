@@ -34,7 +34,8 @@ describe("SIGAPRO admin-only legal management", () => {
     const registry = readFileSync("src/components/platform/UrbanLegislationRegistryPanel.tsx", "utf8");
     expect(app).toContain('allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}');
     expect(app).toContain('path="/cadastro-gestao/legislacao"');
-    expect(guard).toContain("(!allowedRoles || allowedRoles.includes(session.role))");
+    expect(guard).toContain("const roleAllowed = !allowedRoles || allowedRoles.includes(session.role);");
+    expect(guard).toContain("&& roleAllowed;");
     expect(guard).toContain("session.id === businessUserId");
     expect(guard).not.toContain("hasValidRefreshContinuity()");
     expect(guard).toContain("if (!isActuallyBlocked && permissionDataPending) return pendingAccess();");

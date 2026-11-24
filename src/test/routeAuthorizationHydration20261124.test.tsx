@@ -53,3 +53,11 @@ describe("Route hydration without false access denials",()=>{
   expect(screen.getByText(/Módulo indisponível/)).toBeInTheDocument();
  });
 });
+
+it("never grants administrative legislation access to an operational profile after hydration",()=>{
+ s.session.id="profile-a";s.session.department="Análise";s.bootstrap.profile.accountStatus="active";
+ s.store.storeIdentityConfirmed=true;s.store.remoteSyncedForCurrentUser=true;
+ render(<MemoryRouter initialEntries={["/cadastro-gestao/legislacao"]}><PermissionRoute permission="manage_own_profile" allowedRoles={["master_admin","master_ops","prefeitura_admin"]}><p>Legislação restrita</p></PermissionRoute></MemoryRouter>);
+ expect(screen.queryByText("Legislação restrita")).not.toBeInTheDocument();
+ expect(screen.getByText(/Area indisponivel/)).toBeInTheDocument();
+});
