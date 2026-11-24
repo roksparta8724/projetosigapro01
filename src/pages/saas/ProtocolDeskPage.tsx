@@ -1048,7 +1048,7 @@ export function ProtocolDeskPage() {
               )?.status === "pendente" ? (
                 <Button
                   type="button"
-                  className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                  data-shared-action="success" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                   disabled={protocolActionBusy === `payment-${matchedProcess.id}`}
                   onClick={() => void handleConfirmProtocolPayment(matchedProcess)}
                 >

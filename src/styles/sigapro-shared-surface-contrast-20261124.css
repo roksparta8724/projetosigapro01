@@ -64,19 +64,19 @@ html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-
 /* Shared primary actions with explicitly dark classes; don't repaint secondary/custom
    controls, financial document actions or paper. The empty-state action opts in. */
 html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
-:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"]):not([data-maintenance-action]):not([data-shared-action="success"]):not([data-master-form-command]):not([data-organogram-command]):not(.sig-workspace-action):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])) {
+:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"]):not([data-maintenance-action]):not([data-shared-action="success"]):not([data-shared-action="warning"]):not([data-master-form-command]):not([data-organogram-command]):not(.sig-workspace-action):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])) {
   background:#124766!important;border-color:#124766!important;
   color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;
   opacity:1!important;text-shadow:none!important;
 }
 html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
-:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"]):not([data-maintenance-action]):not([data-shared-action="success"]):not([data-master-form-command]):not([data-organogram-command]):not(.sig-workspace-action):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])) :is(span,strong,svg) {
+:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"]):not([data-maintenance-action]):not([data-shared-action="success"]):not([data-shared-action="warning"]):not([data-master-form-command]):not([data-organogram-command]):not(.sig-workspace-action):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])) :is(span,strong,svg) {
   color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;opacity:1!important;
 }
 html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
-:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"]):not([data-maintenance-action]):not([data-shared-action="success"]):not([data-master-form-command]):not([data-organogram-command]):not(.sig-workspace-action):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])):hover:not(:disabled) {background:#195c80!important;}
+:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"]):not([data-maintenance-action]):not([data-shared-action="success"]):not([data-shared-action="warning"]):not([data-master-form-command]):not([data-organogram-command]):not(.sig-workspace-action):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])):hover:not(:disabled) {background:#195c80!important;}
 html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
-:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"]):not([data-maintenance-action]):not([data-shared-action="success"]):not([data-master-form-command]):not([data-organogram-command]):not(.sig-workspace-action):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])):disabled {
+:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"]):not([data-maintenance-action]):not([data-shared-action="success"]):not([data-shared-action="warning"]):not([data-master-form-command]):not([data-organogram-command]):not(.sig-workspace-action):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])):disabled {
   background:#475569!important;border-color:#64748b!important;cursor:not-allowed;
 }
 html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-master-admin-workspace [data-premium-empty-state="municipality"] {
@@ -240,5 +240,32 @@ html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-
   background:#475569!important;border-color:#64748b!important;color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
 }
 html body #root [data-layout-mode] .sig-main-shell [data-protocol-payment-command="confirm"]:focus-visible {
+  outline:2px solid var(--sig-shared-focus,#176e98)!important;outline-offset:2px!important;
+}
+
+/* Shared semantic commands used by protocol, finance and process detail.
+   Background and foreground remain paired in both themes and all states. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell button[data-ui="button"][data-shared-action="success"] {
+  background:#146044!important;background-image:none!important;border:1px solid #146044!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell button[data-ui="button"][data-shared-action="warning"] {
+  background:#88500b!important;background-image:none!important;border:1px solid #88500b!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell button[data-ui="button"]:is([data-shared-action="success"],[data-shared-action="warning"]) {
+  height:auto!important;max-height:none!important;min-height:40px!important;max-width:100%!important;
+  white-space:normal!important;overflow-wrap:anywhere;overflow:visible!important;filter:none!important;
+  text-shadow:none!important;box-shadow:none!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell button[data-ui="button"]:is([data-shared-action="success"],[data-shared-action="warning"]) :is(span,strong,svg) {
+  color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;visibility:visible!important;background:transparent!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell button[data-ui="button"][data-shared-action="success"]:hover:not(:disabled) {background:#104c37!important;border-color:#104c37!important;}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell button[data-ui="button"][data-shared-action="warning"]:hover:not(:disabled) {background:#693b06!important;border-color:#693b06!important;}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell button[data-ui="button"]:is([data-shared-action="success"],[data-shared-action="warning"]):disabled {
+  background:#475569!important;border-color:#64748b!important;color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell button[data-ui="button"]:is([data-shared-action="success"],[data-shared-action="warning"]):focus-visible {
   outline:2px solid var(--sig-shared-focus,#176e98)!important;outline-offset:2px!important;
 }

@@ -24,3 +24,18 @@ describe("Protocol payment cards and shared alerts",()=>{
   expect(css).toContain('button[data-protocol-payment-command="confirm"]:disabled');
  });
 });
+
+it("uses the semantic action across payment flows without replacing handlers",()=>{
+ const finance=readFileSync("src/pages/saas/FinanceDeskPage.tsx","utf8");
+ const protocols=readFileSync("src/pages/saas/FinanceProtocolsPage.tsx","utf8");
+ const detail=readFileSync("src/pages/saas/ProcessDetailPage.tsx","utf8");
+ expect(finance).toContain('data-shared-action="success"');
+ expect(protocols).toContain('data-shared-action="success"');
+ expect(detail.match(/data-shared-action="success"/g)?.length).toBeGreaterThanOrEqual(3);
+ expect(detail).toContain('data-shared-action="warning"');
+ expect(detail).toContain("handleConfirmHabiteSePayment()");
+ expect(detail).toContain("handleConfirmApprovalPayment()");
+ expect(detail).toContain("handleReviseConstructionGuide()");
+ expect(css).toContain('button[data-ui="button"][data-shared-action="success"]');
+ expect(css).toContain("background:#88500b!important");
+});

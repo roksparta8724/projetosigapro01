@@ -4383,7 +4383,7 @@ export function ProcessDetailPage() {
                             </Button>
                             <Button
                               type="button"
-                              className="rounded-full bg-amber-600 px-5 !text-white hover:bg-amber-700 dark:bg-amber-500 dark:!text-slate-950 dark:hover:bg-amber-400"
+                              data-shared-action="warning" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                               disabled={
                                 processActionBusy === "revise-construction-guide" ||
                                 !(constructionAreaValue > 0) ||
@@ -5233,7 +5233,7 @@ export function ProcessDetailPage() {
                         {canFinanceOperate && habiteSeGuide.status !== "compensada" ? (
                           <Button
                             type="button"
-                            className="rounded-full bg-emerald-700 font-bold !text-white hover:bg-emerald-600 [&_*]:!text-white"
+                            data-shared-action="success" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                             disabled={
                               processActionBusy === "confirm-habite-se-payment" ||
                               !habiteSeGuideSentExternally
@@ -5508,7 +5508,7 @@ export function ProcessDetailPage() {
                         {canFinanceConfirmConstructionPayment ? (
                           <Button
                             type="button"
-                            className="rounded-full bg-emerald-700 px-5 !text-white shadow-sm hover:bg-emerald-800 [&_*]:!text-white"
+                            data-shared-action="success" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                             disabled={processActionBusy === "confirm-construction-payment"}
                             onClick={handleConfirmConstructionPayment}
                           >
@@ -5686,7 +5686,7 @@ export function ProcessDetailPage() {
                             {approvalGuide.status !== "compensada" && canFinanceOperate ? (
                               <Button
                                 type="button"
-                                className="rounded-full bg-emerald-700 px-5 !text-white shadow-sm hover:bg-emerald-800 [&_*]:!text-white"
+                                data-shared-action="success" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                                 disabled={processActionBusy === "confirm-approval-payment"}
                                 onClick={() => void handleConfirmApprovalPayment()}
                               >
