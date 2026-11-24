@@ -10,7 +10,7 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { MasterUserGovernance } from "@/components/platform/MasterUserGovernance";
+import { MasterUserGovernance, isSigaproPlatformInstitution } from "@/components/platform/MasterUserGovernance";
 import "@/styles/sigapro-master-workspace-premium-20261124.css";
 import { CompactPortfolioRegistry } from "@/components/platform/CompactPortfolioRegistry";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
@@ -218,13 +218,20 @@ export function MasterAdminPage() {
     });
 
     return reconcileInstitutionCommercialPlans({
-      institutions: Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR")),
+      institutions: Array.from(merged.values())
+        .filter((item) => !isSigaproPlatformInstitution(item))
+        .sort((left, right) => left.name.localeCompare(right.name, "pt-BR")),
       plans,
       assignments: planAssignments,
       snapshots: planCapacity.loaded && !planCapacity.error ? planCapacity.rows : [],
     });
   }, [institutions, remoteInstitutions, plans, planAssignments, planCapacity.error, planCapacity.loaded, planCapacity.rows]);
-  const capacityPageData = paginateMunicipalItems(planCapacity.rows, contractCapacityPage, 2);
+  const municipalIds = useMemo(() => new Set(institutionCatalog.map((item) => item.id)), [institutionCatalog]);
+  const visibleCapacityRows = useMemo(() =>
+    planCapacity.rows.filter((row) => municipalIds.has(row.municipalityId)),
+    [planCapacity.rows, municipalIds],
+  );
+  const capacityPageData = paginateMunicipalItems(visibleCapacityRows, contractCapacityPage, 2);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
   const activeQuote = readMunicipalContractQuote({
     municipalityId: selectedTenantId,
@@ -956,15 +963,15 @@ export function MasterAdminPage() {
             {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
             {!planCapacity.loaded ? (
               <p className="text-sm text-slate-600">Carregando consumo dos contratos...</p>
-            ) : planCapacity.rows.length === 0 ? (
+            ) : visibleCapacityRows.length === 0 ? (
               <p className="text-sm text-slate-600">Nenhuma prefeitura encontrada na consulta de planos.</p>
             ) : (
               <div className="grid gap-4 2xl:grid-cols-2">
-                {(workspaceView === "visao-geral" ? planCapacity.rows.slice(0, 2) : capacityPageData.items).map((row) => (
+                {(workspaceView === "visao-geral" ? visibleCapacityRows.slice(0, 2) : capacityPageData.items).map((row) => (
                   <PlanCapacityCard key={row.municipalityId} row={row}
                     municipalityName={institutionCatalog.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"} />
                 ))}
-                {workspaceView === "carteira" && planCapacity.rows.length > 2 ? (
+                {workspaceView === "carteira" && visibleCapacityRows.length > 2 ? (
                   <nav aria-label="Paginação de contratos municipais"
                     className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 2xl:col-span-2">
                     <span>Contratos {capacityPageData.start + 1}–{capacityPageData.end} de {capacityPageData.total} · Página {capacityPageData.page} de {capacityPageData.totalPages}</span>
@@ -976,9 +983,9 @@ export function MasterAdminPage() {
                     </div>
                   </nav>
                 ) : null}
-                {workspaceView === "visao-geral" && planCapacity.rows.length > 2 ? (
+                {workspaceView === "visao-geral" && visibleCapacityRows.length > 2 ? (
                   <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 2xl:col-span-2">
-                    <span>Exibindo 2 de {planCapacity.rows.length} prefeituras. Os demais contratos continuam disponíveis na Carteira.</span>
+                    <span>Exibindo 2 de {visibleCapacityRows.length} prefeituras. Os demais contratos continuam disponíveis na Carteira.</span>
                     <Button type="button" variant="outline" className="shrink-0 rounded-xl border-sky-300 bg-white text-sky-900"
                       onClick={() => setWorkspaceView("carteira")}>Ver todas</Button>
                   </div>
