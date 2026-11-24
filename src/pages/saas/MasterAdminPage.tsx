@@ -158,10 +158,16 @@ export function MasterAdminPage() {
   } = usePlatformData();
   const planCapacity = usePlanCapacityLive(null, { enabled: true, intervalMs: 8000 });
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
-  const [explicitTenantId, setSelectedTenantId] = useState<string>(() => new URLSearchParams(location.search).get("municipio") || "");
+  const explicitTenantId = new URLSearchParams(location.search).get("municipio") || "";
   const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(() => !(new URLSearchParams(location.search).get("secao") === "cadastro" && new URLSearchParams(location.search).get("modo") === "editar" && new URLSearchParams(location.search).get("municipio")));
   const requestedSection = new URLSearchParams(location.search).get("secao");
   const workspaceView: WorkspaceView = ["visao-geral","carteira","cadastro","organograma","usuarios"].includes(requestedSection || "") ? requestedSection as WorkspaceView : "carteira";
+  const [visitedRegistries, setVisitedRegistries] = useState({ carteira: workspaceView === "carteira", usuarios: workspaceView === "usuarios" });
+  useEffect(() => {
+    if (workspaceView === "carteira" || workspaceView === "usuarios") {
+      setVisitedRegistries(previous => previous[workspaceView] ? previous : { ...previous, [workspaceView]: true });
+    }
+  }, [workspaceView]);
   const [form, setForm] = useState(emptyTenantForm);
   const [admins, setAdmins] = useState<AdminContactDraft[]>([createAdminDraft()]);
   const [statusMessage, setStatusMessage] = useState("");
@@ -396,7 +402,6 @@ export function MasterAdminPage() {
     if (saving || savingPlanOnly || orgBusy || !municipalIds.has(tenantId)) return;
     hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(false);
-    setSelectedTenantId(tenantId);
     setStatusMessage("");
     navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", tenantId, "editar") }, { replace: true, preventScrollReset: true });
   };
@@ -725,7 +730,6 @@ export function MasterAdminPage() {
       }, { remoteConfirmed: true });
       await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
       setIsCreatingNewInstitution(false);
-      setSelectedTenantId(savedTenant.id);
       navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", savedTenant.id, "editar") }, { replace: true, preventScrollReset: true });
 
       if (adminWarnings.length > 0) {
@@ -804,7 +808,7 @@ export function MasterAdminPage() {
             <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleSelectTenant(tenant.id)}>
               Gerenciar
             </Button>
-            <Button type="button" variant="outline" className="h-11 w-full rounded-xl lg:w-auto" disabled={saving || savingPlanOnly || orgBusy} onClick={() => { setSelectedTenantId(tenant.id); openMasterSection("organograma", tenant.id); }}>
+            <Button type="button" variant="outline" className="h-11 w-full rounded-xl lg:w-auto" disabled={saving || savingPlanOnly || orgBusy} onClick={() => openMasterSection("organograma", tenant.id)}>
               <Network className="h-4 w-4" /> Organograma
             </Button>
             <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleCopyLink(tenant.subdomain, settings?.site, tenant.id)}>
@@ -1020,14 +1024,14 @@ export function MasterAdminPage() {
       </p>
     </div>
     <Button type="button" variant="outline" className="shrink-0 rounded-xl border-slate-300 bg-white text-slate-800"
-      onClick={() => { setSelectedTenantId(tenant.id); openMasterSection("carteira", tenant.id); }}>
+      onClick={() => openMasterSection("carteira", tenant.id)}>
       Abrir carteira
     </Button>
   </div>
 ))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Ticket mensal contratado</p><p className="mt-2 text-lg font-semibold text-slate-950">{activePlansCount > 0 ? formatCurrency(monthlyRevenue / activePlansCount) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
 
-        {workspaceView === "carteira" ? (
-          <section data-master-portfolio-surface="true"
+        {workspaceView === "carteira" || visitedRegistries.carteira ? (
+          <section data-master-preserved-panel="carteira" hidden={workspaceView !== "carteira"} data-master-portfolio-surface="true"
             className="min-w-0 overflow-hidden rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(9,39,64,0.07)] sm:p-6 dark:border-slate-700 dark:bg-slate-900">
             <header className="flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-700">
               <div className="min-w-0 flex-1">
@@ -1514,7 +1518,8 @@ export function MasterAdminPage() {
           )
         ) : null}
 
-        {workspaceView === "usuarios" ? (
+        {workspaceView === "usuarios" || visitedRegistries.usuarios ? (
+          <div data-master-preserved-panel="usuarios" hidden={workspaceView !== "usuarios"}>
           <PageMainContent className="gap-6">
             <MasterUserGovernance
               institutions={institutionCatalog}
@@ -1525,6 +1530,7 @@ export function MasterAdminPage() {
               onPlatformStaffCreated={refreshRemoteStore}
             />
           </PageMainContent>
+          </div>
         ) : null}
       </PageShell>
     </PortalFrame>

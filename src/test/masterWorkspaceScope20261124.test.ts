@@ -31,3 +31,11 @@ describe("Master workspace continuity",()=>{
   expect(page).toContain("Trocar Prefeitura");
  });
 });
+
+
+it("uses route scope as single source and preserves visited registry filters",()=>{
+ expect(page).toContain('const explicitTenantId = new URLSearchParams(location.search).get("municipio")');
+ expect(page).not.toContain('setSelectedTenantId(');
+ expect(page).toContain('data-master-preserved-panel="carteira" hidden={workspaceView !== "carteira"}');
+ expect(page).toContain('data-master-preserved-panel="usuarios" hidden={workspaceView !== "usuarios"}');
+});

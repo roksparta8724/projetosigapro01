@@ -18,7 +18,7 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
   it("somente Gerenciar Prefeitura ativa edição e hidrata a Prefeitura escolhida", () => {
     expect(page).toContain('const handleSelectTenant = (tenantId: string) => {');
     expect(page).toContain('setIsCreatingNewInstitution(false)');
-    expect(page).toContain('setSelectedTenantId(tenantId)');
+    expect(page).toContain('masterWorkspaceSearch(location.search, "cadastro", tenantId, "editar")');
     expect(page).toContain('hydratedEditTenantRef.current = null');
     expect(page).toContain('if (!activeTenant || hydratedEditTenantRef.current === activeTenant.id) return');
     expect(page).toContain('if (isCreatingNewInstitution || workspaceView !== "cadastro") return');

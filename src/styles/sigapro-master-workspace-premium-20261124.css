@@ -237,3 +237,7 @@ html body #root .sig-main-shell .sig-master-admin-workspace {
 html body #root .sig-main-shell .sig-master-admin-workspace [data-shared-nav-contract="v1"] {
   flex-shrink:0;
 }
+
+/* Hidden registry panels remain mounted solely to preserve local filters and
+   expansion state. Native hidden must win against legacy flex/grid CSS. */
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-preserved-panel][hidden] {display:none!important;}
