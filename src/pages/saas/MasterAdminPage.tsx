@@ -3,6 +3,7 @@ import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, 
 import { useLocation, useNavigate } from "react-router-dom";
 import { resolveMasterWorkspaceScope, masterWorkspaceSearch, resolveMasterFormMode } from "@/lib/masterWorkspaceScope";
 import { MunicipalMaintenancePanel } from "@/components/platform/MunicipalMaintenancePanel";
+import { MasterOrganogramPanel, MasterOrganogramDirectory } from "@/components/platform/MasterOrganogramPanel";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { MetricCard } from "@/components/platform/MetricCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -1370,7 +1371,7 @@ export function MasterAdminPage() {
 
         {workspaceView === "organograma" ? (
           !activeTenant ? (
-            <SectionCard title="Organograma municipal" description="Selecione uma Prefeitura na Carteira para administrar a estrutura interna." icon={Network}>
+            <MasterOrganogramPanel title="Organograma municipal" description="Selecione uma Prefeitura na Carteira para administrar a estrutura interna." icon={Network}>
               <div data-premium-empty-state="municipality" className="flex min-w-0 flex-wrap items-center gap-4 rounded-2xl border p-4 sm:p-5">
                 <div data-empty-icon="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border"><Landmark className="h-5 w-5" aria-hidden="true" /></div>
                 <div className="min-w-0 flex-1">
@@ -1381,17 +1382,17 @@ export function MasterAdminPage() {
                   Escolher Prefeitura
                 </Button>
               </div>
-            </SectionCard>
+            </MasterOrganogramPanel>
           ) : (
             <div data-master-organogram-layout="compact" className="min-w-0">
-              <PageMainContent>
-                <TableCard
+              <div data-organogram-column="directory">
+                <MasterOrganogramPanel
                   title={`Organograma • ${activeTenant.name}`}
-                  description="Estrutura exclusiva desta Prefeitura. O Master pode montar e ajustar a organização quando o cliente solicitar."
+                  description="Estrutura administrativa e unidades vinculadas."
                   icon={Network}
                   actions={<Button type="button" variant="outline" disabled={orgBusy} onClick={() => openMasterSection("carteira")}>Trocar Prefeitura</Button>}
                 >
-                  <div className="space-y-5">
+                  <div data-organogram-directory-body="true">
                     {departmentScopeId !== selectedTenantId ? (
                       <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm !text-slate-800">Organograma ainda não confirmado. As alterações estão bloqueadas até a consulta ser concluída.</p>
                     ) : activeMasterDepartments.length === 0 ? (
@@ -1401,42 +1402,13 @@ export function MasterAdminPage() {
                     ) : rootMasterDepartments.length === 0 ? (
                       <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm !text-amber-950">Há unidades cadastradas, mas nenhuma unidade principal está disponível. Revise os vínculos da estrutura municipal.</p>
                     ) : (
-                      <div className="grid gap-3 lg:grid-cols-2">
-                        {rootMasterDepartments.map((department) => {
-                          const children = activeMasterDepartments.filter((item) => item.parentDepartmentId === department.id);
-                          const users = activeTenantUsers.filter((user) => user.department === department.name);
-                          return (
-                            <div key={department.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-                              <div className="flex items-start gap-3">
-                                <div className="sig-section-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-slate-200 bg-slate-50 text-sky-700">
-                                  <Building2 className="h-4 w-4" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{department.unitType}</p>
-                                  <p className="mt-1 text-base font-semibold text-slate-950">{department.name}</p>
-                                  <p className="mt-1 text-sm text-slate-500">{users.length} usuário(s) lotado(s)</p>
-                                </div>
-                              </div>
-                              {children.length > 0 ? (
-                                <div className="mt-4 space-y-2">
-                                  {children.map((child) => (
-                                    <div key={child.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                      <p className="text-sm font-semibold text-slate-900">{child.name}</p>
-                                      <p className="mt-1 text-xs text-slate-500">{child.unitType}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <MasterOrganogramDirectory units={activeMasterDepartments} users={activeTenantUsers} />
                     )}
                   </div>
-                </TableCard>
+                </MasterOrganogramPanel>
 
-                <SectionCard title="Lotação da equipe" description="O Master também pode posicionar usuários na estrutura interna quando estiver fazendo a implantação para o cliente." icon={Users2}>
-                  <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                <MasterOrganogramPanel title="Lotação da equipe" description="Vincule servidores às unidades desta Prefeitura." icon={Users2}>
+                  <div data-organogram-assignment="true">
                     <div className="space-y-2">
                       <Label>Usuário</Label>
                       <Input value={assignmentUserSearch}
@@ -1463,25 +1435,21 @@ export function MasterAdminPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button type="button" disabled={!assignmentUserId || orgBusy || departmentScopeId !== selectedTenantId} className="h-11 rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => void handleMasterAssignDepartment()}>
+                    <Button type="button" data-organogram-command="primary" data-shared-action="primary" disabled={!assignmentUserId || orgBusy || departmentScopeId !== selectedTenantId} className="h-11 rounded-xl" onClick={() => void handleMasterAssignDepartment()}>
                       Salvar lotação
                     </Button>
                   </div>
-                </SectionCard>
-              </PageMainContent>
+                </MasterOrganogramPanel>
+              </div>
 
-              <PageSideContent>
-                <SectionCard
+              <div data-organogram-column="editor">
+                <MasterOrganogramPanel
                   title="Montar estrutura"
                   description="As alterações ficam somente na Prefeitura selecionada."
                   icon={Plus}
-                  contentClassName="space-y-4"
                 >
                   <form data-master-organogram-form="true" className="grid min-w-0 gap-3" onSubmit={handleMasterCreateDepartment}>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Prefeitura</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">{activeTenant.name}</p>
-                    </div>
+                    <p data-organogram-context="true"><span>Prefeitura: </span><strong>{activeTenant.name}</strong></p>
                     <div className="space-y-2">
                       <Label>Nome da unidade</Label>
                       <Input value={orgForm.name} onChange={(event) => setOrgForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ex.: Financeiro, Protocolo, Obras" />
@@ -1521,12 +1489,12 @@ export function MasterAdminPage() {
                       <Label>Telefone</Label>
                       <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} />
                     </div>
-                    <Button type="submit" data-shared-action="primary" disabled={orgBusy || departmentScopeId !== selectedTenantId || !orgForm.name.trim()} className="h-11 w-full rounded-xl">
+                    <Button type="submit" data-organogram-command="primary" data-shared-action="primary" disabled={orgBusy || departmentScopeId !== selectedTenantId || !orgForm.name.trim()} className="h-11 w-full rounded-xl">
                       {orgBusy ? "Salvando..." : "Adicionar unidade"}
                     </Button>
                   </form>
-                </SectionCard>
-              </PageSideContent>
+                </MasterOrganogramPanel>
+              </div>
             </div>
           )
         ) : null}
