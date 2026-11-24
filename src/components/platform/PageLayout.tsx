@@ -11,6 +11,7 @@ export function PageContainer({
 }) {
   return (
     <div
+      data-content-flow="page"
       className={cn(
         "sig-page-shell mx-auto flex min-w-0 w-full max-w-[1760px] flex-col gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:max-w-[1880px] xl:px-3 2xl:max-w-[1940px] 2xl:px-4",
       className,
@@ -125,6 +126,7 @@ export function SectionCard({
       data-ui="card"
       data-surface="adaptive-card"
       data-premium-surface="section"
+      data-content-flow="card"
       className={cn(
         "sig-section-card flex min-w-0 flex-col overflow-hidden [overflow-wrap:anywhere] rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.055)] transition-[transform,box-shadow,border-color] duration-200 md:p-5",
         className,
@@ -164,6 +166,7 @@ export function MainGrid({
 }) {
   return (
     <div
+      data-content-flow="grid"
       className={cn(
         "sig-main-grid grid min-w-0 max-w-full grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)] [&>*:only-child]:col-span-full [&>*:only-child]:min-w-0 [&>*:only-child]:w-full",
         className,

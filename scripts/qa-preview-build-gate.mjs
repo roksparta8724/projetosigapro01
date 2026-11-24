@@ -170,6 +170,7 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/municipalTestMaintenance20261124.test.ts",
     "src/test/sharedSurfaceContrast20261124.test.ts",
     "src/test/masterWorkspaceScope20261124.test.ts",
+    "src/test/contentSizedAdministrativeLayout20261124.test.tsx",
     "src/test/qaFullJourneyIntegrated.test.ts",
     "src/test/workflowUnknownStageQa.test.ts",
     "src/test/habiteSeCompletionRealRpcRegression.test.ts",
