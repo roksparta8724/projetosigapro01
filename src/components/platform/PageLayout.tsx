@@ -12,7 +12,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "sig-page-shell mx-auto flex w-full max-w-[1760px] flex-col gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:max-w-[1880px] xl:px-3 2xl:max-w-[1940px] 2xl:px-4",
+        "sig-page-shell mx-auto flex min-w-0 w-full max-w-[1760px] flex-col gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:max-w-[1880px] xl:px-3 2xl:max-w-[1940px] 2xl:px-4",
       className,
     )}
   >
@@ -92,7 +92,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "sig-stats-row grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr))] items-stretch gap-3.5 md:gap-4 auto-rows-fr [&>*]:h-full",
+        "sig-stats-row grid min-w-0 [grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr))] items-stretch gap-3.5 md:gap-4 auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -165,7 +165,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "sig-main-grid grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)] [&>*:only-child]:col-span-full [&>*:only-child]:min-w-0 [&>*:only-child]:w-full",
+        "sig-main-grid grid min-w-0 max-w-full grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)] [&>*:only-child]:col-span-full [&>*:only-child]:min-w-0 [&>*:only-child]:w-full",
         className,
       )}
     >

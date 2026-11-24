@@ -26,11 +26,11 @@ export function TableCard({
         className,
       )}
     >
-      <div className="flex flex-col gap-3 border-b border-slate-200/70 pb-3.5 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex min-w-0 max-w-full flex-col gap-3 border-b border-slate-200/70 pb-3.5 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             {Icon ? (
-              <div className="sig-section-icon flex h-9 w-9 items-center justify-center rounded-[13px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
+              <div className="sig-section-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border border-slate-200 bg-slate-50 text-[#2563eb] shadow-[0_8px_18px_rgba(15,23,42,0.05)] dark:border-white/12 dark:bg-white/[0.06] dark:text-sky-200">
                 <Icon className="h-4 w-4" />
               </div>
             ) : null}
