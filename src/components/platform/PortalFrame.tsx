@@ -1267,7 +1267,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
               className="sig-marker-input h-10 rounded-[14px] border-slate-200 bg-white/90 px-3 text-[13px]"
             />
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="sig-marker-palette grid grid-cols-2 gap-2">
               {MARKER_COLOR_OPTIONS.map((option) => {
                 const isActiveOption = option.value === editingMarkerColor;
                 return (
@@ -1289,7 +1289,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                       >
                         <Flag className="h-3.5 w-3.5" style={{ color: option.value, fill: option.value }} />
                       </span>
-                      <span className="truncate text-[11px] font-medium">{option.label}</span>
+                      <span className="min-w-0 whitespace-normal break-words text-[11px] font-medium">{option.label}</span>
                     </span>
                   </button>
                 );
@@ -1326,7 +1326,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-[13px] font-semibold text-slate-900">{preset.label}</p>
+                <p className="min-w-0 break-words text-[13px] font-semibold text-slate-900">{preset.label}</p>
                 <span className={cn("sig-marker-status inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]", preset.active ? "sig-marker-status-active" : "sig-marker-status-inactive")}>
                   {statusLabel}
                 </span>
@@ -1340,7 +1340,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
               </p>
             </div>
 
-            <div className="sig-marker-actions flex shrink-0 items-center gap-1.5">
+            <div className="sig-marker-actions flex shrink-0 flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 className="sig-marker-action"
@@ -1766,15 +1766,17 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   </button>
                 </DropdownMenuTrigger>
               <DropdownMenuContent
-                portal={false}
+                portalContainer={accountDock}
+                data-topbar-menu="markers"
+                data-topbar-menu-surface={inverseMainTheme ? "dark" : "light"}
                 side="bottom"
-                align="center"
-                sideOffset={12}
-                collisionPadding={16}
-                className="sig-marker-panel max-h-[min(78vh,720px)] w-[min(100vw-24px,416px)] overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-3 shadow-[0_28px_60px_rgba(15,42,68,0.22)]"
+                align="end"
+                sideOffset={0}
+                collisionPadding={0}
+                className="sig-marker-panel overflow-y-auto border p-3"
               >
                 <DropdownMenuLabel className="px-0 py-0">
-                  <div className="sig-marker-header rounded-[22px] border px-4 py-4">
+                  <div className="sig-marker-header rounded-xl border px-3 py-3">
                     <div className="flex items-start gap-3.5">
                       <div className="sig-marker-header-icon flex h-11 w-11 items-center justify-center rounded-[16px] border">
                         <Flag className="h-5 w-5 sig-flag-glow-strong sig-flag-filled text-sky-300" style={{ fill: "#7dd3fc" }} />
@@ -1876,7 +1878,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                     </section>
                   ) : null}
 
-                  <section className="sig-marker-composer rounded-[22px] border p-4">
+                  <section className="sig-marker-composer rounded-xl border p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Novo marcador</p>
@@ -1913,7 +1915,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
 
                     <div className="mt-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Paleta institucional</p>
-                      <div className="mt-2 grid grid-cols-4 gap-2">
+                      <div className="sig-marker-palette mt-2 grid grid-cols-2 gap-2">
                         {MARKER_COLOR_OPTIONS.map((option) => {
                           const isActive = option.value === markerColor;
                           return (
@@ -1932,7 +1934,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-[10px] border shadow-[0_0_0_2px_rgba(255,255,255,0.06)]" style={markerSwatchSurface(option.value)}>
                                   <Flag className="h-3.5 w-3.5" style={{ color: option.value, fill: option.value }} />
                                 </span>
-                                <span className="truncate text-[11px] font-medium">{option.label}</span>
+                                <span className="min-w-0 whitespace-normal break-words text-[11px] font-medium">{option.label}</span>
                               </span>
                             </button>
                           );
@@ -2050,11 +2052,13 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   </button>
                 </DropdownMenuTrigger>
               <DropdownMenuContent
-                portal={false}
+                portalContainer={accountDock}
+                data-topbar-menu="themes"
+                data-topbar-menu-surface={inverseMainTheme ? "dark" : "light"}
                 side="bottom"
-                align="center"
-                sideOffset={12}
-                collisionPadding={16}
+                align="end"
+                sideOffset={0}
+                collisionPadding={0}
                 data-theme-panel-mode={inverseMainTheme ? "dark" : "light"}
                 className={cn(
                   "sig-theme-panel max-h-[calc(100vh-70px)] w-[min(100vw-24px,272px)] overflow-y-auto rounded-[18px] border p-1.5 shadow-[0_22px_52px_rgba(2,18,35,0.28)] sm:max-h-[calc(100vh-88px)] sm:w-[304px]",
@@ -2121,7 +2125,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                       <span className="min-w-0 flex-1">
                         <span
                           className={cn(
-                            "sig-fit-title block text-[13px] font-semibold",
+                            "sig-fit-title block whitespace-normal break-words text-[13px] font-semibold",
                             inverseMainTheme ? "!text-white" : "!text-slate-900",
                           )}
                         >
@@ -2131,7 +2135,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                           className={cn(
                             "sig-fit-copy mt-0.5 block text-[11px] leading-5",
                             inverseMainTheme ? "!text-slate-300" : "!text-slate-500",
-                            isMobileViewport && "line-clamp-2",
+                            "whitespace-normal break-words",
                           )}
                         >
                           {preset.description}

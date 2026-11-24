@@ -21,7 +21,7 @@ describe("Topbar account dock",()=>{
   const frame=readFileSync("src/components/platform/PortalFrame.tsx","utf8");
   const css=readFileSync("src/index.css","utf8");
   expect(frame).toContain("ref={setAccountDock}");
-  expect(frame.match(/portalContainer=\{accountDock\}/g)).toHaveLength(2);
+  expect(frame.match(/portalContainer=\{accountDock\}/g)).toHaveLength(4);
   expect(frame).toContain('data-account-panel="mobile"');
   expect(frame).toContain('data-account-panel="desktop"');
   expect(css).toContain("inset:100% 0 auto auto!important");
@@ -29,4 +29,24 @@ describe("Topbar account dock",()=>{
   expect(css).not.toContain("sigAccountPanelIn");
   expect(()=>postcss.parse(css)).not.toThrow();
  });
+});
+
+it("docks markers and themes, and removes the clipping local centering rule",()=>{
+ const frame=readFileSync("src/components/platform/PortalFrame.tsx","utf8");
+ const css=readFileSync("src/index.css","utf8");
+ expect(frame).toContain('data-topbar-menu="markers"');
+ expect(frame).toContain('data-topbar-menu="themes"');
+ expect(css).not.toContain("top: calc(100% + 12px)");
+ expect(css).toContain('width:min(416px,100%)');
+ expect(css).toContain('grid-template-columns:repeat(2,minmax(0,1fr))');
+ expect(frame).not.toContain('className="truncate text-[11px] font-medium">{option.label}');
+});
+it("keeps analyst route authoritative for tabs and direct actions",()=>{
+ const analyst=readFileSync("src/pages/saas/AnalystDeskPage.tsx","utf8");
+ const css=readFileSync("src/styles/sigapro-shared-surface-contrast-20261124.css","utf8");
+ expect(analyst).toContain('const section: AnalystSection = requestedSection');
+ expect(analyst).toContain('params.set("secao", next)');
+ expect(analyst).toContain('className="sig-analysis-tabs"\n          persistInUrl={false}');
+ expect(css).toContain('@container analysis-nav (min-width:1080px)');
+ expect(()=>postcss.parse(css)).not.toThrow();
 });

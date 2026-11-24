@@ -158,3 +158,28 @@ html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-
 :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"]:not([data-contrast-surface]):not([data-force-card-contrast]) .sig-subtitle:not(:where(button *,[data-ui="button"] *,[data-premium-surface="metric"] *,[data-premium-surface="header"] *)) {
   color:var(--sig-section-muted)!important;-webkit-text-fill-color:var(--sig-section-muted)!important;
 }
+
+/* Analysis tabs use compact balanced tracks, without hiding helper text.
+   Isolated from the Master and other approved workspace navigation. */
+html body #root [data-layout-mode] .sig-main-shell .sig-analysis-tabs[data-shared-nav-contract="v1"] {
+  container-type:inline-size;container-name:analysis-nav;width:100%!important;min-width:0!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-analysis-tabs[data-shared-nav-contract="v1"] > div {
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-auto-rows:max-content!important;align-items:stretch!important;gap:6px!important;overflow:visible!important;padding-bottom:0!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-analysis-tabs[data-shared-nav-contract="v1"] button.sig-nav-item {
+  min-width:0!important;max-width:100%!important;width:100%!important;
+  min-height:52px!important;height:auto!important;padding:8px 10px!important;
+  white-space:normal!important;overflow-wrap:anywhere;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-analysis-tabs[data-shared-nav-contract="v1"] :is(.sig-nav-item-label,.sig-nav-item-helper) {
+  display:block!important;white-space:normal!important;overflow:visible!important;
+  max-height:none!important;-webkit-line-clamp:unset!important;overflow-wrap:anywhere;word-break:normal!important;
+}
+@container analysis-nav (min-width:560px) {
+  html body #root [data-layout-mode] .sig-main-shell .sig-analysis-tabs[data-shared-nav-contract="v1"] > div {grid-template-columns:repeat(4,minmax(0,1fr))!important;}
+}
+@container analysis-nav (min-width:1080px) {
+  html body #root [data-layout-mode] .sig-main-shell .sig-analysis-tabs[data-shared-nav-contract="v1"] > div {grid-template-columns:repeat(7,minmax(0,1fr))!important;}
+}

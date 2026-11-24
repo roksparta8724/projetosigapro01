@@ -128,15 +128,20 @@ export function AnalystDeskPage() {
     scopeId ??
     null;
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [processListView, setProcessListView] = useState<"tabela" | "detalhes">("tabela");
-  const [section, setSection] = useState<AnalystSection>(() => {
-    const requested = searchParams.get("secao");
-    return requested && ["visao-geral", "fila", "concluidos", "pendencias", "correcoes", "historico", "indicadores"].includes(requested)
-      ? requested as AnalystSection
-      : "fila";
-  });
+  const requestedSection = searchParams.get("secao");
+  const section: AnalystSection = requestedSection && ["visao-geral", "fila", "concluidos", "pendencias", "correcoes", "historico", "indicadores"].includes(requestedSection)
+    ? requestedSection as AnalystSection
+    : "fila";
+  const setSection = (next: AnalystSection) => {
+    setSearchParams(previous => {
+      const params = new URLSearchParams(previous);
+      params.set("secao", next);
+      return params;
+    }, { replace: true, preventScrollReset: true });
+  };
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
   const [exportBusy, setExportBusy] = useState(false);
@@ -260,13 +265,6 @@ export function AnalystDeskPage() {
       disposed = true;
     };
   }, [archiveStorageKey, session.id]);
-
-  useEffect(() => {
-    const requested = searchParams.get("secao");
-    if (requested === "fila") {
-      setSection("fila");
-    }
-  }, [searchParams]);
 
   const setProcessArchived = async (processId: string, archived: boolean) => {
     const previous = archivedProcessIds;
@@ -1333,6 +1331,7 @@ export function AnalystDeskPage() {
 
         <InternalTabs
           className="sig-analysis-tabs"
+          persistInUrl={false}
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as AnalystSection)}

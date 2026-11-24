@@ -6315,55 +6315,8 @@ body:has(.sig-app-frame[data-focus-mode="true"]) {
 }
 
 
-/* SIGAPRO TOPBAR LOCAL ANCHOR 2026-10-14 */
- /*
-   Tema e Marcadores pertencem ao proprio botao da topbar. O SIGAPRO usa zoom
-   institucional de 85%, portanto a medicao de viewport do Floating UI nao deve
-   decidir a coordenada final destes dois paineis. O wrapper do Radix fica
-   neutro e o painel e posicionado no sistema local do botao.
- */
-@media (min-width: 1024px) {
-  .sig-topbar-local-popper {
-    position: relative !important;
-    overflow: visible !important;
-    isolation: isolate;
-  }
-
-  .sig-topbar-local-popper [data-radix-popper-content-wrapper] {
-    position: static !important;
-    inset: auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-    transform: none !important;
-    translate: none !important;
-    margin: 0 !important;
-  }
-
-  .sig-topbar-local-popper .sig-marker-panel,
-  .sig-topbar-local-popper .sig-theme-panel {
-    position: absolute !important;
-    top: calc(100% + 12px) !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-    transform: translateX(-50%) !important;
-    translate: none !important;
-    margin: 0 !important;
-    z-index: 90 !important;
-    transform-origin: top center !important;
-  }
-
-  .sig-marker-anchor .sig-marker-panel {
-    width: min(416px, calc(100vw - 32px)) !important;
-    max-width: 416px !important;
-  }
-
-  .sig-theme-anchor .sig-theme-panel {
-    width: min(304px, calc(100vw - 32px)) !important;
-    max-width: 304px !important;
-  }
-}
-
+/* Markers and themes share the actual topbar anchor. Legacy local centering
+   is removed: it clipped menus near the right edge and changed with zoom. */
 
 /* ===== SIGAPRO PROCESS SURFACE CONTRACT — CANONICAL 2026-10-14 =====
    ONE source of truth for process cards.
@@ -11416,5 +11369,78 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-pl
 @media (prefers-reduced-motion: reduce) {
   .sig-dashboard-distribution-legend button {
     transition-duration: 0ms;
+  }
+}
+
+/* Shared topbar dock: all menus begin at the exact same lower edge. */
+html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper]:has([data-topbar-menu]) {
+  position:absolute!important;inset:100% 0 auto auto!important;
+  width:min(416px,100%)!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;min-height:0!important;transform:none!important;translate:none!important;
+  margin:0!important;padding:0!important;z-index:80!important;animation:none!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper]:has([data-topbar-menu="themes"]) {width:min(320px,100%)!important;}
+html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper] [data-topbar-menu] {
+  position:static!important;inset:auto!important;width:100%!important;min-width:0!important;max-width:100%!important;
+  height:auto!important;min-height:0!important;max-height:calc(100dvh - var(--sig-topbar-height-mobile,60px) - 1px)!important;
+  box-sizing:border-box!important;margin:0!important;padding:10px!important;
+  border-top:0!important;border-radius:0 0 0 16px!important;
+  overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;
+  transform:none!important;translate:none!important;animation:none!important;opacity:1!important;
+  box-shadow:-8px 12px 28px rgba(15,23,42,.22)!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu-surface="light"] {
+  --tb-ink:#173650;--tb-muted:#496379;--tb-panel:#f8fbfd;--tb-card:#fff;--tb-line:#c3d6e4;--tb-hover:#e5eff7;
+  background:var(--tb-panel)!important;color:var(--tb-ink)!important;border-color:var(--tb-line)!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu-surface="dark"] {
+  --tb-ink:#f1f7ff;--tb-muted:#c5d9e8;--tb-panel:#102c43;--tb-card:#173950;--tb-line:#54738a;--tb-hover:#244b65;
+  background:var(--tb-panel)!important;color:var(--tb-ink)!important;border-color:var(--tb-line)!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] :is(.sig-marker-header,.sig-marker-composer,.sig-marker-current,.sig-marker-item,.sig-marker-preview,.sig-marker-empty,.sig-marker-recent,.sig-marker-swatch) {
+  background:var(--tb-card)!important;border-color:var(--tb-line)!important;color:var(--tb-ink)!important;
+  box-shadow:none!important;min-width:0!important;max-width:100%!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] :is(p, .sig-marker-swatch span:not([style]), .sig-marker-empty, .sig-marker-recent span:not([style])):not(:is(.sig-marker-status,.sig-marker-item-badge,.sig-marker-meta-chip,.sig-marker-success)) {
+  color:var(--tb-ink)!important;-webkit-text-fill-color:var(--tb-ink)!important;white-space:normal!important;overflow-wrap:anywhere;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] :is(p.text-slate-500,p.text-slate-400) {
+  color:var(--tb-muted)!important;-webkit-text-fill-color:var(--tb-muted)!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] .sig-marker-palette {
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] .sig-marker-swatch {
+  padding:8px!important;height:auto!important;min-height:36px!important;white-space:normal!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] .sig-marker-swatch-active {
+  background:var(--tb-hover)!important;border-color:#48a0c5!important;outline:1px solid #48a0c5;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] .sig-marker-item > div {flex-wrap:wrap!important;}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] .sig-marker-actions {flex-wrap:wrap!important;max-width:100%!important;}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] .sig-marker-input {
+  background:var(--tb-card)!important;color:var(--tb-ink)!important;-webkit-text-fill-color:var(--tb-ink)!important;border-color:var(--tb-line)!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] .sig-marker-input::placeholder {color:var(--tb-muted)!important;opacity:1!important;}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="markers"] :is(.sig-marker-save-btn,.sig-marker-inline-action-primary) {
+  background:#124766!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="themes"] [data-theme-option] {
+  min-width:0!important;max-width:100%!important;min-height:52px!important;height:auto!important;
+  white-space:normal!important;overflow-wrap:anywhere;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="themes"] [data-theme-option] :is(.sig-fit-title,.sig-fit-copy) {
+  display:block!important;white-space:normal!important;overflow-wrap:anywhere;word-break:normal!important;
+  max-height:none!important;overflow:visible!important;-webkit-line-clamp:unset!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-topbar-menu="themes"] [data-theme-option-active="true"] {
+  background:var(--tb-hover)!important;border-color:#48a0c5!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] :is([data-topbar-menu],[data-account-panel]) :is(button,[role="menuitem"]):focus-visible {
+  outline:2px solid #48a0c5!important;outline-offset:-2px!important;
+}
+@media(min-width:1024px) {
+  html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper] [data-topbar-menu] {
+    max-height:calc(100dvh - var(--sig-topbar-height,60px) - 1px)!important;
   }
 }
