@@ -966,7 +966,7 @@ export function MasterAdminPage() {
           }
         />
         <InternalTabs value={workspaceView} onChange={(value) => {
-          if (value === "cadastro" && workspaceView !== "cadastro") resetForNewInstitution();
+          if (value === "cadastro" && (workspaceView !== "cadastro" || !isCreatingNewInstitution)) resetForNewInstitution();
           else setWorkspaceView(value as WorkspaceView);
         }} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Nova Prefeitura", helper: "Formulário limpo" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
 

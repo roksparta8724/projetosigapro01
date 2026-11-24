@@ -26,7 +26,7 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
   });
 
   it("navegação do menu Cadastro não reutiliza a última Prefeitura", () => {
-    expect(page).toContain('if (value === "cadastro" && workspaceView !== "cadastro") resetForNewInstitution()');
+    expect(page).toContain('if (value === "cadastro" && (workspaceView !== "cadastro" || !isCreatingNewInstitution)) resetForNewInstitution()');
     expect(page).toContain('const openMasterSection = (section: WorkspaceView)');
     expect(page).toContain('params.set("secao", section)');
     expect(page).toContain('label: "Nova Prefeitura"');
