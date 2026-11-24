@@ -1280,9 +1280,13 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         lastFetchedUserId.current = authenticatedUserId;
         setRemoteContextUserId(authenticatedUserId);
       } catch (error) {
-        if (!active) return;
-        if (isAuthError(error) && backendClient) {
-          await backendClient.auth.signOut();
+        if (!active || currentAuthIdentityRef.current !== authenticatedUserId) return;
+        // 401/403 from a data query can be an old token, missing module access
+        // or a concurrent identity transition. Never let a data loader revoke
+        // the current authentication session. AuthGateway owns logout.
+        if (isAuthError(error)) {
+          setRemoteContextUserId(null);
+          lastFetchedUserId.current = null;
         }
         const cachedVisualProfile = readProfileVisualCache();
         const nextStore =

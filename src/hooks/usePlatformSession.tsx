@@ -3,7 +3,6 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { SessionUser, roleLabels } from "@/lib/platform";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { usePlatformData } from "@/hooks/usePlatformData";
-import { isNeonBackend } from "@/integrations/backend/config";
 
 interface PlatformSessionContextValue {
   session: SessionUser;
@@ -87,7 +86,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
-    const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
+    const canUseCachedSession = !businessUserId && !authResolved && Boolean(readCachedSession()?.id === cachedSession?.id);
 
     if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(
@@ -193,8 +192,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     if (authResolved && !businessUserId) {
       // No Neon, eventos transitórios de auth não podem apagar a sessão visual já estável.
       // O logout confirmado remove a chave pelo AppBootstrap; aí sim limpamos o contexto.
-      if (isNeonBackend && readCachedSession()) return;
-      if (!cachedSessionRef.current) {
+       if (!cachedSessionRef.current) {
         writeCachedSession(null);
         return;
       }

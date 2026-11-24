@@ -62,9 +62,10 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
       updateEmail: bootstrap.updateEmail,
       updatePassword: bootstrap.updatePassword,
       signOut: async () => {
-        try {
-          await bootstrap.signOut();
-        } finally {
+        const signOutTask = bootstrap.signOut();
+        // Synchronous cleanup only: never erase the next user's cache in
+        // a finally block belonging to the previous remote session.
+        {
           // Apagar imediatamente as imagens privadas da conta antiga, inclusive
           // quando o logout remoto falhar. Nunca persistir blob URL no navegador.
           clearAuthorizedAvatarRuntimeCache();
@@ -103,6 +104,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
           // A navegacao e responsabilidade da rota chamadora. Nunca descarregar o documento aqui.
           }
         }
+        await signOutTask;
       },
     }),
     [
