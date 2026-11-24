@@ -1040,7 +1040,8 @@ export function MasterAdminPage() {
 ))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Ticket mensal contratado</p><p className="mt-2 text-lg font-semibold text-slate-950">{activePlansCount > 0 ? formatCurrency(monthlyRevenue / activePlansCount) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
 
         {workspaceView === "carteira" || visitedRegistries.carteira ? (
-          <section data-master-preserved-panel="carteira" hidden={workspaceView !== "carteira"} data-master-portfolio-surface="true"
+          <div data-master-preserved-panel="carteira" hidden={workspaceView !== "carteira"} style={workspaceView !== "carteira" ? { display: "none" } : undefined}>
+          <section data-master-portfolio-surface="true"
             className="min-w-0 overflow-hidden rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(9,39,64,0.07)] sm:p-6 dark:border-slate-700 dark:bg-slate-900">
             <header className="flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-700">
               <div className="min-w-0 flex-1">
@@ -1070,6 +1071,7 @@ export function MasterAdminPage() {
                 onClick={() => openMasterSection("usuarios")}>Acessos e equipe <Users2 className="ml-2 h-4 w-4" /></Button>
             </footer>
           </section>
+          </div>
         ) : null}
 
         {workspaceView === "cadastro" ? (
@@ -1381,7 +1383,7 @@ export function MasterAdminPage() {
               </div>
             </SectionCard>
           ) : (
-            <PageMainGrid className="xl:grid-cols-[minmax(0,1.9fr)_minmax(330px,0.82fr)] xl:items-start">
+            <div data-master-organogram-layout="compact" className="min-w-0">
               <PageMainContent>
                 <TableCard
                   title={`Organograma • ${activeTenant.name}`}
@@ -1396,8 +1398,10 @@ export function MasterAdminPage() {
                       <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                         Esta Prefeitura ainda não possui organograma cadastrado.
                       </div>
+                    ) : rootMasterDepartments.length === 0 ? (
+                      <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm !text-amber-950">Há unidades cadastradas, mas nenhuma unidade principal está disponível. Revise os vínculos da estrutura municipal.</p>
                     ) : (
-                      <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                      <div className="grid gap-3 lg:grid-cols-2">
                         {rootMasterDepartments.map((department) => {
                           const children = activeMasterDepartments.filter((item) => item.parentDepartmentId === department.id);
                           const users = activeTenantUsers.filter((user) => user.department === department.name);
@@ -1473,7 +1477,7 @@ export function MasterAdminPage() {
                   icon={Plus}
                   contentClassName="space-y-4"
                 >
-                  <form className="space-y-4" onSubmit={handleMasterCreateDepartment}>
+                  <form data-master-organogram-form="true" className="grid min-w-0 gap-3" onSubmit={handleMasterCreateDepartment}>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Prefeitura</p>
                       <p className="mt-1 text-sm font-semibold text-slate-900">{activeTenant.name}</p>
@@ -1517,18 +1521,18 @@ export function MasterAdminPage() {
                       <Label>Telefone</Label>
                       <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} />
                     </div>
-                    <Button type="submit" disabled={orgBusy || departmentScopeId !== selectedTenantId || !orgForm.name.trim()} className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900">
+                    <Button type="submit" data-shared-action="primary" disabled={orgBusy || departmentScopeId !== selectedTenantId || !orgForm.name.trim()} className="h-11 w-full rounded-xl">
                       {orgBusy ? "Salvando..." : "Adicionar unidade"}
                     </Button>
                   </form>
                 </SectionCard>
               </PageSideContent>
-            </PageMainGrid>
+            </div>
           )
         ) : null}
 
         {workspaceView === "usuarios" || visitedRegistries.usuarios ? (
-          <div data-master-preserved-panel="usuarios" hidden={workspaceView !== "usuarios"}>
+          <div data-master-preserved-panel="usuarios" hidden={workspaceView !== "usuarios"} style={workspaceView !== "usuarios" ? { display: "none" } : undefined}>
           <PageMainContent className="gap-6">
             <MasterUserGovernance
               institutions={institutionCatalog}

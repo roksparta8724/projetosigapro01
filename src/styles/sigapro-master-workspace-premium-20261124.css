@@ -232,7 +232,7 @@ html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-main
    from repositioning the viewport when switching between unequal-height panels. */
 html body #root .sig-main-shell .sig-master-admin-workspace {
   overflow-anchor:none;
-  min-height:min(560px,70vh);
+  min-height:0;
 }
 html body #root .sig-main-shell .sig-master-admin-workspace [data-shared-nav-contract="v1"] {
   flex-shrink:0;
@@ -241,3 +241,35 @@ html body #root .sig-main-shell .sig-master-admin-workspace [data-shared-nav-con
 /* Hidden registry panels remain mounted solely to preserve local filters and
    expansion state. Native hidden must win against legacy flex/grid CSS. */
 html body #root .sig-main-shell .sig-master-admin-workspace [data-master-preserved-panel][hidden] {display:none!important;}
+
+/* Independent organogram: use actual available content width, not screen width
+   or a shared grid rule intended for a process/document editor. */
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] {
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-rows:max-content!important;
+  align-items:start!important;align-content:start!important;gap:16px!important;min-height:0!important;height:auto!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] > :is(.sig-main-content,.sig-side-content) {
+  display:flex!important;flex-direction:column!important;min-height:0!important;height:auto!important;
+  align-self:start!important;justify-content:flex-start!important;gap:16px!important;width:100%!important;
+}
+/* Measure the real workspace (sidebar open/closed, browser zoom or mobile),
+   not the viewport. One column until both cards have enough room. */
+html body #root .sig-main-shell .sig-master-admin-workspace {
+  container-type:inline-size;
+  container-name:master-workspace;
+}
+@container master-workspace (min-width:800px) {
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] {
+    grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr)!important;
+  }
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-layout="compact"] [data-content-flow="card"] {
+  height:auto!important;min-height:0!important;max-height:none!important;flex:0 0 auto!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-form="true"] > div {
+  min-height:0!important;height:auto!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-organogram-form="true"] button[type="submit"]:disabled {
+  background:#475569!important;color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+}
