@@ -30,8 +30,8 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
       {paged.total === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">Nenhuma Prefeitura cadastrada.</p>
       ) : (
-        <div className="min-w-0 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-          <table className="w-full min-w-[740px] table-fixed text-left text-sm" aria-label="Prefeituras da carteira">
+        <div data-mobile-portfolio-scroll="true" className="min-w-0 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+          <table data-sigapro-portfolio-table="true" className="w-full min-w-[740px] table-fixed text-left text-sm" aria-label="Prefeituras da carteira">
             <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-[0.08em] text-slate-600">
               <tr>
                 <th scope="col" className="w-[34%] px-4 py-3 font-semibold">Prefeitura</th>
@@ -57,9 +57,9 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
                           </div>
                         </div>
                       </td>
-                      <td className="max-w-0 px-4 py-3"><p className="truncate text-slate-700" title={institution.city}>{institution.city || "Não informado"}{institution.state ? " / " + institution.state : ""}</p></td>
-                      <td className="max-w-0 px-4 py-3"><p className="truncate text-slate-700" title={institution.plan}>{institution.plan || "A definir"}</p></td>
-                      <td className="px-4 py-3">
+                      <td data-mobile-label="Município" className="max-w-0 px-4 py-3"><p className="truncate text-slate-700" title={institution.city}>{institution.city || "Não informado"}{institution.state ? " / " + institution.state : ""}</p></td>
+                      <td data-mobile-label="Plano" className="max-w-0 px-4 py-3"><p className="truncate text-slate-700" title={institution.plan}>{institution.plan || "A definir"}</p></td>
+                      <td data-mobile-label="Situação" className="px-4 py-3">
                         <span className={"inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold " +
                           (institution.status === "ativo" ? "border-emerald-200 bg-emerald-50 text-emerald-800" :
                            institution.status === "suspenso" ? "border-rose-200 bg-rose-50 text-rose-800" :
@@ -67,7 +67,7 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
                           {institution.status === "ativo" ? "Ativa" : institution.status === "suspenso" ? "Suspensa" : "Em implantação"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td data-mobile-label="Ações" className="px-4 py-3 text-right">
                         <button type="button" aria-controls={panelId} aria-expanded={expanded}
                           onClick={() => setOpenId((id) => id === institution.id ? null : institution.id)}
                           className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-900 hover:border-sky-300 hover:bg-sky-50">
@@ -77,7 +77,7 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
                       </td>
                     </tr>
                     {expanded ? (
-                      <tr><td colSpan={5} id={panelId} data-sigapro-portfolio-details="open" className="bg-slate-50/70 p-4">
+                      <tr data-sigapro-portfolio-details-row="true"><td colSpan={5} id={panelId} data-sigapro-portfolio-details="open" className="bg-slate-50/70 p-4">
                         {renderDetails(institution)}
                       </td></tr>
                     ) : null}
