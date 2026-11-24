@@ -133,7 +133,7 @@ html body #root .sig-main-shell [data-sigapro-user-registry="compact"] {
     background: #1b364c !important; color: #f0f8ff; border-color: #49677f;
   }
   html body #root [data-layout-mode="inverse-main"] .sig-main-shell
-  [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] :is(.truncate,p,span) { color: #f0f8ff !important; }
+  [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] :is(.truncate,p,span):not([data-registry-status]) { color: #f0f8ff !important; }
   html body #root [data-layout-mode="inverse-main"] .sig-main-shell
   [data-sigapro-user-registry="compact"] td[data-mobile-label]::before { color: #c1dbed; }
 }
