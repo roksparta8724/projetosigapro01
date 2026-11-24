@@ -35,6 +35,22 @@ describe("SIGAPRO — cards mobile premium sem truncamento", () => {
     expect(portfolio.match(/renderDetails\(institution\)/g)).toHaveLength(1);
     expect(css).toContain('[data-sigapro-portfolio-registry="compact"] table > tbody');
   });
+  it("mantem cards operacionais de processo, financeiro e plano legiveis", () => {
+    for (const selector of [
+      ".sig-premium-summary-card",
+      ".sig-process-flow-card",
+      ".sig-finance-workspace",
+      "[data-master-plan-card]",
+      "[data-analysis-availability-card]",
+      "[data-summary-dark-card]",
+      ".sig-dark-panel",
+      ".sig-process-registry .sig-process-flow-group",
+    ]) expect(css).toContain(selector);
+    expect(css).toContain("@media (max-width: 430px)");
+    expect(css).toContain("grid-template-columns: minmax(0,1fr)");
+    expect(css).not.toContain("scroll-behavior: smooth");
+  });
+
   it("Master e Prefeitura ficam responsivos sem alterar os botoes de negocio", () => {
     expect(master).toContain('data-master-institution-card="true"');
     expect(master).toContain('data-master-user-card="true"');
