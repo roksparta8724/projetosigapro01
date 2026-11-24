@@ -30,3 +30,24 @@ describe("Shared premium contrast contract",()=>{
   expect(css).toContain("[data-sigapro-ai-review-shortcut]");
  });
 });
+
+it("keeps the Master form command readable in both themes and every state",()=>{
+ const header=page.slice(page.indexOf('<section ref={formRef}'),page.indexOf('<form id="master-municipality-form"'));
+ expect(header).toContain('data-master-form-command="save"');
+ expect(header).toContain('data-master-command-label="true"');
+ expect(header).not.toContain('!text-[#0e3048]');
+ expect(css).toContain('button[data-master-form-command="save"]:disabled');
+ expect(css).toContain('button[data-master-form-command="save"]:hover:not(:disabled)');
+ expect(ratio("#ffffff","#124766")).toBeGreaterThanOrEqual(4.5);
+ expect(ratio("#ffffff","#475569")).toBeGreaterThanOrEqual(4.5);
+ expect(ratio("#153b58","#f4f9fd")).toBeGreaterThanOrEqual(4.5);
+});
+it("prevents legacy light card text rules from repainting control labels",()=>{
+ const base=readFileSync("src/index.css","utf8");
+ const i=base.indexOf("/* Light utility surfaces:");
+ const block=base.slice(i,base.indexOf("\n}",base.indexOf("\n}",i)+2)+2);
+ expect(block).not.toContain('div,section,article,li,aside,button');
+ expect(block).toContain('[data-ui="button"] *');
+ expect(block).toContain('[data-nav-active] *');
+ expect(block).toContain('[data-ui="badge"] *');
+});

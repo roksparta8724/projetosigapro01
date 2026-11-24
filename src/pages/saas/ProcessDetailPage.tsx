@@ -4051,7 +4051,8 @@ export function ProcessDetailPage() {
                             </div>
                             <Button
                               type="button"
-                              className="mt-3 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+                              data-shared-action="primary"
+                              className="mt-3 rounded-xl px-5"
                               disabled={
                                 processActionBusy === `upload-document-${document.id}` ||
                                 !(documentUploads[document.id]?.[0]?.file)

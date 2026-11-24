@@ -1073,13 +1073,13 @@ export function MasterAdminPage() {
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-sky-100">{isCreatingNewInstitution ? "Novo cadastro independente, sem dados de outras prefeituras." : "Edição exclusiva da Prefeitura selecionada na Carteira."}</p>
               </div>
               <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                <Button type="button" variant="outline" onClick={() => openMasterSection("carteira")}
-                  disabled={saving || savingPlanOnly} className="h-10 flex-1 rounded-xl border-white/30 bg-white/10 px-4 !text-white hover:bg-white/20 hover:!text-white sm:flex-none">
+                <Button type="button" variant="outline" data-master-form-command="back" onClick={() => openMasterSection("carteira")}
+                  disabled={saving || savingPlanOnly} className="h-auto min-h-11 flex-1 rounded-xl px-4 sm:flex-none">
                   <ArrowLeft className="mr-2 h-4 w-4" />Voltar à carteira
                 </Button>
-                <Button type="submit" form="master-municipality-form" disabled={saving || savingPlanOnly}
-                  className="h-10 flex-1 rounded-xl bg-white px-4 !text-[#0e3048] hover:bg-sky-100 sm:flex-none">
-                  {saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}
+                <Button type="submit" form="master-municipality-form" data-shared-action="primary" data-master-form-command="save" disabled={saving || savingPlanOnly}
+                  className="h-auto min-h-11 flex-1 rounded-xl px-4 sm:flex-none">
+                  <span data-master-command-label="true">{saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}</span>
                 </Button>
               </div>
             </header>
@@ -1163,7 +1163,7 @@ export function MasterAdminPage() {
                          <p className="min-w-0 flex-1 text-xs leading-5 text-[#234760] dark:text-sky-100">
                            Atualize somente o contrato, sem regravar a Prefeitura ou seus administradores.
                          </p>
-                         <Button type="button" onClick={() => void handleSavePlanOnly()}
+                         <Button type="button" data-shared-action="primary" data-master-form-command="save" onClick={() => void handleSavePlanOnly()}
                            disabled={saving || savingPlanOnly || isCreatingNewInstitution || !selectedTenantId || !activeTenant}
                            className="h-10 w-full rounded-xl bg-[#0d3853] px-5 !text-white hover:bg-[#195775] sm:w-auto">
                            {savingPlanOnly ? "Atualizando..." : "Atualizar plano"}
@@ -1346,7 +1346,7 @@ export function MasterAdminPage() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                      <Button type="submit" className="h-11 w-full rounded-xl bg-[#0d3853] px-6 !text-white hover:bg-[#195775] sm:w-auto" disabled={saving || savingPlanOnly}>
+                      <Button type="submit" data-shared-action="primary" data-master-form-command="save" className="h-11 w-full rounded-xl px-6 sm:w-auto" disabled={saving || savingPlanOnly}>
                         {saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}
                       </Button>
                       <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" disabled={saving || savingPlanOnly || orgBusy} onClick={resetForNewInstitution}>
