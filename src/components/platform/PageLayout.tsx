@@ -225,6 +225,7 @@ export function InternalSectionNav({
   return (
     <section
       data-premium-surface="navigation"
+      data-shared-nav-contract="v1"
       data-summary-first={summaryFirst ? "true" : "false"}
       data-summary-position={summaryFirst ? "first" : "last"}
       className={cn(
@@ -232,7 +233,7 @@ export function InternalSectionNav({
         className,
       )}
   >
-      <div className="flex min-w-0 snap-x snap-mandatory flex-nowrap gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
+      <div className="flex min-w-0 snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
         {orderedItems.map((item) => {
           const active = item.value === value;
           return (

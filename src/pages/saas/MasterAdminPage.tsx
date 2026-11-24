@@ -1383,9 +1383,16 @@ export function MasterAdminPage() {
         {workspaceView === "organograma" ? (
           !activeTenant ? (
             <SectionCard title="Organograma municipal" description="Selecione uma Prefeitura na Carteira para administrar a estrutura interna." icon={Network}>
-              <Button type="button" className="rounded-full bg-slate-950 text-white hover:bg-slate-900" onClick={() => openMasterSection("carteira")}>
-                Escolher Prefeitura
-              </Button>
+              <div data-premium-empty-state="municipality" className="flex min-w-0 flex-wrap items-center gap-4 rounded-2xl border p-4 sm:p-5">
+                <div data-empty-icon="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border"><Landmark className="h-5 w-5" aria-hidden="true" /></div>
+                <div className="min-w-0 flex-1">
+                  <p data-empty-title="true" className="text-sm font-semibold">Nenhuma Prefeitura selecionada</p>
+                  <p data-empty-copy="true" className="mt-1 text-sm leading-relaxed">Abra a Carteira e escolha a instituição que deseja administrar.</p>
+                </div>
+                <Button type="button" data-shared-action="primary" className="h-auto min-h-11 w-full rounded-xl sm:w-auto" onClick={() => openMasterSection("carteira")}>
+                  Escolher Prefeitura
+                </Button>
+              </div>
             </SectionCard>
           ) : (
             <PageMainGrid className="xl:grid-cols-[minmax(0,1.9fr)_minmax(330px,0.82fr)] xl:items-start">
