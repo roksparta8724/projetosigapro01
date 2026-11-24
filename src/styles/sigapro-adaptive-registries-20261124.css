@@ -1,0 +1,145 @@
+/*
+ * SIGAPRO | Adaptacao de cadastros ao espaco real do card.
+ * O breakpoint anterior (767px de viewport) falhava em 768-1023px e
+ * em areas estreitas dentro do desktop. Container Queries resolvem ambos.
+ * Mesmas linhas, vinculos e botoes; sem duplicar consultas ou registros.
+ */
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] {
+  container: sigapro-portfolio / inline-size;
+  min-width: 0;
+  width: 100%;
+}
+html body #root .sig-main-shell [data-sigapro-user-registry="compact"] {
+  container: sigapro-users / inline-size;
+  min-width: 0;
+  width: 100%;
+}
+@container sigapro-portfolio (max-width: 920px) {
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] [data-mobile-portfolio-scroll="true"] {
+    min-width: 0; max-width: 100%; overflow-x: visible !important;
+    border: 0 !important; background: transparent !important;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] table {
+    display: block !important; width: 100% !important; min-width: 0 !important;
+    max-width: 100%; table-layout: auto !important; border: 0;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] thead { display: none !important; }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] tbody {
+    display: grid !important; grid-template-columns: minmax(0,1fr) !important;
+    gap: 12px; min-width: 0; border: 0;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] {
+    display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+    gap: 4px 14px; width: 100%; min-width: 0; padding: 16px !important;
+    border: 1px solid #dbe4ed !important; border-radius: 16px !important;
+    background: #fff; box-shadow: 0 6px 18px rgba(10,39,61,.07);
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] > td {
+    display: block !important; min-width: 0 !important; max-width: 100%;
+    padding: 8px 0 !important; text-align: left !important; border: 0 !important;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] > td:first-child,
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] > td:last-child {
+    grid-column: 1 / -1;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] > td:first-child {
+    border-bottom: 1px solid #dbe4ed !important; padding-bottom: 12px !important; margin-bottom: 3px;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] td[data-mobile-label]::before {
+    content: attr(data-mobile-label); display: block; margin-bottom: 5px;
+    font-size: 10px; line-height: 1.4; letter-spacing: .05em; font-weight: 800;
+    text-transform: uppercase; color: #47637b;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] :is(p,.truncate) {
+    min-width: 0 !important; max-width: 100%; overflow: visible !important;
+    white-space: normal !important; overflow-wrap: anywhere !important;
+    word-break: normal !important; text-overflow: clip !important; line-height: 1.45;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] td:last-child button {
+    display: flex; width: 100%; min-height: 44px;
+    justify-content: center; align-items: center; white-space: normal;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-details-row="true"] { display: block !important; width: 100%; min-width: 0; margin-top: -12px; }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  td[data-sigapro-portfolio-details="open"] {
+    display: block !important; width: 100%; max-width: 100%; min-width: 0;
+    padding: 14px; border: 1px solid #dbe4ed;
+    border-radius: 0 0 16px 16px; overflow-wrap: anywhere;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] {
+    background: #1b364c !important; color: #f0f8ff; border-color: #49677f !important;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] :is(p,.truncate) {
+    color: #f0f8ff !important;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-portfolio-registry="compact"] td[data-mobile-label]::before { color: #c1dbed; }
+}
+@container sigapro-users (max-width: 920px) {
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] [data-mobile-registry-scroll="true"] {
+    min-width: 0; max-width: 100%; overflow-x: visible !important; border: 0; background: transparent;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] table {
+    display: block !important; min-width: 0 !important; max-width: 100%; width: 100% !important;
+    table-layout: auto; border: 0;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] thead { display: none !important; }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tbody {
+    display: grid !important; grid-template-columns: minmax(0,1fr);
+    gap: 12px; min-width: 0;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] {
+    display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 3px 12px; min-width: 0; padding: 14px;
+    border: 1px solid #dbe4ed; border-radius: 16px;
+    background: #fff; box-shadow: 0 7px 18px rgba(10,39,61,.07);
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td {
+    display: block !important; min-width: 0; max-width: 100%;
+    padding: 8px 0; border: 0; text-align: left;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td:first-child,
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td:last-child { grid-column: 1/-1; }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] > td:first-child {
+    padding-bottom: 12px; border-bottom: 1px solid #dbe4ed;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] td[data-mobile-label]::before {
+    content: attr(data-mobile-label); display: block;
+    font-size: 10px; font-weight: 800; line-height: 1.4;
+    letter-spacing: .05em; color: #47637b; text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"]
+  tr[data-sigapro-user-row="true"] :is(.truncate,p,span) {
+    min-width: 0; max-width: 100%; overflow: visible !important;
+    white-space: normal !important; text-overflow: clip !important;
+    overflow-wrap: anywhere !important; word-break: normal !important;
+  }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"]
+  tr[data-sigapro-user-row="true"] td:last-child button { width: 100%; min-height: 44px; }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"]
+  tr[data-sigapro-user-details-row="true"] { display: block !important; width: 100%; margin-top: -12px; }
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"]
+  td[data-sigapro-user-expanded="true"] {
+    display: block !important; width: 100%; max-width: 100%; min-width: 0; overflow-wrap: anywhere;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] {
+    background: #1b364c !important; color: #f0f8ff; border-color: #49677f;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] :is(.truncate,p,span) { color: #f0f8ff !important; }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-user-registry="compact"] td[data-mobile-label]::before { color: #c1dbed; }
+}
+@media (max-width: 389px) {
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"],
+  html body #root .sig-main-shell [data-sigapro-user-registry="compact"] tr[data-sigapro-user-row="true"] {
+    grid-template-columns: minmax(0,1fr) !important; padding: 12px;
+  }
+}

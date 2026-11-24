@@ -88,7 +88,7 @@ export function CompactUserRegistry({
                 return (
                   <Fragment key={user.id}>
                     <tr data-sigapro-user-row="true" className="transition-colors hover:bg-sky-50/60">
-                      <td className="max-w-0 px-4 py-3">
+                      <td data-mobile-label="Usuário" className="max-w-0 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
                           <UserAvatar
                             authenticatedOwnerId={authorizedViewerId}

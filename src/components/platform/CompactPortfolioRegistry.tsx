@@ -48,7 +48,7 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
                 return (
                   <Fragment key={institution.id}>
                     <tr data-sigapro-portfolio-row="true" className="hover:bg-sky-50/60">
-                      <td className="max-w-0 px-4 py-3">
+                      <td data-mobile-label="Prefeitura" className="max-w-0 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
                           <Building2 aria-hidden="true" className="h-5 w-5 shrink-0 text-sky-700" />
                           <div className="min-w-0">
