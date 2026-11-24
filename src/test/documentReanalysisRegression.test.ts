@@ -113,3 +113,16 @@ describe("document re-evaluation visual state", () => {
     expect(component).toContain("!bg-orange-700 !text-white");
   });
 });
+
+describe("reopened document semantic surface", () => {
+  it("overrides the shared layout surface in both themes, and distinguishes the reopen action", () => {
+    const css = read("src/styles/surface-polarity.css");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    expect(css).toContain('[data-document-state="reopened"][data-force-card-contrast="adaptive"]');
+    expect(css).toContain("linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%) !important");
+    expect(css).toContain("linear-gradient(135deg,#45230d 0%,#2c180e 100%) !important");
+    expect(css).toContain('button:is([data-document-reopen-shortcut="true"],[data-document-independent-reopen="true"]):not(:disabled)');
+    expect(css).toContain('background: #c2410c !important');
+    expect(detail).toContain('data-document-reopened-badge={isReevaluationOpen ? "true" : undefined}');
+  });
+});

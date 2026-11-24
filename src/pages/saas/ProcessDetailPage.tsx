@@ -3894,7 +3894,7 @@ export function ProcessDetailPage() {
                           <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
                             Documento {String(index + 1).padStart(2, "0")} de {String(visibleDocumentRows.length).padStart(2, "0")}
                           </span>
-                          <Badge variant="outline" className={`rounded-full font-semibold ${reviewVisual.badge}`}>
+                          <Badge variant="outline" data-document-reopened-badge={isReevaluationOpen ? "true" : undefined} className={`rounded-full font-semibold ${reviewVisual.badge}`}>
                             {isReevaluationOpen ? <Clock3 className="mr-1 h-3.5 w-3.5" /> : isApproved ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : hasCommunique ? <ShieldAlert className="mr-1 h-3.5 w-3.5" /> : <Clock3 className="mr-1 h-3.5 w-3.5" />}
                             {reviewVisual.label}
                           </Badge>

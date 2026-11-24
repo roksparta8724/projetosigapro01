@@ -2970,3 +2970,74 @@ html body #root .sig-main-shell .sig-process-detail-premium
   -webkit-text-fill-color: #ffffff !important;
 }
 /* END SIGAPRO IA PROJECT SHORTCUT CONTRAST LOCK V1 */
+
+/* Document reopening: semantic state must win over the global adaptive-card surface.
+   Keep normal approved / issue / review cards unchanged. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-document-state="reopened"][data-force-card-contrast="adaptive"] {
+  background: linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%) !important;
+  background-color: #fff7ed !important;
+  border-color: #ea580c !important;
+  box-shadow: 0 10px 24px rgba(154,52,18,.12) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-document-state="reopened"][data-force-card-contrast="adaptive"] {
+  background: linear-gradient(135deg,#45230d 0%,#2c180e 100%) !important;
+  background-color: #45230d !important;
+  border-color: #fb923c !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.25) !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-document-state="reopened"] [data-document-reevaluation-notice="true"] {
+  background: #ffedd5 !important;
+  border-color: #fdba74 !important;
+  color: #7c2d12 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-document-state="reopened"] [data-document-reevaluation-notice="true"] {
+  background: #572b13 !important;
+  border-color: #c2410c !important;
+  color: #ffedd5 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-document-state="reopened"] [data-document-reevaluation-notice="true"] :is(p,span,strong,svg) {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-document-state="reopened"] [data-document-reopened-badge="true"] {
+  background: #ffedd5 !important;
+  border-color: #f97316 !important;
+  color: #7c2d12 !important;
+  -webkit-text-fill-color: #7c2d12 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-document-state="reopened"] [data-document-reopened-badge="true"] svg {
+  color: #7c2d12 !important;
+  stroke: currentColor !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"] button:is([data-document-reopen-shortcut="true"],[data-document-independent-reopen="true"]):not(:disabled) {
+  background: #c2410c !important;
+  border-color: #9a3412 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"] button:is([data-document-reopen-shortcut="true"],[data-document-independent-reopen="true"]):not(:disabled):is(:hover,:focus-visible) {
+  background: #9a3412 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"] button:is([data-document-reopen-shortcut="true"],[data-document-independent-reopen="true"]):not(:disabled) :is(span,svg) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  stroke: currentColor !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"] button[data-document-reopen-shortcut="true"]:disabled {
+  background: #fff7ed !important;
+  border-color: #fdba74 !important;
+  color: #92400e !important;
+  -webkit-text-fill-color: #92400e !important;
+  opacity: .8 !important;
+}
