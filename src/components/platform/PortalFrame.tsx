@@ -371,6 +371,7 @@ export function PortalFrame({ children, ...presentation }: PortalFrameProps) {
 }
 
 function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compactHeader = true, hideSectionHeader = false }: PortalFrameProps) {
+  const [accountDock, setAccountDock] = useState<HTMLDivElement | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
@@ -1477,6 +1478,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
           data-theme-family={inverseMainTheme ? "dark" : "light"}
         >
       <div
+        ref={setAccountDock}
+        data-account-dock="true"
         className="sig-premium-topbar fixed inset-x-0 top-0 z-50 border-b"
         style={{
           borderBottomColor: withAlpha(primaryColor, "0.18"),
@@ -1565,7 +1568,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   </span>
                 ) : null}
               </button>
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
@@ -1592,8 +1595,11 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                sideOffset={10}
-                className="w-[min(100vw-24px,320px)] rounded-[20px] border border-white/12 bg-[var(--sig-primary-deep)] p-2 text-white shadow-xl"
+                sideOffset={0}
+                portalContainer={accountDock}
+                data-account-panel="mobile"
+                data-account-surface="dark"
+                className="sig-topbar-account-dropdown border border-white/12 bg-[var(--sig-primary-deep)] p-2 text-white"
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
               >
                 <DropdownMenuLabel className="min-w-0 px-3 py-3">
@@ -2232,9 +2238,12 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                 align="end"
                 sideOffset={0}
                 collisionPadding={0}
+                portalContainer={accountDock}
+                data-account-panel="desktop"
+                data-account-surface={darkTopbar ? "dark" : "light"}
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
-                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-14px_0_30px_rgba(15,23,42,0.16)]",
+                  "sig-topbar-account-dropdown overflow-y-auto border p-3",
                   darkTopbar
                     ? "border-white/12 bg-[var(--sig-primary-deep)] text-slate-100"
                     : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",

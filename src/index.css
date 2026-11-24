@@ -6052,152 +6052,60 @@ html body div.sig-app-frame .sig-main-shell [data-institutional-header-preview="
 }
 
 
-/* Desktop account menu: Radix is rendered in a portal while the app uses
-   document zoom. Pin this one large menu to the viewport edge so it never
-   appears floating toward the center. The trigger itself remains slightly
-   inset inside the topbar. */
-@media (min-width: 1024px) {
-  .sig-topbar-account-cluster {
-    position: static !important;
-  }
-
-  .sig-topbar-account-cluster .sig-topbar-account-dropdown {
-    position: fixed !important;
-
-    /* painel lateral profissional: começa exatamente abaixo do topbar */
-    top: 68px !important;
-    right: 0 !important;
-    left: auto !important;
-    bottom: 0 !important;
-
-    /* 320px no layout interno fica na faixa visual marcada pelo usuário
-       mesmo com o zoom global de 85% */
-    width: 320px !important;
-    min-width: 320px !important;
-    max-width: 320px !important;
-    height: auto !important;
-    max-height: calc(100vh - 96px) !important;
-
-    margin: 0 !important;
-    padding: 14px !important;
-
-    border-radius: 0 !important;
-    border-top: 0 !important;
-    border-right: 0 !important;
-    border-bottom: 0 !important;
-    border-left-width: 1px !important;
-
-    transform: none !important;
-    transform-origin: top right !important;
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
-
-    z-index: 70 !important;
-    box-shadow:
-      -14px 0 34px rgba(15, 23, 42, 0.16),
-      inset 1px 0 0 rgba(255,255,255,0.05) !important;
-  }
-
-  .sig-topbar-account-cluster .sig-topbar-account-dropdown[data-state="open"] {
-    animation: sigAccountPanelIn 150ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
-  }
-
-  .sig-topbar-account-cluster .sig-topbar-account-dropdown[data-state="closed"] {
-    animation: sigAccountPanelOut 110ms ease-in both !important;
+/* Profile portal is mounted inside the actual fixed topbar. Its containing
+   block is the bar itself, so its lower edge is exact under zoom, resize,
+   responsive layouts and theme switches. No separate viewport offset. */
+html body #root .sig-premium-topbar[data-account-dock="true"] {
+  overflow:visible!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper]:has([data-account-panel]) {
+  position:absolute!important;
+  inset:100% 0 auto auto!important;
+  width:min(360px,100%)!important;min-width:0!important;max-width:100%!important;
+  height:auto!important;min-height:0!important;
+  transform:none!important;translate:none!important;margin:0!important;padding:0!important;
+  z-index:80!important;animation:none!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper] [data-account-panel] {
+  position:static!important;inset:auto!important;
+  display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;
+  height:auto!important;min-height:0!important;
+  max-height:calc(100dvh - var(--sig-topbar-height-mobile,60px) - 1px)!important;
+  box-sizing:border-box!important;margin:0!important;padding:12px!important;
+  border-top:0!important;border-right:0!important;border-radius:0 0 0 16px!important;
+  transform:none!important;translate:none!important;transform-origin:top right!important;
+  overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;
+  animation:none!important;transition:none!important;opacity:1!important;
+  box-shadow:-8px 12px 28px rgba(15,23,42,.22)!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper] [data-account-surface="dark"] {
+  background:var(--sig-primary-deep,#102c43)!important;color:#f1f7ff!important;border-color:rgba(191,219,254,.22)!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper] [data-account-surface="light"] {
+  background:#f8fbfd!important;color:#173650!important;border-color:#c3d6e4!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-account-surface="dark"] [role="menuitem"] {
+  color:#f1f7ff!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-account-surface="light"] [role="menuitem"] {
+  color:#173650!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-account-surface="dark"] [role="menuitem"][data-highlighted] {
+  background:#244b65!important;color:#fff!important;
+}
+html body #root .sig-premium-topbar[data-account-dock="true"] [data-account-surface="light"] [role="menuitem"][data-highlighted] {
+  background:#e2edf5!important;color:#173650!important;
+}
+@media(min-width:1024px) {
+  html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper] [data-account-panel] {
+    max-height:calc(100dvh - var(--sig-topbar-height,60px) - 1px)!important;
   }
 }
-
-@keyframes sigAccountPanelIn {
-  from {
-    opacity: 0;
-    translate: 0 -6px;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
+@media(max-width:480px) {
+  html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper]:has([data-account-panel]) {
+    width:min(360px,100%)!important;
   }
 }
-
-@keyframes sigAccountPanelOut {
-  from {
-    opacity: 1;
-    translate: 0 0;
-  }
-  to {
-    opacity: 0;
-    translate: 0 -4px;
-  }
-}
-
-
-/* SIGAPRO account drawer viewport lock */
-@media (min-width: 1024px) {
-  body > [data-radix-popper-content-wrapper]:has(.sig-topbar-account-dropdown) {
-    position: fixed !important;
-    top: 68px !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    left: auto !important;
-
-    width: 320px !important;
-    min-width: 320px !important;
-    max-width: 320px !important;
-    height: auto !important;
-    max-height: calc(100vh - 96px) !important;
-
-    transform: none !important;
-    translate: none !important;
-    margin: 0 !important;
-    z-index: 80 !important;
-  }
-
-  body > [data-radix-popper-content-wrapper]:has(.sig-topbar-account-dropdown)
-  .sig-topbar-account-dropdown {
-    position: static !important;
-    inset: auto !important;
-
-    width: 100% !important;
-    min-width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    max-height: calc(100vh - 96px) !important;
-
-    margin: 0 !important;
-    padding: 14px !important;
-
-    border-radius: 0 !important;
-    border-top: 0 !important;
-    border-right: 0 !important;
-    border-bottom: 0 !important;
-
-    transform: none !important;
-    translate: none !important;
-    transform-origin: top right !important;
-
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
-
-    box-shadow:
-      -16px 0 36px rgba(15, 23, 42, 0.16),
-      inset 1px 0 0 rgba(255,255,255,0.06) !important;
-  }
-
-  body > [data-radix-popper-content-wrapper]:has(.sig-topbar-account-dropdown[data-state="open"]) {
-    animation: sigAccountViewportIn 150ms cubic-bezier(0.22,1,0.36,1) both !important;
-  }
-}
-
-@keyframes sigAccountViewportIn {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 
 /* Desktop sidebar: one continuous surface down to the footer.
    Page scrolling owns the vertical flow; the navigation itself must never
