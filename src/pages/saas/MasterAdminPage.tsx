@@ -1,6 +1,7 @@
 ﻿import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, Plus, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { resolveMasterWorkspaceScope, masterWorkspaceSearch } from "@/lib/masterWorkspaceScope";
 import { MunicipalMaintenancePanel } from "@/components/platform/MunicipalMaintenancePanel";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { MetricCard } from "@/components/platform/MetricCard";
@@ -157,8 +158,8 @@ export function MasterAdminPage() {
   } = usePlatformData();
   const planCapacity = usePlanCapacityLive(null, { enabled: true, intervalMs: 8000 });
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
-  const [selectedTenantId, setSelectedTenantId] = useState<string>(() => new URLSearchParams(window.location.search).get("secao") === "cadastro" ? "" : institutions[0]?.id ?? "");
-  const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(() => new URLSearchParams(window.location.search).get("secao") === "cadastro");
+  const [explicitTenantId, setSelectedTenantId] = useState<string>(() => new URLSearchParams(location.search).get("municipio") || "");
+  const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(() => !(new URLSearchParams(location.search).get("secao") === "cadastro" && new URLSearchParams(location.search).get("modo") === "editar" && new URLSearchParams(location.search).get("municipio")));
   const requestedSection = new URLSearchParams(location.search).get("secao");
   const workspaceView: WorkspaceView = ["visao-geral","carteira","cadastro","organograma","usuarios"].includes(requestedSection || "") ? requestedSection as WorkspaceView : "carteira";
   const [form, setForm] = useState(emptyTenantForm);
@@ -193,28 +194,9 @@ export function MasterAdminPage() {
     window.localStorage.removeItem(LEGACY_PENDING_SYNC_STORAGE_KEY);
   }, []);
 
-  useEffect(() => { let active = true; if (!hasBackendEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => active && setRemoteInstitutions([])); return () => { active = false; }; }, [institutions]);
+  useEffect(() => { let active = true; if (!hasBackendEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => { /* Keep the last confirmed catalog on transient refresh failure. */ }); return () => { active = false; }; }, [institutions]);
 
-  useEffect(() => {
-    let active = true;
-    setDepartmentScopeId("");
-    setMasterDepartments([]);
-    setAssignmentUserId("");
-    setAssignmentDepartmentId("");
-    setAssignmentUserSearch("");
-    setOrgForm({ name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
-    if (!selectedTenantId) {
-      return () => { active = false; };
-    }
-    void listRemoteMunicipalDepartments(selectedTenantId)
-      .then((rows) => {
-        if (active) { setMasterDepartments(rows); setDepartmentScopeId(selectedTenantId); }
-      })
-      .catch((error) => {
-        if (active) setStatusMessage(error instanceof Error ? error.message : "Não foi possível carregar o organograma da Prefeitura.");
-      });
-    return () => { active = false; };
-  }, [selectedTenantId]);
+
 
   const institutionCatalog = useMemo(() => {
     const merged = new Map<string, Institution>();
@@ -242,7 +224,28 @@ export function MasterAdminPage() {
     [planCapacity.rows, municipalIds],
   );
   const capacityPageData = paginateMunicipalItems(visibleCapacityRows, contractCapacityPage, 2);
+  const selectedTenantId = resolveMasterWorkspaceScope(explicitTenantId, institutionCatalog);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
+  useEffect(() => {
+    let active = true;
+    setDepartmentScopeId("");
+    setMasterDepartments([]);
+    setAssignmentUserId("");
+    setAssignmentDepartmentId("");
+    setAssignmentUserSearch("");
+    setOrgForm({ name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
+    if (!selectedTenantId) {
+      return () => { active = false; };
+    }
+    void listRemoteMunicipalDepartments(selectedTenantId)
+      .then((rows) => {
+        if (active) { setMasterDepartments(rows); setDepartmentScopeId(selectedTenantId); }
+      })
+      .catch((error) => {
+        if (active) setStatusMessage(error instanceof Error ? error.message : "Não foi possível carregar o organograma da Prefeitura.");
+      });
+    return () => { active = false; };
+  }, [selectedTenantId]);
   const activeQuote = readMunicipalContractQuote({
     municipalityId: selectedTenantId,
     plans,
@@ -299,27 +302,7 @@ export function MasterAdminPage() {
   const activeInstitutionCount = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").length, [institutionCatalog]);
   const overviewInstitutions = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").slice(0, 3), [institutionCatalog]);
   const recentActivity = useMemo(() => [...sessionUsers].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5), [sessionUsers]);
-  useEffect(() => {
-    // Never switch the explicitly edited municipality during a refresh.
-    if (isCreatingNewInstitution || workspaceView === "cadastro" || workspaceView === "organograma") return;
-    if (institutionCatalog.length === 0) {
-      if (selectedTenantId) setSelectedTenantId("");
-      return;
-    }
 
-    const stillExists = institutionCatalog.some((item) => item.id === selectedTenantId);
-    if (stillExists) return;
-
-    const nextPreferred =
-      institutionCatalog.find((item) => item.status === "ativo")?.id ??
-      institutionCatalog.find((item) => item.status === "implantacao")?.id ??
-      institutionCatalog[0]?.id ??
-      "";
-
-    if (nextPreferred !== selectedTenantId) {
-      setSelectedTenantId(nextPreferred);
-    }
-  }, [institutionCatalog, isCreatingNewInstitution, selectedTenantId, workspaceView]);
 
   useEffect(() => {
     // Only load a selected Prefeitura once. Live refresh must never clear a draft.
@@ -415,12 +398,7 @@ export function MasterAdminPage() {
     setIsCreatingNewInstitution(false);
     setSelectedTenantId(tenantId);
     setStatusMessage("");
-    const params = new URLSearchParams(window.location.search);
-    params.set("secao", "cadastro");
-    navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    });
+    navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", tenantId, "editar") }, { replace: true, preventScrollReset: true });
   };
   const addAdminRow = () => setAdmins((current) => [...current, createAdminDraft()]);
   const updateAdminRow = <K extends keyof AdminContactDraft>(id: string, field: K, value: AdminContactDraft[K]) => setAdmins((current) => current.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
@@ -748,6 +726,7 @@ export function MasterAdminPage() {
       await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
       setIsCreatingNewInstitution(false);
       setSelectedTenantId(savedTenant.id);
+      navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", savedTenant.id, "editar") }, { replace: true, preventScrollReset: true });
 
       if (adminWarnings.length > 0) {
         setStatusMessage("Prefeitura e contrato confirmados. Contatos a revisar: " + adminWarnings.join(" | "));
@@ -776,24 +755,15 @@ export function MasterAdminPage() {
     if (saving || savingPlanOnly || orgBusy) return;
     hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(true);
-    setSelectedTenantId("");
     setForm({ ...emptyTenantForm });
-    const params = new URLSearchParams(window.location.search);
-    params.set("secao", "cadastro");
-    navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
+    navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", selectedTenantId, "novo") }, { replace: true, preventScrollReset: true });
     setAdmins([createAdminDraft()]);
-    setMasterDepartments([]);
-    setAssignmentUserId("");
-    setAssignmentDepartmentId("");
     setStatusMessage("");
-    window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
-  const openMasterSection = (section: WorkspaceView) => {
+  const openMasterSection = (section: WorkspaceView, scopeId = selectedTenantId) => {
     if (saving || savingPlanOnly || orgBusy) return;
-    const params = new URLSearchParams(window.location.search);
-    params.set("secao", section);
-    navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
+    navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, section, scopeId, isCreatingNewInstitution ? "novo" : "editar") }, { replace: true, preventScrollReset: true });
   };
 
   const renderInstitutionCard = (tenant: Institution) => {
@@ -833,6 +803,9 @@ export function MasterAdminPage() {
           <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:flex-wrap">
             <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleSelectTenant(tenant.id)}>
               Gerenciar
+            </Button>
+            <Button type="button" variant="outline" className="h-11 w-full rounded-xl lg:w-auto" disabled={saving || savingPlanOnly || orgBusy} onClick={() => { setSelectedTenantId(tenant.id); openMasterSection("organograma", tenant.id); }}>
+              <Network className="h-4 w-4" /> Organograma
             </Button>
             <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleCopyLink(tenant.subdomain, settings?.site, tenant.id)}>
               <Copy className="mr-2 h-4 w-4 text-sky-200" />
@@ -994,7 +967,7 @@ export function MasterAdminPage() {
         />
         <InternalTabs value={workspaceView} disabled={saving || savingPlanOnly || orgBusy} reselectValue={!isCreatingNewInstitution ? "cadastro" : undefined} onChange={(value) => {
           if (saving || savingPlanOnly) return;
-          if (value === "cadastro" && (workspaceView !== "cadastro" || !isCreatingNewInstitution)) resetForNewInstitution();
+          if (value === "cadastro" && !isCreatingNewInstitution) resetForNewInstitution();
           else openMasterSection(value as WorkspaceView);
         }} urlParam="secao" persistInUrl={false} items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Nova Prefeitura", helper: "Formulário limpo" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
 
@@ -1047,7 +1020,7 @@ export function MasterAdminPage() {
       </p>
     </div>
     <Button type="button" variant="outline" className="shrink-0 rounded-xl border-slate-300 bg-white text-slate-800"
-      onClick={() => { setSelectedTenantId(tenant.id); openMasterSection("carteira"); }}>
+      onClick={() => { setSelectedTenantId(tenant.id); openMasterSection("carteira", tenant.id); }}>
       Abrir carteira
     </Button>
   </div>
@@ -1401,6 +1374,7 @@ export function MasterAdminPage() {
                   title={`Organograma • ${activeTenant.name}`}
                   description="Estrutura exclusiva desta Prefeitura. O Master pode montar e ajustar a organização quando o cliente solicitar."
                   icon={Network}
+                  actions={<Button type="button" variant="outline" disabled={orgBusy} onClick={() => openMasterSection("carteira")}>Trocar Prefeitura</Button>}
                 >
                   <div className="space-y-5">
                     {departmentScopeId !== selectedTenantId ? (

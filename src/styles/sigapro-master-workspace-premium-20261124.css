@@ -227,3 +227,13 @@ html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-main
 html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="danger"]:hover:not(:disabled) {background:var(--mm-danger-hover)!important;}
 html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-action],[data-maintenance-field]):disabled {opacity:1!important;cursor:not-allowed;filter:saturate(.25);}
 html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-action],[data-maintenance-field]):focus-visible {outline:2px solid var(--mm-focus)!important;outline-offset:2px;}
+
+/* Keep the common Master navigation visible and stable; prevent scroll anchoring
+   from repositioning the viewport when switching between unequal-height panels. */
+html body #root .sig-main-shell .sig-master-admin-workspace {
+  overflow-anchor:none;
+  min-height:min(560px,70vh);
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-shared-nav-contract="v1"] {
+  flex-shrink:0;
+}

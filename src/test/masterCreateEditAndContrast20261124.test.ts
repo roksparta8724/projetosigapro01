@@ -11,8 +11,8 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
     expect(page).toContain('get("secao") === "cadastro"');
     expect(page).toContain('const emptyTenantForm = { name: "", city: "", state: "",');
     expect(page).toContain('setForm({ ...emptyTenantForm })');
-    expect(page).toContain('setSelectedTenantId("")');
-    expect(page).toContain('params.set("secao", "cadastro")');
+    expect(page).toContain('masterWorkspaceSearch(location.search, "cadastro", selectedTenantId, "novo")');
+    expect(page).not.toContain('setSelectedTenantId("")');
   });
 
   it("somente Gerenciar Prefeitura ativa edição e hidrata a Prefeitura escolhida", () => {
@@ -26,9 +26,9 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
   });
 
   it("navegação do menu Cadastro não reutiliza a última Prefeitura", () => {
-    expect(page).toContain('if (value === "cadastro" && (workspaceView !== "cadastro" || !isCreatingNewInstitution)) resetForNewInstitution()');
-    expect(page).toContain('const openMasterSection = (section: WorkspaceView)');
-    expect(page).toContain('params.set("secao", section)');
+    expect(page).toContain('if (value === "cadastro" && !isCreatingNewInstitution) resetForNewInstitution()');
+    expect(page).toContain('const openMasterSection = (section: WorkspaceView, scopeId = selectedTenantId)');
+    expect(page).toContain('masterWorkspaceSearch(location.search, section, scopeId');
     expect(page).toContain('label: "Nova Prefeitura"');
   });
 
@@ -53,8 +53,8 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
 
 describe("Master — edição protegida durante sincronização", () => {
   it("não substitui a Prefeitura explicitamente selecionada durante o refresh", () => {
-    expect(page).toContain('if (isCreatingNewInstitution || workspaceView === "cadastro" || workspaceView === "organograma") return;');
-    expect(page).toContain('}, [institutionCatalog, isCreatingNewInstitution, selectedTenantId, workspaceView]);');
+    expect(page).toContain('resolveMasterWorkspaceScope(explicitTenantId, institutionCatalog)');
+    expect(page).not.toContain('setSelectedTenantId("")');
   });
   it("bloqueia gravação institucional e contratual quando a seleção não está hidratada", () => {
     expect(page).toContain('if (!isCreatingNewInstitution && (!activeTenant || hydratedEditTenantRef.current !== selectedTenantId))');
