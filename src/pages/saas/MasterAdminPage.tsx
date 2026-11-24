@@ -11,6 +11,7 @@ import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { MasterUserGovernance } from "@/components/platform/MasterUserGovernance";
+import "@/styles/sigapro-master-workspace-premium-20261124.css";
 import { CompactPortfolioRegistry } from "@/components/platform/CompactPortfolioRegistry";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { readMunicipalContractQuote, reconcileInstitutionCommercialPlans, summarizeMasterCommercialContracts } from "@/lib/masterCommercialContract";
@@ -927,7 +928,7 @@ export function MasterAdminPage() {
   };
   return (
     <PortalFrame eyebrow="Administrador Geral" title="Console executivo da plataforma">
-      <PageShell className={workspaceView === "visao-geral" ? "sig-module-summary-active" : undefined}>
+      <PageShell className={workspaceView === "visao-geral" ? "sig-module-summary-active sig-master-admin-workspace" : "sig-master-admin-workspace"}>
         <PageHero
           eyebrow="Governança SaaS"
           title="Carteira institucional do SIGAPRO"
@@ -946,9 +947,9 @@ export function MasterAdminPage() {
             </div>
           }
         />
-        <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
+        <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
 
-        {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
+        {workspaceView === "visao-geral" ? (
           <SectionCard title="Capacidade e cadastros por Prefeitura"
             description="Consumo por município: plano, usuários internos, processos, departamentos e documentos. Dados atualizados pelo núcleo SIGAPRO.">
             {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
@@ -1001,7 +1002,38 @@ export function MasterAdminPage() {
   </div>
 ))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Ticket mensal contratado</p><p className="mt-2 text-lg font-semibold text-slate-950">{activePlansCount > 0 ? formatCurrency(monthlyRevenue / activePlansCount) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
 
-        {workspaceView === "carteira" ? <TableCard title="Prefeituras" description="Carteira municipal, contratos e ações de governança." icon={Building2}><div className="space-y-4">{institutionCatalog.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}<CompactPortfolioRegistry institutions={institutionCatalog} renderDetails={renderInstitutionCard} /></div></TableCard> : null}
+        {workspaceView === "carteira" ? (
+          <section data-master-portfolio-surface="true"
+            className="min-w-0 overflow-hidden rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(9,39,64,0.07)] sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+            <header className="flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-700">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-sky-800 dark:text-sky-200">Master · Diretório institucional</p>
+                <h2 className="mt-1 break-words text-xl font-bold tracking-tight text-slate-950 dark:text-white">Prefeituras e contratos</h2>
+                <p className="mt-1 max-w-[72ch] text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  Pesquise e consulte uma Prefeitura de cada vez. A equipe própria SIGAPRO fica separada dos servidores municipais.
+                </p>
+              </div>
+              <Button type="button" className="h-10 w-full rounded-xl bg-[#123b58] !text-white hover:bg-[#1b587c] sm:w-auto"
+                onClick={resetForNewInstitution}><Plus className="mr-2 h-4 w-4" />Nova Prefeitura</Button>
+            </header>
+            <div className="mt-5 min-w-0">
+              {institutionCatalog.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  Nenhuma Prefeitura cadastrada. Use Nova Prefeitura para criar a primeira instituição.
+                </p>
+              ) : null}
+              <CompactPortfolioRegistry institutions={institutionCatalog} renderDetails={renderInstitutionCard} />
+            </div>
+            <footer className="mt-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+              <p className="min-w-0 flex-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                Limites e consumos estão na Visão geral; colaboradores e administradores estão em Acessos e equipe.
+              </p>
+              <Button type="button" variant="outline"
+                className="h-10 w-full rounded-xl border-slate-300 bg-white text-slate-800 sm:w-auto dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                onClick={() => setWorkspaceView("usuarios")}>Acessos e equipe <Users2 className="ml-2 h-4 w-4" /></Button>
+            </footer>
+          </section>
+        ) : null}
 
         {workspaceView === "cadastro" ? (
           <section ref={formRef} data-master-prefeitura-form="premium-standalone"

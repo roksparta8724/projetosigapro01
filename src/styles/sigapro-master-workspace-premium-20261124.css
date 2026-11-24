@@ -1,0 +1,57 @@
+/* Cadastro e Gestão — visual premium escopado ao Master, tema claro e inverse-main. */
+html body #root .sig-main-shell .sig-master-admin-workspace {
+  --master-board-border:#c4d8e8;
+  --master-board-surface:#ffffff;
+  --master-board-raised:#f3f8fd;
+  --master-board-ink:#173650;
+  --master-board-muted:#4c6478;
+  min-width:0;max-width:100%;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace {
+  --master-board-border:#486981;
+  --master-board-surface:#17364e;
+  --master-board-raised:#1f435c;
+  --master-board-ink:#f4faff;
+  --master-board-muted:#c6dcea;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-portfolio-surface="true"] {
+  min-width:0;max-width:100%;
+  background:var(--master-board-surface)!important;
+  border-color:var(--master-board-border)!important;
+  color:var(--master-board-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace :is(
+  [data-master-institution-card="true"],[data-master-user-card="true"]
+) {
+  min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;
+  background:var(--master-board-surface)!important;
+  border-color:var(--master-board-border)!important;
+  box-shadow:0 8px 20px rgba(8,34,54,.065);
+}
+html body #root .sig-main-shell .sig-master-admin-workspace :is(
+  [data-master-institution-card="true"],[data-master-user-card="true"]
+) :is(.sig-fit-title,.sig-fit-copy,.truncate) {
+  min-width:0;max-width:100%;
+  overflow-wrap:anywhere!important;word-break:normal!important;
+  white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+:is([data-master-institution-card="true"],[data-master-user-card="true"]) :is(
+  .text-slate-950,.text-slate-900,.text-slate-800
+) {color:#eef8ff!important;-webkit-text-fill-color:#eef8ff!important}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+:is([data-master-institution-card="true"],[data-master-user-card="true"]) :is(
+  .text-slate-700,.text-slate-600,.text-slate-500
+) {color:#c9dfee!important;-webkit-text-fill-color:#c9dfee!important}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+:is([data-master-institution-card="true"],[data-master-user-card="true"]) :is(
+  .bg-white,.bg-slate-50
+) {background:var(--master-board-raised)!important}
+@media(max-width:767px) {
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-portfolio-surface="true"] {
+    padding:14px!important;border-radius:18px!important;
+  }
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-portfolio-surface="true"] :is(button,a) {
+    max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;
+  }
+}
