@@ -8,7 +8,7 @@ const governance = readFileSync("src/styles/master-user-governance.css","utf8");
 
 describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
   it("abre um formulário vazio ao acessar ?secao=cadastro diretamente", () => {
-    expect(page).toContain('get("secao") === "cadastro"');
+    expect(page).toContain('resolveMasterFormMode(location.search) === "novo"');
     expect(page).toContain('const emptyTenantForm = { name: "", city: "", state: "",');
     expect(page).toContain('setForm({ ...emptyTenantForm })');
     expect(page).toContain('masterWorkspaceSearch(location.search, "cadastro", selectedTenantId, "novo")');
@@ -17,7 +17,7 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
 
   it("somente Gerenciar Prefeitura ativa edição e hidrata a Prefeitura escolhida", () => {
     expect(page).toContain('const handleSelectTenant = (tenantId: string) => {');
-    expect(page).toContain('setIsCreatingNewInstitution(false)');
+    expect(page).not.toContain('setIsCreatingNewInstitution(');
     expect(page).toContain('masterWorkspaceSearch(location.search, "cadastro", tenantId, "editar")');
     expect(page).toContain('hydratedEditTenantRef.current = null');
     expect(page).toContain('if (!activeTenant || hydratedEditTenantRef.current === activeTenant.id) return');
@@ -26,7 +26,7 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
   });
 
   it("navegação do menu Cadastro não reutiliza a última Prefeitura", () => {
-    expect(page).toContain('if (value === "cadastro" && !isCreatingNewInstitution) resetForNewInstitution()');
+    expect(page).toContain('if (value === "cadastro" && (!isCreatingNewInstitution || formIdentityRef.current !== "novo")) resetForNewInstitution()');
     expect(page).toContain('const openMasterSection = (section: WorkspaceView, scopeId = selectedTenantId)');
     expect(page).toContain('masterWorkspaceSearch(location.search, section, scopeId');
     expect(page).toContain('label: "Nova Prefeitura"');

@@ -20,16 +20,20 @@ export async function fetchPlanCapacityDashboard(municipalityId: string | null):
 /** Refreshes in visible sessions and on focus, so a Master plan change propagates across logins. */
 export function usePlanCapacityLive(
   municipalityId: string | null,
-  options: { enabled?: boolean; intervalMs?: number } = {},
+  options: { enabled?: boolean; intervalMs?: number; scopeKey?: string } = {},
 ): PlanCapacityState {
   const enabled = options.enabled !== false;
   const intervalMs = Math.max(5000, options.intervalMs ?? 8000);
-  const key = municipalityId || "__master_all__";
+  const key = JSON.stringify([options.scopeKey ?? "__default__", municipalityId || "__master_all__"]);
   const [snapshot, setSnapshot] = useState<PlanCapacityState & { key: string }>({
     key, rows: [], loaded: false, error: null,
   });
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled) {
+      setSnapshot(current => current.key === key && !current.loaded && !current.error && current.rows.length === 0 ? current : { key, rows: [], loaded: false, error: null });
+      return;
+    }
+    if (typeof window === "undefined") return;
     let disposed = false;
     let inFlight = false;
     let refreshQueued = false;

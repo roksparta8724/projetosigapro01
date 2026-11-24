@@ -351,7 +351,8 @@ export function TenantAdminPage() {
   const effectiveScopeId = session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const planMunicipalityId = session.municipalityId ?? session.tenantId ?? null;
   const planCapacity = usePlanCapacityLive(planMunicipalityId, {
-    enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
+    enabled: Boolean(planMunicipalityId && authorizedAvatarViewerId) && session.role === "prefeitura_admin",
+    scopeKey: authorizedAvatarViewerId || "",
     intervalMs: 8000,
   });
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => {

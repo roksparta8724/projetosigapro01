@@ -1,7 +1,7 @@
-﻿import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+﻿import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, Plus, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { resolveMasterWorkspaceScope, masterWorkspaceSearch } from "@/lib/masterWorkspaceScope";
+import { resolveMasterWorkspaceScope, masterWorkspaceSearch, resolveMasterFormMode } from "@/lib/masterWorkspaceScope";
 import { MunicipalMaintenancePanel } from "@/components/platform/MunicipalMaintenancePanel";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { MetricCard } from "@/components/platform/MetricCard";
@@ -156,10 +156,10 @@ export function MasterAdminPage() {
     getUserProfile,
     refreshRemoteStore,
   } = usePlatformData();
-  const planCapacity = usePlanCapacityLive(null, { enabled: true, intervalMs: 8000 });
+  const planCapacity = usePlanCapacityLive(null, { enabled: Boolean(authorizedAvatarViewerId), scopeKey: authorizedAvatarViewerId || "", intervalMs: 8000 });
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
   const explicitTenantId = new URLSearchParams(location.search).get("municipio") || "";
-  const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(() => !(new URLSearchParams(location.search).get("secao") === "cadastro" && new URLSearchParams(location.search).get("modo") === "editar" && new URLSearchParams(location.search).get("municipio")));
+  const isCreatingNewInstitution = resolveMasterFormMode(location.search) === "novo";
   const requestedSection = new URLSearchParams(location.search).get("secao");
   const workspaceView: WorkspaceView = ["visao-geral","carteira","cadastro","organograma","usuarios"].includes(requestedSection || "") ? requestedSection as WorkspaceView : "carteira";
   const [visitedRegistries, setVisitedRegistries] = useState({ carteira: workspaceView === "carteira", usuarios: workspaceView === "usuarios" });
@@ -193,6 +193,7 @@ export function MasterAdminPage() {
   const [assignmentDepartmentId, setAssignmentDepartmentId] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
   const hydratedEditTenantRef = useRef<string | null>(null);
+  const formIdentityRef = useRef("novo");
 
   useEffect(() => {
     // Remove rascunhos operacionais do fluxo antigo. Prefeituras agora só existem
@@ -310,8 +311,18 @@ export function MasterAdminPage() {
   const recentActivity = useMemo(() => [...sessionUsers].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5), [sessionUsers]);
 
 
-  useEffect(() => {
-    // Only load a selected Prefeitura once. Live refresh must never clear a draft.
+  useLayoutEffect(() => {
+    // The URL alone determines edit vs new. Never paint an old form when the route
+    // changes scope, including browser back/forward or a direct URL.
+    if (workspaceView !== "cadastro") return;
+    const formIdentity = isCreatingNewInstitution ? "novo" : "editar:" + explicitTenantId;
+    if (formIdentityRef.current !== formIdentity) {
+      formIdentityRef.current = formIdentity;
+      hydratedEditTenantRef.current = null;
+      setForm({ ...emptyTenantForm });
+      setAdmins([createAdminDraft()]);
+    }
+    // Live refresh must never clear an already hydrated edit or a new draft.
     if (isCreatingNewInstitution || workspaceView !== "cadastro") return;
     if (!activeTenant || hydratedEditTenantRef.current === activeTenant.id) return;
     hydratedEditTenantRef.current = activeTenant.id;
@@ -325,7 +336,7 @@ export function MasterAdminPage() {
           ? settings!.adminContacts!.map((admin) => ({ id: `admin-contact-${admin.email}`, email: admin.email, fullName: admin.fullName, title: admin.title, accessLevel: admin.accessLevel >= 3 ? 3 : 2 }))
           : [createAdminDraft()],
     );
-  }, [activeTenant, getInstitutionSettings, isCreatingNewInstitution, workspaceView, knownAdministrativeUsers, activeQuote.plan?.id, activeQuote.price, activeQuote.startsAt, activeQuote.endsAt]);
+  }, [activeTenant, getInstitutionSettings, isCreatingNewInstitution, workspaceView, explicitTenantId, knownAdministrativeUsers, activeQuote.plan?.id, activeQuote.price, activeQuote.startsAt, activeQuote.endsAt]);
 
   const platformAlerts = useMemo(() => {
     const suspendedCount = institutionCatalog.filter((tenant) => tenant.status === "suspenso").length;
@@ -401,7 +412,6 @@ export function MasterAdminPage() {
   const handleSelectTenant = (tenantId: string) => {
     if (saving || savingPlanOnly || orgBusy || !municipalIds.has(tenantId)) return;
     hydratedEditTenantRef.current = null;
-    setIsCreatingNewInstitution(false);
     setStatusMessage("");
     navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", tenantId, "editar") }, { replace: true, preventScrollReset: true });
   };
@@ -729,13 +739,12 @@ export function MasterAdminPage() {
         accentColor: form.accentColor,
       }, { remoteConfirmed: true });
       await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
-      setIsCreatingNewInstitution(false);
-      navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", savedTenant.id, "editar") }, { replace: true, preventScrollReset: true });
+        navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", savedTenant.id, "editar") }, { replace: true, preventScrollReset: true });
 
       if (adminWarnings.length > 0) {
         setStatusMessage("Prefeitura e contrato confirmados. Contatos a revisar: " + adminWarnings.join(" | "));
       } else if (normalizedAdminContacts.length === 0) {
-        setStatusMessage("Prefeitura salva no banco oficial e pronta para operação comercial.");
+        setStatusMessage("Prefeitura e contrato salvos no banco oficial. A operação comercial depende da validação da implantação.");
       } else if (unresolvedAdminEmails.length > 0) {
         setStatusMessage(
           `Prefeitura salva no banco oficial. ${linkedAdminCount} administrador(es) foram vinculados e os contatos ${unresolvedAdminEmails.join(", ")} aguardam conta existente no sistema para vínculo automático.`,
@@ -758,7 +767,7 @@ export function MasterAdminPage() {
   const resetForNewInstitution = () => {
     if (saving || savingPlanOnly || orgBusy) return;
     hydratedEditTenantRef.current = null;
-    setIsCreatingNewInstitution(true);
+    formIdentityRef.current = "novo";
     setForm({ ...emptyTenantForm });
     navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", selectedTenantId, "novo") }, { replace: true, preventScrollReset: true });
     setAdmins([createAdminDraft()]);
@@ -971,7 +980,7 @@ export function MasterAdminPage() {
         />
         <InternalTabs value={workspaceView} disabled={saving || savingPlanOnly || orgBusy} reselectValue={!isCreatingNewInstitution ? "cadastro" : undefined} onChange={(value) => {
           if (saving || savingPlanOnly) return;
-          if (value === "cadastro" && !isCreatingNewInstitution) resetForNewInstitution();
+          if (value === "cadastro" && (!isCreatingNewInstitution || formIdentityRef.current !== "novo")) resetForNewInstitution();
           else openMasterSection(value as WorkspaceView);
         }} urlParam="secao" persistInUrl={false} items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Nova Prefeitura", helper: "Formulário limpo" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
 

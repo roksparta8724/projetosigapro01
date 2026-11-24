@@ -53,3 +53,19 @@ describe("Plan capacity concurrent refresh", () => {
     vi.restoreAllMocks();
   });
 });
+
+it("does not expose a plan from a previous authenticated identity in the same municipality", async () => {
+  rpc.mockReset();
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  let finish!: (value: Response) => void;
+  rpc.mockResolvedValueOnce(result("Premium")).mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+  const { result: state, rerender, unmount } = renderHook(({scopeKey}) => usePlanCapacityLive("municipality-qa",{scopeKey, intervalMs:60000}),{initialProps:{scopeKey:"account-a"}});
+  await waitFor(()=>expect(state.current.rows[0]?.planName).toBe("Premium"));
+  rerender({scopeKey:"account-b"});
+  expect(state.current.rows).toEqual([]);
+  expect(state.current.loaded).toBe(false);
+  await act(async()=>{finish(result("Pro"));});
+  await waitFor(()=>expect(state.current.rows[0]?.planName).toBe("Pro"));
+  unmount();
+  vi.restoreAllMocks();
+});

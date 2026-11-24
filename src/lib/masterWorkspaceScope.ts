@@ -10,3 +10,8 @@ export function masterWorkspaceSearch(current: string, section: string, scopeId:
   if (section === "cadastro" && mode === "editar" && scopeId) params.set("modo","editar"); else params.delete("modo");
   return "?" + params.toString();
 }
+
+export function resolveMasterFormMode(search: string): "novo" | "editar" {
+  const params = new URLSearchParams(search);
+  return params.get("secao") === "cadastro" && params.get("modo") === "editar" && Boolean(params.get("municipio")) ? "editar" : "novo";
+}

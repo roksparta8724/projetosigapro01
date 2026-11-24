@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {resolveMasterWorkspaceScope,masterWorkspaceSearch} from "@/lib/masterWorkspaceScope";
+import {resolveMasterWorkspaceScope,masterWorkspaceSearch,resolveMasterFormMode} from "@/lib/masterWorkspaceScope";
 import {readFileSync} from "node:fs";
 const page=readFileSync("src/pages/saas/MasterAdminPage.tsx","utf8");
 describe("Master workspace continuity",()=>{
@@ -38,4 +38,14 @@ it("uses route scope as single source and preserves visited registry filters",()
  expect(page).not.toContain('setSelectedTenantId(');
  expect(page).toContain('data-master-preserved-panel="carteira" hidden={workspaceView !== "carteira"}');
  expect(page).toContain('data-master-preserved-panel="usuarios" hidden={workspaceView !== "usuarios"}');
+});
+
+it("derives edit mode only from a valid current route and prevents stale edited forms",()=> {
+ expect(resolveMasterFormMode("?secao=cadastro&modo=editar&municipio=clp")).toBe("editar");
+ expect(resolveMasterFormMode("?secao=cadastro&municipio=clp")).toBe("novo");
+ expect(resolveMasterFormMode("?secao=cadastro&modo=editar")).toBe("novo");
+ expect(resolveMasterFormMode("?secao=organograma&modo=editar&municipio=clp")).toBe("novo");
+ expect(page).not.toContain("setIsCreatingNewInstitution(");
+ expect(page).toContain("formIdentityRef.current !== formIdentity");
+ expect(page).toContain('resolveMasterFormMode(location.search) === "novo"');
 });
