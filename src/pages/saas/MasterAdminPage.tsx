@@ -949,7 +949,8 @@ export function MasterAdminPage() {
         />
         <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
 
-        {workspaceView === "visao-geral" ? (
+        {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
+          <div data-master-contract-capacity="true" className={workspaceView === "carteira" ? "order-[80] min-w-0" : "contents"}>
           <SectionCard title="Capacidade e cadastros por Prefeitura"
             description="Consumo por município: plano, usuários internos, processos, departamentos e documentos. Dados atualizados pelo núcleo SIGAPRO.">
             {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
@@ -985,6 +986,7 @@ export function MasterAdminPage() {
               </div>
             )}
           </SectionCard>
+          </div>
         ) : null}
 
         {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita contratada/mês" value={formatCurrency(monthlyRevenue)} helper="Recorrência prevista, não arrecadação" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => (

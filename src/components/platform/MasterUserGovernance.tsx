@@ -148,7 +148,7 @@ export function MasterUserGovernance({ institutions, users, renderDetails, getAv
             <p className="mt-1 max-w-[75ch] text-sm leading-6">Prefeituras, administradores municipais e equipe própria da plataforma em escopos independentes, com filtros e paginação.</p>
           </div>
         </div>
-        <span className="sig-master-scope-counter rounded-full border px-3 py-2 text-xs font-semibold">{municipalities.length} prefeituras · {users.length} contas</span>
+        <span className="sig-master-scope-counter max-w-full rounded-full border px-3 py-2 text-xs font-semibold">{municipalities.length.toLocaleString("pt-BR")} prefeituras · {users.length.toLocaleString("pt-BR")} contas</span>
       </header>
 
       <nav className="grid min-w-0 gap-2.5 sm:grid-cols-3" aria-label="Divisões do cadastro SIGAPRO" data-master-governance-sections="true">
