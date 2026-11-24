@@ -3842,6 +3842,9 @@ export function ProcessDetailPage() {
                 const documentMarkerTags = documentMarkers.getTags(process.id, document.id);
                 const approvalEvidence = isApproved ? getApprovalEvidence(document) : null;
                 const evaluationHistory = getDocumentReviewHistory(process, document.id).filter(entry => !isExternalProcessViewer || entry.visibleToExternal);
+                const showReopenDocument = !isExternalProcessViewer && document.uploaded && (isApproved || hasCommunique) && !isSignedAnalysisArchiveDocument(document);
+                const canStandardReopen = showReopenDocument && !isFinalProcessStatus && canAnalyzeProcessDocument(session, process, effectiveScopeId);
+                const canSupplementalReopen = showReopenDocument && canReviewDocumentIndividually(session, process, document, effectiveScopeId);
 
                 return (
                   <div
@@ -3943,6 +3946,20 @@ export function ProcessDetailPage() {
                           {document.uploaded ? "Enviado" : "Pendente de envio"}
                         </Badge>
 
+                        {showReopenDocument ? (
+                          canSupplementalReopen ? (
+                            <IndividualDocumentReview key={document.id} process={process} document={document}
+                              onRefresh={() => refreshRemoteStore(process.id)} compact />
+                          ) : (
+                            <Button type="button" variant="outline" data-document-reopen-shortcut="true"
+                              disabled={!canStandardReopen}
+                              title={canStandardReopen ? "Reabrir para nova análise apenas deste documento" : "Somente a equipe técnica autorizada pode reavaliar"}
+                              onClick={() => openDocumentWorkspace(document.id, true, false, true)}
+                              className="h-9 max-w-full shrink-0 whitespace-nowrap rounded-full border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-70 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200">
+                              <PencilLine className="mr-1.5 h-4 w-4 shrink-0" />Reabrir documento
+                            </Button>
+                          )
+                        ) : null}
                         {document.uploaded && canReviewDocuments ? (
                           <button
                             type="button"
@@ -4158,20 +4175,10 @@ export function ProcessDetailPage() {
                             </>
                           ) : null}
                         </div>
-                        {(isApproved || hasCommunique) && canAnalyzeProcessDocument(session, process, effectiveScopeId) && !isFinalProcessStatus && !isSignedAnalysisArchiveDocument(document) ? (
-                          <Button type="button" variant="outline"
-                            data-document-reopen-shortcut="true"
-                            onClick={() => openDocumentWorkspace(document.id, true, false, true)}
-                            className="h-auto min-h-10 max-w-full shrink-0 whitespace-normal rounded-xl border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950/50 dark:text-amber-200 dark:hover:bg-amber-950">
-                            <PencilLine className="mr-2 h-4 w-4 shrink-0" />
-                            Reabrir para nova análise
-                          </Button>
-                        ) : null}
                       </div>
                     ) : null}
-                    {!isExternalProcessViewer && !isSignedAnalysisArchiveDocument(document) && canReviewDocumentIndividually(session, process, document, effectiveScopeId) ? (
-                      <IndividualDocumentReview key={document.id} process={process} document={document}
-                        onRefresh={() => refreshRemoteStore(process.id)} />
+                    {showReopenDocument && !canStandardReopen && !canSupplementalReopen ? (
+                      <p className="mt-2 pl-2 text-xs text-slate-600 dark:text-slate-300">Reabertura disponível para a equipe técnica autorizada do município.</p>
                     ) : null}
                     {evaluationHistory.length > 0 ? (
                       <section data-document-evaluation-history="true" className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900">

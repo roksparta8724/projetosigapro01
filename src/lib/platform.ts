@@ -3190,7 +3190,8 @@ export function canReviewDocumentIndividually(session: SessionUser, process: Pro
   const pending = getIndividualDocumentReview(process, document.id)?.title === "Reavaliação individual aberta";
   if (!pending && canAnalyzeProcessDocument(session, process, scopeId) &&
       !["deferido", "indeferido", "arquivado"].includes(process.status)) return false;
-  return canEditAssignedAnalysisArtifact(session, process, scopeId);
+  // Supplemental opinions do not change official decisions or signature ownership.
+  return isProcessReleasedToUrbanAnalysis(process);
 }
 
 export function canAnalyzeProcessDocument(

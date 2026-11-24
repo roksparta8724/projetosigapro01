@@ -67,3 +67,20 @@ describe("independent review without reopening the municipal process", () => {
     expect(sql).toContain("Já existe uma reavaliação individual em andamento.");
   });
 });
+
+describe("visible per-document reopen action", () => {
+  it("places the reopen control beside the document opening control", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const component = read("src/components/platform/IndividualDocumentReview.tsx");
+    const sql = read("neon/migrations/20261124_individual_document_review_team.sql");
+    expect(detail).toContain("canSupplementalReopen");
+    expect(detail).toContain("compact />");
+    expect(detail.indexOf("const showReopenDocument")).toBeLessThan(detail.indexOf("data-document-reopen-shortcut"));
+    expect(viewer).toContain("Reabrir documento na barra superior");
+    expect(component).toContain("Dialog open={formOpen}");
+    expect(sql).toContain("public.process_technical_release_verified_v1(_process_id)");
+    expect(sql).toContain("p.municipality_id=coalesce(_process.municipality_id,_process.tenant_id)");
+    expect(sql).not.toMatch(/UPDATE public\.(processes|process_documents|payment_guides)/i);
+  });
+});

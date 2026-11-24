@@ -385,7 +385,16 @@ export function DocumentViewerPage() {
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          {(document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") && !isSignedAnalysisArchiveDocument(document) && canReviewDocumentIndividually(session, process, document, effectiveScopeId) ? (
+            <IndividualDocumentReview key={document.id} process={process} document={document}
+              onRefresh={() => refreshRemoteStore(process.id)} compact />
+          ) : (document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") && canAnalyzeDocument && !["deferido", "indeferido", "arquivado"].includes(process.status) ? (
+            <Button type="button" variant="outline" data-document-viewer-reopen="true" onClick={() => openAnalysisWorkspace(undefined, true)}
+              className="h-9 rounded-full border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100">
+              <PenTool className="mr-1.5 h-4 w-4" />Reabrir documento
+            </Button>
+          ) : null}
           {accessUrl ? (
             <>
 
@@ -562,17 +571,11 @@ export function DocumentViewerPage() {
               {(document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") ? (
                 <div data-document-review-status="approved" className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
                   <p className="text-xs font-semibold text-slate-800">{document.reviewStatus === "aprovado" ? "Documento aprovado" : "Documento com exigência"}</p>
-                  {canAnalyzeDocument && !["deferido", "indeferido", "arquivado"].includes(process.status) ? (
-                    <Button type="button" variant="outline" data-document-viewer-reopen="true" onClick={() => openAnalysisWorkspace(undefined, true)} className="mt-2 h-auto min-h-10 w-full whitespace-normal rounded-xl border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100">
-                      Reabrir para nova análise
-                    </Button>
-                  ) : null}
-                  {!isSignedAnalysisArchiveDocument(document) && canReviewDocumentIndividually(session, process, document, effectiveScopeId) ? (
-                    <IndividualDocumentReview key={document.id} process={process} document={document}
-                      onRefresh={() => refreshRemoteStore(process.id)} />
-                  ) : !canAnalyzeDocument ? (
+                  {(!isSignedAnalysisArchiveDocument(document) && canReviewDocumentIndividually(session, process, document, effectiveScopeId)) || canAnalyzeDocument ? (
+                    <p className="mt-1 text-xs leading-5 text-slate-600">Use Reabrir documento na barra superior para registrar uma nova avaliação.</p>
+                  ) : (
                     <p className="mt-1 break-words text-xs leading-5 text-slate-600">A reavaliação é exclusiva da equipe técnica autorizada. Os atos já emitidos permanecem preservados.</p>
-                  ) : null}
+                  )}
                 </div>
               ) : null}
               {canAnalyzeDocument ? (
