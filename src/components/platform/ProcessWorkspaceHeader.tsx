@@ -147,7 +147,8 @@ export function ProcessWorkspaceHeader({
       ) : null}
       {showSensitiveDetails ? <div data-sigapro-process-bulk-actions="true"
         data-has-selection={selectedCount > 0 ? "true" : "false"}
-        className="sig-workspace-actions">
+        className="sig-workspace-actions" data-toolbar-layout="intrinsic-wrap">
+        <div className="sig-workspace-selection-group">
         {showSensitiveDetails ? (
           <label className="sig-workspace-select-all">
             <input type="checkbox" checked={allPageSelected} disabled={!pageCount} onChange={e => onTogglePage(e.target.checked)}
@@ -157,12 +158,13 @@ export function ProcessWorkspaceHeader({
         ) : null}
         <strong className="sig-workspace-selected">{selectedCount} selecionado(s)</strong>
         {selectedCount > 0 ? <button type="button" onClick={onClearSelection} className="sig-workspace-clear"><X className="h-3 w-3" /> Limpar</button> : null}
-        <div className="sig-workspace-actions-list">
+        </div>
+        <div className="sig-workspace-actions-list" role="group" aria-label="Ações dos processos">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" size="sm" variant="outline" data-process-toolbar-action="mark" className="sig-workspace-action sig-workspace-action-primary"
+              <Button type="button" size="sm" variant="outline" data-process-toolbar-action="mark" className="sig-workspace-action"
                 disabled={selectedCount === 0 || bulkBusy || !showSensitiveDetails}>
-                <Tag className="h-4 w-4" /> <span>Marcar</span> <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                <Tag aria-hidden="true" className="h-4 w-4" /> <span data-toolbar-label="true">Marcar</span> <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" data-process-toolbar-menu="true" className="min-w-[220px] max-w-[calc(100vw-24px)]">

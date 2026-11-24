@@ -27,3 +27,31 @@ describe("Operational toolbar and authentication email",()=>{
   expect(authEmailErrorMessage("network timeout")).toContain("temporariamente indisponível");
  });
 });
+
+describe("Intrinsic toolbar geometry",()=>{
+ it("groups selection separately and keeps the marker label and icons in the same control",()=>{
+  const {container}=render(<MemoryRouter><ProcessWorkspaceHeader embedded processes={[]} filteredCount={4} search="" onSearch={vi.fn()} quickFilter="todos" onFilter={vi.fn()} selectedCount={0} allPageSelected={false} pageCount={4} onTogglePage={vi.fn()} onClearSelection={vi.fn()} oneSelected={null} canDispatch={()=>false} showSensitiveDetails bulkBusy={false} markerOptions={[]} onExport={vi.fn()}/></MemoryRouter>);
+  const toolbar=container.querySelector('[data-toolbar-layout="intrinsic-wrap"]')!;
+  const selection=toolbar.querySelector(".sig-workspace-selection-group")!;
+  const actions=screen.getByRole("group",{name:"Ações dos processos"});
+  const marker=screen.getByRole("button",{name:"Marcar"});
+  expect(selection).toHaveTextContent("0 selecionado(s)");
+  expect(actions.firstElementChild).toBe(marker);
+  expect(marker.querySelector("[data-toolbar-label]")).toHaveTextContent("Marcar");
+  expect(marker).not.toHaveClass("sig-workspace-action-primary");
+  expect(marker.querySelectorAll("svg")).toHaveLength(2);
+ });
+ it("uses visible intrinsic wrapping and never aligns an overflowing command strip to the right",()=>{
+  const css=readFileSync("src/styles/sigapro-responsive-process-workspace-20261124.css","utf8");
+  const root=postcss.parse(css);
+  const rule=root.nodes.find(n=>n.type==="rule"&&n.selector.endsWith('[data-toolbar-layout="intrinsic-wrap"] > .sig-workspace-actions-list'));
+  if(!rule||rule.type!=="rule")throw new Error("Missing toolbar geometry contract");
+  const values=new Map(rule.nodes.filter(n=>n.type==="decl").map(n=>[n.prop,n.value]));
+  expect(values.get("overflow")).toBe("visible");
+  expect(values.get("flex-wrap")).toBe("wrap");
+  expect(values.get("justify-content")).toBe("flex-start");
+  expect(values.get("flex")).toBe("1 1 max-content");
+  expect(css).toContain("min-width:88px!important");
+  expect(css).toContain("flex:0 0 auto!important;width:max-content!important");
+ });
+});
