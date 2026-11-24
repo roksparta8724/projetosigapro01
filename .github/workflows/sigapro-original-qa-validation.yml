@@ -41,6 +41,7 @@ jobs:
           src/test/masterPlansPremiumContrast.test.ts
           src/test/mobileCardsPremium20261124.test.ts
           src/test/mobileRegistryAndProcessActions20261124.test.tsx
+          src/test/masterScalableInstitutionDirectory20261124.test.tsx
           src/pages/saas/ExternalProcessControlPage.test.tsx
           src/components/platform/CompactPortfolioRegistry.test.tsx
           src/components/platform/CompactProcessRegistry.test.tsx
