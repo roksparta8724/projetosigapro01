@@ -54,7 +54,7 @@ const normalizeAdminContactsFromDrafts = (drafts: AdminContactDraft[]): Institut
     }))
     .filter((draft) => draft.email || draft.fullName);
 
-const emptyTenantForm = { name: "", city: "", state: "SP", status: "implantacao" as Institution["status"], plan: "", subdomain: "", primaryColor: "#0f3557", accentColor: "#178f78", contractNumber: "", contractStart: "", contractEnd: "", monthlyFee: 0, setupFee: 0, signatureMode: "eletronica" as SignatureMode, clientDeliveryLink: "", secretariat: "", directorate: "", directorPhone: "", directorEmail: "", cnpj: "", phone: "", email: "", site: "", address: "" };
+const emptyTenantForm = { name: "", city: "", state: "", status: "implantacao" as Institution["status"], plan: "", subdomain: "", primaryColor: "#0f3557", accentColor: "#178f78", contractNumber: "", contractStart: "", contractEnd: "", monthlyFee: 0, setupFee: 0, signatureMode: "eletronica" as SignatureMode, clientDeliveryLink: "", secretariat: "", directorate: "", directorPhone: "", directorEmail: "", cnpj: "", phone: "", email: "", site: "", address: "" };
 const createAdminDraft = (): AdminContactDraft => ({ id: `admin-${crypto.randomUUID()}`, email: "", fullName: "", title: roleSuggestedTitles.prefeitura_admin, accessLevel: 3 });
 const normalizeSlug = (value: string) =>
   value
@@ -155,8 +155,8 @@ export function MasterAdminPage() {
   } = usePlatformData();
   const planCapacity = usePlanCapacityLive(null, { enabled: true, intervalMs: 8000 });
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
-  const [selectedTenantId, setSelectedTenantId] = useState<string>(institutions[0]?.id ?? "");
-  const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(() => new URLSearchParams(window.location.search).get("secao") === "cadastro" ? "" : institutions[0]?.id ?? "");
+  const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(() => new URLSearchParams(window.location.search).get("secao") === "cadastro");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("carteira");
   const [form, setForm] = useState(emptyTenantForm);
   const [admins, setAdmins] = useState<AdminContactDraft[]>([createAdminDraft()]);
@@ -181,6 +181,7 @@ export function MasterAdminPage() {
   const [contractCapacityPage, setContractCapacityPage] = useState(1);
   const [assignmentDepartmentId, setAssignmentDepartmentId] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
+  const hydratedEditTenantRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Remove rascunhos operacionais do fluxo antigo. Prefeituras agora só existem
@@ -311,12 +312,10 @@ export function MasterAdminPage() {
   }, [institutionCatalog, isCreatingNewInstitution, selectedTenantId]);
 
   useEffect(() => {
-    if (isCreatingNewInstitution) {
-      setForm(emptyTenantForm);
-      setAdmins([createAdminDraft()]);
-      return;
-    }
-    if (!activeTenant) { setForm(emptyTenantForm); setAdmins([createAdminDraft()]); return; }
+    // Only load a selected Prefeitura once. Live refresh must never clear a draft.
+    if (isCreatingNewInstitution || workspaceView !== "cadastro") return;
+    if (!activeTenant || hydratedEditTenantRef.current === activeTenant.id) return;
+    hydratedEditTenantRef.current = activeTenant.id;
     const settings = getInstitutionSettings(activeTenant.id);
     const prefeituraAdmins = knownAdministrativeUsers.filter((user) => (user.tenantId === activeTenant.id || user.municipalityId === activeTenant.id) && user.role === "prefeitura_admin");
     setForm({ name: activeTenant.name, city: activeTenant.city, state: activeTenant.state, status: activeTenant.status, plan: activeTenant.plan, subdomain: activeTenant.subdomain, primaryColor: activeTenant.theme.primary, accentColor: activeTenant.theme.accent, contractNumber: settings?.contractNumber ?? "", contractStart: activeQuote.startsAt || settings?.contractStart || "", contractEnd: activeQuote.endsAt || settings?.contractEnd || "", monthlyFee: activeQuote.price ?? settings?.monthlyFee ?? 0, setupFee: settings?.setupFee ?? 0, signatureMode: settings?.signatureMode ?? "eletronica", clientDeliveryLink: settings?.clientDeliveryLink ?? settings?.linkPortalCliente ?? buildTenantLink(activeTenant.subdomain, settings?.site), secretariat: settings?.secretariaResponsavel ?? "", directorate: settings?.diretoriaResponsavel ?? "", directorPhone: settings?.diretoriaTelefone ?? "", directorEmail: settings?.diretoriaEmail ?? "", cnpj: settings?.cnpj ?? "", phone: settings?.telefone ?? "", email: settings?.email ?? "", site: settings?.site ?? "", address: settings?.endereco ?? "" });
@@ -327,7 +326,7 @@ export function MasterAdminPage() {
           ? settings!.adminContacts!.map((admin) => ({ id: `admin-contact-${admin.email}`, email: admin.email, fullName: admin.fullName, title: admin.title, accessLevel: admin.accessLevel >= 3 ? 3 : 2 }))
           : [createAdminDraft()],
     );
-  }, [activeTenant, getInstitutionSettings, isCreatingNewInstitution, knownAdministrativeUsers, activeQuote.plan?.id, activeQuote.price, activeQuote.startsAt, activeQuote.endsAt]);
+  }, [activeTenant, getInstitutionSettings, isCreatingNewInstitution, workspaceView, knownAdministrativeUsers, activeQuote.plan?.id, activeQuote.price, activeQuote.startsAt, activeQuote.endsAt]);
 
   const platformAlerts = useMemo(() => {
     const suspendedCount = institutionCatalog.filter((tenant) => tenant.status === "suspenso").length;
@@ -393,6 +392,7 @@ export function MasterAdminPage() {
   };
 
   const handleSelectTenant = (tenantId: string) => {
+    hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(false);
     setSelectedTenantId(tenantId);
     setWorkspaceView("cadastro");
@@ -747,16 +747,27 @@ export function MasterAdminPage() {
   };
 
   const resetForNewInstitution = () => {
+    hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(true);
     setSelectedTenantId("");
+    setForm({ ...emptyTenantForm });
     setWorkspaceView("cadastro");
-    setForm(emptyTenantForm);
+    const params = new URLSearchParams(window.location.search);
+    params.set("secao", "cadastro");
+    navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
     setAdmins([createAdminDraft()]);
     setMasterDepartments([]);
     setAssignmentUserId("");
     setAssignmentDepartmentId("");
     setStatusMessage("");
     window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
+  const openMasterSection = (section: WorkspaceView) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("secao", section);
+    navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
+    setWorkspaceView(section);
   };
 
   const renderInstitutionCard = (tenant: Institution) => {
@@ -954,7 +965,10 @@ export function MasterAdminPage() {
             </div>
           }
         />
-        <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
+        <InternalTabs value={workspaceView} onChange={(value) => {
+          if (value === "cadastro" && workspaceView !== "cadastro") resetForNewInstitution();
+          else setWorkspaceView(value as WorkspaceView);
+        }} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Nova Prefeitura", helper: "Formulário limpo" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
 
         {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
           <div data-master-contract-capacity="true" className={workspaceView === "carteira" ? "order-[80] min-w-0" : "contents"}>
@@ -1039,7 +1053,7 @@ export function MasterAdminPage() {
               </p>
               <Button type="button" variant="outline"
                 className="h-10 w-full rounded-xl border-slate-300 bg-white text-slate-800 sm:w-auto dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                onClick={() => setWorkspaceView("usuarios")}>Acessos e equipe <Users2 className="ml-2 h-4 w-4" /></Button>
+                onClick={() => openMasterSection("usuarios")}>Acessos e equipe <Users2 className="ml-2 h-4 w-4" /></Button>
             </footer>
           </section>
         ) : null}
@@ -1050,17 +1064,17 @@ export function MasterAdminPage() {
             <header className="flex min-w-0 flex-wrap items-center justify-between gap-4 bg-[linear-gradient(110deg,#0e3048,#14516b)] px-5 py-6 text-white sm:px-7">
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-200">Master / Cadastro e gestão / Prefeitura</p>
-                <h2 className="mt-1 text-2xl font-bold tracking-tight text-white">{isCreatingNewInstitution ? "Nova Prefeitura" : "Cadastro e contrato municipal"}</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-sky-100">Formulário institucional em área própria, sem cards ou listas empilhados.</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-white">{isCreatingNewInstitution ? "Nova Prefeitura · Cadastro limpo" : "Editar Prefeitura e contrato"}</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-sky-100">{isCreatingNewInstitution ? "Novo cadastro independente, sem dados de outras prefeituras." : "Edição exclusiva da Prefeitura selecionada na Carteira."}</p>
               </div>
               <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                <Button type="button" variant="outline" onClick={() => setWorkspaceView("carteira")}
+                <Button type="button" variant="outline" onClick={() => openMasterSection("carteira")}
                   disabled={saving || savingPlanOnly} className="h-10 flex-1 rounded-xl border-white/30 bg-white/10 px-4 !text-white hover:bg-white/20 hover:!text-white sm:flex-none">
                   <ArrowLeft className="mr-2 h-4 w-4" />Voltar à carteira
                 </Button>
                 <Button type="submit" form="master-municipality-form" disabled={saving || savingPlanOnly}
                   className="h-10 flex-1 rounded-xl bg-white px-4 !text-[#0e3048] hover:bg-sky-100 sm:flex-none">
-                  {saving ? "Salvando..." : "Salvar Prefeitura"}
+                  {saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}
                 </Button>
               </div>
             </header>
@@ -1076,7 +1090,7 @@ export function MasterAdminPage() {
                         {statusMessage}
                       </div>
                     ) : null}
-                  <div data-master-prefeitura-overview="compact" className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-[#d4e1eb] bg-white/80 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  <div data-master-prefeitura-overview="compact" data-master-form-mode={isCreatingNewInstitution ? "create" : "edit"} className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-[#d4e1eb] bg-white/80 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                     <span><strong>Prefeitura:</strong> {isCreatingNewInstitution ? "Nova conta" : activeTenant?.name || "Selecione uma conta"}</span>
                     <span><strong>Plano:</strong> {form.plan || "A definir"}</span>
                     <span><strong>Contrato:</strong> {form.contractEnd || "Sem vencimento"}</span>
@@ -1139,7 +1153,7 @@ export function MasterAdminPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <div data-master-plan-inline-save="dedicated" className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3 dark:border-sky-800 dark:bg-sky-950/30">
+                      {!isCreatingNewInstitution ? (<div data-master-plan-inline-save="dedicated" className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3 dark:border-sky-800 dark:bg-sky-950/30">
                          <p className="min-w-0 flex-1 text-xs leading-5 text-[#234760] dark:text-sky-100">
                            Atualize somente o contrato, sem regravar a Prefeitura ou seus administradores.
                          </p>
@@ -1148,7 +1162,7 @@ export function MasterAdminPage() {
                            className="h-10 w-full rounded-xl bg-[#0d3853] px-5 !text-white hover:bg-[#195775] sm:w-auto">
                            {savingPlanOnly ? "Atualizando..." : "Atualizar plano"}
                          </Button>
-                       </div>
+                       </div>) : null}
                     </div>
                     </div>
                     <div className="space-y-4">
@@ -1327,10 +1341,10 @@ export function MasterAdminPage() {
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                       <Button type="submit" className="h-11 w-full rounded-xl bg-[#0d3853] px-6 !text-white hover:bg-[#195775] sm:w-auto" disabled={saving || savingPlanOnly}>
-                        {saving ? "Salvando..." : "Salvar Prefeitura"}
+                        {saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}
                       </Button>
                       <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={resetForNewInstitution}>
-                        Limpar formulário
+                        {isCreatingNewInstitution ? "Limpar novo cadastro" : "Cadastrar outra Prefeitura"}
                       </Button>
                     </div>
             </form>
