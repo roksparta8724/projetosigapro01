@@ -160,12 +160,12 @@ export function ProcessWorkspaceHeader({
         <div className="sig-workspace-actions-list">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" size="sm" className="sig-workspace-action sig-workspace-action-primary"
+              <Button type="button" size="sm" variant="outline" data-process-toolbar-action="mark" className="sig-workspace-action sig-workspace-action-primary"
                 disabled={selectedCount === 0 || bulkBusy || !showSensitiveDetails}>
-                <Tag className="h-4 w-4" /> Marcar <ChevronDown className="h-3.5 w-3.5" />
+                <Tag className="h-4 w-4" /> <span>Marcar</span> <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-white text-slate-900">
+            <DropdownMenuContent align="start" data-process-toolbar-menu="true" className="min-w-[220px] max-w-[calc(100vw-24px)]">
               {!onBulkMarker ? (
                 <DropdownMenuItem onSelect={() => onToolbarAction?.("etiquetas")}>
                   <Tag className="mr-2 h-4 w-4" />
@@ -268,14 +268,14 @@ export function ProcessWorkspaceHeader({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="outline" size="sm" className="sig-workspace-action"
-                disabled={!filteredCount || !showSensitiveDetails}>
+                disabled={!filteredCount || !showSensitiveDetails || bulkBusy}>
                 <Download className="h-4 w-4" /> Excel <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[240px] bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
-              <DropdownMenuItem disabled={selectedCount === 0}
+            <DropdownMenuContent align="end" data-process-toolbar-menu="true" className="min-w-[240px] max-w-[calc(100vw-24px)]">
+              <DropdownMenuItem disabled={selectedCount === 0 || bulkBusy}
                 onSelect={() => onExport("selected")}>Exportar selecionados ({selectedCount}) — .xlsx</DropdownMenuItem>
-              <DropdownMenuItem disabled={!filteredCount}
+              <DropdownMenuItem disabled={!filteredCount || bulkBusy}
                 onSelect={() => onExport("filtered")}>Exportar resultados filtrados ({filteredCount}) — .xlsx</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -173,6 +173,7 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/contentSizedAdministrativeLayout20261124.test.tsx",
     "src/test/masterOrganogramCompactPanels20261124.test.tsx",
     "src/test/topbarAccountDock20261124.test.tsx",
+    "src/test/processToolbarAndEmail20261124.test.tsx",
     "src/test/qaFullJourneyIntegrated.test.ts",
     "src/test/workflowUnknownStageQa.test.ts",
     "src/test/habiteSeCompletionRealRpcRegression.test.ts",

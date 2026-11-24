@@ -36,7 +36,7 @@ it("docks markers and themes, and removes the clipping local centering rule",()=
  const css=readFileSync("src/index.css","utf8");
  expect(frame).toContain('data-topbar-menu="markers"');
  expect(frame).toContain('data-topbar-menu="themes"');
- expect(css).not.toContain("top: calc(100% + 12px)");
+ expect(css).not.toContain("SIGAPRO TOPBAR LOCAL ANCHOR 2026-10-14");
  expect(css).toContain('width:min(416px,100%)');
  expect(css).toContain('grid-template-columns:repeat(2,minmax(0,1fr))');
  expect(frame).not.toContain('className="truncate text-[11px] font-medium">{option.label}');

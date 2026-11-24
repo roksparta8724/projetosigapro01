@@ -253,15 +253,11 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(portal).not.toContain("window.location.replace(destination)");
   });
 
-  it("hard-anchors marker and theme panels below their own topbar buttons at 85 percent zoom", () => {
-    expect(portal).toContain('sig-topbar-local-popper sig-marker-anchor relative');
-    expect(portal).toContain('sig-topbar-local-popper sig-theme-anchor relative');
-    expect(portal).toContain("portal={false}");
-    expect(css).toContain("SIGAPRO TOPBAR LOCAL ANCHOR 2026-10-14");
-    expect(css).toContain(".sig-topbar-local-popper [data-radix-popper-content-wrapper]");
-    expect(css).toContain(".sig-topbar-local-popper .sig-marker-panel");
-    expect(css).toContain(".sig-topbar-local-popper .sig-theme-panel");
-    expect(css).toContain("left: 50% !important");
-    expect(css).toContain("transform: translateX(-50%) !important");
+  it("anchors menus to the actual topbar edge without zoom-dependent centering", () => {
+    expect(portal).toContain('data-topbar-menu="markers"');
+    expect(portal).toContain('data-topbar-menu="themes"');
+    expect(portal.match(/portalContainer=\{accountDock\}/g)).toHaveLength(4);
+    expect(css).toContain("inset:100% 0 auto auto!important");
+    expect(css).not.toContain("SIGAPRO TOPBAR LOCAL ANCHOR 2026-10-14");
   });
 });

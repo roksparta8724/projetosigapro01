@@ -69,14 +69,20 @@ export function RecuperarSenhaPage() {
       return;
     }
 
+    if (submitting) return;
     setSubmitting(true);
-    const result = await resetPassword(email.trim().toLowerCase());
-    if (!result.ok) {
-      setError(result.message ?? "Nao foi possivel enviar o e-mail.");
-    } else {
-      setStatus(result.message ?? "Verifique seu e-mail.");
+    try {
+      const result = await resetPassword(email.trim().toLowerCase());
+      if (!result.ok) {
+        setError(result.message ?? "Não foi possível confirmar o envio do e-mail.");
+      } else {
+        setStatus(result.message ?? "Verifique seu e-mail.");
+      }
+    } catch {
+      setError("O serviço de autenticação está indisponível. Tente novamente mais tarde.");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const handleSetNewPassword = async (event: FormEvent) => {
