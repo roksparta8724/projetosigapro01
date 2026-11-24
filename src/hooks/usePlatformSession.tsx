@@ -73,27 +73,23 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     authResolved,
     loading: authLoading,
   } = useAuthGateway();
-  const { sessionUsers } = usePlatformData();
+  const { sessionUsers, storeIdentityConfirmed, remoteSyncedForCurrentUser } = usePlatformData();
   const cachedSessionRef = useRef<SessionUser | null>(readCachedSession());
   const [sessionVersion, setSessionVersion] = useState(0);
   const businessUserId = authenticatedProfileId || authenticatedUserId;
   const canonicalSessionUser = useMemo(
-    () =>
-      sessionUsers.find((item) => item.id === businessUserId) ??
-      sessionUsers.find(
-        (item) =>
-          Boolean(authenticatedEmail) &&
-          item.email?.trim().toLowerCase() === authenticatedEmail?.trim().toLowerCase(),
-      ) ??
-      null,
-    [authenticatedEmail, businessUserId, sessionUsers],
+    () => {
+      if (!storeIdentityConfirmed || !businessUserId) return null;
+      return sessionUsers.find((item) => item.id === businessUserId) ?? null;
+    },
+    [businessUserId, sessionUsers, storeIdentityConfirmed],
   );
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
     const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
 
-    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId || canonicalSessionUser?.id === businessUserId)) {
+    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(
         canonicalSessionUser?.role ??
         (businessUserId ? authenticatedRole : cachedSession.role),
@@ -118,15 +114,14 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
           canonicalSessionUser?.municipalityId ??
           canonicalSessionUser?.tenantId ??
           (businessUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null),
-        title:
-          canonicalSessionUser?.title ||
-          cachedSession.title ||
-          roleLabels[safeRole] ||
-          "Usuário",
-        department:
-          canonicalSessionUser?.department ||
-          cachedSession.department ||
-          "",
+        // Empty fields from the confirmed current account are authoritative:
+        // do not resurrect a previous department when a user is reassigned.
+        title: canonicalSessionUser
+          ? canonicalSessionUser.title || roleLabels[safeRole] || "Usuário"
+          : remoteSyncedForCurrentUser ? roleLabels[safeRole] || "Usuário" : cachedSession.title || roleLabels[safeRole] || "Usuário",
+        department: canonicalSessionUser
+          ? canonicalSessionUser.department || ""
+          : remoteSyncedForCurrentUser ? "" : cachedSession.department || "",
         email: authenticatedEmail || canonicalSessionUser?.email || cachedSession.email || "",
       };
     }
@@ -172,7 +167,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       blockReason: canonicalSessionUser?.blockReason ?? null,
       deletedAt: canonicalSessionUser?.deletedAt ?? null,
     };
-  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, authenticatedProfileId, businessUserId, canonicalSessionUser, sessionVersion]);
+  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, authenticatedProfileId, businessUserId, canonicalSessionUser, remoteSyncedForCurrentUser, sessionVersion]);
 
   useEffect(() => {
     const handleSessionUpdated = (event: Event) => {

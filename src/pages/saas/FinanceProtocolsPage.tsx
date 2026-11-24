@@ -923,7 +923,7 @@ export function FinanceProtocolsPage() {
                                             <Button
                                               type="button"
                                               size="sm"
-                                              className="rounded-full bg-emerald-600 font-bold text-white hover:bg-emerald-700"
+                                              data-shared-action="success" className="h-auto min-h-10 rounded-xl py-2 font-semibold whitespace-normal"
                                               disabled={financialBusyKey === busyKey}
                                               onClick={() =>
                                                 void handleConfirmPayment(

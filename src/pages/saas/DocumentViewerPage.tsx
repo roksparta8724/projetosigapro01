@@ -9,6 +9,9 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useDocumentReviewCapabilities } from "@/hooks/useDocumentReviewCapabilities";
+import { IndividualDocumentReview } from "@/components/platform/IndividualDocumentReview";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
@@ -16,8 +19,9 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
-import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
+import { consumeDocumentWorkspaceAccessUrl, maintainAuthorizedDocumentAccess, PRIVATE_DOCUMENT_ACCESS_SECONDS } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import {
   canAnalyzeProcessDocument,
   canAccessMunicipalArea,
@@ -79,7 +83,9 @@ export function DocumentViewerPage() {
     loading: platformDataLoading,
     dataReadyForCurrentUser,
     startProcessAnalysis,
+    refreshRemoteStore,
   } = usePlatformData();
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 30000, refreshOnMount: false });
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
@@ -94,8 +100,10 @@ export function DocumentViewerPage() {
     scopeId ??
     session.tenantId ??
     null;
+  const reviewCapabilities = useDocumentReviewCapabilities(process?.id, session.id + ":" + session.role + ":" + (session.department || ""));
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [error, setError] = useState("");
+  const [accessRetry, setAccessRetry] = useState(0);
   const [assumingAnalysis, setAssumingAnalysis] = useState(false);
   const [assumeAnalysisError, setAssumeAnalysisError] = useState("");
   const document = useMemo(
@@ -133,14 +141,15 @@ export function DocumentViewerPage() {
     process &&
       document &&
       document.uploaded &&
+      !isSignedAnalysisArchiveDocument(document) &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId),
   );
 
-  const openAnalysisWorkspace = (tool?: "highlight" | "text") => {
+  const openAnalysisWorkspace = (tool?: "highlight" | "text", reopen = false) => {
     if (!process || !document || !canAnalyzeDocument) return;
-    const query = tool ? `?ferramenta=${tool}` : "";
+    const query = reopen ? "?ferramenta=navigate&reabrir=1" : tool ? `?ferramenta=${tool}` : "";
     navigate(
-      `${buildProcessPath(process)}/documentos/${document.id}/analisar${query}`,
+      `${buildProcessPath(process)}/documentos/${document.id}/analisar${query}${new URLSearchParams(location.search).get("janela") === "1" ? (query ? "&janela=1" : "?janela=1") : ""}`,
       {
         state: {
           documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
@@ -187,98 +196,27 @@ export function DocumentViewerPage() {
     }
   };
 
-  const replaceAnalystViewerWithAnalysis = canAnalyzeDocument && Boolean(process && document);
-
   useEffect(() => {
-    if (!replaceAnalystViewerWithAnalysis || !process || !document) return;
-    navigate(
-      `${buildProcessPath(process)}/documentos/${document.id}/analisar?ferramenta=highlight`,
-      {
-        replace: true,
-        state: {
-          documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
-          returnTo:
-            routeState.returnTo ||
-            buildProcessPath(process, "documentos"),
-        },
-      },
-    );
-  }, [
-    accessUrl,
-    document?.id,
-    navigate,
-    prefetchedDocumentAccessUrl,
-    process?.id,
-    replaceAnalystViewerWithAnalysis,
-    routeState.returnTo,
-  ]);
-
-  useEffect(() => {
-    let cancelled = false;
     setError("");
-
-    if (!allowed || !document) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (prefetchedDocumentAccessUrl) {
-      setAccessUrl(prefetchedDocumentAccessUrl);
-      return () => {
-        cancelled = true;
-      };
-    }
-
+    setAccessUrl("");
+    if (!allowed || !document) return;
     if (!document.filePath) {
       setAccessUrl(document.previewUrl || "");
-      if (!document.previewUrl) {
-        setError("Este documento não possui arquivo disponível para visualização.");
-      }
-      return () => {
-        cancelled = true;
-      };
+      if (!document.previewUrl) setError("Este documento não possui arquivo disponível para visualização.");
+      return;
     }
-
+    const objectKey = document.filePath;
     const bucket =
-      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
-      "sigapro-documentos";
-
-    void getSignedUrlForObjectStrict({
-      bucket,
-      objectKey: document.filePath,
-      expiresIn: 21600,
-    })
-      .then((url) => {
-        if (!cancelled) {
-          if (url) setAccessUrl(url);
-          else setError("Não foi possível gerar o acesso seguro ao documento.");
-        }
-      })
-      .catch((reason) => {
-        if (!cancelled) {
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : "Não foi possível abrir o documento armazenado.",
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    allowed,
-    document?.id,
-    document?.filePath,
-    document?.previewUrl,
-    prefetchedDocumentAccessUrl,
-  ]);
-
-  if (replaceAnalystViewerWithAnalysis) {
-    return null;
-  }
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) || "sigapro-documentos";
+    return maintainAuthorizedDocumentAccess({
+      request: () => getSignedUrlForObjectStrict({ bucket, objectKey, expiresIn: PRIVATE_DOCUMENT_ACCESS_SECONDS }),
+      onAccess: (url) => { setError(""); setAccessUrl(url); },
+      onError: (reason) => {
+        setAccessUrl("");
+        setError(reason instanceof Error ? reason.message : "Não foi possível abrir o documento armazenado.");
+      },
+    });
+  }, [allowed, session.id, document?.id, document?.filePath, document?.previewUrl, accessRetry]);
 
   if (!process || !document) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
@@ -304,6 +242,7 @@ export function DocumentViewerPage() {
   }
 
   if (!allowed) {
+    if (platformDataLoading || !dataReadyForCurrentUser || session.id === "unknown") return null;
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#dfe5ec] p-6">
         <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
@@ -342,8 +281,8 @@ export function DocumentViewerPage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200/70">
               Visualizador documental
             </p>
-            <p className="mt-1 truncate text-[15px] font-semibold text-white">{document.label}</p>
-            <p className="mt-0.5 truncate text-[11px] text-slate-300">
+            <p className="mt-1 break-words text-[15px] font-semibold text-white [overflow-wrap:anywhere]">{document.label}</p>
+            <p className="mt-0.5 break-words text-[11px] text-slate-300 [overflow-wrap:anywhere]">
               {document.fileName || "Documento técnico"} · {formatOfficialProcessNumber(process.protocol)}
             </p>
           </div>
@@ -404,13 +343,15 @@ export function DocumentViewerPage() {
             variant="outline"
             className="h-9 rounded-full border-slate-200 bg-white px-4 text-slate-700 shadow-sm hover:bg-slate-50"
             onClick={() => {
-              if (routeState.returnTo) navigate(routeState.returnTo);
-              else if (window.history.length > 1) navigate(-1);
-              else navigate("/dashboard/processos");
+              if (new URLSearchParams(location.search).get("janela") === "1") {
+                window.close();
+                return;
+              }
+              navigate(routeState.returnTo || buildProcessPath(process, "documentos"));
             }}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar ao processo
+            {new URLSearchParams(location.search).get("janela") === "1" ? "Fechar guia" : "Voltar ao processo"}
           </Button>
 
           <span className="hidden h-8 items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-semibold text-emerald-800 md:inline-flex">
@@ -445,7 +386,16 @@ export function DocumentViewerPage() {
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          {(document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") && !isSignedAnalysisArchiveDocument(document) && reviewCapabilities.allows(document.id) ? (
+            <IndividualDocumentReview key={document.id} process={process} document={document}
+              onRefresh={() => refreshRemoteStore(process.id)} compact />
+          ) : (document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") && canAnalyzeDocument && !["deferido", "indeferido", "arquivado"].includes(process.status) ? (
+            <Button type="button" variant="outline" data-document-viewer-reopen="true" onClick={() => openAnalysisWorkspace(undefined, true)}
+              className="h-9 rounded-full border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100">
+              <PenTool className="mr-1.5 h-4 w-4" />Reabrir documento
+            </Button>
+          ) : null}
           {accessUrl ? (
             <>
 
@@ -469,7 +419,10 @@ export function DocumentViewerPage() {
               <div className="flex h-full items-center justify-center p-8">
                 <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-7 text-center shadow-xl">
                   <p className="text-base font-semibold text-slate-950">Não foi possível abrir o documento.</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+                  <p className="mt-2 break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{error}</p>
+                  <Button type="button" className="mt-4 rounded-xl bg-slate-950 !text-white hover:bg-slate-800" onClick={() => setAccessRetry(value => value + 1)}>
+                    Tentar abrir novamente
+                  </Button>
                 </div>
               </div>
             ) : !accessUrl ? (
@@ -612,10 +565,20 @@ export function DocumentViewerPage() {
             ) : null}
 
             <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-800">Visualização protegida</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                O arquivo é exibido por acesso temporário assinado nesta mesma guia.
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-sky-800"><ShieldCheck className="h-4 w-4 shrink-0" /> Visualização segura</p>
+              <p className="mt-2 break-words text-sm leading-6 text-slate-700">
+                Este documento integra o acervo do processo no SIGAPRO. A consulta é protegida pelas permissões do seu perfil e o acesso é renovado durante a sessão autorizada.
               </p>
+              {(document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") ? (
+                <div data-document-review-status="approved" className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-slate-800">{document.reviewStatus === "aprovado" ? "Documento aprovado" : "Documento com exigência"}</p>
+                  {(!isSignedAnalysisArchiveDocument(document) && reviewCapabilities.allows(document.id)) || canAnalyzeDocument ? (
+                    <p className="mt-1 text-xs leading-5 text-slate-600">Use Reabrir documento na barra superior para registrar uma nova avaliação.</p>
+                  ) : (
+                    <p className="mt-1 break-words text-xs leading-5 text-slate-600">{reviewCapabilities.reason || "Documento indisponível para reavaliação nesta etapa."} Os atos já emitidos permanecem preservados.</p>
+                  )}
+                </div>
+              ) : null}
               {canAnalyzeDocument ? (
                 <Button
                   type="button"
@@ -636,7 +599,7 @@ export function DocumentViewerPage() {
                     </p>
                     <p className="break-words text-xs leading-5 text-slate-700 [overflow-wrap:anywhere]">
                       {process.analysis?.assignedProfileId || process.analysis?.assignedTo
-                        ? "Este processo tem um analista responsável. Para editar, solicite redistribuição formal à Diretoria."
+                        ? "A edição depende da etapa e da lotação autorizadas. A consulta permanece disponível."
                         : "O processo chegou ao Urbanismo, mas ainda não foi assumido ou distribuído. Assuma a análise para abrir o editor de marcações."}
                     </p>
                     <p className="break-words text-[11px] leading-5 text-slate-500 [overflow-wrap:anywhere]">

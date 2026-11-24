@@ -75,13 +75,13 @@ const ownedProcess = {
 } as ProcessRecord;
 
 describe("analysis ownership and director supervision", () => {
-  it("keeps technical Analysis editable only by the current assigned analyst", () => {
+  it("allows technical collaboration without transferring the reference assignment", () => {
     expect(canAnalyzeProcessDocument(analystA, ownedProcess, municipalityId)).toBe(true);
-    expect(canAnalyzeProcessDocument(analystB, ownedProcess, municipalityId)).toBe(false);
+    expect(canAnalyzeProcessDocument(analystB, ownedProcess, municipalityId)).toBe(true);
   });
 
 
-  it("transfers edit authority immediately when the Directorate reassigns the analysis", () => {
+  it("keeps collaboration after reassignment while preserving the new reference", () => {
     const reassignedProcess = {
       ...ownedProcess,
       analysis: {
@@ -91,9 +91,9 @@ describe("analysis ownership and director supervision", () => {
       },
     } as ProcessRecord;
 
-    expect(canAnalyzeProcessDocument(analystA, reassignedProcess, municipalityId)).toBe(false);
+    expect(canAnalyzeProcessDocument(analystA, reassignedProcess, municipalityId)).toBe(true);
     expect(canAnalyzeProcessDocument(analystB, reassignedProcess, municipalityId)).toBe(true);
-    expect(canEditAssignedAnalysisArtifact(analystA, reassignedProcess, municipalityId)).toBe(false);
+    expect(canEditAssignedAnalysisArtifact(analystA, reassignedProcess, municipalityId)).toBe(true);
     expect(canEditAssignedAnalysisArtifact(analystB, reassignedProcess, municipalityId)).toBe(true);
   });
 

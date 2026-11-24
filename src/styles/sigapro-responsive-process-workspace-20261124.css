@@ -391,3 +391,103 @@
     color: #c7deee !important;
   }
 }
+
+/* A single surface per toolbar control: no faded dark button or colored SVG
+   backing plate. Disabled is an explicit, readable neutral state. */
+html body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] {
+ --pa-bg:#fff;--pa-ink:#173650;--pa-border:#b8cddd;--pa-hover:#e4f1fa;--pa-off:#f1f5f9;--pa-off-ink:#586b80;--pa-off-border:#d2dde6;--pa-active:#124766;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions],
+html.dark body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] {
+ --pa-bg:#1e405a;--pa-ink:#f4f9ff;--pa-border:#65869f;--pa-hover:#2b526c;--pa-off:#223b50;--pa-off-ink:#bacbd9;--pa-off-border:#547085;--pa-active:#17618a;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] .sig-workspace-action {
+ background:var(--pa-bg)!important;border:1px solid var(--pa-border)!important;color:var(--pa-ink)!important;-webkit-text-fill-color:var(--pa-ink)!important;
+ box-shadow:none!important;opacity:1!important;border-radius:9px!important;min-height:34px!important;height:auto!important;
+ gap:5px!important;text-shadow:none!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] .sig-workspace-action :is(span,svg) {
+ color:inherit!important;-webkit-text-fill-color:currentColor!important;background:transparent!important;box-shadow:none!important;opacity:1!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] .sig-workspace-action:disabled {
+ background:var(--pa-off)!important;border-color:var(--pa-off-border)!important;color:var(--pa-off-ink)!important;-webkit-text-fill-color:var(--pa-off-ink)!important;opacity:1!important;cursor:not-allowed;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] .sig-workspace-action:not(:disabled):hover {
+ background:var(--pa-hover)!important;color:var(--pa-ink)!important;-webkit-text-fill-color:var(--pa-ink)!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] .sig-workspace-action[data-state="open"]:not(:disabled) {
+ background:var(--pa-active)!important;border-color:var(--pa-active)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] .sig-workspace-action:focus-visible {
+ outline:2px solid #3696c0!important;outline-offset:2px!important;
+}
+html body [data-process-toolbar-menu="true"] {
+ background:#fff!important;color:#173650!important;border:1px solid #b8cddd!important;padding:5px!important;border-radius:12px!important;
+ max-height:65dvh;overflow-y:auto;overflow-x:hidden;
+}
+html body [data-process-toolbar-menu="true"] [role="menuitem"] {
+ white-space:normal!important;overflow-wrap:anywhere;min-height:36px;color:#173650!important;-webkit-text-fill-color:#173650!important;
+}
+html body [data-process-toolbar-menu="true"] [role="menuitem"][data-highlighted] {background:#e4f1fa!important;}
+html body [data-process-toolbar-menu="true"] [role="menuitem"][data-disabled] {opacity:1!important;color:#586b80!important;-webkit-text-fill-color:#586b80!important;}
+html.dark body [data-process-toolbar-menu="true"],html body:has([data-layout-mode="inverse-main"]) [data-process-toolbar-menu="true"] {background:#173950!important;border-color:#65869f!important;color:#f4f9ff!important;}
+html.dark body [data-process-toolbar-menu="true"] [role="menuitem"],html body:has([data-layout-mode="inverse-main"]) [data-process-toolbar-menu="true"] [role="menuitem"] {color:#f4f9ff!important;-webkit-text-fill-color:#f4f9ff!important;}
+html.dark body [data-process-toolbar-menu="true"] [role="menuitem"][data-highlighted],html body:has([data-layout-mode="inverse-main"]) [data-process-toolbar-menu="true"] [role="menuitem"][data-highlighted] {background:#2b526c!important;}
+html.dark body [data-process-toolbar-menu="true"] [role="menuitem"][data-disabled],html body:has([data-layout-mode="inverse-main"]) [data-process-toolbar-menu="true"] [role="menuitem"][data-disabled] {color:#bacbd9!important;-webkit-text-fill-color:#bacbd9!important;}
+@media(max-width:1023px){html body #root .sig-main-shell .sig-workspace-shell [data-sigapro-process-bulk-actions] .sig-workspace-action {min-height:42px!important;}}
+
+/* Operational toolbar geometry: actual available width, not viewport alone.
+   No right-aligned scrolling strip (which clips the first action), no
+   shrinking controls, and no hidden labels. Selection stays together. */
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] {
+  display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:flex-start!important;
+  min-width:0!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;
+  min-height:0!important;height:auto!important;max-height:none!important;overflow:visible!important;gap:8px!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] > .sig-workspace-selection-group {
+  display:flex!important;flex:0 1 auto!important;flex-wrap:wrap!important;align-items:center!important;gap:7px!important;
+  min-width:0!important;max-width:100%!important;margin:0!important;padding:0!important;overflow:visible!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] > .sig-workspace-actions-list {
+  display:flex!important;flex:1 1 max-content!important;flex-wrap:wrap!important;justify-content:flex-start!important;
+  align-items:center!important;gap:6px!important;width:auto!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;max-height:none!important;overflow:visible!important;scrollbar-width:none!important;
+  margin:0!important;padding:2px!important;box-sizing:border-box!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] .sig-workspace-actions-list > .sig-workspace-action {
+  display:inline-flex!important;flex:0 0 auto!important;width:max-content!important;min-width:max-content!important;max-width:100%!important;
+  min-height:34px!important;height:auto!important;max-height:none!important;box-sizing:border-box!important;
+  padding:7px 10px!important;gap:5px!important;white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important;
+  align-items:center!important;justify-content:center!important;line-height:1.35!important;
+  background-image:none!important;filter:none!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] .sig-workspace-action[data-process-toolbar-action="mark"] {
+  min-width:88px!important;isolation:isolate;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] .sig-workspace-action [data-toolbar-label] {
+  display:inline-block!important;flex:0 0 auto!important;min-width:max-content!important;
+  white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important;
+  color:inherit!important;-webkit-text-fill-color:currentColor!important;background:transparent!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] .sig-workspace-action svg {
+  flex:0 0 14px!important;width:14px!important;height:14px!important;
+  padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;
+  box-shadow:none!important;color:inherit!important;stroke:currentColor!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] .sig-workspace-action:disabled {
+  background:var(--pa-off,#f1f5f9)!important;border-color:var(--pa-off-border,#d2dde6)!important;
+  color:var(--pa-off-ink,#586b80)!important;-webkit-text-fill-color:var(--pa-off-ink,#586b80)!important;
+  opacity:1!important;box-shadow:none!important;
+}
+html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] .sig-workspace-action[data-state="open"]:not(:disabled) {
+  background:var(--pa-active,#124766)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+@media (max-width:1023px) {
+  html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] > .sig-workspace-actions-list {
+    display:grid!important;flex:1 1 100%!important;width:100%!important;
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))!important;align-items:stretch!important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell [data-toolbar-layout="intrinsic-wrap"] .sig-workspace-actions-list > .sig-workspace-action {
+    width:100%!important;min-width:0!important;min-height:42px!important;white-space:normal!important;overflow-wrap:anywhere;
+  }
+}

@@ -23,7 +23,6 @@ jobs:
     environment: qa-commercial-approval
     env:
       SIGAPRO_QA_RELEASE_SHA: ${{ inputs.release_sha }}
-      SIGAPRO_QA_EVIDENCE_DIR: ${{ runner.temp }}/sigapro-qa-evidence
       RELEASE_REF: ${{ github.ref }}
       EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
     steps:
@@ -31,6 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          printf 'SIGAPRO_QA_EVIDENCE_DIR=%s/sigapro-qa-evidence\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           [[ "$RELEASE_REF" == "refs/heads/fix/qa-triagem-analise-pagamento-20261101" ]] || {
             echo "::error::Commercial acceptance must execute on the protected QA branch."
             exit 2

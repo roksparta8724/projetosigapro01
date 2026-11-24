@@ -1741,7 +1741,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         id: entry.id,
         category: entry.category,
         title: entry.title,
-        detail: entry.detail,
+        detail: String(entry.detail || "").replace(/^\[documento:[0-9a-f-]{36}\]\s*/i, ""),
+        documentId: /^\[documento:([0-9a-f-]{36})\]/i.exec(String(entry.detail || ""))?.[1],
         actorProfileId: entry.actor_profile_id ?? undefined,
         actor:
           scopedEventAuthorById.get(`audit:${entry.id}`)?.actor_name ||
@@ -2819,6 +2820,18 @@ export async function sendRemoteProcessMessage(input: {
     _recipient_name: input.recipientName || null,
     _message: input.message,
   });
+}
+
+export async function loadRemoteDocumentReviewCapabilities(processId: string) {
+  return callProcessRpc<{ document_ids: string[]; reason: string }>("document_individual_review_capabilities_v1", { _process_id: processId });
+}
+
+export async function recordRemoteIndividualDocumentReview(documentId: string, action: "reabrir" | "aprovar" | "ressalvas", reason: string) {
+  return callProcessRpc("record_individual_document_review_v1", { _document_id: documentId, _action: action, _reason: reason });
+}
+
+export async function reopenRemoteProcessForReview(processId: string, reason: string) {
+  return callProcessRpc("reopen_process_for_review_v1", { _process_id: processId, _reason: reason });
 }
 
 export async function reopenRemoteProcess(processId: string, reason: string) {

@@ -41,6 +41,8 @@ import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { canReadInstitutionalHistory } from "@/lib/institutionalHistoryAccess";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useDocumentReviewCapabilities } from "@/hooks/useDocumentReviewCapabilities";
+import { IndividualDocumentReview } from "@/components/platform/IndividualDocumentReview";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import {
   getRenderedMunicipalityLogoDataUrl,
@@ -78,7 +80,10 @@ import {
   calculateIssGuideAmount,
   canAccessMunicipalArea,
   canAnalyzeProcessDocument,
+  canViewMunicipalProcessDocument,
   canEditAssignedAnalysisArtifact,
+  canReopenProcessForReview,
+  getDocumentReviewHistory,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -559,6 +564,7 @@ export function ProcessDetailPage() {
     scopeId ??
     session.tenantId ??
     null;
+  const reviewCapabilities = useDocumentReviewCapabilities(process?.id, session.id + ":" + session.role + ":" + (session.department || ""));
   const { canImportMunicipalGuide, configuration: collectionConfig } = useEffectiveCollectionMode(effectiveScopeId);
   const { headerBranding: guideHeaderBranding, footerBranding: guideFooterBranding } = useInstitutionBranding(effectiveScopeId);
   const {
@@ -760,7 +766,6 @@ export function ProcessDetailPage() {
   const [habiteSeConstructionStandardInput, setHabiteSeConstructionStandardInput] = useState("");
   const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
-  const documentWorkspaceWindowRef = useRef<Window | null>(null);
 
   useEffect(() => {
     let lastAutomaticDate = currentLocalDateValue();
@@ -910,19 +915,19 @@ export function ProcessDetailPage() {
     const preferredTab: ProcessTab = requested && ["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)
       ? requested as ProcessTab
       : "imovel";
-    setActiveTab(stableProtocolTrackingOnly && preferredTab !== "resumo" ? "historico" : preferredTab);
+    setActiveTab(stableProtocolTrackingOnly && preferredTab !== "resumo" && preferredTab !== "documentos" ? "historico" : preferredTab);
   }, [stableProtocolTrackingOnly, processId, location.search]);
 
   useEffect(() => {
     if (!processId) return;
     const requested = new URLSearchParams(location.search).get("aba");
     if (!requested || !["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)) return;
-    setActiveTab(stableProtocolTrackingOnly && requested !== "resumo" ? "historico" : requested as ProcessTab);
+    setActiveTab(stableProtocolTrackingOnly && requested !== "resumo" && requested !== "documentos" ? "historico" : requested as ProcessTab);
   }, [location.search, stableProtocolTrackingOnly, processId]);
 
   useEffect(() => {
     if (!stableProtocolTrackingOnly) return;
-    if (activeTab === "historico" || activeTab === "resumo") return;
+    if (activeTab === "historico" || activeTab === "resumo" || activeTab === "documentos") return;
     setActiveTab("historico");
   }, [activeTab, stableProtocolTrackingOnly]);
 
@@ -1364,9 +1369,10 @@ export function ProcessDetailPage() {
     );
   };
 
+  const canConsultProcessDocuments = canViewMunicipalProcessDocument(session, process, effectiveScopeId);
   const visibleDocumentRows =
     isProtocolTrackingOnly
-      ? []
+      ? canConsultProcessDocuments ? regularProcessDocuments.filter(document => document.uploaded) : []
       : isInternalRole(session.role) || canUploadProcessDocuments
         ? regularProcessDocuments
         : regularProcessDocuments.filter((document) => document.uploaded);
@@ -1506,6 +1512,8 @@ export function ProcessDetailPage() {
       ) || null;
     };
 
+    const linkedApproval = process.auditTrail.find(entry => entry.documentId === doc.id && entry.title === "Documento aprovado");
+    if (linkedApproval) return { name: linkedApproval.actor === "Identificação não registrada" ? "" : linkedApproval.actor, at: linkedApproval.at };
     const audit = process.auditTrail.find(entry => {
       const description = normal(entry.title + " " + entry.detail);
       const matches = [doc.id, doc.label, doc.fileName].some(value => {
@@ -1871,7 +1879,7 @@ export function ProcessDetailPage() {
   });
   const tabItems = [
     { key: "imovel" as ProcessTab, label: "Imóvel", enabled: !isProtocolTrackingOnly },
-    { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: !isProtocolTrackingOnly },
+    { key: "documentos" as ProcessTab, label: `Documentos (${uploadedCount})`, enabled: canConsultProcessDocuments },
     {
       key: "analise" as ProcessTab,
       label: "Análise / Ficha técnica",
@@ -2695,17 +2703,17 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = (documentId: string, forceAnalysis = false, openAi = false) => {
+  const openDocumentWorkspace = (documentId: string, forceAnalysis = false, openAi = false, reopen = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
-    if (!selectedDocument || openingDocumentId) return;
+    if (!selectedDocument || !selectedDocument.uploaded || !canConsultProcessDocuments) return;
 
-    // SIGAPRO_DOCUMENT_ROUTING_READONLY_V2
-    // Clicar em "analisar" nao concede acesso de escrita. A rota real depende da titularidade.
-    const shouldAnalyze = Boolean((forceAnalysis || canReviewDocuments) &&
+    // A consulta não concede edição. Cada clique abre uma guia independente.
+    const shouldAnalyze = Boolean(forceAnalysis &&
+      !isSignedAnalysisArchiveDocument(selectedDocument) &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId));
     const route = shouldAnalyze ? "analisar" : "visualizar";
     const query = shouldAnalyze
-      ? openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
+      ? reopen ? "?ferramenta=navigate&reabrir=1" : openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
       : "";
     const workspaceUrl =
       `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}${query ? "&" : "?"}janela=1`;
@@ -2725,31 +2733,15 @@ export function ProcessDetailPage() {
       );
     }
 
-    // Abre diretamente a rota real da mesa documental. Não existe mais
-    // about:blank, shell, skeleton ou página de preparação entre o clique e o PDF.
-    const existingWorkspace = documentWorkspaceWindowRef.current;
-    const openedTab =
-      existingWorkspace && !existingWorkspace.closed
-        ? existingWorkspace
-        : window.open(workspaceUrl, "sigapro-document-workspace");
-
+    // A abertura é síncrona no clique, sem substituir a ficha nem outro PDF.
+    const openedTab = window.open(workspaceUrl, "_blank");
+    setOpeningDocumentId("");
     if (!openedTab) {
-      setProcessActionStatus(
-        "O navegador bloqueou a guia do documento. Libere pop-ups para o SIGAPRO e tente novamente.",
-      );
-      setOpeningDocumentId("");
+      setProcessActionStatus("O navegador bloqueou a nova guia. Permita a abertura de guias para o SIGAPRO e tente novamente.");
       return;
     }
-
-    documentWorkspaceWindowRef.current = openedTab;
-
-    if (existingWorkspace && !existingWorkspace.closed) {
-      openedTab.location.replace(workspaceUrl);
-    }
-
     openedTab.opener = null;
     openedTab.focus();
-    window.setTimeout(() => setOpeningDocumentId(""), 180);
   };
 
   const openViewer = (documentId: string) => void openDocumentWorkspace(documentId, false);
@@ -3081,6 +3073,13 @@ export function ProcessDetailPage() {
         restrictedView={isExternalProcessViewer || isProtocolTrackingOnly}
         actions={
           <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {!isExternalProcessViewer && canReopenProcessForReview(session, process, effectiveScopeId) ? (
+              <Button type="button" variant="outline" data-process-reopen-action="true"
+                className="rounded-xl border-amber-300 bg-amber-50 px-3 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950 dark:text-amber-200"
+                onClick={() => navigate("/prefeitura/processos", {state: {sigaproProcessBatchRequest: {action: "reabrir", processIds: [process.id]}}})}>
+                Reabrir processo
+              </Button>
+            ) : null}
             {!isExternalProcessViewer && !isProtocolTrackingOnly ? (
               <MarkerSelector
                 processId={process.id}
@@ -3125,7 +3124,7 @@ export function ProcessDetailPage() {
         <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           <p className="font-semibold">Modo acompanhamento do Protocolo</p>
           <p className="mt-1 leading-6">
-            Este processo está sob responsabilidade de outro departamento. O Protocolo pode acompanhar apenas a tramitação e o status geral, sem acessar documentos técnicos, análise interna, financeiro ou executar ações da etapa atual.
+            Este processo está sob responsabilidade de outro departamento. O Protocolo pode consultar os documentos e acompanhar a tramitação, sem alterar a análise, o financeiro ou executar ações da etapa atual.
           </p>
         </div>
       ) : null}
@@ -3476,7 +3475,7 @@ export function ProcessDetailPage() {
             />
           )}
 
-          {activeTab === "documentos" && (
+          {activeTab === "documentos" && canConsultProcessDocuments && (
           <Card
             data-process-document-workspace="true"
             className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}
@@ -3671,9 +3670,9 @@ export function ProcessDetailPage() {
                 <div data-sigapro-document-editor-locked="true" role="note"
                   className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-100">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-extrabold">Para editar e marcar o PDF, assuma ou distribua a análise</p>
+                    <p className="text-sm font-extrabold">Consulta documental disponível · edição restrita à etapa técnica</p>
                     <p className="mt-1 text-xs leading-5">
-                      A entrega dos documentos está concluída, mas a mesa técnica exige um responsável autorizado.
+                      A consulta é independente da atribuição. A edição depende da unidade e da etapa técnica autorizada.
                       Abrir documento é somente visualização; Adicionar marcador não cria apontamentos no PDF.
                     </p>
                   </div>
@@ -3838,11 +3837,25 @@ export function ProcessDetailPage() {
               ) : null}
 
               {visibleDocumentRows.map((document, index) => {
-                const reviewVisual = getDocumentReviewVisual(document);
+                const baseReviewVisual = getDocumentReviewVisual(document);
                 const isApproved = document.reviewStatus === "aprovado";
                 const hasCommunique = document.reviewStatus === "rejeitado";
                 const documentMarkerTags = documentMarkers.getTags(process.id, document.id);
                 const approvalEvidence = isApproved ? getApprovalEvidence(document) : null;
+                const evaluationHistory = getDocumentReviewHistory(process, document.id).filter(entry => !isExternalProcessViewer || entry.visibleToExternal);
+                const latestIndividualReview = evaluationHistory.filter(entry => entry.title.startsWith("Reavaliação individual ")).at(-1);
+                const latestOfficialReview = evaluationHistory.filter(entry => ["Documento aprovado", "Documento rejeitado", "Análise documental reaberta"].includes(entry.title)).at(-1);
+                const isReevaluationOpen = latestIndividualReview?.title === "Reavaliação individual aberta" ||
+                  (document.reviewStatus === "pendente" && latestOfficialReview?.title === "Análise documental reaberta");
+                const reviewVisual = isReevaluationOpen ? {
+                  ...baseReviewVisual,
+                  label: "Em reavaliação",
+                  card: "!border-orange-400 !bg-orange-50 dark:!border-orange-500/70 dark:!bg-orange-950/45",
+                  badge: "!border-orange-400 !bg-orange-100 !text-orange-950 dark:!border-orange-500/70 dark:!bg-orange-900/60 dark:!text-orange-100",
+                } : baseReviewVisual;
+                const showReopenDocument = !isExternalProcessViewer && document.uploaded && (isApproved || hasCommunique) && !isSignedAnalysisArchiveDocument(document);
+                const canStandardReopen = showReopenDocument && !isFinalProcessStatus && canAnalyzeProcessDocument(session, process, effectiveScopeId);
+                const canSupplementalReopen = showReopenDocument && reviewCapabilities.allows(document.id);
 
                 return (
                   <div
@@ -3850,6 +3863,7 @@ export function ProcessDetailPage() {
                     data-process-document-card="true"
                     data-force-card-contrast="adaptive"
                     data-document-state={
+                      isReevaluationOpen ? "reopened" :
                       isApproved
                         ? "approved"
                         : hasCommunique
@@ -3863,6 +3877,7 @@ export function ProcessDetailPage() {
                   >
                     <div
                       className={`absolute inset-y-0 left-0 w-1 ${
+                        isReevaluationOpen ? "bg-orange-600 dark:bg-orange-400" :
                         isApproved
                           ? "bg-emerald-500"
                           : hasCommunique
@@ -3873,14 +3888,14 @@ export function ProcessDetailPage() {
                       }`}
                     />
 
-                    <div className="flex flex-wrap items-start justify-between gap-4 pl-2">
-                      <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-3 pl-2">
+                      <div className="min-w-0 flex-[1_1_280px]">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
                             Documento {String(index + 1).padStart(2, "0")} de {String(visibleDocumentRows.length).padStart(2, "0")}
                           </span>
-                          <Badge variant="outline" className={`rounded-full font-semibold ${reviewVisual.badge}`}>
-                            {isApproved ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : hasCommunique ? <ShieldAlert className="mr-1 h-3.5 w-3.5" /> : <Clock3 className="mr-1 h-3.5 w-3.5" />}
+                          <Badge variant="outline" data-document-reopened-badge={isReevaluationOpen ? "true" : undefined} className={`rounded-full font-semibold ${reviewVisual.badge}`}>
+                            {isReevaluationOpen ? <Clock3 className="mr-1 h-3.5 w-3.5" /> : isApproved ? <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> : hasCommunique ? <ShieldAlert className="mr-1 h-3.5 w-3.5" /> : <Clock3 className="mr-1 h-3.5 w-3.5" />}
                             {reviewVisual.label}
                           </Badge>
                         </div>
@@ -3890,7 +3905,7 @@ export function ProcessDetailPage() {
                             type="button"
                             onClick={() => openViewer(document.id)}
                             className="block max-w-full text-left font-semibold text-slate-950 hover:text-sky-700 hover:underline dark:text-slate-100 dark:hover:text-sky-300"
-                            title={canReviewDocuments ? "Abrir documento na mesa de análise" : "Abrir documento"}
+                            title="Visualizar documento"
                           >
                             {document.label}
                           </button>
@@ -3902,8 +3917,8 @@ export function ProcessDetailPage() {
                           type="button"
                           disabled={!document.uploaded}
                           onClick={() => document.uploaded && openViewer(document.id)}
-                          className="mt-1 block max-w-full truncate text-left text-sm text-slate-500 enabled:hover:text-sky-700 enabled:hover:underline disabled:cursor-default dark:text-slate-400 dark:enabled:hover:text-sky-300"
-                          title={document.uploaded ? (canReviewDocuments ? "Abrir documento na mesa de análise" : "Abrir documento") : undefined}
+                          className="mt-1 block max-w-full whitespace-normal break-words text-left text-sm text-slate-600 [overflow-wrap:anywhere] enabled:hover:text-sky-700 enabled:hover:underline disabled:cursor-default dark:text-slate-300 dark:enabled:hover:text-sky-300"
+                          title={document.uploaded ? "Visualizar documento" : undefined}
                         >
                           {document.fileName || "Arquivo ainda não enviado"}
                           {document.mimeType ? ` • ${document.mimeType}` : ""}
@@ -3917,7 +3932,7 @@ export function ProcessDetailPage() {
                         ) : null}
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-end gap-2">
+                      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
                         <MarkerSelector
                           tags={documentMarkerTags}
                           actor={session.name}
@@ -3944,6 +3959,20 @@ export function ProcessDetailPage() {
                           {document.uploaded ? "Enviado" : "Pendente de envio"}
                         </Badge>
 
+                        {showReopenDocument ? (
+                          canSupplementalReopen ? (
+                            <IndividualDocumentReview key={document.id} process={process} document={document}
+                              onRefresh={() => refreshRemoteStore(process.id)} compact />
+                          ) : (
+                            <Button type="button" variant="outline" data-document-reopen-shortcut="true"
+                              disabled={!canStandardReopen}
+                              title={canStandardReopen ? "Reabrir para nova análise apenas deste documento" : reviewCapabilities.reason || "Documento indisponível para reavaliação"}
+                              onClick={() => openDocumentWorkspace(document.id, true, false, true)}
+                              className="h-9 max-w-full shrink-0 whitespace-nowrap rounded-full border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-70 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200">
+                              <PencilLine className="mr-1.5 h-4 w-4 shrink-0" />Reabrir documento
+                            </Button>
+                          )
+                        ) : null}
                         {document.uploaded && canReviewDocuments ? (
                           <button
                             type="button"
@@ -4096,7 +4125,7 @@ export function ProcessDetailPage() {
                                 <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
                                   Página {annotation.page || 1} • {annotation.kind === "highlight" ? "Área marcada" : "Texto / comentário"}
                                 </p>
-                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                <p className="mt-1 break-words text-xs leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
                                   {annotation.note}
                                 </p>
                               </div>
@@ -4111,17 +4140,26 @@ export function ProcessDetailPage() {
                       </div>
                     ) : null}
 
+                    {isReevaluationOpen ? (
+                      <div data-document-reevaluation-notice="true" className="mt-4 flex items-start gap-3 rounded-xl border border-orange-300 bg-orange-100/80 px-4 py-3 text-orange-950 dark:border-orange-500/60 dark:bg-orange-900/40 dark:text-orange-100">
+                        <Clock3 className="mt-0.5 h-5 w-5 shrink-0" />
+                        <div className="min-w-0 break-words">
+                          <p className="text-sm font-bold">Nova avaliação em andamento</p>
+                          <p className="mt-1 text-xs leading-5">Este documento foi reaberto. As decisões anteriores permanecem no histórico; os demais documentos não foram alterados.</p>
+                        </div>
+                      </div>
+                    ) : null}
                     {document.uploaded && (canReviewDocuments || isApproved || hasCommunique) ? (
                       <div
                         data-process-document-review-strip="true"
-                        className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3"
+                        className="mt-4 flex flex-wrap items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/80"
                       >
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
                           isApproved
-                            ? "bg-emerald-50 text-emerald-700"
+                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                             : hasCommunique
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-sky-50 text-sky-700"
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                              : "bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300"
                         }`}>
                           {isApproved ? (
                             <CheckCircle2 className="h-4 w-4" />
@@ -4131,10 +4169,10 @@ export function ProcessDetailPage() {
                             <Clock3 className="h-4 w-4" />
                           )}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-[1_1_240px] break-words [overflow-wrap:anywhere]">
                           <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                             {isApproved
-                              ? "Documento conferido e aprovado."
+                              ? isReevaluationOpen ? "Aprovação original preservada." : "Documento conferido e aprovado."
                               : hasCommunique
                                 ? "Comunique-se registrado para correção."
                                 : "Aguardando conferência técnica."}
@@ -4142,24 +4180,42 @@ export function ProcessDetailPage() {
                           <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
                             {hasCommunique
                               ? "As marcações e observações permanecem vinculadas ao documento."
-                              : "Use “Analisar / marcar PDF” para marca-texto, comentários pontuais e decisão técnica."}
+                              : canReviewDocuments ? "Use a mesa de análise para marcações, comentários e decisão técnica." : "Consulta disponível. A edição é restrita à equipe técnica autorizada."}
                           </p>
                           {isApproved ? (
-                            <p data-sigapro-document-reviewer="true" className="mt-1 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-    {approvalEvidence?.name
-      ? "Aprovado pelo analista: " + approvalEvidence.name
-      : "Aprova??o registrada. Autor t?cnico ainda n?o identificado com seguran?a."}
-  </p>
+                            <>
+                              <p data-sigapro-document-reviewer="true" className="mt-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                                {approvalEvidence?.name
+                                  ? "Aprovado pelo analista: " + approvalEvidence.name
+                                  : "Aprovação registrada · autoria histórica não identificada"}
+                              </p>
+                              <p data-document-approval-audit="true" className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                                {approvalEvidence?.at
+                                  ? "Aprovado em: " + approvalEvidence.at
+                                  : "Data e hora: não disponíveis no registro histórico."}
+                              </p>
+                            </>
                           ) : null}
-                          {isApproved ? (
-  <p data-document-approval-audit="true" className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-    {approvalEvidence?.at
-      ? "Aprovado em: " + approvalEvidence.at
-      : "Data e hora: consultar a auditoria oficial quando dispon?vel."}
-  </p>
-) : null}
                         </div>
                       </div>
+                    ) : null}
+                    {showReopenDocument && !canStandardReopen && !canSupplementalReopen ? (
+                      <p className="mt-2 pl-2 text-xs text-slate-600 dark:text-slate-300">{reviewCapabilities.reason || "Documento indisponível para reavaliação nesta etapa."}</p>
+                    ) : null}
+                    {evaluationHistory.length > 0 ? (
+                      <section data-document-evaluation-history="true" className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Histórico de avaliações</h4>
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Registros anteriores preservados. As novas avaliações são acrescentadas abaixo.</p>
+                        <ol className="mt-3 space-y-2 border-l-2 border-slate-200 pl-3 dark:border-slate-700">
+                          {evaluationHistory.map(entry => (
+                            <li key={entry.id} className="min-w-0 break-words rounded-xl border border-slate-200 p-3 text-xs leading-5 [overflow-wrap:anywhere] dark:border-slate-700">
+                              <p className="font-semibold text-slate-900 dark:text-slate-100">{entry.title}</p>
+                              <p className="text-slate-600 dark:text-slate-300">{entry.actor} · {entry.at}</p>
+                              <p className="mt-1 text-slate-700 dark:text-slate-200">{entry.detail}</p>
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
                     ) : null}
                   </div>
                 );
@@ -4383,7 +4439,7 @@ export function ProcessDetailPage() {
                             </Button>
                             <Button
                               type="button"
-                              className="rounded-full bg-amber-600 px-5 !text-white hover:bg-amber-700 dark:bg-amber-500 dark:!text-slate-950 dark:hover:bg-amber-400"
+                              data-shared-action="warning" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                               disabled={
                                 processActionBusy === "revise-construction-guide" ||
                                 !(constructionAreaValue > 0) ||
@@ -5233,7 +5289,7 @@ export function ProcessDetailPage() {
                         {canFinanceOperate && habiteSeGuide.status !== "compensada" ? (
                           <Button
                             type="button"
-                            className="rounded-full bg-emerald-700 font-bold !text-white hover:bg-emerald-600 [&_*]:!text-white"
+                            data-shared-action="success" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                             disabled={
                               processActionBusy === "confirm-habite-se-payment" ||
                               !habiteSeGuideSentExternally
@@ -5508,7 +5564,7 @@ export function ProcessDetailPage() {
                         {canFinanceConfirmConstructionPayment ? (
                           <Button
                             type="button"
-                            className="rounded-full bg-emerald-700 px-5 !text-white shadow-sm hover:bg-emerald-800 [&_*]:!text-white"
+                            data-shared-action="success" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                             disabled={processActionBusy === "confirm-construction-payment"}
                             onClick={handleConfirmConstructionPayment}
                           >
@@ -5686,7 +5742,7 @@ export function ProcessDetailPage() {
                             {approvalGuide.status !== "compensada" && canFinanceOperate ? (
                               <Button
                                 type="button"
-                                className="rounded-full bg-emerald-700 px-5 !text-white shadow-sm hover:bg-emerald-800 [&_*]:!text-white"
+                                data-shared-action="success" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                                 disabled={processActionBusy === "confirm-approval-payment"}
                                 onClick={() => void handleConfirmApprovalPayment()}
                               >

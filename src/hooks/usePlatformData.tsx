@@ -113,6 +113,8 @@ interface PlatformDataState {
   loading: boolean;
   dataError: string | null;
   dataReadyForCurrentUser: boolean;
+  /** Store belongs to the current account, independent of background loading. */
+  storeIdentityConfirmed: boolean;
   /** True only after the official database revalidated this user and all required records. */
   remoteSyncedForCurrentUser: boolean;
   refreshRemoteStore: (focusProcessRouteKey?: string | null) => Promise<void>;
@@ -1875,6 +1877,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       loading,
       dataError,
       dataReadyForCurrentUser,
+      storeIdentityConfirmed: Boolean(authenticatedUserId && (!expectsRemoteStore || isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId))),
       remoteSyncedForCurrentUser,
       refreshRemoteStore,
       ...store,

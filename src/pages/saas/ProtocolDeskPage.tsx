@@ -1048,7 +1048,7 @@ export function ProtocolDeskPage() {
               )?.status === "pendente" ? (
                 <Button
                   type="button"
-                  className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                  data-shared-action="success" className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                   disabled={protocolActionBusy === `payment-${matchedProcess.id}`}
                   onClick={() => void handleConfirmProtocolPayment(matchedProcess)}
                 >
@@ -1739,10 +1739,11 @@ export function ProtocolDeskPage() {
                   {pendingPreprotocolPayments.map((item) => (
                     <div
                       key={item.processId}
-                      className="rounded-[22px] border border-sky-200 bg-[linear-gradient(180deg,#ffffff_0%,#f5fbff_100%)] p-5 shadow-[0_12px_28px_rgba(15,23,42,0.07)] dark:border-sky-500/25 dark:bg-[linear-gradient(180deg,#12273a_0%,#0d1d2c_100%)]"
+                      data-protocol-payment-card="true"
+                      className="min-w-0 rounded-2xl border p-4"
                     >
-                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="min-w-0">
+                      <div data-protocol-payment-row="true" className="flex min-w-0 flex-wrap items-center gap-3">
+                        <div data-protocol-payment-copy="true" className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold text-slate-950 dark:text-white">
                               {item.preProtocolNumber}
@@ -1786,17 +1787,20 @@ export function ProtocolDeskPage() {
 
                         <Button
                           type="button"
-                          className="rounded-full bg-emerald-700 px-5 font-bold text-white hover:bg-emerald-800"
+                          data-protocol-payment-command="confirm"
+                          data-shared-action="success"
+                          className="h-auto min-h-11 rounded-xl px-4 py-2 font-semibold whitespace-normal"
                           disabled={
                             protocolActionBusy ===
                             `preprotocol-payment-${item.processId}`
                           }
                           onClick={() => void handleConfirmPreprotocolPayment(item)}
                         >
-                          {protocolActionBusy ===
+                          <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0" />
+                          <span data-protocol-payment-label="true">{protocolActionBusy ===
                           `preprotocol-payment-${item.processId}`
                             ? "Confirmando..."
-                            : "Confirmar pagamento e criar processo"}
+                            : "Confirmar pagamento e criar processo"}</span>
                         </Button>
                       </div>
                     </div>

@@ -40,6 +40,7 @@ const titles: Record<ProcessWorkspaceAction, string> = {
   encaminhar: "Encaminhar entre unidades",
   decisao: "Abrir decisão oficial",
   etiquetas: "Gerenciar marcadores pessoais",
+  reabrir: "Reabrir processo para nova avaliação",
 };
 
 export function ProcessBatchActionDialog({
@@ -57,11 +58,12 @@ export function ProcessBatchActionDialog({
   const [markerOperation, setMarkerOperation] = useState<"apply" | "remove">("apply");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { setError(""); }, [action]);
+  useEffect(() => { setError(""); setReason(""); }, [action]);
   const hasReassignment = selected.some(p => Boolean(p.analysis?.assignedProfileId || p.analysis?.assignedTo));
   const availableDepartments = useMemo(() => departments.filter(d => d.isActive), [departments]);
   const canSubmit = Boolean(canOperate && selected.length && !busy &&
     (action === "prioridade" ||
+      (action === "reabrir" && selected.length === 1 && reason.trim().length >= 8) ||
       (action === "atribuir" && analystProfileId && (!hasReassignment || reason.trim().length >= 8)) ||
       (action === "encaminhar" && destination && subject.trim().length >= 8 && dueDate) ||
       (action === "etiquetas" && markerIndex !== "")));
@@ -104,7 +106,9 @@ export function ProcessBatchActionDialog({
         {!canOperate && action !== "decisao" ? (
           <div role="alert" className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">
             <CircleAlert className="h-4 w-4 shrink-0" />
-{action === "atribuir"
+{action === "reabrir"
+              ? "Selecione um processo concluído. A reabertura depende do analista responsável ou supervisor autorizado."
+              : action === "atribuir"
               ? "A atribuição exige o gestor autorizado da unidade de análise. O analista pode consultar, mas não redistribuir processos."
               : action === "encaminhar"
               ? "Este processo não pertence à unidade operacional desta conta ou o perfil está somente em consulta. Despachos exigem a unidade responsável."
@@ -130,6 +134,18 @@ export function ProcessBatchActionDialog({
           </div>
         ) : (
           <form className="space-y-4" onSubmit={submit}>
+            {action === "reabrir" ? (
+              <div className="space-y-3" data-process-reopen-dialog="true">
+                <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100">
+                  O mesmo processo retorna à Análise Urbanística. Os arquivos, avaliações, guias, assinaturas e atos emitidos permanecem preservados. A reabertura não cancela nem substitui alvarás; eventual retificação formal exige o fluxo competente.
+                </p>
+                <label className={labelClass}>Justificativa obrigatória
+                  <textarea value={reason} onChange={event => setReason(event.target.value)}
+                    maxLength={2000} placeholder="Descreva o motivo da nova avaliação"
+                    className="min-h-28 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+                </label>
+              </div>
+            ) : null}
             {action === "prioridade" ? (
               <div className="space-y-3">
                 <label className={labelClass}>Nível de acompanhamento
@@ -225,7 +241,7 @@ export function ProcessBatchActionDialog({
             <DialogFooter>
               <Button type="button" variant="outline" disabled={busy} onClick={onClose}>Cancelar</Button>
               <Button type="submit" disabled={!canSubmit}>
-                {busy ? "Registrando..." : <><Tag className="mr-1.5 h-4 w-4" />Confirmar operação</>}
+                {busy ? "Registrando..." : action === "reabrir" ? "Confirmar reabertura" : <><Tag className="mr-1.5 h-4 w-4" />Confirmar operação</>}
               </Button>
             </DialogFooter>
           </form>

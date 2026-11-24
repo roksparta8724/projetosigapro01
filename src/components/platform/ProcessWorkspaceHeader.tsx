@@ -7,7 +7,7 @@ import { buildProcessPath, type ProcessRecord } from "@/lib/platform";
 
 export type ProcessQuickFilter = "todos" | "meus" | "unidade" | "criticos" | "pendencias" | "guias" | "exigencias" | "analise" | "vistoria" | "decisao";
 export type ProcessMarkerOption = { label: string; color: string; emoji?: string };
-export type ProcessWorkspaceAction = "prioridade" | "atribuir" | "encaminhar" | "decisao" | "etiquetas";
+export type ProcessWorkspaceAction = "prioridade" | "atribuir" | "encaminhar" | "decisao" | "etiquetas" | "reabrir";
 export function processIsCritical(p: ProcessRecord) {
   return Boolean(p.sla?.breached || (typeof p.sla?.hoursRemaining === "number" && p.sla.hoursRemaining <= 12));
 }
@@ -147,7 +147,8 @@ export function ProcessWorkspaceHeader({
       ) : null}
       {showSensitiveDetails ? <div data-sigapro-process-bulk-actions="true"
         data-has-selection={selectedCount > 0 ? "true" : "false"}
-        className="sig-workspace-actions">
+        className="sig-workspace-actions" data-toolbar-layout="intrinsic-wrap">
+        <div className="sig-workspace-selection-group">
         {showSensitiveDetails ? (
           <label className="sig-workspace-select-all">
             <input type="checkbox" checked={allPageSelected} disabled={!pageCount} onChange={e => onTogglePage(e.target.checked)}
@@ -157,15 +158,16 @@ export function ProcessWorkspaceHeader({
         ) : null}
         <strong className="sig-workspace-selected">{selectedCount} selecionado(s)</strong>
         {selectedCount > 0 ? <button type="button" onClick={onClearSelection} className="sig-workspace-clear"><X className="h-3 w-3" /> Limpar</button> : null}
-        <div className="sig-workspace-actions-list">
+        </div>
+        <div className="sig-workspace-actions-list" role="group" aria-label="Ações dos processos">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button type="button" size="sm" className="sig-workspace-action sig-workspace-action-primary"
+              <Button type="button" size="sm" variant="outline" data-process-toolbar-action="mark" className="sig-workspace-action"
                 disabled={selectedCount === 0 || bulkBusy || !showSensitiveDetails}>
-                <Tag className="h-4 w-4" /> Marcar <ChevronDown className="h-3.5 w-3.5" />
+                <Tag aria-hidden="true" className="h-4 w-4" /> <span data-toolbar-label="true">Marcar</span> <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-white text-slate-900">
+            <DropdownMenuContent align="start" data-process-toolbar-menu="true" className="min-w-[220px] max-w-[calc(100vw-24px)]">
               {!onBulkMarker ? (
                 <DropdownMenuItem onSelect={() => onToolbarAction?.("etiquetas")}>
                   <Tag className="mr-2 h-4 w-4" />
@@ -213,6 +215,15 @@ export function ProcessWorkspaceHeader({
               <CheckCircle2 className="h-4 w-4" />}
             {selectedAllCompleted ? "Reabrir na unidade" : "Concluir nesta unidade"}
           </Button>
+          {onToolbarAction ? (
+            <Button type="button" size="sm" variant="outline" data-operation="reabrir"
+              className="sig-workspace-action sig-workspace-action-operational"
+              disabled={selectedCount !== 1 || bulkBusy || !showSensitiveDetails}
+              onClick={() => onToolbarAction("reabrir")}
+              title="Reabrir um processo concluído para nova avaliação técnica">
+              <RotateCcw className="h-4 w-4" />Reabrir processo
+            </Button>
+          ) : null}
           {([
             { label: "Prioridade", Icon: SlidersHorizontal, dispatch: false },
             { label: "Atribuir", Icon: UsersRound, dispatch: false },
@@ -268,14 +279,14 @@ export function ProcessWorkspaceHeader({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="outline" size="sm" className="sig-workspace-action"
-                disabled={!filteredCount || !showSensitiveDetails}>
+                disabled={!filteredCount || !showSensitiveDetails || bulkBusy}>
                 <Download className="h-4 w-4" /> Excel <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[240px] bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
-              <DropdownMenuItem disabled={selectedCount === 0}
+            <DropdownMenuContent align="end" data-process-toolbar-menu="true" className="min-w-[240px] max-w-[calc(100vw-24px)]">
+              <DropdownMenuItem disabled={selectedCount === 0 || bulkBusy}
                 onSelect={() => onExport("selected")}>Exportar selecionados ({selectedCount}) — .xlsx</DropdownMenuItem>
-              <DropdownMenuItem disabled={!filteredCount}
+              <DropdownMenuItem disabled={!filteredCount || bulkBusy}
                 onSelect={() => onExport("filtered")}>Exportar resultados filtrados ({filteredCount}) — .xlsx</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

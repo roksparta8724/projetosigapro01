@@ -1,3 +1,4 @@
+import { authEmailErrorMessage } from "@/lib/authEmailError";
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -1250,14 +1251,14 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             email: normalized,
             redirectTo: `${window.location.origin}/recuperar-senha`,
           });
-          if (resetError) return { ok: false, message: resetError.message || "Falha ao enviar o e-mail." };
+          if (resetError) return { ok: false, message: authEmailErrorMessage(resetError) };
           return { ok: true, message: "Se a conta existir, enviaremos as instruções por e-mail." };
         }
 
         const { error: resetError } = await backendClient.auth.resetPasswordForEmail(normalized, {
           redirectTo: `${window.location.origin}/recuperar-senha`,
         });
-        if (resetError) return { ok: false, message: resetError.message };
+        if (resetError) return { ok: false, message: authEmailErrorMessage(resetError) };
         return { ok: true, message: "E-mail enviado." };
       },
       updateEmail: async (email) => {
@@ -1274,7 +1275,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             newEmail: normalized,
             callbackURL: `${window.location.origin}/configuracoes`,
           });
-          if (updateError) return { ok: false, message: updateError.message || "Falha ao solicitar alteração de e-mail." };
+          if (updateError) return { ok: false, message: authEmailErrorMessage(updateError) };
           return { ok: true, message: "Confirme a alteração pelo e-mail enviado." };
         }
 

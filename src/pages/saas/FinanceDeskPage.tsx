@@ -1301,7 +1301,7 @@ export function FinanceDeskPage() {
                                 <AlertDialogTrigger asChild>
                                   <Button
                                     type="button"
-                                    className="mt-3 h-11 w-full rounded-xl bg-emerald-600 font-bold text-white shadow-[0_8px_20px_rgba(5,150,105,0.22)] hover:bg-emerald-700"
+                                    data-shared-action="success" className="mt-3 h-auto min-h-11 w-full rounded-xl py-2 font-semibold whitespace-normal"
                                     disabled={manualPaymentBusyKey === process.id + ":" + guide.kind}
                                   >
                                     <CheckCircle2 className="mr-2 h-4 w-4" />

@@ -37,8 +37,10 @@ describe("process entry and organogram regression", () => {
     expect(portal).toContain('data-topbar-process-shortcut="desktop"');
     expect(destination).toContain('return "/prefeitura/processos";');
     expect(destination).toContain('return "/dashboard/processos";');
-    expect(analyst).toContain('const requested = searchParams.get("secao");');
-    expect(analyst).toContain('      : "fila";');
+    expect(analyst).toContain('const requestedSection = searchParams.get("secao");');
+    expect(analyst).toContain('    : "fila";');
+    expect(analyst).toContain('params.set("secao", next)');
+    expect(analyst).toContain('persistInUrl={false}');
   });
 
   it("keeps the dispatch organogram hierarchical, grouped and selectable without flattening the Prefeitura structure", () => {
