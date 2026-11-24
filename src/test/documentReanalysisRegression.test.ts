@@ -84,3 +84,19 @@ describe("visible per-document reopen action", () => {
     expect(sql).not.toMatch(/UPDATE public\.(processes|process_documents|payment_guides)/i);
   });
 });
+
+describe("server-authoritative document reanalysis authorization", () => {
+  it("uses a single process capability check rather than guessing the effective department", () => {
+    const hook = read("src/hooks/useDocumentReviewCapabilities.ts");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const sql = read("neon/migrations/20261124_document_review_capabilities.sql");
+    expect(detail).toContain("reviewCapabilities.allows(document.id)");
+    expect(viewer).toContain("reviewCapabilities.allows(document.id)");
+    expect(detail).toContain("reviewCapabilities.reason");
+    expect(hook).toContain("snapshot.key === key");
+    expect(sql).toContain("public.has_process_access(_process_id)");
+    expect(sql).toContain("public.process_technical_release_verified_v1(_process_id)");
+    expect(sql).toContain("p.municipality_id=coalesce(_process.municipality_id,_process.tenant_id)");
+  });
+});

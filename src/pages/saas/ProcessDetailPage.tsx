@@ -41,6 +41,7 @@ import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { canReadInstitutionalHistory } from "@/lib/institutionalHistoryAccess";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useDocumentReviewCapabilities } from "@/hooks/useDocumentReviewCapabilities";
 import { IndividualDocumentReview } from "@/components/platform/IndividualDocumentReview";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import {
@@ -83,7 +84,6 @@ import {
   canEditAssignedAnalysisArtifact,
   canReopenProcessForReview,
   getDocumentReviewHistory,
-  canReviewDocumentIndividually,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -564,6 +564,7 @@ export function ProcessDetailPage() {
     scopeId ??
     session.tenantId ??
     null;
+  const reviewCapabilities = useDocumentReviewCapabilities(process?.id, session.id + ":" + session.role + ":" + (session.department || ""));
   const { canImportMunicipalGuide, configuration: collectionConfig } = useEffectiveCollectionMode(effectiveScopeId);
   const { headerBranding: guideHeaderBranding, footerBranding: guideFooterBranding } = useInstitutionBranding(effectiveScopeId);
   const {
@@ -3844,7 +3845,7 @@ export function ProcessDetailPage() {
                 const evaluationHistory = getDocumentReviewHistory(process, document.id).filter(entry => !isExternalProcessViewer || entry.visibleToExternal);
                 const showReopenDocument = !isExternalProcessViewer && document.uploaded && (isApproved || hasCommunique) && !isSignedAnalysisArchiveDocument(document);
                 const canStandardReopen = showReopenDocument && !isFinalProcessStatus && canAnalyzeProcessDocument(session, process, effectiveScopeId);
-                const canSupplementalReopen = showReopenDocument && canReviewDocumentIndividually(session, process, document, effectiveScopeId);
+                const canSupplementalReopen = showReopenDocument && reviewCapabilities.allows(document.id);
 
                 return (
                   <div
@@ -3953,7 +3954,7 @@ export function ProcessDetailPage() {
                           ) : (
                             <Button type="button" variant="outline" data-document-reopen-shortcut="true"
                               disabled={!canStandardReopen}
-                              title={canStandardReopen ? "Reabrir para nova análise apenas deste documento" : "Somente a equipe técnica autorizada pode reavaliar"}
+                              title={canStandardReopen ? "Reabrir para nova análise apenas deste documento" : reviewCapabilities.reason || "Documento indisponível para reavaliação"}
                               onClick={() => openDocumentWorkspace(document.id, true, false, true)}
                               className="h-9 max-w-full shrink-0 whitespace-nowrap rounded-full border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-70 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200">
                               <PencilLine className="mr-1.5 h-4 w-4 shrink-0" />Reabrir documento
@@ -4178,7 +4179,7 @@ export function ProcessDetailPage() {
                       </div>
                     ) : null}
                     {showReopenDocument && !canStandardReopen && !canSupplementalReopen ? (
-                      <p className="mt-2 pl-2 text-xs text-slate-600 dark:text-slate-300">Reabertura disponível para a equipe técnica autorizada do município.</p>
+                      <p className="mt-2 pl-2 text-xs text-slate-600 dark:text-slate-300">{reviewCapabilities.reason || "Documento indisponível para reavaliação nesta etapa."}</p>
                     ) : null}
                     {evaluationHistory.length > 0 ? (
                       <section data-document-evaluation-history="true" className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900">

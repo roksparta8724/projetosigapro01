@@ -2822,6 +2822,10 @@ export async function sendRemoteProcessMessage(input: {
   });
 }
 
+export async function loadRemoteDocumentReviewCapabilities(processId: string) {
+  return callProcessRpc<{ document_ids: string[]; reason: string }>("document_individual_review_capabilities_v1", { _process_id: processId });
+}
+
 export async function recordRemoteIndividualDocumentReview(documentId: string, action: "reabrir" | "aprovar" | "ressalvas", reason: string) {
   return callProcessRpc("record_individual_document_review_v1", { _document_id: documentId, _action: action, _reason: reason });
 }

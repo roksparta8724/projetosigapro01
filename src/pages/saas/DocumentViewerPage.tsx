@@ -9,6 +9,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useDocumentReviewCapabilities } from "@/hooks/useDocumentReviewCapabilities";
 import { IndividualDocumentReview } from "@/components/platform/IndividualDocumentReview";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -23,7 +24,6 @@ import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import {
   canAnalyzeProcessDocument,
-  canReviewDocumentIndividually,
   canAccessMunicipalArea,
   canViewMunicipalProcessDocument,
   isProcessReleasedToUrbanAnalysis,
@@ -100,6 +100,7 @@ export function DocumentViewerPage() {
     scopeId ??
     session.tenantId ??
     null;
+  const reviewCapabilities = useDocumentReviewCapabilities(process?.id, session.id + ":" + session.role + ":" + (session.department || ""));
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [error, setError] = useState("");
   const [accessRetry, setAccessRetry] = useState(0);
@@ -386,7 +387,7 @@ export function DocumentViewerPage() {
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-          {(document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") && !isSignedAnalysisArchiveDocument(document) && canReviewDocumentIndividually(session, process, document, effectiveScopeId) ? (
+          {(document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") && !isSignedAnalysisArchiveDocument(document) && reviewCapabilities.allows(document.id) ? (
             <IndividualDocumentReview key={document.id} process={process} document={document}
               onRefresh={() => refreshRemoteStore(process.id)} compact />
           ) : (document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") && canAnalyzeDocument && !["deferido", "indeferido", "arquivado"].includes(process.status) ? (
@@ -571,10 +572,10 @@ export function DocumentViewerPage() {
               {(document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") ? (
                 <div data-document-review-status="approved" className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
                   <p className="text-xs font-semibold text-slate-800">{document.reviewStatus === "aprovado" ? "Documento aprovado" : "Documento com exigência"}</p>
-                  {(!isSignedAnalysisArchiveDocument(document) && canReviewDocumentIndividually(session, process, document, effectiveScopeId)) || canAnalyzeDocument ? (
+                  {(!isSignedAnalysisArchiveDocument(document) && reviewCapabilities.allows(document.id)) || canAnalyzeDocument ? (
                     <p className="mt-1 text-xs leading-5 text-slate-600">Use Reabrir documento na barra superior para registrar uma nova avaliação.</p>
                   ) : (
-                    <p className="mt-1 break-words text-xs leading-5 text-slate-600">A reavaliação é exclusiva da equipe técnica autorizada. Os atos já emitidos permanecem preservados.</p>
+                    <p className="mt-1 break-words text-xs leading-5 text-slate-600">{reviewCapabilities.reason || "Documento indisponível para reavaliação nesta etapa."} Os atos já emitidos permanecem preservados.</p>
                   )}
                 </div>
               ) : null}
