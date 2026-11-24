@@ -41,6 +41,7 @@ import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { canReadInstitutionalHistory } from "@/lib/institutionalHistoryAccess";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { IndividualDocumentReview } from "@/components/platform/IndividualDocumentReview";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import {
   getRenderedMunicipalityLogoDataUrl,
@@ -82,6 +83,7 @@ import {
   canEditAssignedAnalysisArtifact,
   canReopenProcessForReview,
   getDocumentReviewHistory,
+  canReviewDocumentIndividually,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -4156,7 +4158,7 @@ export function ProcessDetailPage() {
                             </>
                           ) : null}
                         </div>
-                        {isApproved && canAnalyzeProcessDocument(session, process, effectiveScopeId) && !isSignedAnalysisArchiveDocument(document) ? (
+                        {(isApproved || hasCommunique) && canAnalyzeProcessDocument(session, process, effectiveScopeId) && !isFinalProcessStatus && !isSignedAnalysisArchiveDocument(document) ? (
                           <Button type="button" variant="outline"
                             data-document-reopen-shortcut="true"
                             onClick={() => openDocumentWorkspace(document.id, true, false, true)}
@@ -4164,12 +4166,12 @@ export function ProcessDetailPage() {
                             <PencilLine className="mr-2 h-4 w-4 shrink-0" />
                             Reabrir para nova análise
                           </Button>
-                        ) : isApproved && isFinalProcessStatus && !isExternalProcessViewer ? (
-                          <p data-document-reopen-unavailable="true" className="basis-full break-words text-xs leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
-                            Processo concluído. Uma nova avaliação exige reabertura administrativa ou retificação formal, preservando o histórico.
-                          </p>
                         ) : null}
                       </div>
+                    ) : null}
+                    {!isExternalProcessViewer && !isSignedAnalysisArchiveDocument(document) && canReviewDocumentIndividually(session, process, document, effectiveScopeId) ? (
+                      <IndividualDocumentReview key={document.id} process={process} document={document}
+                        onRefresh={() => refreshRemoteStore(process.id)} />
                     ) : null}
                     {evaluationHistory.length > 0 ? (
                       <section data-document-evaluation-history="true" className="mt-4 rounded-2xl border border-slate-200 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900">

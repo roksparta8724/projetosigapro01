@@ -49,3 +49,21 @@ describe("append-only document evaluations and official process reopening", () =
     expect(registry).toContain("reopenRemoteProcessForReview");
   });
 });
+
+describe("independent review without reopening the municipal process", () => {
+  it("keeps both actions and records supplemental decisions without modifying official rows", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const component = read("src/components/platform/IndividualDocumentReview.tsx");
+    const sql = read("neon/migrations/20261124_individual_document_review.sql");
+    expect(detail).toContain('data-process-reopen-action="true"');
+    expect(detail).toContain("IndividualDocumentReview");
+    expect(viewer).toContain("IndividualDocumentReview");
+    expect(component).toContain("Reabrir somente este documento");
+    expect(component).toContain("Confirmar aprovação");
+    expect(sql).toContain("public.can_write_process_analysis(_process_id)");
+    expect(sql).toContain("INSERT INTO public.process_audit_entries");
+    expect(sql).not.toMatch(/UPDATE public\.(processes|process_documents|payment_guides)/i);
+    expect(sql).toContain("Já existe uma reavaliação individual em andamento.");
+  });
+});

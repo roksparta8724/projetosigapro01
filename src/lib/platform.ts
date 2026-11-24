@@ -3170,7 +3170,27 @@ export function getDocumentReviewHistory(process: ProcessRecord, documentId: str
   // Never infer a document association from ambiguous historical audit text.
   return (process.auditTrail || []).filter(entry => entry.category === "documento" &&
     entry.documentId === documentId &&
-    ["Documento aprovado", "Documento rejeitado", "Análise documental reaberta"].includes(entry.title)).slice().reverse();
+    ["Documento aprovado", "Documento rejeitado", "Análise documental reaberta",
+      "Reavaliação individual aberta", "Reavaliação individual aprovada", "Reavaliação individual com ressalvas"].includes(entry.title)).slice().reverse();
+}
+
+export function getIndividualDocumentReview(process: ProcessRecord, documentId: string) {
+  return getDocumentReviewHistory(process, documentId).filter(entry => entry.title.startsWith("Reavaliação individual ")).at(-1);
+}
+
+export function canReviewDocumentIndividually(session: SessionUser, process: ProcessRecord, document: ProcessDocument, scopeId?: string | null) {
+  if (session.accountStatus !== "active" || !document.uploaded || !document.filePath ||
+      !["aprovado", "rejeitado"].includes(document.reviewStatus || "")) return false;
+  if (!["analista", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role)) return false;
+  const ownScope = getOperationalScopeId(session);
+  if (session.role !== "master_admin" && session.role !== "master_ops") {
+    if (!ownScope || (scopeId && ownScope !== scopeId) || !matchesOperationalScope(ownScope, process) ||
+        !canAccessMunicipalArea(session, "analise")) return false;
+  }
+  const pending = getIndividualDocumentReview(process, document.id)?.title === "Reavaliação individual aberta";
+  if (!pending && canAnalyzeProcessDocument(session, process, scopeId) &&
+      !["deferido", "indeferido", "arquivado"].includes(process.status)) return false;
+  return canEditAssignedAnalysisArtifact(session, process, scopeId);
 }
 
 export function canAnalyzeProcessDocument(

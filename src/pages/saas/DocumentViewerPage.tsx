@@ -9,6 +9,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { IndividualDocumentReview } from "@/components/platform/IndividualDocumentReview";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
@@ -21,6 +23,7 @@ import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import {
   canAnalyzeProcessDocument,
+  canReviewDocumentIndividually,
   canAccessMunicipalArea,
   canViewMunicipalProcessDocument,
   isProcessReleasedToUrbanAnalysis,
@@ -80,7 +83,9 @@ export function DocumentViewerPage() {
     loading: platformDataLoading,
     dataReadyForCurrentUser,
     startProcessAnalysis,
+    refreshRemoteStore,
   } = usePlatformData();
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 30000, refreshOnMount: false });
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
@@ -554,20 +559,20 @@ export function DocumentViewerPage() {
               <p className="mt-2 break-words text-sm leading-6 text-slate-700">
                 Este documento integra o acervo do processo no SIGAPRO. A consulta é protegida pelas permissões do seu perfil e o acesso é renovado durante a sessão autorizada.
               </p>
-              {document.reviewStatus === "aprovado" ? (
+              {(document.reviewStatus === "aprovado" || document.reviewStatus === "rejeitado") ? (
                 <div data-document-review-status="approved" className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
-                  <p className="text-xs font-semibold text-emerald-800">Documento aprovado</p>
-                  {canAnalyzeDocument ? (
+                  <p className="text-xs font-semibold text-slate-800">{document.reviewStatus === "aprovado" ? "Documento aprovado" : "Documento com exigência"}</p>
+                  {canAnalyzeDocument && !["deferido", "indeferido", "arquivado"].includes(process.status) ? (
                     <Button type="button" variant="outline" data-document-viewer-reopen="true" onClick={() => openAnalysisWorkspace(undefined, true)} className="mt-2 h-auto min-h-10 w-full whitespace-normal rounded-xl border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100">
                       Reabrir para nova análise
                     </Button>
-                  ) : (
-                    <p className="mt-1 break-words text-xs leading-5 text-slate-600">
-                      {["deferido", "indeferido", "arquivado"].includes(process.status)
-                        ? "Processo concluído. Uma nova avaliação exige reabertura administrativa ou retificação formal."
-                        : "A reavaliação é exclusiva da equipe técnica autorizada na etapa atual."}
-                    </p>
-                  )}
+                  ) : null}
+                  {!isSignedAnalysisArchiveDocument(document) && canReviewDocumentIndividually(session, process, document, effectiveScopeId) ? (
+                    <IndividualDocumentReview key={document.id} process={process} document={document}
+                      onRefresh={() => refreshRemoteStore(process.id)} />
+                  ) : !canAnalyzeDocument ? (
+                    <p className="mt-1 break-words text-xs leading-5 text-slate-600">A reavaliação é exclusiva da equipe técnica autorizada. Os atos já emitidos permanecem preservados.</p>
+                  ) : null}
                 </div>
               ) : null}
               {canAnalyzeDocument ? (

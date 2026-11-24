@@ -1421,7 +1421,7 @@ export function DocumentAnalysisPage() {
                 Resultado da análise
               </p>
 
-              {localReviewStatus === "aprovado" ? (
+              {localReviewStatus === "aprovado" || localReviewStatus === "rejeitado" ? (
                 <div className="mt-3 space-y-3">
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                     <div className="flex items-center gap-3">
@@ -1429,7 +1429,7 @@ export function DocumentAnalysisPage() {
                         <CheckCircle2 className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="font-semibold text-emerald-900">Documento aprovado</p>
+                        <p className="font-semibold text-emerald-900">{localReviewStatus === "aprovado" ? "Documento aprovado" : "Documento com exigência"}</p>
                         <p className="mt-1 text-xs leading-5 text-emerald-700">
                           A decisão foi registrada no processo.
                         </p>
@@ -1460,7 +1460,7 @@ export function DocumentAnalysisPage() {
                         Reabertura auditada
                       </p>
                       <p className="mt-1 text-sm font-bold text-slate-950">
-                        Corrigir uma aprovação registrada por engano
+                        Reavaliar a decisão deste documento
                       </p>
                       <p className="mt-1 text-xs leading-5 text-slate-600">
                         A aprovação anterior não será apagada. O sistema registra quem reabriu, o motivo e devolve o documento para “Pendente”, permitindo uma nova análise.

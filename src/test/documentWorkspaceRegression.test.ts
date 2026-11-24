@@ -285,6 +285,6 @@ describe("permanent municipal records with renewable private access", () => {
     expect(viewer).toContain("Visualização segura");
     expect(viewer).not.toContain("acesso temporário assinado");
     expect(viewer).toContain('data-document-viewer-reopen="true"');
-    expect(viewer).toContain("Uma nova avaliação exige reabertura administrativa");
+    expect(viewer).toContain("IndividualDocumentReview");
   });
 });
