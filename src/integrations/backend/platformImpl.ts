@@ -469,6 +469,45 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
   return { data: merged, error: null };
 }
 
+/**
+ * Neon Data API / PostgREST can cap a SELECT at 1,000 rows. Without a
+ * continuation the Master sees only the first 1,000 prefectures when the
+ * client base grows. Read subsequent authorized pages without changing RLS.
+ * Other departments typically receive fewer than the page size, so there
+ * are no extra requests for normal municipal sessions.
+ */
+async function completeMunicipalityCatalog(firstResponse: {
+  data?: DatabaseRow[] | null;
+  error?: { message?: string } | null;
+}): Promise<DatabaseRow[]> {
+  if (firstResponse.error) throw new Error(firstResponse.error.message || "Não foi possível consultar o diretório municipal.");
+  const first = Array.isArray(firstResponse.data) ? firstResponse.data : [];
+  const pageSize = 1000;
+  if (first.length < pageSize) return first;
+  if (!db) throw new Error("Banco indisponível para continuar a carteira municipal.");
+  const collected = [...first];
+  const seen = new Set(first.map((row) => String(row.id ?? "")).filter(Boolean));
+  for (let offset = pageSize; offset < 200000; offset += pageSize) {
+    const { data, error } = await db.from("municipalities").select("*")
+      .order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
+    if (error) throw new Error(error.message || "A leitura de uma página da carteira falhou.");
+    const next = Array.isArray(data) ? data as DatabaseRow[] : [];
+    let uniqueCount = 0;
+    for (const row of next) {
+      const id = String(row.id ?? "");
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
+      collected.push(row);
+      uniqueCount += 1;
+    }
+    if (next.length < pageSize) return collected;
+    // Fail explicitly on an adapter ignoring range(), rather than silently
+    // looping over the same 1,000 municipalities forever.
+    if (uniqueCount === 0) throw new Error("A paginação municipal não avançou. Atualize o Data API do SIGAPRO.");
+  }
+  throw new Error("A carteira excedeu a capacidade segura da leitura em páginas. Use busca paginada do servidor.");
+}
+
 export async function loadRemotePlatformStore(focusProcessRouteKey?: string | null) {
   if (!db) {
     throw new Error("Banco oficial indisponível.");
@@ -701,7 +740,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   }
 
   const tenantRows = municipalityResultData(tenantsResult.data);
-  const municipalityRows = municipalityResultData(municipalitiesResult.data);
+  const municipalityRows = await completeMunicipalityCatalog(municipalitiesResult);
   const brandingRows = municipalityResultData(brandingResult.data);
   const settingsRows = municipalityResultData(settingsResult.data);
   const municipalityBrandingRows = municipalityResultData(municipalityBrandingResult.data);
@@ -1044,6 +1083,20 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     };
   });
 
+  // Avoid O(municipalities × profiles × processes) on the Master bootstrap.
+  // Precompute the totals once; each Prefecture lookup becomes O(1).
+  const profileCountByMunicipality = new Map<string, number>();
+  for (const profile of profilesResult.data ?? []) {
+    if (profile.deleted_at || !profile.municipality_id) continue;
+    const key = String(profile.municipality_id);
+    profileCountByMunicipality.set(key, (profileCountByMunicipality.get(key) ?? 0) + 1);
+  }
+  const processCountByMunicipality = new Map<string, number>();
+  for (const process of processRows) {
+    const key = String(process.municipality_id ?? process.tenant_id ?? "");
+    if (key) processCountByMunicipality.set(key, (processCountByMunicipality.get(key) ?? 0) + 1);
+  }
+
   const mappedTenantsFromMunicipalities: Tenant[] = municipalityRows.map((municipality) => {
     const branding = brandingByMunicipality.get(municipality.id);
     const settings = settingsByMunicipality.get(municipality.id);
@@ -1053,10 +1106,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         : {};
     const municipalityName = resolveMunicipalityName(municipality);
     const municipalityCity = resolveMunicipalityCity(municipality, general);
-    const municipalityProfiles = (profilesResult.data ?? []).filter((item) => item.municipality_id === municipality.id && !item.deleted_at);
-    const municipalityProcesses = processRows.filter(
-      (item) => (item.municipality_id ?? item.tenant_id) === municipality.id,
-    );
+    const municipalityUserCount = profileCountByMunicipality.get(String(municipality.id)) ?? 0;
+    const municipalityProcessCount = processCountByMunicipality.get(String(municipality.id)) ?? 0;
     const activeModules =
       Array.isArray(general.legacy_modules_enabled)
         ? general.legacy_modules_enabled
@@ -1084,8 +1135,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           planAssignments.some((assignment) => assignment.municipalityId === municipality.id && assignment.planId === plan.id),
         )?.name ?? "Plano institucional",
       activeModules,
-      users: municipalityProfiles.length,
-      processes: municipalityProcesses.length,
+      users: municipalityUserCount,
+      processes: municipalityProcessCount,
       revenue: typeof general.monthly_fee === "number" ? general.monthly_fee : 0,
       subdomain: municipality.subdomain ?? municipality.slug ?? "",
       theme: {

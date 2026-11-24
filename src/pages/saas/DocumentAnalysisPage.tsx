@@ -863,7 +863,7 @@ export function DocumentAnalysisPage() {
             </Button>
             <Button
               type="button"
-              className="h-9 rounded-xl bg-[#9a3412] px-3 text-[11px] font-bold !text-white shadow-sm hover:bg-[#7c2d12] disabled:cursor-not-allowed disabled:border disabled:border-slate-300 disabled:bg-slate-100 disabled:!text-slate-600 disabled:shadow-none"
+              className="h-9 rounded-xl bg-[#9a3412] px-3 text-[11px] font-bold !text-white shadow-sm hover:bg-[#7c2d12] disabled:cursor-not-allowed disabled:border disabled:border-slate-500 disabled:bg-slate-700 disabled:!text-white disabled:shadow-none"
               disabled={busy === "send-draft" || draftAnnotations.length === 0 || !comuniqueDueDate}
               onClick={() => void sendDraftToProfessional()}
             >

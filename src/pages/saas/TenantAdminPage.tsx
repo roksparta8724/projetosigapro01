@@ -351,7 +351,8 @@ export function TenantAdminPage() {
   const effectiveScopeId = session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const planMunicipalityId = session.municipalityId ?? session.tenantId ?? null;
   const planCapacity = usePlanCapacityLive(planMunicipalityId, {
-    enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
+    enabled: Boolean(planMunicipalityId && authorizedAvatarViewerId) && session.role === "prefeitura_admin",
+    scopeKey: authorizedAvatarViewerId || "",
     intervalMs: 8000,
   });
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => {
@@ -1541,9 +1542,9 @@ export function TenantAdminPage() {
         ) : null}
 
         {workspaceView === "usuarios" ? (
-          <PageMainContent className="min-w-0 gap-3">
+          <PageMainContent className="min-w-0 w-full max-w-full gap-3">
             <section data-municipal-users-pane="premium-v7"
-              className="min-w-0 !h-auto !min-h-0 !self-start overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(12,41,65,0.10)]">
+              className="min-w-0 w-full max-w-full !h-auto !min-h-0 !self-start overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(12,41,65,0.10)] dark:border-slate-700 dark:bg-slate-900">
               <header data-municipal-users-toolbar="compact-v7"
                 className="flex min-w-0 flex-wrap items-center justify-between gap-2.5 bg-[#10364f] px-3 py-2.5 text-white sm:px-4">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -1564,7 +1565,7 @@ export function TenantAdminPage() {
                   Criar servidor
                 </Button>
               </header>
-              <div data-municipal-users-content="true" className="min-w-0 space-y-2.5 p-3 sm:p-4">
+              <div data-municipal-users-content="true" className="min-w-0 w-full space-y-3 p-3 sm:p-4">
             {(!municipalRegistryConfirmed) ? (
               <div role={platformDataError || municipalRegistry.error ? "alert" : "status"} data-municipal-users-sync={platformDataError || municipalRegistry.error ? "error" : "pending"}
                 className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-300/75 bg-sky-50 px-3 py-2 text-xs text-slate-900 dark:border-sky-600 dark:bg-sky-950/45 dark:text-white">
@@ -1585,7 +1586,7 @@ export function TenantAdminPage() {
                   <span className="text-sky-100">Administradores <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? tenantUsers.filter((user) => user.role === "prefeitura_admin").length : "—"}</strong></span>
                   <span className="text-sky-100">Bloqueados <strong className="ml-1 font-semibold tabular-nums text-white">{municipalRegistryConfirmed ? tenantUsers.filter((user) => user.accountStatus === "blocked").length : "—"}</strong></span>
                 </div>
-                <Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div>
+                <Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto min-w-0 flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-800"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div>
                 <CompactUserRegistry users={filteredUsers} page={userPage}
                   onPageChange={setUserPage}
                   filterKey={[segment, statusFilter, roleFilter, search, effectiveScopeId || ""].join(":")}

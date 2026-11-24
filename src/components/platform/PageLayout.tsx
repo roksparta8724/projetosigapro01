@@ -12,7 +12,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "sig-page-shell mx-auto flex w-full max-w-[1760px] flex-col gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:max-w-[1880px] xl:px-3 2xl:max-w-[1940px] 2xl:px-4",
+        "sig-page-shell mx-auto flex min-w-0 w-full max-w-[1760px] flex-col gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:max-w-[1880px] xl:px-3 2xl:max-w-[1940px] 2xl:px-4",
       className,
     )}
   >
@@ -92,7 +92,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "sig-stats-row grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr))] items-stretch gap-3.5 md:gap-4 auto-rows-fr [&>*]:h-full",
+        "sig-stats-row grid min-w-0 [grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr))] items-stretch gap-3.5 md:gap-4 auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -165,7 +165,7 @@ export function MainGrid({
   return (
     <div
       className={cn(
-        "sig-main-grid grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)] [&>*:only-child]:col-span-full [&>*:only-child]:min-w-0 [&>*:only-child]:w-full",
+        "sig-main-grid grid min-w-0 max-w-full grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)] [&>*:only-child]:col-span-full [&>*:only-child]:min-w-0 [&>*:only-child]:w-full",
         className,
       )}
     >
@@ -201,6 +201,8 @@ export function InternalSectionNav({
   className,
   summaryFirst = false,
   staticSelection = false,
+  disabled = false,
+  reselectValue,
 }: {
   items: Array<{ value: string; label: string; helper?: string }>;
   value: string;
@@ -208,6 +210,8 @@ export function InternalSectionNav({
   className?: string;
   summaryFirst?: boolean;
   staticSelection?: boolean;
+  disabled?: boolean;
+  reselectValue?: string;
 }) {
   const summary = (item: { label: string }) => /^(resumo|vis[aã]o geral)$/i.test(item.label.trim());
   const summaryItems = items.filter(summary);
@@ -221,6 +225,7 @@ export function InternalSectionNav({
   return (
     <section
       data-premium-surface="navigation"
+      data-shared-nav-contract="v1"
       data-summary-first={summaryFirst ? "true" : "false"}
       data-summary-position={summaryFirst ? "first" : "last"}
       className={cn(
@@ -228,20 +233,22 @@ export function InternalSectionNav({
         className,
       )}
   >
-      <div className="flex min-w-0 snap-x snap-mandatory flex-nowrap gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
+      <div className="flex min-w-0 snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
         {orderedItems.map((item) => {
           const active = item.value === value;
           return (
             <button
               key={item.value}
               type="button"
-              onClick={() => { if (!active) onChange(item.value); }}
+              disabled={disabled}
+              onClick={() => { if (!active || item.value === reselectValue) onChange(item.value); }}
               data-nav-active={active ? "true" : "false"}
               data-premium-nav-active={active ? "true" : "false"}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "sig-nav-item flex min-h-[52px] min-w-[145px] flex-1 snap-start flex-col items-start justify-center rounded-[12px] border px-3 py-2.5 text-left sm:min-w-[154px] xl:min-w-[160px]",
                 staticSelection ? "transition-none" : "transition-colors duration-150",
+                "disabled:cursor-not-allowed disabled:opacity-60",
                 active
                   ? "sig-nav-item-active !border-sky-300/30 !bg-[linear-gradient(135deg,#0f4a7a_0%,#2f6ea8_100%)] !text-white shadow-[0_12px_24px_rgba(15,23,42,0.24)]"
                   : "border-slate-200/80 bg-slate-50/92 text-slate-700 hover:border-slate-300 hover:bg-white",

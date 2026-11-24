@@ -129,7 +129,7 @@ export function ProcessWorkspaceHeader({
             aria-label="Pesquisar processos por número, assunto, interessado ou responsável" />
         </label> : null}
         <div className="sig-workspace-filters" role="group" aria-label="Filtros rápidos" tabIndex={0}
-          title="Use a rolagem horizontal quando os filtros não couberem na tela">
+          title="Filtros adaptáveis à largura disponível da página">
           <span>Filtros rápidos:</span>
           {filterSpecs.map(({ id, label, Icon }) => (
             <button key={id} type="button" data-filter={id} className={"sig-workspace-chip " + (quickFilter === id ? "is-active" : "")}
@@ -140,7 +140,12 @@ export function ProcessWorkspaceHeader({
           ))}
         </div>
       </div>
-      <div data-sigapro-process-bulk-actions="true"
+      {!showSensitiveDetails ? (
+        <p data-sigapro-process-readonly-hint="true" className="min-w-0 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-950 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100">
+          Consulta de processos: abra cada ficha para visualizar as informações autorizadas.
+        </p>
+      ) : null}
+      {showSensitiveDetails ? <div data-sigapro-process-bulk-actions="true"
         data-has-selection={selectedCount > 0 ? "true" : "false"}
         className="sig-workspace-actions">
         {showSensitiveDetails ? (
@@ -275,7 +280,7 @@ export function ProcessWorkspaceHeader({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
+      </div> : null}
     </div>
   );
 }

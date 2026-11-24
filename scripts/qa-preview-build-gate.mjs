@@ -160,6 +160,21 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/serviceWorker.test.ts",
     "src/test/productionAssetFreshnessRegression.test.ts",
     "src/test/productionParityCriticalRegression.test.ts",
+    "src/test/masterCreateEditAndContrast20261124.test.ts",
+    "src/test/masterCommercialPlanSynchronization20261124.test.ts",
+    "src/test/masterScalableInstitutionDirectory20261124.test.tsx",
+    "src/test/mobileCardsPremium20261124.test.ts",
+    "src/test/mobileRegistryAndProcessActions20261124.test.tsx",
+    "src/test/planCapacityConcurrentRefresh20261124.test.tsx",
+    "src/test/masterTabNavigationProtection20261124.test.tsx",
+    "src/test/municipalTestMaintenance20261124.test.ts",
+    "src/test/sharedSurfaceContrast20261124.test.ts",
+    "src/test/masterWorkspaceScope20261124.test.ts",
+    "src/test/qaFullJourneyIntegrated.test.ts",
+    "src/test/workflowUnknownStageQa.test.ts",
+    "src/test/habiteSeCompletionRealRpcRegression.test.ts",
+    "src/test/closedProcessLifecycleQa.test.ts",
+    "src/test/paidTriageDocumentReturnFlow.test.ts",
   ]);
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS unified municipal process-control preview checks.");
 }

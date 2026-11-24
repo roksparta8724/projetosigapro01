@@ -24,14 +24,15 @@ export function MetricCard({
       data-surface="adaptive-card"
       data-premium-surface="metric"
       data-premium-role-blue="metric"
+      data-mobile-premium-card="metric"
       data-tone={tone}
       className={cn(
         "sig-metric-card group flex h-full min-h-[150px] min-w-0 flex-col overflow-hidden [overflow-wrap:anywhere] rounded-[22px] border border-slate-200/80 bg-white p-4.5 shadow-[0_12px_26px_rgba(15,23,42,0.075)] transition-[transform,box-shadow,border-color] duration-200",
       )}
     >
-      <div className="flex h-full min-w-0 items-start justify-between gap-4">
+      <div className="flex h-full min-w-0 max-w-full items-start justify-between gap-2.5 sm:gap-4">
         <div className="sig-text-wrap flex min-w-0 flex-1 flex-col">
-          <p className="sig-metric-title line-clamp-2 min-h-[1.15rem] max-w-[calc(100%-0.25rem)] text-[10px] font-semibold uppercase leading-[1.15] tracking-[0.14em] text-slate-500" title={title}>
+          <p className="sig-metric-title min-w-0 line-clamp-2 min-h-[1.15rem] max-w-full text-[10px] font-semibold uppercase leading-[1.15] tracking-[0.14em] text-slate-500" title={title}>
             {title}
           </p>
           <p

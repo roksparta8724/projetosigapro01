@@ -20,18 +20,23 @@ export async function fetchPlanCapacityDashboard(municipalityId: string | null):
 /** Refreshes in visible sessions and on focus, so a Master plan change propagates across logins. */
 export function usePlanCapacityLive(
   municipalityId: string | null,
-  options: { enabled?: boolean; intervalMs?: number } = {},
+  options: { enabled?: boolean; intervalMs?: number; scopeKey?: string } = {},
 ): PlanCapacityState {
   const enabled = options.enabled !== false;
   const intervalMs = Math.max(5000, options.intervalMs ?? 8000);
-  const key = municipalityId || "__master_all__";
+  const key = JSON.stringify([options.scopeKey ?? "__default__", municipalityId || "__master_all__"]);
   const [snapshot, setSnapshot] = useState<PlanCapacityState & { key: string }>({
     key, rows: [], loaded: false, error: null,
   });
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled) {
+      setSnapshot(current => current.key === key && !current.loaded && !current.error && current.rows.length === 0 ? current : { key, rows: [], loaded: false, error: null });
+      return;
+    }
+    if (typeof window === "undefined") return;
     let disposed = false;
     let inFlight = false;
+    let refreshQueued = false;
     const load = async () => {
       if (disposed || inFlight || document.visibilityState === "hidden") return;
       inFlight = true;
@@ -56,15 +61,26 @@ export function usePlanCapacityLive(
             error,
           };
         });
-      } finally { inFlight = false; }
+      } finally {
+        inFlight = false;
+        if (!disposed && refreshQueued) {
+          refreshQueued = false;
+          void load();
+        }
+      }
     };
     const refresh = () => { void load(); };
+    // A committed data change must not be lost behind an earlier in-flight read.
+    const refreshAfterWrite = () => {
+      if (inFlight) refreshQueued = true;
+      else refresh();
+    };
     refresh();
     const timer = window.setInterval(refresh, intervalMs);
     window.addEventListener("focus", refresh);
     window.addEventListener("pageshow", refresh);
     window.addEventListener("online", refresh);
-    window.addEventListener("sigapro:data-changed", refresh);
+    window.addEventListener("sigapro:data-changed", refreshAfterWrite);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       disposed = true;
@@ -72,10 +88,10 @@ export function usePlanCapacityLive(
       window.removeEventListener("focus", refresh);
       window.removeEventListener("pageshow", refresh);
       window.removeEventListener("online", refresh);
-      window.removeEventListener("sigapro:data-changed", refresh);
+      window.removeEventListener("sigapro:data-changed", refreshAfterWrite);
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [enabled, intervalMs, key, municipalityId]);
   // Keep the hook call stable across account switching, but never expose stale tenants.
-  return snapshot.key === key ? snapshot : { rows: [], loaded: false, error: null };
+  return enabled && snapshot.key === key ? snapshot : { rows: [], loaded: false, error: null };
 }

@@ -1,0 +1,160 @@
+/* Shared component contrast contract. Deliberately excludes documents, PDF, PIX,
+   logos and custom maintenance palettes. A foreground and background are always paired. */
+html body #root [data-layout-mode] .sig-main-shell {
+  --sig-shared-ink:#173650;
+  --sig-shared-muted:#496379;
+  --sig-shared-panel:#f7fafc;
+  --sig-shared-border:#b9cddd;
+  --sig-shared-nav:#edf4fa;
+  --sig-shared-item:#ffffff;
+  --sig-shared-hover:#e4f1fa;
+  --sig-shared-focus:#176e98;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell,
+html.dark body #root [data-layout-mode="default"] .sig-main-shell {
+  --sig-shared-ink:#f4f9ff;
+  --sig-shared-muted:#c7dceb;
+  --sig-shared-panel:#17344b;
+  --sig-shared-border:#597c96;
+  --sig-shared-nav:#132d43;
+  --sig-shared-item:#1e405a;
+  --sig-shared-hover:#2b526c;
+  --sig-shared-focus:#8edbff;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-premium-surface="navigation"][data-shared-nav-contract="v1"] {
+  background:var(--sig-shared-nav)!important;
+  border-color:var(--sig-shared-border)!important;
+  padding:8px!important;
+  border-radius:16px!important;
+  box-shadow:0 4px 14px rgb(14 40 65 / 6%)!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item[data-nav-active="false"] {
+  background:var(--sig-shared-item)!important;
+  border-color:var(--sig-shared-border)!important;
+  color:var(--sig-shared-ink)!important;
+  -webkit-text-fill-color:var(--sig-shared-ink)!important;
+  min-height:64px!important;
+  height:auto!important;
+  box-shadow:none!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item[data-nav-active="false"]:hover:not(:disabled) {
+  background:var(--sig-shared-hover)!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item[data-nav-active="false"] .sig-nav-item-label {
+  color:var(--sig-shared-ink)!important;-webkit-text-fill-color:var(--sig-shared-ink)!important;opacity:1!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item[data-nav-active="false"] .sig-nav-item-helper {
+  color:var(--sig-shared-muted)!important;-webkit-text-fill-color:var(--sig-shared-muted)!important;opacity:1!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item[data-nav-active="true"] {
+  background:#12567e!important;border-color:#237aa2!important;
+  color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;
+  box-shadow:inset 0 3px 0 #84d4f6,0 4px 12px rgb(14 40 65 / 14%)!important;
+  min-height:64px!important;height:auto!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item[data-nav-active="true"] .sig-nav-item-label {
+  color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;opacity:1!important;font-weight:700!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item[data-nav-active="true"] .sig-nav-item-helper {
+  color:#e2f3ff!important;-webkit-text-fill-color:#e2f3ff!important;opacity:1!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item:focus-visible {
+  outline:2px solid var(--sig-shared-focus)!important;outline-offset:2px;
+}
+/* Shared primary actions with explicitly dark classes; don't repaint secondary/custom
+   controls, financial document actions or paper. The empty-state action opts in. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"])
+:not([data-maintenance-action]):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])) {
+  background:#124766!important;border-color:#124766!important;
+  color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;
+  opacity:1!important;text-shadow:none!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"])
+:not([data-maintenance-action]):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])) :is(span,strong,svg) {
+  color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;opacity:1!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"])
+:not([data-maintenance-action]):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])):hover:not(:disabled) {background:#195c80!important;}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(button,a)[data-ui="button"][data-button-variant="default"]:is([class~="bg-primary"],[class~="bg-slate-950"],[class~="bg-slate-900"],[class~="bg-sky-900"],[data-shared-action="primary"])
+:not([data-maintenance-action]):not(:is([data-print-document] *,[data-pdf-page] *,[data-document-paper] *,[data-surface="paper"] *,[data-contrast-surface="light"] *,[data-sigapro-ai-review-shortcut],[data-sigapro-triage-action],[data-urban-qii-action],[data-urban-matrix-primary-action])):disabled {
+  background:#475569!important;border-color:#64748b!important;cursor:not-allowed;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-master-admin-workspace [data-premium-empty-state="municipality"] {
+  background:var(--sig-shared-panel)!important;border-color:var(--sig-shared-border)!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-master-admin-workspace [data-premium-empty-state="municipality"] :is([data-empty-title],[data-empty-icon]) {
+  color:var(--sig-shared-ink)!important;-webkit-text-fill-color:var(--sig-shared-ink)!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-master-admin-workspace [data-premium-empty-state="municipality"] [data-empty-icon] {
+  background:var(--sig-shared-item)!important;border-color:var(--sig-shared-border)!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-master-admin-workspace [data-premium-empty-state="municipality"] [data-empty-copy] {
+  color:var(--sig-shared-muted)!important;-webkit-text-fill-color:var(--sig-shared-muted)!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-master-admin-workspace [data-premium-empty-state="municipality"] button[data-shared-action="primary"] {
+  background:#124766!important;border-color:#124766!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;opacity:1!important;
+}
+@media(max-width:767px) {
+  html body #root [data-layout-mode] .sig-main-shell .sig-section-nav[data-shared-nav-contract="v1"] button.sig-nav-item {min-width:144px;max-width:240px;white-space:normal;overflow-wrap:anywhere;}
+}
+
+/* Master form commands: the label and painted background must be one contract,
+   not separate Tailwind variants competing with legacy default-button CSS. */
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command="save"] {
+  background:#124766!important;border:1px solid #76abc7!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+  text-shadow:none!important;mix-blend-mode:normal!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command="save"] :is(span,svg,strong) {
+  color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;visibility:visible!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command="save"]:hover:not(:disabled) {
+  background:#195c80!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command="save"]:disabled {
+  background:#475569!important;border-color:#94a3b8!important;color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command="back"],
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command="back"] :is(span,svg,strong) {
+  color:#153b58!important;-webkit-text-fill-color:#153b58!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command="back"] {
+  background:#f4f9fd!important;border:1px solid #bdd5e6!important;opacity:1!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command="back"]:hover:not(:disabled) {
+  background:#e3eff8!important;
+}
+html body #root [data-layout-mode] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] button[data-master-form-command]:focus-visible {
+  outline:2px solid #83d6ff!important;outline-offset:3px!important;
+}
+/* Shared content cards: keep title and subtitle attached to their own surface.
+   Restrict to the standard section title classes, not nested headings, badges or controls. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+:is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"]:not([data-contrast-surface]):not([data-force-card-contrast]) {
+  --sig-section-ink:#173650;--sig-section-muted:#496379;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell
+:is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"]:not([data-contrast-surface]):not([data-force-card-contrast]) {
+  --sig-section-ink:#f4f9ff;--sig-section-muted:#c7dceb;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"]:not([data-contrast-surface]):not([data-force-card-contrast]) .sig-section-title:not(:where(button *,[data-ui="button"] *,[data-premium-surface="metric"] *)) {
+  color:var(--sig-section-ink)!important;-webkit-text-fill-color:var(--sig-section-ink)!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell
+:is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"]:not([data-contrast-surface]):not([data-force-card-contrast]) .sig-subtitle:not(:where(button *,[data-ui="button"] *,[data-premium-surface="metric"] *,[data-premium-surface="header"] *)) {
+  color:var(--sig-section-muted)!important;-webkit-text-fill-color:var(--sig-section-muted)!important;
+}

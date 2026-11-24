@@ -4817,18 +4817,18 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
 
 /* Light utility surfaces: force neutral copy/icons to a readable dark foreground. */
 [data-layout-mode="default"] .sig-main-shell :is(
-  div,section,article,li,aside,button,a,[role="button"]
+  div,section,article,li,aside
 ):is(
   .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100,.bg-zinc-50,.bg-zinc-100,
   [class*="from-white"],[class*="from-slate-50"],[class*="from-slate-100"],
   [class*="to-white"],[class*="to-slate-50"],[class*="to-slate-100"]
-):not(.sig-institution-logo-surface) {
+):not(.sig-institution-logo-surface):not(:where([data-ui="button"] *,[data-ui="badge"] *,button *,a *,[role="button"] *)) {
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
 
 [data-layout-mode="default"] .sig-main-shell :is(
-  div,section,article,li,aside,button,a,[role="button"]
+  div,section,article,li,aside
 ):is(
   .bg-white,.bg-slate-50,.bg-slate-100,.bg-gray-50,.bg-gray-100,.bg-zinc-50,.bg-zinc-100,
   [class*="from-white"],[class*="from-slate-50"],[class*="from-slate-100"],
@@ -4837,7 +4837,7 @@ html body .sig-main-shell .sig-institution-logo-surface[data-logo-context="munic
   h1,h2,h3,h4,h5,h6,p,span,label,small,strong,em,
   .text-white,.text-slate-50,.text-slate-100,.text-slate-200,.text-slate-300,
   .text-gray-50,.text-gray-100,.text-gray-200,.text-gray-300
-) {
+):not(:where(button,button *,a,a *,[role="button"],[role="button"] *,[data-ui="button"],[data-ui="button"] *,[data-ui="badge"],[data-ui="badge"] *,[data-nav-active], [data-nav-active] *,[data-contrast-surface="dark"],[data-contrast-surface="dark"] *,[data-force-card-contrast="dark"],[data-force-card-contrast="dark"] *,[data-surface="paper"] *,[data-print-document] *)) {
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }

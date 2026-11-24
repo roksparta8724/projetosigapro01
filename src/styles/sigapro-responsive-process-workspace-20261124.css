@@ -1,0 +1,393 @@
+/*
+ * SIGAPRO 2026-11-24 | Mesma fila operacional, experiencia genuina no mobile.
+ * O antigo CSS forcava flex nowrap + overflow-x auto em filtros, ferramentas
+ * e registros entre 600–939px. O screenshot real foi nessa faixa.
+ * Em telas de ate 1023px o conteudo passa a ocupar a largura do painel,
+ * mantendo IDs, permissoes, selecao, marcadores, SLA e acoes originais.
+ */
+@media (max-width: 1023px) {
+  html body #root .sig-main-shell .sig-workspace-shell {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-searchbar {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) !important;
+    width: 100%;
+    min-width: 0;
+    align-items: stretch !important;
+    gap: 12px !important;
+    overflow: visible !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-search {
+    display: flex;
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0 !important;
+    min-height: 44px;
+    flex: 1 1 auto !important;
+    box-sizing: border-box;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-search input {
+    min-width: 0 !important;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    text-overflow: ellipsis;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-filters {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit,minmax(min(100%,160px),1fr)) !important;
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0 !important;
+    flex: none !important;
+    gap: 8px !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    align-items: stretch !important;
+    box-sizing: border-box;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-filters > span {
+    display: block !important;
+    grid-column: 1/-1;
+    width: 100%;
+    min-width: 0;
+    white-space: normal !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    font-size: 12px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-chip {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100%;
+    min-height: 42px !important;
+    height: auto !important;
+    box-sizing: border-box;
+    flex: 1 1 auto !important;
+    justify-content: center;
+    align-items: center;
+    gap: 7px !important;
+    padding: 8px 10px !important;
+    text-align: center !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    line-height: 1.3 !important;
+    font-size: 12px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-chip svg {
+    flex: 0 0 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  /* Acoes municipais aparecem agrupadas, sem toolbar de rolagem.
+     Perfis externos de consulta nao veem essa barra administrativa. */
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-actions {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    align-items: center;
+    overflow: visible !important;
+    padding: 12px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-selected {
+    min-width: 0;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    font-size: 12px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-actions-list {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0 !important;
+    flex: 1 1 100% !important;
+    grid-template-columns: repeat(auto-fit,minmax(min(100%,180px),1fr)) !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-action {
+    display: inline-flex !important;
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0 !important;
+    min-height: 42px !important;
+    height: auto !important;
+    flex: 1 1 100% !important;
+    align-items: center;
+    justify-content: center;
+    gap: 5px !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    text-align: center;
+    line-height: 1.35 !important;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-action svg {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-list-context {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+  }
+
+  /* Cada processo vira ficha responsiva completa, sem esconder assunto,
+     interessado, etapa, responsavel, prazo ou pendencias. */
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head {
+    display: none !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row {
+    display: grid !important;
+    grid-template-columns: 38px minmax(0,1fr) !important;
+    grid-template-areas:
+      "marker number"
+      "subject subject"
+      "flow flow"
+      "actions actions" !important;
+    align-items: start !important;
+    gap: 10px 12px !important;
+    padding: 14px !important;
+    width: 100%;
+    min-width: 0;
+    height: auto !important;
+    max-height: none !important;
+    box-sizing: border-box;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-marker {
+    grid-area: marker !important;
+    min-width: 0;
+    overflow: visible !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-number { grid-area: number !important; min-width: 0; }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-subject { grid-area: subject !important; min-width: 0; }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-flow-group {
+    grid-area: flow !important;
+    display: grid !important;
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+    gap: 9px 14px !important;
+    min-width: 0;
+    padding-top: 11px !important;
+    border-top: 1px solid #d5e1eb !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-flow-group > * {
+    min-width: 0;
+    max-width: 100%;
+    grid-area: auto !important;
+    display: block !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-cell-label {
+    display: block !important;
+    margin-bottom: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #47637b;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry :is(
+    .sig-process-number-link,.sig-process-subject-title,.sig-process-interested,
+    .sig-process-responsible-name,.sig-process-stage-description,.sig-process-marker-label
+  ) {
+    display: block !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+    line-height: 1.45 !important;
+    font-size: 12px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-status {
+    display: inline-flex !important;
+    align-items: center;
+    flex-wrap: wrap !important;
+    width: auto !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 31px;
+    padding: 6px 9px !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    text-overflow: clip !important;
+    line-height: 1.35 !important;
+    font-size: 12px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-due-chip {
+    display: inline-flex !important;
+    align-items: center;
+    max-width: 100%;
+    min-width: 0;
+    width: auto !important;
+    height: auto;
+    min-height: 31px;
+    padding: 6px 9px !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    line-height: 1.35;
+    font-size: 12px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-due-value {
+    display: inline !important;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-pending {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    min-width: 0;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-actions {
+    grid-area: actions !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    flex-wrap: wrap !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 8px !important;
+    padding: 11px 0 0 !important;
+    border-top: 1px solid #d5e1eb !important;
+    overflow: visible !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-open-btn {
+    display: inline-flex !important;
+    flex: 1 1 160px !important;
+    width: auto !important;
+    max-width: 100%;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 43px !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 9px 12px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-more-btn {
+    flex: 0 0 43px !important;
+    width: 43px !important;
+    height: 43px !important;
+    min-width: 43px !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-reference-footer {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    padding: 13px !important;
+    align-items: stretch !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-reference-footer > div {
+    display: flex;
+    min-width: 0;
+    width: 100%;
+    flex-wrap: wrap !important;
+    gap: 8px;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-reference-legend {
+    display: flex;
+    flex-wrap: wrap !important;
+    max-width: 100%;
+    white-space: normal !important;
+    gap: 6px !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-reference-footer nav[data-sigapro-process-pagination="true"] {
+    display: flex;
+    flex-wrap: wrap !important;
+    max-width: 100%;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+}
+@media (max-width: 520px) {
+  html body #root .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-flow-group {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-actions-list {
+    grid-template-columns: repeat(auto-fit,minmax(min(100%,145px),1fr)) !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-filters {
+    grid-template-columns: repeat(auto-fit,minmax(min(100%,135px),1fr)) !important;
+  }
+  html body #root .sig-main-shell .sig-workspace-shell .sig-reference-footer
+  .sig-reference-page-label { min-width: 0; text-align: left; }
+}
+/* Modo escuro: somente cores de legendas e bordas, nunca mascara clara. */
+@media (max-width: 1023px) {
+  html body #root .dark .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-flow-group,
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  .sig-workspace-shell .sig-process-registry .sig-process-flow-group {
+    border-color: #49677f !important;
+  }
+  html body #root .dark .sig-main-shell .sig-workspace-shell
+  .sig-process-registry .sig-process-cell-label,
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  .sig-workspace-shell .sig-process-registry .sig-process-cell-label {
+    color: #c7deee !important;
+  }
+}

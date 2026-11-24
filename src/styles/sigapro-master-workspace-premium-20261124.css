@@ -1,0 +1,243 @@
+/* Cadastro e Gestão — visual premium escopado ao Master, tema claro e inverse-main. */
+html body #root .sig-main-shell .sig-master-admin-workspace {
+  --master-board-border:#c4d8e8;
+  --master-board-surface:#ffffff;
+  --master-board-raised:#f3f8fd;
+  --master-board-ink:#173650;
+  --master-board-muted:#4c6478;
+  min-width:0;max-width:100%;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace {
+  --master-board-border:#486981;
+  --master-board-surface:#17364e;
+  --master-board-raised:#1f435c;
+  --master-board-ink:#f4faff;
+  --master-board-muted:#c6dcea;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-portfolio-surface="true"] {
+  min-width:0;max-width:100%;
+  background:var(--master-board-surface)!important;
+  border-color:var(--master-board-border)!important;
+  color:var(--master-board-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace :is(
+  [data-master-institution-card="true"],[data-master-user-card="true"]
+) {
+  min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;
+  background:var(--master-board-surface)!important;
+  border-color:var(--master-board-border)!important;
+  box-shadow:0 8px 20px rgba(8,34,54,.065);
+}
+html body #root .sig-main-shell .sig-master-admin-workspace :is(
+  [data-master-institution-card="true"],[data-master-user-card="true"]
+) :is(.sig-fit-title,.sig-fit-copy,.truncate) {
+  min-width:0;max-width:100%;
+  overflow-wrap:anywhere!important;word-break:normal!important;
+  white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+:is([data-master-institution-card="true"],[data-master-user-card="true"]) :is(
+  .text-slate-950,.text-slate-900,.text-slate-800
+) {color:#eef8ff!important;-webkit-text-fill-color:#eef8ff!important}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+:is([data-master-institution-card="true"],[data-master-user-card="true"]) :is(
+  .text-slate-700,.text-slate-600,.text-slate-500
+) {color:#c9dfee!important;-webkit-text-fill-color:#c9dfee!important}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+:is([data-master-institution-card="true"],[data-master-user-card="true"]) :is(
+  .bg-white,.bg-slate-50
+) {background:var(--master-board-raised)!important}
+@media(max-width:767px) {
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-portfolio-surface="true"] {
+    padding:14px!important;border-radius:18px!important;
+  }
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-portfolio-surface="true"] :is(button,a) {
+    max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;
+  }
+}
+
+
+/* Master create/edit form: labels and help text stay legible on navy panels. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] {
+  background:#142f47!important;
+  border-color:#52758e!important;
+  color:#eef8ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form {
+  color:#edf8ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] :is(label,[data-master-prefeitura-overview="compact"],h3) {
+  color:#f3fbff!important;
+  -webkit-text-fill-color:#f3fbff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form
+:is(p,.text-slate-500,.text-slate-600,.text-slate-700) {
+  color:#cbdff0!important;
+  -webkit-text-fill-color:#cbdff0!important;
+  opacity:1!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] :is(input,textarea,[role="combobox"],.sig-admin-input) {
+  min-width:0;
+  max-width:100%;
+  border-color:#54758f!important;
+  background:#10263b!important;
+  color:#f4fbff!important;
+  -webkit-text-fill-color:#f4fbff!important;
+  opacity:1!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] :is(input,textarea,.sig-admin-input)::placeholder {
+  color:#b4d0e1!important;
+  -webkit-text-fill-color:#b4d0e1!important;
+  opacity:1!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] :is(input,textarea,[role="combobox"],.sig-admin-input):focus-visible {
+  outline:2px solid #7bd5ff!important;
+  outline-offset:2px;
+  border-color:#7bd5ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] [data-master-prefeitura-overview="compact"] {
+  border-color:#607e96!important;
+  background:#1b3c56!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] [data-master-plan-inline-save="dedicated"] {
+  background:#204c69!important;
+  border-color:#5a9cc0!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] [data-master-plan-inline-save="dedicated"] p {
+  color:#ebf8ff!important;
+  -webkit-text-fill-color:#ebf8ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] .sig-dark-panel {
+  background:#10263b!important;
+  border-color:#54758f!important;
+}
+@media(max-width:767px) {
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form {
+    padding:16px!important;
+  }
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] > header {
+    padding:18px!important;
+  }
+}
+
+/* Explicit contrast in the light registration workspace; dark variants retain their own palette. */
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] {
+  --master-field-bg:#ffffff;
+  --master-field-ink:#173650;
+  --master-field-border:#859eb4;
+  --master-field-label:#23445e;
+  --master-field-placeholder:#526b80;
+  --master-field-focus:#126a91;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"],
+html.dark body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] {
+  --master-field-bg:#10263b;
+  --master-field-ink:#f4fbff;
+  --master-field-border:#789bb5;
+  --master-field-label:#e0effa;
+  --master-field-placeholder:#b4d0e1;
+  --master-field-focus:#7bd5ff;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form label {
+  color:var(--master-field-label)!important;
+  -webkit-text-fill-color:var(--master-field-label)!important;
+  font-weight:600;opacity:1!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form :is(input:not([type="color"]):not([type="checkbox"]):not([type="radio"]),textarea,[role="combobox"]) {
+  background:var(--master-field-bg)!important;
+  border-color:var(--master-field-border)!important;
+  color:var(--master-field-ink)!important;
+  -webkit-text-fill-color:var(--master-field-ink)!important;
+  min-height:44px;min-width:0;max-width:100%;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form :is(input,textarea)::placeholder,
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form [role="combobox"][data-placeholder] {
+  color:var(--master-field-placeholder)!important;
+  -webkit-text-fill-color:var(--master-field-placeholder)!important;
+  opacity:1!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form :is(input,textarea,[role="combobox"]):focus-visible {
+  outline:2px solid var(--master-field-focus)!important;outline-offset:2px;
+}
+
+/* Self-contained accessible palette; inverse-main and standard dark mode are independent. */
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] {
+  --mm-surface:#f3f8fc;--mm-raised:#fff;--mm-ink:#163650;--mm-muted:#415c72;--mm-border:#91a9bd;--mm-field:#fff;--mm-focus:#126a91;
+  --mm-secondary:#e2edf6;--mm-secondary-hover:#cce2f1;--mm-primary:#124766;--mm-primary-hover:#195c80;--mm-danger:#a11c35;--mm-danger-hover:#85172b;
+  --mm-warning-bg:#fff4da;--mm-warning-ink:#704000;--mm-warning-border:#d2a451;
+  --mm-ok-bg:#e6f8ef;--mm-ok-ink:#12563b;--mm-ok-border:#73b79b;
+  --mm-error-bg:#fff0f2;--mm-error-ink:#86182c;--mm-error-border:#d692a0;
+  background:var(--mm-surface)!important;border-color:var(--mm-border)!important;color:var(--mm-ink)!important;
+  min-width:0;max-width:100%;overflow-wrap:anywhere;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"],
+html.dark body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] {
+  --mm-surface:#132d43;--mm-raised:#1e3d55;--mm-ink:#f3faff;--mm-muted:#c3d9e9;--mm-border:#65869f;--mm-field:#10263b;--mm-focus:#8edbff;
+  --mm-secondary:#284f69;--mm-secondary-hover:#37657e;--mm-primary:#17618a;--mm-primary-hover:#22759b;--mm-danger:#98273e;--mm-danger-hover:#b0324b;
+  --mm-warning-bg:#493718;--mm-warning-ink:#ffe6ae;--mm-warning-border:#b68a43;
+  --mm-ok-bg:#173f36;--mm-ok-ink:#bcf0d6;--mm-ok-border:#589e83;
+  --mm-error-bg:#502638;--mm-error-ink:#ffd8e1;--mm-error-border:#b66980;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-text="title"] {
+  color:var(--mm-ink)!important;-webkit-text-fill-color:var(--mm-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-text="muted"] {
+  color:var(--mm-muted)!important;-webkit-text-fill-color:var(--mm-muted)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-metric] {
+  background:var(--mm-raised)!important;border-color:var(--mm-border)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-tone="warning"],[data-maintenance-mode="producao_protegida"]) {
+  background:var(--mm-warning-bg)!important;border-color:var(--mm-warning-border)!important;color:var(--mm-warning-ink)!important;-webkit-text-fill-color:var(--mm-warning-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-tone="success"],[data-maintenance-mode="homologacao"]) {
+  background:var(--mm-ok-bg)!important;border-color:var(--mm-ok-border)!important;color:var(--mm-ok-ink)!important;-webkit-text-fill-color:var(--mm-ok-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-tone="error"] {
+  background:var(--mm-error-bg)!important;border-color:var(--mm-error-border)!important;color:var(--mm-error-ink)!important;-webkit-text-fill-color:var(--mm-error-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-tone="info"] {
+  background:var(--mm-raised)!important;border-color:var(--mm-border)!important;color:var(--mm-ink)!important;-webkit-text-fill-color:var(--mm-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-field] {
+  background:var(--mm-field)!important;border-color:var(--mm-border)!important;color:var(--mm-ink)!important;-webkit-text-fill-color:var(--mm-ink)!important;min-height:44px;max-width:100%;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action] {
+  min-height:44px;height:auto;max-width:100%;white-space:normal;overflow-wrap:anywhere;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="secondary"] {
+  background:var(--mm-secondary)!important;border-color:var(--mm-border)!important;color:var(--mm-ink)!important;-webkit-text-fill-color:var(--mm-ink)!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="secondary"]:hover:not(:disabled) {background:var(--mm-secondary-hover)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="primary"] {background:var(--mm-primary)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="primary"]:hover:not(:disabled) {background:var(--mm-primary-hover)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="danger"] {background:var(--mm-danger)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] [data-maintenance-action="danger"]:hover:not(:disabled) {background:var(--mm-danger-hover)!important;}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-action],[data-maintenance-field]):disabled {opacity:1!important;cursor:not-allowed;filter:saturate(.25);}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-municipal-maintenance="true"] :is([data-maintenance-action],[data-maintenance-field]):focus-visible {outline:2px solid var(--mm-focus)!important;outline-offset:2px;}
+
+/* Keep the common Master navigation visible and stable; prevent scroll anchoring
+   from repositioning the viewport when switching between unequal-height panels. */
+html body #root .sig-main-shell .sig-master-admin-workspace {
+  overflow-anchor:none;
+  min-height:min(560px,70vh);
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-shared-nav-contract="v1"] {
+  flex-shrink:0;
+}
+
+/* Hidden registry panels remain mounted solely to preserve local filters and
+   expansion state. Native hidden must win against legacy flex/grid CSS. */
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-preserved-panel][hidden] {display:none!important;}

@@ -1,6 +1,8 @@
-﻿import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+﻿import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, Plus, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { resolveMasterWorkspaceScope, masterWorkspaceSearch, resolveMasterFormMode } from "@/lib/masterWorkspaceScope";
+import { MunicipalMaintenancePanel } from "@/components/platform/MunicipalMaintenancePanel";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { MetricCard } from "@/components/platform/MetricCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -10,9 +12,11 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { MasterUserGovernance } from "@/components/platform/MasterUserGovernance";
+import { MasterUserGovernance, isSigaproPlatformInstitution } from "@/components/platform/MasterUserGovernance";
+import "@/styles/sigapro-master-workspace-premium-20261124.css";
 import { CompactPortfolioRegistry } from "@/components/platform/CompactPortfolioRegistry";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
+import { readMunicipalContractQuote, reconcileInstitutionCommercialPlans, summarizeMasterCommercialContracts } from "@/lib/masterCommercialContract";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +56,7 @@ const normalizeAdminContactsFromDrafts = (drafts: AdminContactDraft[]): Institut
     }))
     .filter((draft) => draft.email || draft.fullName);
 
-const emptyTenantForm = { name: "", city: "", state: "SP", status: "implantacao" as Institution["status"], plan: "", subdomain: "", primaryColor: "#0f3557", accentColor: "#178f78", contractNumber: "", contractStart: "", contractEnd: "", monthlyFee: 0, setupFee: 0, signatureMode: "eletronica" as SignatureMode, clientDeliveryLink: "", secretariat: "", directorate: "", directorPhone: "", directorEmail: "", cnpj: "", phone: "", email: "", site: "", address: "" };
+const emptyTenantForm = { name: "", city: "", state: "", status: "implantacao" as Institution["status"], plan: "", subdomain: "", primaryColor: "#0f3557", accentColor: "#178f78", contractNumber: "", contractStart: "", contractEnd: "", monthlyFee: 0, setupFee: 0, signatureMode: "eletronica" as SignatureMode, clientDeliveryLink: "", secretariat: "", directorate: "", directorPhone: "", directorEmail: "", cnpj: "", phone: "", email: "", site: "", address: "" };
 const createAdminDraft = (): AdminContactDraft => ({ id: `admin-${crypto.randomUUID()}`, email: "", fullName: "", title: roleSuggestedTitles.prefeitura_admin, accessLevel: 3 });
 const normalizeSlug = (value: string) =>
   value
@@ -130,6 +134,7 @@ const ensureBackendAvailable = async () => {
 
 export function MasterAdminPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, authResolved, authenticatedUserId, authenticatedProfileId } = useAuthGateway();
   const authorizedAvatarViewerId = isAuthenticated && authResolved
     ? (authenticatedUserId || authenticatedProfileId) : null;
@@ -138,6 +143,7 @@ export function MasterAdminPage() {
     sessionUsers,
     metrics,
     plans,
+    planAssignments,
     upsertInstitution,
     saveInstitutionSettings,
     setInstitutionStatus,
@@ -150,11 +156,18 @@ export function MasterAdminPage() {
     getUserProfile,
     refreshRemoteStore,
   } = usePlatformData();
-  const planCapacity = usePlanCapacityLive(null, { enabled: true, intervalMs: 8000 });
+  const planCapacity = usePlanCapacityLive(null, { enabled: Boolean(authorizedAvatarViewerId), scopeKey: authorizedAvatarViewerId || "", intervalMs: 8000 });
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
-  const [selectedTenantId, setSelectedTenantId] = useState<string>(institutions[0]?.id ?? "");
-  const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(false);
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("carteira");
+  const explicitTenantId = new URLSearchParams(location.search).get("municipio") || "";
+  const isCreatingNewInstitution = resolveMasterFormMode(location.search) === "novo";
+  const requestedSection = new URLSearchParams(location.search).get("secao");
+  const workspaceView: WorkspaceView = ["visao-geral","carteira","cadastro","organograma","usuarios"].includes(requestedSection || "") ? requestedSection as WorkspaceView : "carteira";
+  const [visitedRegistries, setVisitedRegistries] = useState({ carteira: workspaceView === "carteira", usuarios: workspaceView === "usuarios" });
+  useEffect(() => {
+    if (workspaceView === "carteira" || workspaceView === "usuarios") {
+      setVisitedRegistries(previous => previous[workspaceView] ? previous : { ...previous, [workspaceView]: true });
+    }
+  }, [workspaceView]);
   const [form, setForm] = useState(emptyTenantForm);
   const [admins, setAdmins] = useState<AdminContactDraft[]>([createAdminDraft()]);
   const [statusMessage, setStatusMessage] = useState("");
@@ -164,6 +177,7 @@ export function MasterAdminPage() {
   const [savingPlanOnly, setSavingPlanOnly] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [masterDepartments, setMasterDepartments] = useState<MunicipalDepartmentRecord[]>([]);
+  const [departmentScopeId, setDepartmentScopeId] = useState("");
   const [orgBusy, setOrgBusy] = useState(false);
   const [orgForm, setOrgForm] = useState({
     name: "",
@@ -178,6 +192,8 @@ export function MasterAdminPage() {
   const [contractCapacityPage, setContractCapacityPage] = useState(1);
   const [assignmentDepartmentId, setAssignmentDepartmentId] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
+  const hydratedEditTenantRef = useRef<string | null>(null);
+  const formIdentityRef = useRef("novo");
 
   useEffect(() => {
     // Remove rascunhos operacionais do fluxo antigo. Prefeituras agora só existem
@@ -185,23 +201,9 @@ export function MasterAdminPage() {
     window.localStorage.removeItem(LEGACY_PENDING_SYNC_STORAGE_KEY);
   }, []);
 
-  useEffect(() => { let active = true; if (!hasBackendEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => active && setRemoteInstitutions([])); return () => { active = false; }; }, [institutions]);
+  useEffect(() => { let active = true; if (!hasBackendEnv) { setRemoteInstitutions([]); return; } void loadMunicipalityCatalog().then((catalog) => { if (!active) return; const mapped = catalog.map((bundle) => { const fallback = institutions.find((item) => item.id === bundle.municipality?.id) ?? null; return buildTenantFromMunicipalityBundle(bundle.municipality, bundle.branding, bundle.settings, fallback); }).filter((item): item is Institution => Boolean(item)); setRemoteInstitutions(mapped); }).catch(() => { /* Keep the last confirmed catalog on transient refresh failure. */ }); return () => { active = false; }; }, [institutions]);
 
-  useEffect(() => {
-    let active = true;
-    if (!selectedTenantId) {
-      setMasterDepartments([]);
-      return () => { active = false; };
-    }
-    void listRemoteMunicipalDepartments(selectedTenantId)
-      .then((rows) => {
-        if (active) setMasterDepartments(rows);
-      })
-      .catch((error) => {
-        if (active) setStatusMessage(error instanceof Error ? error.message : "Não foi possível carregar o organograma da Prefeitura.");
-      });
-    return () => { active = false; };
-  }, [selectedTenantId]);
+
 
   const institutionCatalog = useMemo(() => {
     const merged = new Map<string, Institution>();
@@ -214,10 +216,49 @@ export function MasterAdminPage() {
       merged.set(institution.id, institution);
     });
 
-    return Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
-  }, [institutions, remoteInstitutions]);
-  const capacityPageData = paginateMunicipalItems(planCapacity.rows, contractCapacityPage, 2);
+    return reconcileInstitutionCommercialPlans({
+      institutions: Array.from(merged.values())
+        .filter((item) => !isSigaproPlatformInstitution(item))
+        .sort((left, right) => left.name.localeCompare(right.name, "pt-BR")),
+      plans,
+      assignments: planAssignments,
+      snapshots: planCapacity.loaded && !planCapacity.error ? planCapacity.rows : [],
+    });
+  }, [institutions, remoteInstitutions, plans, planAssignments, planCapacity.error, planCapacity.loaded, planCapacity.rows]);
+  const municipalIds = useMemo(() => new Set(institutionCatalog.map((item) => item.id)), [institutionCatalog]);
+  const visibleCapacityRows = useMemo(() =>
+    planCapacity.rows.filter((row) => municipalIds.has(row.municipalityId)),
+    [planCapacity.rows, municipalIds],
+  );
+  const capacityPageData = paginateMunicipalItems(visibleCapacityRows, contractCapacityPage, 2);
+  const selectedTenantId = resolveMasterWorkspaceScope(explicitTenantId, institutionCatalog);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
+  useEffect(() => {
+    let active = true;
+    setDepartmentScopeId("");
+    setMasterDepartments([]);
+    setAssignmentUserId("");
+    setAssignmentDepartmentId("");
+    setAssignmentUserSearch("");
+    setOrgForm({ name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
+    if (!selectedTenantId) {
+      return () => { active = false; };
+    }
+    void listRemoteMunicipalDepartments(selectedTenantId)
+      .then((rows) => {
+        if (active) { setMasterDepartments(rows); setDepartmentScopeId(selectedTenantId); }
+      })
+      .catch((error) => {
+        if (active) setStatusMessage(error instanceof Error ? error.message : "Não foi possível carregar o organograma da Prefeitura.");
+      });
+    return () => { active = false; };
+  }, [selectedTenantId]);
+  const activeQuote = readMunicipalContractQuote({
+    municipalityId: selectedTenantId,
+    plans,
+    assignments: planAssignments,
+    snapshots: planCapacity.loaded && !planCapacity.error ? planCapacity.rows : [],
+  });
   const activeCommercialPlans = useMemo(
     () => plans.filter((plan) => plan.isActive && plan.isVisibleInMaster),
     [plans],
@@ -239,8 +280,8 @@ export function MasterAdminPage() {
   }, [activeTenantUsers, assignmentUserId, assignmentUserSearch]);
 
   const activeMasterDepartments = useMemo(
-    () => masterDepartments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
-    [masterDepartments],
+    () => departmentScopeId === selectedTenantId ? masterDepartments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")) : [],
+    [masterDepartments, departmentScopeId, selectedTenantId],
   );
   const rootMasterDepartments = useMemo(
     () => activeMasterDepartments.filter((item) => !item.parentDepartmentId),
@@ -257,42 +298,37 @@ export function MasterAdminPage() {
     return [...map.values()];
   }, [sessionUsers]);
   const activeUsersCount = useMemo(() => sessionUsers.filter((user) => user.accountStatus === "active").length, [sessionUsers]);
-  const monthlyRevenue = useMemo(() => institutionCatalog.reduce((sum, tenant) => sum + Number(getInstitutionSettings(tenant.id)?.monthlyFee ?? 0), 0), [getInstitutionSettings, institutionCatalog]);
-  const activePlansCount = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo" && Number(getInstitutionSettings(tenant.id)?.monthlyFee ?? 0) > 0).length, [getInstitutionSettings, institutionCatalog]);
+  // A recorrência vem do plano efetivamente contratado e do preço personalizado,
+  // não de um campo legado de mensalidade que pode permanecer em zero após upgrade.
+  const commercialSummary = useMemo(
+    () => summarizeMasterCommercialContracts({ institutions: institutionCatalog, plans, assignments: planAssignments }),
+    [institutionCatalog, plans, planAssignments],
+  );
+  const monthlyRevenue = commercialSummary.monthlyContractValue;
+  const activePlansCount = commercialSummary.activePlansCount;
   const activeInstitutionCount = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").length, [institutionCatalog]);
   const overviewInstitutions = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").slice(0, 3), [institutionCatalog]);
   const recentActivity = useMemo(() => [...sessionUsers].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5), [sessionUsers]);
-  useEffect(() => {
-    if (isCreatingNewInstitution) return;
-    if (institutionCatalog.length === 0) {
-      if (selectedTenantId) setSelectedTenantId("");
-      return;
-    }
 
-    const stillExists = institutionCatalog.some((item) => item.id === selectedTenantId);
-    if (stillExists) return;
 
-    const nextPreferred =
-      institutionCatalog.find((item) => item.status === "ativo")?.id ??
-      institutionCatalog.find((item) => item.status === "implantacao")?.id ??
-      institutionCatalog[0]?.id ??
-      "";
-
-    if (nextPreferred !== selectedTenantId) {
-      setSelectedTenantId(nextPreferred);
-    }
-  }, [institutionCatalog, isCreatingNewInstitution, selectedTenantId]);
-
-  useEffect(() => {
-    if (isCreatingNewInstitution) {
-      setForm(emptyTenantForm);
+  useLayoutEffect(() => {
+    // The URL alone determines edit vs new. Never paint an old form when the route
+    // changes scope, including browser back/forward or a direct URL.
+    if (workspaceView !== "cadastro") return;
+    const formIdentity = isCreatingNewInstitution ? "novo" : "editar:" + explicitTenantId;
+    if (formIdentityRef.current !== formIdentity) {
+      formIdentityRef.current = formIdentity;
+      hydratedEditTenantRef.current = null;
+      setForm({ ...emptyTenantForm });
       setAdmins([createAdminDraft()]);
-      return;
     }
-    if (!activeTenant) { setForm(emptyTenantForm); setAdmins([createAdminDraft()]); return; }
+    // Live refresh must never clear an already hydrated edit or a new draft.
+    if (isCreatingNewInstitution || workspaceView !== "cadastro") return;
+    if (!activeTenant || hydratedEditTenantRef.current === activeTenant.id) return;
+    hydratedEditTenantRef.current = activeTenant.id;
     const settings = getInstitutionSettings(activeTenant.id);
     const prefeituraAdmins = knownAdministrativeUsers.filter((user) => (user.tenantId === activeTenant.id || user.municipalityId === activeTenant.id) && user.role === "prefeitura_admin");
-    setForm({ name: activeTenant.name, city: activeTenant.city, state: activeTenant.state, status: activeTenant.status, plan: activeTenant.plan, subdomain: activeTenant.subdomain, primaryColor: activeTenant.theme.primary, accentColor: activeTenant.theme.accent, contractNumber: settings?.contractNumber ?? "", contractStart: settings?.contractStart ?? "", contractEnd: settings?.contractEnd ?? "", monthlyFee: settings?.monthlyFee ?? 0, setupFee: settings?.setupFee ?? 0, signatureMode: settings?.signatureMode ?? "eletronica", clientDeliveryLink: settings?.clientDeliveryLink ?? settings?.linkPortalCliente ?? buildTenantLink(activeTenant.subdomain, settings?.site), secretariat: settings?.secretariaResponsavel ?? "", directorate: settings?.diretoriaResponsavel ?? "", directorPhone: settings?.diretoriaTelefone ?? "", directorEmail: settings?.diretoriaEmail ?? "", cnpj: settings?.cnpj ?? "", phone: settings?.telefone ?? "", email: settings?.email ?? "", site: settings?.site ?? "", address: settings?.endereco ?? "" });
+    setForm({ name: activeTenant.name, city: activeTenant.city, state: activeTenant.state, status: activeTenant.status, plan: activeTenant.plan, subdomain: activeTenant.subdomain, primaryColor: activeTenant.theme.primary, accentColor: activeTenant.theme.accent, contractNumber: settings?.contractNumber ?? "", contractStart: activeQuote.startsAt || settings?.contractStart || "", contractEnd: activeQuote.endsAt || settings?.contractEnd || "", monthlyFee: activeQuote.price ?? settings?.monthlyFee ?? 0, setupFee: settings?.setupFee ?? 0, signatureMode: settings?.signatureMode ?? "eletronica", clientDeliveryLink: settings?.clientDeliveryLink ?? settings?.linkPortalCliente ?? buildTenantLink(activeTenant.subdomain, settings?.site), secretariat: settings?.secretariaResponsavel ?? "", directorate: settings?.diretoriaResponsavel ?? "", directorPhone: settings?.diretoriaTelefone ?? "", directorEmail: settings?.diretoriaEmail ?? "", cnpj: settings?.cnpj ?? "", phone: settings?.telefone ?? "", email: settings?.email ?? "", site: settings?.site ?? "", address: settings?.endereco ?? "" });
     setAdmins(
       prefeituraAdmins.length > 0
         ? prefeituraAdmins.map((user) => ({ id: `admin-${user.id}`, email: user.email, fullName: user.name, title: user.title, accessLevel: user.accessLevel >= 3 ? 3 : 2 }))
@@ -300,7 +336,7 @@ export function MasterAdminPage() {
           ? settings!.adminContacts!.map((admin) => ({ id: `admin-contact-${admin.email}`, email: admin.email, fullName: admin.fullName, title: admin.title, accessLevel: admin.accessLevel >= 3 ? 3 : 2 }))
           : [createAdminDraft()],
     );
-  }, [activeTenant, getInstitutionSettings, isCreatingNewInstitution, knownAdministrativeUsers]);
+  }, [activeTenant, getInstitutionSettings, isCreatingNewInstitution, workspaceView, explicitTenantId, knownAdministrativeUsers, activeQuote.plan?.id, activeQuote.price, activeQuote.startsAt, activeQuote.endsAt]);
 
   const platformAlerts = useMemo(() => {
     const suspendedCount = institutionCatalog.filter((tenant) => tenant.status === "suspenso").length;
@@ -320,7 +356,11 @@ export function MasterAdminPage() {
 
   const handleMasterCreateDepartment = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedTenantId || !orgForm.name.trim() || orgBusy) return;
+    if (!activeTenant || !selectedTenantId || departmentScopeId !== selectedTenantId || !orgForm.name.trim() || orgBusy) return;
+    if (orgForm.parentDepartmentId && !activeMasterDepartments.some((item) => item.id === orgForm.parentDepartmentId)) {
+      setStatusMessage("A unidade superior não pertence à Prefeitura selecionada.");
+      return;
+    }
     setOrgBusy(true);
     setStatusMessage("Salvando unidade na Prefeitura selecionada...");
     try {
@@ -346,7 +386,11 @@ export function MasterAdminPage() {
   };
 
   const handleMasterAssignDepartment = async () => {
-    if (!selectedTenantId || !assignmentUserId) return;
+    if (!activeTenant || !selectedTenantId || departmentScopeId !== selectedTenantId || !assignmentUserId || orgBusy) return;
+    if (!activeTenantUsers.some((user) => user.id === assignmentUserId) || (assignmentDepartmentId && !activeMasterDepartments.some((item) => item.id === assignmentDepartmentId))) {
+      setStatusMessage("Selecione um usuário e uma unidade da Prefeitura atual.");
+      return;
+    }
     setOrgBusy(true);
     setStatusMessage("Atualizando lotação do usuário...");
     try {
@@ -366,16 +410,10 @@ export function MasterAdminPage() {
   };
 
   const handleSelectTenant = (tenantId: string) => {
-    setIsCreatingNewInstitution(false);
-    setSelectedTenantId(tenantId);
-    setWorkspaceView("cadastro");
+    if (saving || savingPlanOnly || orgBusy || !municipalIds.has(tenantId)) return;
+    hydratedEditTenantRef.current = null;
     setStatusMessage("");
-    const params = new URLSearchParams(window.location.search);
-    params.set("secao", "cadastro");
-    navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-    });
+    navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", tenantId, "editar") }, { replace: true, preventScrollReset: true });
   };
   const addAdminRow = () => setAdmins((current) => [...current, createAdminDraft()]);
   const updateAdminRow = <K extends keyof AdminContactDraft>(id: string, field: K, value: AdminContactDraft[K]) => setAdmins((current) => current.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
@@ -482,6 +520,10 @@ export function MasterAdminPage() {
       setStatusMessage("Salve a Prefeitura antes de alterar o contrato.");
       return;
     }
+    if (!activeTenant || hydratedEditTenantRef.current !== selectedTenantId) {
+      setStatusMessage("A Prefeitura selecionada ainda não está disponível. Confira a conta na carteira antes de atualizar o plano.");
+      return;
+    }
     const selectedPlan = activeCommercialPlans.find((item) => item.id === form.plan || item.name === form.plan);
     if (!selectedPlan) { setStatusMessage("Selecione um plano comercial ativo."); return; }
     const existing = getInstitutionPlanAssignment(selectedTenantId);
@@ -529,6 +571,10 @@ export function MasterAdminPage() {
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saving || savingPlanOnly) return;
+    if (!isCreatingNewInstitution && (!activeTenant || hydratedEditTenantRef.current !== selectedTenantId)) {
+      setStatusMessage("A Prefeitura selecionada ainda não está disponível. Nenhuma alteração foi gravada. Confira a conta na carteira.");
+      return;
+    }
     setSaving(true);
     setStatusMessage("");
     let saveStage = "Dados da Prefeitura";
@@ -693,13 +739,12 @@ export function MasterAdminPage() {
         accentColor: form.accentColor,
       }, { remoteConfirmed: true });
       await saveInstitutionSettings(nextSettings, { skipRemoteSync: true });
-      setIsCreatingNewInstitution(false);
-      setSelectedTenantId(savedTenant.id);
+        navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", savedTenant.id, "editar") }, { replace: true, preventScrollReset: true });
 
       if (adminWarnings.length > 0) {
         setStatusMessage("Prefeitura e contrato confirmados. Contatos a revisar: " + adminWarnings.join(" | "));
       } else if (normalizedAdminContacts.length === 0) {
-        setStatusMessage("Prefeitura salva no banco oficial e pronta para operação comercial.");
+        setStatusMessage("Prefeitura e contrato salvos no banco oficial. A operação comercial depende da validação da implantação.");
       } else if (unresolvedAdminEmails.length > 0) {
         setStatusMessage(
           `Prefeitura salva no banco oficial. ${linkedAdminCount} administrador(es) foram vinculados e os contatos ${unresolvedAdminEmails.join(", ")} aguardam conta existente no sistema para vínculo automático.`,
@@ -720,25 +765,33 @@ export function MasterAdminPage() {
   };
 
   const resetForNewInstitution = () => {
-    setIsCreatingNewInstitution(true);
-    setSelectedTenantId("");
-    setWorkspaceView("cadastro");
-    setForm(emptyTenantForm);
+    if (saving || savingPlanOnly || orgBusy) return;
+    hydratedEditTenantRef.current = null;
+    formIdentityRef.current = "novo";
+    setForm({ ...emptyTenantForm });
+    navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, "cadastro", selectedTenantId, "novo") }, { replace: true, preventScrollReset: true });
     setAdmins([createAdminDraft()]);
-    setMasterDepartments([]);
-    setAssignmentUserId("");
-    setAssignmentDepartmentId("");
     setStatusMessage("");
-    window.requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
+  const openMasterSection = (section: WorkspaceView, scopeId = selectedTenantId) => {
+    if (saving || savingPlanOnly || orgBusy) return;
+    navigate({ pathname: location.pathname, search: masterWorkspaceSearch(location.search, section, scopeId, isCreatingNewInstitution ? "novo" : "editar") }, { replace: true, preventScrollReset: true });
   };
 
   const renderInstitutionCard = (tenant: Institution) => {
     const settings = getInstitutionSettings(tenant.id);
+    const contractQuote = readMunicipalContractQuote({
+      municipalityId: tenant.id,
+      plans,
+      assignments: planAssignments,
+      snapshots: planCapacity.loaded && !planCapacity.error ? planCapacity.rows : [],
+    });
     const tenantAdmins = knownAdministrativeUsers.filter((user) => (user.tenantId === tenant.id || user.municipalityId === tenant.id) && user.role === "prefeitura_admin");
     const savedAdminContacts = settings?.adminContacts ?? [];
     const portalLink = settings?.clientDeliveryLink || settings?.linkPortalCliente || buildTenantLink(tenant.subdomain, settings?.site) || "Não definido";
     return (
-      <div key={tenant.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div key={tenant.id} data-master-institution-card="true" className="min-w-0 max-w-full rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -763,6 +816,9 @@ export function MasterAdminPage() {
           <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:flex-wrap">
             <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleSelectTenant(tenant.id)}>
               Gerenciar
+            </Button>
+            <Button type="button" variant="outline" className="h-11 w-full rounded-xl lg:w-auto" disabled={saving || savingPlanOnly || orgBusy} onClick={() => openMasterSection("organograma", tenant.id)}>
+              <Network className="h-4 w-4" /> Organograma
             </Button>
             <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 lg:w-auto" onClick={() => handleCopyLink(tenant.subdomain, settings?.site, tenant.id)}>
               <Copy className="mr-2 h-4 w-4 text-sky-200" />
@@ -833,12 +889,15 @@ export function MasterAdminPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Receita mensal</p>
-            <p className="mt-2 sig-fit-title text-lg font-semibold text-slate-950" title={formatCurrency(Number(settings?.monthlyFee ?? 0))}>
-              {formatCurrency(Number(settings?.monthlyFee ?? 0))}
+            <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Valor do plano {contractQuote.billingCycle ? `(${contractQuote.billingCycle})` : ""}</p>
+            <p className="mt-2 sig-fit-title text-lg font-semibold text-slate-950"
+              title={contractQuote.price === null ? "Contrato sem preço definido" : formatCurrency(contractQuote.price)}>
+              {contractQuote.price === null ? "Sob contrato" : formatCurrency(contractQuote.price)}
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              {settings?.contractEnd ? `Contrato até ${settings.contractEnd}` : "Sem vencimento contratual"}
+              {contractQuote.endsAt || settings?.contractEnd
+                ? `Contrato até ${contractQuote.endsAt || settings?.contractEnd}`
+                : "Sem vencimento contratual informado"}
             </p>
           </div>
 
@@ -889,17 +948,18 @@ export function MasterAdminPage() {
             </Badge>
           )}
         </div>
+        <MunicipalMaintenancePanel key={tenant.id} institution={tenant} onChanged={async () => { await refreshRemoteStore(); window.dispatchEvent(new Event("sigapro:data-changed")); }} />
       </div>
     );
   };
 
   const renderUserCard = (user: SessionUser) => {
     const profile = getUserProfile(user.id, user.email);
-    return <div key={user.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="flex min-w-0 items-start gap-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="lg" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="sig-fit-title text-lg font-semibold text-slate-950">{user.name}</p><Badge className={`rounded-full border ${getStatusTone(user.accountStatus)}`}>{getStatusLabel(user.accountStatus)}</Badge></div><p className="text-sm text-slate-600">{user.title || user.department || "Sem cargo definido"}</p><p className="mt-1 sig-fit-copy text-sm text-slate-500" title={user.email}>{user.email}</p></div></div><div className="flex w-full flex-wrap gap-2 lg:w-auto lg:justify-end"><Badge className="rounded-full bg-slate-950 text-white hover:bg-slate-950">{roleLabels[user.role]}</Badge><Badge variant="outline" className="rounded-full border-slate-300 text-slate-700">{accessLevelLabels[user.accessLevel]}</Badge></div></div><div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Setor:</span> {user.department || user.title || "Não informado"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Tipo:</span> {user.userType || "Usuário"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Criado em:</span> {user.createdAt || "Não informado"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Último acesso:</span> {user.lastAccessAt || "Não registrado"}</div></div><div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap"><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleMasterEdit(user)}><PencilLine className="mr-2 h-4 w-4 text-sky-200" />Editar</Button><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleMasterStatusToggle(user)}>{user.accountStatus === "blocked" ? <><Undo2 className="mr-2 h-4 w-4 text-sky-200" />Desbloquear</> : <><ShieldAlert className="mr-2 h-4 w-4 text-sky-200" />Bloquear</>}</Button><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 hover:text-slate-50 sm:w-auto" onClick={() => handleMasterDelete(user)}><UserX className="mr-2 h-4 w-4 text-rose-300" />Desativar</Button></div></div>;
+    return <div key={user.id} data-master-user-card="true" className="min-w-0 max-w-full rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="flex min-w-0 items-start gap-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="lg" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="sig-fit-title text-lg font-semibold text-slate-950">{user.name}</p><Badge className={`rounded-full border ${getStatusTone(user.accountStatus)}`}>{getStatusLabel(user.accountStatus)}</Badge></div><p className="text-sm text-slate-600">{user.title || user.department || "Sem cargo definido"}</p><p className="mt-1 sig-fit-copy text-sm text-slate-500" title={user.email}>{user.email}</p></div></div><div className="flex w-full flex-wrap gap-2 lg:w-auto lg:justify-end"><Badge className="rounded-full bg-slate-950 text-white hover:bg-slate-950">{roleLabels[user.role]}</Badge><Badge variant="outline" className="rounded-full border-slate-300 text-slate-700">{accessLevelLabels[user.accessLevel]}</Badge></div></div><div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Setor:</span> {user.department || user.title || "Não informado"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Tipo:</span> {user.userType || "Usuário"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Criado em:</span> {user.createdAt || "Não informado"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Último acesso:</span> {user.lastAccessAt || "Não registrado"}</div></div><div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap"><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleMasterEdit(user)}><PencilLine className="mr-2 h-4 w-4 text-sky-200" />Editar</Button><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleMasterStatusToggle(user)}>{user.accountStatus === "blocked" ? <><Undo2 className="mr-2 h-4 w-4 text-sky-200" />Desbloquear</> : <><ShieldAlert className="mr-2 h-4 w-4 text-sky-200" />Bloquear</>}</Button><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 hover:text-slate-50 sm:w-auto" onClick={() => handleMasterDelete(user)}><UserX className="mr-2 h-4 w-4 text-rose-300" />Desativar</Button></div></div>;
   };
   return (
     <PortalFrame eyebrow="Administrador Geral" title="Console executivo da plataforma">
-      <PageShell className={workspaceView === "visao-geral" ? "sig-module-summary-active" : undefined}>
+      <PageShell className={workspaceView === "visao-geral" ? "sig-module-summary-active sig-master-admin-workspace" : "sig-master-admin-workspace"}>
         <PageHero
           eyebrow="Governança SaaS"
           title="Carteira institucional do SIGAPRO"
@@ -911,30 +971,35 @@ export function MasterAdminPage() {
                 <CreditCard className="mr-2 h-4 w-4 text-sky-200" />
                 Planos e níveis
               </Button>
-              <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" onClick={resetForNewInstitution}>
+              <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" disabled={saving || savingPlanOnly || orgBusy} onClick={resetForNewInstitution}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nova prefeitura
               </Button>
             </div>
           }
         />
-        <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
+        <InternalTabs value={workspaceView} disabled={saving || savingPlanOnly || orgBusy} reselectValue={!isCreatingNewInstitution ? "cadastro" : undefined} onChange={(value) => {
+          if (saving || savingPlanOnly) return;
+          if (value === "cadastro" && (!isCreatingNewInstitution || formIdentityRef.current !== "novo")) resetForNewInstitution();
+          else openMasterSection(value as WorkspaceView);
+        }} urlParam="secao" persistInUrl={false} items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Nova Prefeitura", helper: "Formulário limpo" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
 
         {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
+          <div data-master-contract-capacity="true" className={workspaceView === "carteira" ? "order-[80] min-w-0" : "contents"}>
           <SectionCard title="Capacidade e cadastros por Prefeitura"
             description="Consumo por município: plano, usuários internos, processos, departamentos e documentos. Dados atualizados pelo núcleo SIGAPRO.">
             {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
             {!planCapacity.loaded ? (
               <p className="text-sm text-slate-600">Carregando consumo dos contratos...</p>
-            ) : planCapacity.rows.length === 0 ? (
+            ) : visibleCapacityRows.length === 0 ? (
               <p className="text-sm text-slate-600">Nenhuma prefeitura encontrada na consulta de planos.</p>
             ) : (
               <div className="grid gap-4 2xl:grid-cols-2">
-                {(workspaceView === "visao-geral" ? planCapacity.rows.slice(0, 2) : capacityPageData.items).map((row) => (
+                {(workspaceView === "visao-geral" ? visibleCapacityRows.slice(0, 2) : capacityPageData.items).map((row) => (
                   <PlanCapacityCard key={row.municipalityId} row={row}
                     municipalityName={institutionCatalog.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"} />
                 ))}
-                {workspaceView === "carteira" && planCapacity.rows.length > 2 ? (
+                {workspaceView === "carteira" && visibleCapacityRows.length > 2 ? (
                   <nav aria-label="Paginação de contratos municipais"
                     className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 2xl:col-span-2">
                     <span>Contratos {capacityPageData.start + 1}–{capacityPageData.end} de {capacityPageData.total} · Página {capacityPageData.page} de {capacityPageData.totalPages}</span>
@@ -946,19 +1011,20 @@ export function MasterAdminPage() {
                     </div>
                   </nav>
                 ) : null}
-                {workspaceView === "visao-geral" && planCapacity.rows.length > 2 ? (
+                {workspaceView === "visao-geral" && visibleCapacityRows.length > 2 ? (
                   <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 2xl:col-span-2">
-                    <span>Exibindo 2 de {planCapacity.rows.length} prefeituras. Os demais contratos continuam disponíveis na Carteira.</span>
+                    <span>Exibindo 2 de {visibleCapacityRows.length} prefeituras. Os demais contratos continuam disponíveis na Carteira.</span>
                     <Button type="button" variant="outline" className="shrink-0 rounded-xl border-sky-300 bg-white text-sky-900"
-                      onClick={() => setWorkspaceView("carteira")}>Ver todas</Button>
+                      onClick={() => openMasterSection("carteira")}>Ver todas</Button>
                   </div>
                 ) : null}
               </div>
             )}
           </SectionCard>
+          </div>
         ) : null}
 
-        {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita mensal" value={formatCurrency(monthlyRevenue)} helper="Base institucional ativa" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => (
+        {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita contratada/mês" value={formatCurrency(monthlyRevenue)} helper="Recorrência prevista, não arrecadação" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => (
   <div key={tenant.id} className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
     <div className="min-w-0">
       <p className="truncate text-sm font-semibold text-slate-950" title={tenant.name}>{tenant.name}</p>
@@ -967,13 +1033,44 @@ export function MasterAdminPage() {
       </p>
     </div>
     <Button type="button" variant="outline" className="shrink-0 rounded-xl border-slate-300 bg-white text-slate-800"
-      onClick={() => { setSelectedTenantId(tenant.id); setWorkspaceView("carteira"); }}>
+      onClick={() => openMasterSection("carteira", tenant.id)}>
       Abrir carteira
     </Button>
   </div>
-))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Receita média</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length > 0 ? formatCurrency(monthlyRevenue / institutionCatalog.length) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
+))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Ticket mensal contratado</p><p className="mt-2 text-lg font-semibold text-slate-950">{activePlansCount > 0 ? formatCurrency(monthlyRevenue / activePlansCount) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar authenticatedOwnerId={authorizedAvatarViewerId} name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
 
-        {workspaceView === "carteira" ? <TableCard title="Prefeituras" description="Carteira municipal, contratos e ações de governança." icon={Building2}><div className="space-y-4">{institutionCatalog.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}<CompactPortfolioRegistry institutions={institutionCatalog} renderDetails={renderInstitutionCard} /></div></TableCard> : null}
+        {workspaceView === "carteira" || visitedRegistries.carteira ? (
+          <section data-master-preserved-panel="carteira" hidden={workspaceView !== "carteira"} data-master-portfolio-surface="true"
+            className="min-w-0 overflow-hidden rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_28px_rgba(9,39,64,0.07)] sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+            <header className="flex min-w-0 flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-700">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-sky-800 dark:text-sky-200">Master · Diretório institucional</p>
+                <h2 className="mt-1 break-words text-xl font-bold tracking-tight text-slate-950 dark:text-white">Prefeituras e contratos</h2>
+                <p className="mt-1 max-w-[72ch] text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  Pesquise e consulte uma Prefeitura de cada vez. A equipe própria SIGAPRO fica separada dos servidores municipais.
+                </p>
+              </div>
+              <Button type="button" className="h-10 w-full rounded-xl bg-[#123b58] !text-white hover:bg-[#1b587c] sm:w-auto"
+                disabled={saving || savingPlanOnly || orgBusy} onClick={resetForNewInstitution}><Plus className="mr-2 h-4 w-4" />Nova Prefeitura</Button>
+            </header>
+            <div className="mt-5 min-w-0">
+              {institutionCatalog.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  Nenhuma Prefeitura cadastrada. Use Nova Prefeitura para criar a primeira instituição.
+                </p>
+              ) : null}
+              <CompactPortfolioRegistry institutions={institutionCatalog} renderDetails={renderInstitutionCard} />
+            </div>
+            <footer className="mt-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+              <p className="min-w-0 flex-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                Limites e consumos estão na Visão geral; colaboradores e administradores estão em Acessos e equipe.
+              </p>
+              <Button type="button" variant="outline"
+                className="h-10 w-full rounded-xl border-slate-300 bg-white text-slate-800 sm:w-auto dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                onClick={() => openMasterSection("usuarios")}>Acessos e equipe <Users2 className="ml-2 h-4 w-4" /></Button>
+            </footer>
+          </section>
+        ) : null}
 
         {workspaceView === "cadastro" ? (
           <section ref={formRef} data-master-prefeitura-form="premium-standalone"
@@ -981,21 +1078,22 @@ export function MasterAdminPage() {
             <header className="flex min-w-0 flex-wrap items-center justify-between gap-4 bg-[linear-gradient(110deg,#0e3048,#14516b)] px-5 py-6 text-white sm:px-7">
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-200">Master / Cadastro e gestão / Prefeitura</p>
-                <h2 className="mt-1 text-2xl font-bold tracking-tight text-white">{isCreatingNewInstitution ? "Nova Prefeitura" : "Cadastro e contrato municipal"}</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-sky-100">Formulário institucional em área própria, sem cards ou listas empilhados.</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-white">{isCreatingNewInstitution ? "Nova Prefeitura · Cadastro limpo" : "Editar Prefeitura e contrato"}</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-sky-100">{isCreatingNewInstitution ? "Novo cadastro independente, sem dados de outras prefeituras." : "Edição exclusiva da Prefeitura selecionada na Carteira."}</p>
               </div>
               <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                <Button type="button" variant="outline" onClick={() => setWorkspaceView("carteira")}
-                  disabled={saving || savingPlanOnly} className="h-10 flex-1 rounded-xl border-white/30 bg-white/10 px-4 !text-white hover:bg-white/20 hover:!text-white sm:flex-none">
+                <Button type="button" variant="outline" data-master-form-command="back" onClick={() => openMasterSection("carteira")}
+                  disabled={saving || savingPlanOnly} className="h-auto min-h-11 flex-1 rounded-xl px-4 sm:flex-none">
                   <ArrowLeft className="mr-2 h-4 w-4" />Voltar à carteira
                 </Button>
-                <Button type="submit" form="master-municipality-form" disabled={saving || savingPlanOnly}
-                  className="h-10 flex-1 rounded-xl bg-white px-4 !text-[#0e3048] hover:bg-sky-100 sm:flex-none">
-                  {saving ? "Salvando..." : "Salvar Prefeitura"}
+                <Button type="submit" form="master-municipality-form" data-shared-action="primary" data-master-form-command="save" disabled={saving || savingPlanOnly}
+                  className="h-auto min-h-11 flex-1 rounded-xl px-4 sm:flex-none">
+                  <span data-master-command-label="true">{saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}</span>
                 </Button>
               </div>
             </header>
             <form id="master-municipality-form" className="sig-premium-admin-form min-w-0 space-y-6 px-5 py-6 sm:px-7 sm:py-8" onSubmit={handleSave}>
+              {!isCreatingNewInstitution && !activeTenant ? <p role="alert" className="rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm font-semibold !text-amber-950">Prefeitura selecionada indisponível. A gravação está bloqueada até a conta retornar ou ser selecionada novamente na carteira.</p> : null}
                     {statusMessage ? (
                       <div
                         className={`rounded-2xl border px-4 py-3 text-sm font-medium ${
@@ -1007,7 +1105,7 @@ export function MasterAdminPage() {
                         {statusMessage}
                       </div>
                     ) : null}
-                  <div data-master-prefeitura-overview="compact" className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-[#d4e1eb] bg-white/80 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  <div data-master-prefeitura-overview="compact" data-master-form-mode={isCreatingNewInstitution ? "create" : "edit"} className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-[#d4e1eb] bg-white/80 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                     <span><strong>Prefeitura:</strong> {isCreatingNewInstitution ? "Nova conta" : activeTenant?.name || "Selecione uma conta"}</span>
                     <span><strong>Plano:</strong> {form.plan || "A definir"}</span>
                     <span><strong>Contrato:</strong> {form.contractEnd || "Sem vencimento"}</span>
@@ -1070,16 +1168,16 @@ export function MasterAdminPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <div data-master-plan-inline-save="dedicated" className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3 dark:border-sky-800 dark:bg-sky-950/30">
+                      {!isCreatingNewInstitution ? (<div data-master-plan-inline-save="dedicated" className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3 dark:border-sky-800 dark:bg-sky-950/30">
                          <p className="min-w-0 flex-1 text-xs leading-5 text-[#234760] dark:text-sky-100">
                            Atualize somente o contrato, sem regravar a Prefeitura ou seus administradores.
                          </p>
-                         <Button type="button" onClick={() => void handleSavePlanOnly()}
-                           disabled={saving || savingPlanOnly || isCreatingNewInstitution || !selectedTenantId}
+                         <Button type="button" data-shared-action="primary" data-master-form-command="save" onClick={() => void handleSavePlanOnly()}
+                           disabled={saving || savingPlanOnly || isCreatingNewInstitution || !selectedTenantId || !activeTenant}
                            className="h-10 w-full rounded-xl bg-[#0d3853] px-5 !text-white hover:bg-[#195775] sm:w-auto">
                            {savingPlanOnly ? "Atualizando..." : "Atualizar plano"}
                          </Button>
-                       </div>
+                       </div>) : null}
                     </div>
                     </div>
                     <div className="space-y-4">
@@ -1257,11 +1355,11 @@ export function MasterAdminPage() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                      <Button type="submit" className="h-11 w-full rounded-xl bg-[#0d3853] px-6 !text-white hover:bg-[#195775] sm:w-auto" disabled={saving || savingPlanOnly}>
-                        {saving ? "Salvando..." : "Salvar Prefeitura"}
+                      <Button type="submit" data-shared-action="primary" data-master-form-command="save" className="h-11 w-full rounded-xl px-6 sm:w-auto" disabled={saving || savingPlanOnly}>
+                        {saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}
                       </Button>
-                      <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={resetForNewInstitution}>
-                        Limpar formulário
+                      <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" disabled={saving || savingPlanOnly || orgBusy} onClick={resetForNewInstitution}>
+                        {isCreatingNewInstitution ? "Limpar novo cadastro" : "Cadastrar outra Prefeitura"}
                       </Button>
                     </div>
             </form>
@@ -1271,9 +1369,16 @@ export function MasterAdminPage() {
         {workspaceView === "organograma" ? (
           !activeTenant ? (
             <SectionCard title="Organograma municipal" description="Selecione uma Prefeitura na Carteira para administrar a estrutura interna." icon={Network}>
-              <Button type="button" className="rounded-full bg-slate-950 text-white hover:bg-slate-900" onClick={() => setWorkspaceView("carteira")}>
-                Escolher Prefeitura
-              </Button>
+              <div data-premium-empty-state="municipality" className="flex min-w-0 flex-wrap items-center gap-4 rounded-2xl border p-4 sm:p-5">
+                <div data-empty-icon="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border"><Landmark className="h-5 w-5" aria-hidden="true" /></div>
+                <div className="min-w-0 flex-1">
+                  <p data-empty-title="true" className="text-sm font-semibold">Nenhuma Prefeitura selecionada</p>
+                  <p data-empty-copy="true" className="mt-1 text-sm leading-relaxed">Abra a Carteira e escolha a instituição que deseja administrar.</p>
+                </div>
+                <Button type="button" data-shared-action="primary" className="h-auto min-h-11 w-full rounded-xl sm:w-auto" onClick={() => openMasterSection("carteira")}>
+                  Escolher Prefeitura
+                </Button>
+              </div>
             </SectionCard>
           ) : (
             <PageMainGrid className="xl:grid-cols-[minmax(0,1.9fr)_minmax(330px,0.82fr)] xl:items-start">
@@ -1282,9 +1387,12 @@ export function MasterAdminPage() {
                   title={`Organograma • ${activeTenant.name}`}
                   description="Estrutura exclusiva desta Prefeitura. O Master pode montar e ajustar a organização quando o cliente solicitar."
                   icon={Network}
+                  actions={<Button type="button" variant="outline" disabled={orgBusy} onClick={() => openMasterSection("carteira")}>Trocar Prefeitura</Button>}
                 >
                   <div className="space-y-5">
-                    {activeMasterDepartments.length === 0 ? (
+                    {departmentScopeId !== selectedTenantId ? (
+                      <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm !text-slate-800">Organograma ainda não confirmado. As alterações estão bloqueadas até a consulta ser concluída.</p>
+                    ) : activeMasterDepartments.length === 0 ? (
                       <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                         Esta Prefeitura ainda não possui organograma cadastrado.
                       </div>
@@ -1351,7 +1459,7 @@ export function MasterAdminPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button type="button" disabled={!assignmentUserId || orgBusy} className="h-11 rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => void handleMasterAssignDepartment()}>
+                    <Button type="button" disabled={!assignmentUserId || orgBusy || departmentScopeId !== selectedTenantId} className="h-11 rounded-2xl bg-slate-950 text-white hover:bg-slate-900" onClick={() => void handleMasterAssignDepartment()}>
                       Salvar lotação
                     </Button>
                   </div>
@@ -1409,7 +1517,7 @@ export function MasterAdminPage() {
                       <Label>Telefone</Label>
                       <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} />
                     </div>
-                    <Button type="submit" disabled={orgBusy || !orgForm.name.trim()} className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900">
+                    <Button type="submit" disabled={orgBusy || departmentScopeId !== selectedTenantId || !orgForm.name.trim()} className="h-12 w-full rounded-2xl bg-slate-950 text-white hover:bg-slate-900">
                       {orgBusy ? "Salvando..." : "Adicionar unidade"}
                     </Button>
                   </form>
@@ -1419,7 +1527,8 @@ export function MasterAdminPage() {
           )
         ) : null}
 
-        {workspaceView === "usuarios" ? (
+        {workspaceView === "usuarios" || visitedRegistries.usuarios ? (
+          <div data-master-preserved-panel="usuarios" hidden={workspaceView !== "usuarios"}>
           <PageMainContent className="gap-6">
             <MasterUserGovernance
               institutions={institutionCatalog}
@@ -1430,6 +1539,7 @@ export function MasterAdminPage() {
               onPlatformStaffCreated={refreshRemoteStore}
             />
           </PageMainContent>
+          </div>
         ) : null}
       </PageShell>
     </PortalFrame>

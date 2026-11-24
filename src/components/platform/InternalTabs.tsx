@@ -10,6 +10,8 @@ export function InternalTabs({
   urlParam = "secao",
   persistInUrl = true,
   summaryFirst = false,
+  disabled = false,
+  reselectValue,
 }: {
   items: Array<{ value: string; label: string; helper?: string }>;
   value: string;
@@ -18,12 +20,14 @@ export function InternalTabs({
   urlParam?: string;
   persistInUrl?: boolean;
   summaryFirst?: boolean;
+  disabled?: boolean;
+  reselectValue?: string;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
 
   useLayoutEffect(() => {
-    if (!persistInUrl) return;
+    if (!persistInUrl || disabled) return;
     const params = new URLSearchParams(location.search);
     const requested = params.get(urlParam);
 
@@ -35,9 +39,10 @@ export function InternalTabs({
     // Never force a Summary tab to a different operational tab.
     // The user-selected route/section is authoritative; a query parameter is
     // read only when it explicitly names an available tab.
-  }, [items, location.search, onChange, persistInUrl, urlParam, value]);
+  }, [disabled, items, location.search, onChange, persistInUrl, urlParam, value]);
 
   const handleChange = (next: string) => {
+    if (disabled) return;
     if (persistInUrl) {
       const params = new URLSearchParams(location.search);
       params.set(urlParam, next);
@@ -53,5 +58,5 @@ export function InternalTabs({
     onChange(next);
   };
 
-  return <InternalSectionNav items={items} value={value} onChange={handleChange} className={className} summaryFirst={summaryFirst} />;
+  return <InternalSectionNav items={items} value={value} onChange={handleChange} className={className} summaryFirst={summaryFirst} disabled={disabled} reselectValue={reselectValue} />;
 }

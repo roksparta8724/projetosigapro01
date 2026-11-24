@@ -88,7 +88,7 @@ export function CompactUserRegistry({
                 return (
                   <Fragment key={user.id}>
                     <tr data-sigapro-user-row="true" className="transition-colors hover:bg-sky-50/60">
-                      <td className="max-w-0 px-4 py-3">
+                      <td data-mobile-label="Usuário" className="max-w-0 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
                           <UserAvatar
                             authenticatedOwnerId={authorizedViewerId}
@@ -119,7 +119,7 @@ export function CompactUserRegistry({
                         <p className="truncate text-slate-600" title={user.department || user.title || ""}>{user.department || user.title || "Não informada"}</p>
                       </td>
                       <td data-mobile-label="Situação" className="px-4 py-3">
-                        <span className={"inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold " + statusClass(user.accountStatus)}>
+                        <span data-registry-status={user.accountStatus} className={"inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold " + statusClass(user.accountStatus)}>
                           {statusText[user.accountStatus] || "Indefinido"}
                         </span>
                       </td>

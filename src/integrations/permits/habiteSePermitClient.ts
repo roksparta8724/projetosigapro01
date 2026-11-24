@@ -70,6 +70,13 @@ function errorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+function validatePermitScope(row: PermitRpcRow | null | undefined, processId: string): HabiteSePermitRecord | null {
+  if (row && (row.process_id !== processId || !row.id || !["rascunho", "aguardando_diretor", "emitido"].includes(row.status))) {
+    throw new Error("O banco retornou um Alvará de Habite-se incompatível com o processo ou estado solicitado.");
+  }
+  return mapPermit(row);
+}
+
 function mapPermit(row?: PermitRpcRow | null): HabiteSePermitRecord | null {
   if (!row) return null;
   const rawForm = row.form_data ?? {};
@@ -109,7 +116,7 @@ export async function getHabiteSePermit(processId: string) {
     can_manage?: boolean;
   };
   return {
-    permit: mapPermit(raw.permit),
+    permit: validatePermitScope(raw.permit, processId),
     defaults: mapForm(raw.defaults),
     canManage: Boolean(raw.can_manage),
   };
@@ -129,7 +136,7 @@ export async function saveHabiteSePermit(input: {
     throw new Error(errorMessage(error, "Não foi possível salvar o Alvará de Habite-se."));
   }
   const raw = (data ?? {}) as { permit?: PermitRpcRow | null };
-  const permit = mapPermit(raw.permit);
+  const permit = validatePermitScope(raw.permit, input.processId);
   if (!permit) throw new Error("O banco não retornou o Alvará de Habite-se salvo.");
   return permit;
 }
@@ -143,8 +150,8 @@ export async function setHabiteSePermitAwaitingDirector(processId: string) {
     throw new Error(errorMessage(error, "Não foi possível encaminhar o Alvará de Habite-se à Diretoria."));
   }
   const raw = (data ?? {}) as { permit?: PermitRpcRow | null };
-  const permit = mapPermit(raw.permit);
-  if (!permit) throw new Error("O banco não retornou o encaminhamento do Alvará.");
+  const permit = validatePermitScope(raw.permit, processId);
+  if (!permit || permit.status !== "aguardando_diretor") throw new Error("O banco não confirmou o encaminhamento do Alvará.");
   return permit;
 }
 
@@ -165,15 +172,15 @@ export async function completeHabiteSeProcess(processId: string) {
     status?: string;
   };
 
-  if (!raw.ok) {
+  if (raw.ok !== true || raw.process_id !== processId || raw.status !== "arquivado") {
     throw new Error("O banco não confirmou a conclusão administrativa do processo.");
   }
 
   return {
     ok: true,
     alreadyCompleted: Boolean(raw.already_completed),
-    processId: String(raw.process_id || processId),
-    status: String(raw.status || "arquivado"),
+    processId: raw.process_id,
+    status: raw.status,
   };
 }
 
@@ -189,8 +196,8 @@ export async function finalizeHabiteSePermit(processId: string) {
     verification_code?: string | null;
     already_finalized?: boolean;
   };
-  const permit = mapPermit(raw.permit);
-  if (!permit) throw new Error("O banco não retornou o Alvará finalizado.");
+  const permit = validatePermitScope(raw.permit, processId);
+  if (!permit || permit.status !== "emitido") throw new Error("O banco não confirmou a emissão do Alvará.");
   return {
     permit,
     verificationCode: raw.verification_code ?? null,
