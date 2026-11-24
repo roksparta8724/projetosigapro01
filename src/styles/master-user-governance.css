@@ -332,3 +332,90 @@ html body #root .sig-main-shell .sig-master-governance [data-master-selected-sum
     white-space:normal;
   }
 }
+
+
+/* SIGAPRO 2026-11-24 — inverse-main readability audit (Master only).
+ * The previous rules colored containers but some text used a separate
+ * -webkit-text-fill-color, rendering black on navy even when CSS color
+ * inherited white. Explicitly style headings, descriptions and metrics.
+ */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance {
+  --master-ink:#f5fbff;
+  --master-muted:#c7e1f1;
+  --master-border:#4c718b;
+  --master-panel:#193b53;
+  --master-raised:#23445d;
+  --master-hover:#295773;
+  --master-selected:#245d7e;
+  --master-selected-border:#86d5f6;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+:is(.sig-master-governance-panel,.sig-master-governance-metric,.sig-master-governance-stat) {
+  background:var(--master-panel)!important;
+  border-color:var(--master-border)!important;
+  color:var(--master-ink)!important;
+  -webkit-text-fill-color:var(--master-ink)!important;
+  box-shadow:0 10px 26px rgba(2,16,29,.17)!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-panel :is(h2,h3,h4,strong),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+:is(.sig-master-governance-metric,.sig-master-governance-stat) p:nth-child(2) {
+  color:#f5fbff!important;
+  -webkit-text-fill-color:#f5fbff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-panel :is(p,span):not(.sr-only):not(.sig-master-governance-action):not([data-state="active"]),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+:is(.sig-master-governance-metric,.sig-master-governance-stat) p:not(:nth-child(2)) {
+  color:var(--master-muted)!important;
+  -webkit-text-fill-color:var(--master-muted)!important;
+  opacity:1!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-panel :is(.sig-master-governance-action,.sig-master-governance-option[aria-pressed="true"])
+:is(span,p,strong,svg) {
+  color:#f3fbff!important;
+  -webkit-text-fill-color:#f3fbff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-option:not([aria-pressed="true"]) :is(span,svg),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-section :is(span,svg) {
+  color:#e7f5ff!important;
+  -webkit-text-fill-color:#e7f5ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-section span:last-child,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-option:not([aria-pressed="true"]) span span:nth-child(n+2) {
+  color:#c6e0f0!important;
+  -webkit-text-fill-color:#c6e0f0!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-section[data-active="true"] {
+  background:#225e80!important;
+  border-color:#8bcff0!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-tabs [role="tab"]:not([data-state="active"]) {
+  color:#d4e9f7!important;
+  -webkit-text-fill-color:#d4e9f7!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+:is(.sig-master-governance-search,.sig-master-governance-search button) {
+  background:#203d55!important;
+  border-color:#5c809a!important;
+  color:#f4fbff!important;
+  -webkit-text-fill-color:#f4fbff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-search::placeholder {
+  color:#c0d8e9!important;
+  -webkit-text-fill-color:#c0d8e9!important;
+  opacity:1!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-governance
+.sig-master-governance-panel > div:first-child {
+  border-color:#496c86!important;
+}

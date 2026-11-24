@@ -55,3 +55,78 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-ad
     max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;
   }
 }
+
+
+/* Master create/edit form: labels and help text stay legible on navy panels. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] {
+  background:#142f47!important;
+  border-color:#52758e!important;
+  color:#eef8ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form {
+  color:#edf8ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] :is(label,[data-master-prefeitura-overview="compact"],h3) {
+  color:#f3fbff!important;
+  -webkit-text-fill-color:#f3fbff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form
+:is(p,.text-slate-500,.text-slate-600,.text-slate-700) {
+  color:#cbdff0!important;
+  -webkit-text-fill-color:#cbdff0!important;
+  opacity:1!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] :is(input,textarea,[role="combobox"],.sig-admin-input) {
+  min-width:0;
+  max-width:100%;
+  border-color:#54758f!important;
+  background:#10263b!important;
+  color:#f4fbff!important;
+  -webkit-text-fill-color:#f4fbff!important;
+  opacity:1!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] :is(input,textarea,.sig-admin-input)::placeholder {
+  color:#b4d0e1!important;
+  -webkit-text-fill-color:#b4d0e1!important;
+  opacity:1!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] :is(input,textarea,[role="combobox"],.sig-admin-input):focus-visible {
+  outline:2px solid #7bd5ff!important;
+  outline-offset:2px;
+  border-color:#7bd5ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] [data-master-prefeitura-overview="compact"] {
+  border-color:#607e96!important;
+  background:#1b3c56!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] [data-master-plan-inline-save="dedicated"] {
+  background:#204c69!important;
+  border-color:#5a9cc0!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] [data-master-plan-inline-save="dedicated"] p {
+  color:#ebf8ff!important;
+  -webkit-text-fill-color:#ebf8ff!important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace
+[data-master-prefeitura-form="premium-standalone"] .sig-dark-panel {
+  background:#10263b!important;
+  border-color:#54758f!important;
+}
+@media(max-width:767px) {
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form {
+    padding:16px!important;
+  }
+  html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] > header {
+    padding:18px!important;
+  }
+}

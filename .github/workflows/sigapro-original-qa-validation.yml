@@ -37,6 +37,7 @@ jobs:
           src/test/planEntitlements.test.ts
           src/test/planEnforcementRegression.test.ts
           src/test/masterNewMunicipalityIsolation.test.ts
+          src/test/masterCreateEditAndContrast20261124.test.ts
           src/test/masterInstitutionalGovernance20261119.test.ts
           src/test/masterPlansPremiumContrast.test.ts
           src/test/mobileCardsPremium20261124.test.ts
