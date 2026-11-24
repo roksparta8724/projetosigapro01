@@ -2,7 +2,7 @@ import {readFileSync} from "node:fs";
 import {beforeEach,describe,expect,it,vi} from "vitest";
 vi.mock("@/integrations/backend/databaseClient",()=>({backendClient:{rpc:vi.fn()}}));
 import {backendClient} from "@/integrations/backend/databaseClient";
-import {completeHabiteSeProcess} from "@/integrations/permits/habiteSePermitClient";
+import {completeHabiteSeProcess,getHabiteSePermit,setHabiteSePermitAwaitingDirector,finalizeHabiteSePermit} from "@/integrations/permits/habiteSePermitClient";
 
 const detail=readFileSync("src/pages/saas/ProcessDetailPage.tsx","utf8");
 const panel=readFileSync("src/components/platform/HabiteSePermitPanel.tsx","utf8");
@@ -39,5 +39,25 @@ describe("Habite-se: conclusão oficial via RPC transacional",()=>{
   await expect(completeHabiteSeProcess("qa")).rejects.toThrow("banco não confirmou");
   vi.mocked(backendClient.rpc).mockResolvedValueOnce({data:null,error:{message:"Assinatura da Diretoria inválida."}});
   await expect(completeHabiteSeProcess("qa")).rejects.toThrow("Assinatura da Diretoria inválida.");
+ });
+});
+
+
+describe("Habite-se — confirmação estrita do processo e estado",()=>{
+ beforeEach(()=>vi.resetAllMocks());
+ it("não presume o arquivamento com retorno parcial ou de outro processo",async()=>{
+  for(const data of [{ok:true},{ok:true,process_id:"qa"},{ok:true,status:"arquivado"},{ok:true,process_id:"outro",status:"arquivado"},{ok:true,process_id:"qa",status:"deferido"},{ok:"true",process_id:"qa",status:"arquivado"}]){
+   vi.mocked(backendClient.rpc).mockResolvedValueOnce({data,error:null});
+   await expect(completeHabiteSeProcess("qa")).rejects.toThrow("banco não confirmou");
+  }
+ });
+ it("não aceita alvará de outro processo ou etapa divergente",async()=>{
+  const permit={id:"permit-qa",process_id:"outro",permit_number:"QA",status:"emitido"};
+  vi.mocked(backendClient.rpc).mockResolvedValueOnce({data:{permit},error:null});
+  await expect(getHabiteSePermit("qa")).rejects.toThrow("incompatível");
+  vi.mocked(backendClient.rpc).mockResolvedValueOnce({data:{permit:{...permit,process_id:"qa",status:"rascunho"}},error:null});
+  await expect(setHabiteSePermitAwaitingDirector("qa")).rejects.toThrow("não confirmou");
+  vi.mocked(backendClient.rpc).mockResolvedValueOnce({data:{permit:{...permit,process_id:"qa",status:"aguardando_diretor"}},error:null});
+  await expect(finalizeHabiteSePermit("qa")).rejects.toThrow("não confirmou");
  });
 });
