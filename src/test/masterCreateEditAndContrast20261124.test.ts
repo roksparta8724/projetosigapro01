@@ -49,3 +49,21 @@ describe("SIGAPRO Master — novo cadastro isolado e contraste premium", () => {
     expect(governance).toContain('-webkit-text-fill-color:#c6e0f0!important');
   });
 });
+
+
+describe("Master — edição protegida durante sincronização", () => {
+  it("não substitui a Prefeitura explicitamente selecionada durante o refresh", () => {
+    expect(page).toContain('if (isCreatingNewInstitution || workspaceView === "cadastro") return;');
+    expect(page).toContain('}, [institutionCatalog, isCreatingNewInstitution, selectedTenantId, workspaceView]);');
+  });
+  it("bloqueia gravação institucional e contratual quando a seleção não está hidratada", () => {
+    expect(page).toContain('if (!isCreatingNewInstitution && (!activeTenant || hydratedEditTenantRef.current !== selectedTenantId))');
+    expect(page).toContain('if (!activeTenant || hydratedEditTenantRef.current !== selectedTenantId)');
+    expect(page).toContain('Nenhuma alteração foi gravada.');
+  });
+  it("mantém contraste explícito dos campos", () => {
+    expect(() => postcss.parse(styles)).not.toThrow();
+    expect(styles).toContain('--master-field-ink:#173650');
+    expect(styles).toContain('--master-field-ink:#f4fbff');
+  });
+});

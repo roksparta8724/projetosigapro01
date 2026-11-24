@@ -291,7 +291,8 @@ export function MasterAdminPage() {
   const overviewInstitutions = useMemo(() => institutionCatalog.filter((tenant) => tenant.status === "ativo").slice(0, 3), [institutionCatalog]);
   const recentActivity = useMemo(() => [...sessionUsers].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5), [sessionUsers]);
   useEffect(() => {
-    if (isCreatingNewInstitution) return;
+    // Never switch the explicitly edited municipality during a refresh.
+    if (isCreatingNewInstitution || workspaceView === "cadastro") return;
     if (institutionCatalog.length === 0) {
       if (selectedTenantId) setSelectedTenantId("");
       return;
@@ -309,7 +310,7 @@ export function MasterAdminPage() {
     if (nextPreferred !== selectedTenantId) {
       setSelectedTenantId(nextPreferred);
     }
-  }, [institutionCatalog, isCreatingNewInstitution, selectedTenantId]);
+  }, [institutionCatalog, isCreatingNewInstitution, selectedTenantId, workspaceView]);
 
   useEffect(() => {
     // Only load a selected Prefeitura once. Live refresh must never clear a draft.
@@ -392,6 +393,7 @@ export function MasterAdminPage() {
   };
 
   const handleSelectTenant = (tenantId: string) => {
+    if (saving || savingPlanOnly || !municipalIds.has(tenantId)) return;
     hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(false);
     setSelectedTenantId(tenantId);
@@ -509,6 +511,10 @@ export function MasterAdminPage() {
       setStatusMessage("Salve a Prefeitura antes de alterar o contrato.");
       return;
     }
+    if (!activeTenant || hydratedEditTenantRef.current !== selectedTenantId) {
+      setStatusMessage("A Prefeitura selecionada ainda não está disponível. Confira a conta na carteira antes de atualizar o plano.");
+      return;
+    }
     const selectedPlan = activeCommercialPlans.find((item) => item.id === form.plan || item.name === form.plan);
     if (!selectedPlan) { setStatusMessage("Selecione um plano comercial ativo."); return; }
     const existing = getInstitutionPlanAssignment(selectedTenantId);
@@ -556,6 +562,10 @@ export function MasterAdminPage() {
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saving || savingPlanOnly) return;
+    if (!isCreatingNewInstitution && (!activeTenant || hydratedEditTenantRef.current !== selectedTenantId)) {
+      setStatusMessage("A Prefeitura selecionada ainda não está disponível. Nenhuma alteração foi gravada. Confira a conta na carteira.");
+      return;
+    }
     setSaving(true);
     setStatusMessage("");
     let saveStage = "Dados da Prefeitura";
@@ -747,6 +757,7 @@ export function MasterAdminPage() {
   };
 
   const resetForNewInstitution = () => {
+    if (saving || savingPlanOnly) return;
     hydratedEditTenantRef.current = null;
     setIsCreatingNewInstitution(true);
     setSelectedTenantId("");
@@ -764,6 +775,7 @@ export function MasterAdminPage() {
   };
 
   const openMasterSection = (section: WorkspaceView) => {
+    if (saving || savingPlanOnly) return;
     const params = new URLSearchParams(window.location.search);
     params.set("secao", section);
     navigate({ pathname: window.location.pathname, search: `?${params.toString()}` }, { replace: true, preventScrollReset: true });
@@ -958,7 +970,7 @@ export function MasterAdminPage() {
                 <CreditCard className="mr-2 h-4 w-4 text-sky-200" />
                 Planos e níveis
               </Button>
-              <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" onClick={resetForNewInstitution}>
+              <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900" disabled={saving || savingPlanOnly} onClick={resetForNewInstitution}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nova prefeitura
               </Button>
@@ -966,6 +978,7 @@ export function MasterAdminPage() {
           }
         />
         <InternalTabs value={workspaceView} onChange={(value) => {
+          if (saving || savingPlanOnly) return;
           if (value === "cadastro" && (workspaceView !== "cadastro" || !isCreatingNewInstitution)) resetForNewInstitution();
           else setWorkspaceView(value as WorkspaceView);
         }} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Nova Prefeitura", helper: "Formulário limpo" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Acessos e equipe", helper: "Prefeituras e equipe SIGAPRO" }]} />
@@ -1037,7 +1050,7 @@ export function MasterAdminPage() {
                 </p>
               </div>
               <Button type="button" className="h-10 w-full rounded-xl bg-[#123b58] !text-white hover:bg-[#1b587c] sm:w-auto"
-                onClick={resetForNewInstitution}><Plus className="mr-2 h-4 w-4" />Nova Prefeitura</Button>
+                disabled={saving || savingPlanOnly} onClick={resetForNewInstitution}><Plus className="mr-2 h-4 w-4" />Nova Prefeitura</Button>
             </header>
             <div className="mt-5 min-w-0">
               {institutionCatalog.length === 0 ? (
@@ -1079,6 +1092,7 @@ export function MasterAdminPage() {
               </div>
             </header>
             <form id="master-municipality-form" className="sig-premium-admin-form min-w-0 space-y-6 px-5 py-6 sm:px-7 sm:py-8" onSubmit={handleSave}>
+              {!isCreatingNewInstitution && !activeTenant ? <p role="alert" className="rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 text-sm font-semibold !text-amber-950">Prefeitura selecionada indisponível. A gravação está bloqueada até a conta retornar ou ser selecionada novamente na carteira.</p> : null}
                     {statusMessage ? (
                       <div
                         className={`rounded-2xl border px-4 py-3 text-sm font-medium ${
@@ -1158,7 +1172,7 @@ export function MasterAdminPage() {
                            Atualize somente o contrato, sem regravar a Prefeitura ou seus administradores.
                          </p>
                          <Button type="button" onClick={() => void handleSavePlanOnly()}
-                           disabled={saving || savingPlanOnly || isCreatingNewInstitution || !selectedTenantId}
+                           disabled={saving || savingPlanOnly || isCreatingNewInstitution || !selectedTenantId || !activeTenant}
                            className="h-10 w-full rounded-xl bg-[#0d3853] px-5 !text-white hover:bg-[#195775] sm:w-auto">
                            {savingPlanOnly ? "Atualizando..." : "Atualizar plano"}
                          </Button>
@@ -1343,7 +1357,7 @@ export function MasterAdminPage() {
                       <Button type="submit" className="h-11 w-full rounded-xl bg-[#0d3853] px-6 !text-white hover:bg-[#195775] sm:w-auto" disabled={saving || savingPlanOnly}>
                         {saving ? "Salvando..." : isCreatingNewInstitution ? "Criar Prefeitura" : "Salvar alterações"}
                       </Button>
-                      <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={resetForNewInstitution}>
+                      <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" disabled={saving || savingPlanOnly} onClick={resetForNewInstitution}>
                         {isCreatingNewInstitution ? "Limpar novo cadastro" : "Cadastrar outra Prefeitura"}
                       </Button>
                     </div>

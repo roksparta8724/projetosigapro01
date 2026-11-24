@@ -130,3 +130,43 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-ad
     padding:18px!important;
   }
 }
+
+/* Explicit contrast in the light registration workspace; dark variants retain their own palette. */
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] {
+  --master-field-bg:#ffffff;
+  --master-field-ink:#173650;
+  --master-field-border:#859eb4;
+  --master-field-label:#23445e;
+  --master-field-placeholder:#526b80;
+  --master-field-focus:#126a91;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"],
+html.dark body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] {
+  --master-field-bg:#10263b;
+  --master-field-ink:#f4fbff;
+  --master-field-border:#789bb5;
+  --master-field-label:#e0effa;
+  --master-field-placeholder:#b4d0e1;
+  --master-field-focus:#7bd5ff;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form label {
+  color:var(--master-field-label)!important;
+  -webkit-text-fill-color:var(--master-field-label)!important;
+  font-weight:600;opacity:1!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form :is(input:not([type="color"]):not([type="checkbox"]):not([type="radio"]),textarea,[role="combobox"]) {
+  background:var(--master-field-bg)!important;
+  border-color:var(--master-field-border)!important;
+  color:var(--master-field-ink)!important;
+  -webkit-text-fill-color:var(--master-field-ink)!important;
+  min-height:44px;min-width:0;max-width:100%;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form :is(input,textarea)::placeholder,
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form [role="combobox"][data-placeholder] {
+  color:var(--master-field-placeholder)!important;
+  -webkit-text-fill-color:var(--master-field-placeholder)!important;
+  opacity:1!important;
+}
+html body #root .sig-main-shell .sig-master-admin-workspace [data-master-prefeitura-form="premium-standalone"] .sig-premium-admin-form :is(input,textarea,[role="combobox"]):focus-visible {
+  outline:2px solid var(--master-field-focus)!important;outline-offset:2px;
+}
