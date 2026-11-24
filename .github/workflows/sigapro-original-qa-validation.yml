@@ -37,6 +37,10 @@ jobs:
           src/test/masterInstitutionalGovernance20261119.test.ts
           src/test/masterPlansPremiumContrast.test.ts
           src/test/mobileCardsPremium20261124.test.ts
+          src/test/mobileRegistryAndProcessActions20261124.test.tsx
+          src/pages/saas/ExternalProcessControlPage.test.tsx
+          src/components/platform/CompactPortfolioRegistry.test.tsx
+          src/components/platform/CompactProcessRegistry.test.tsx
           src/test/mobileLegibilityAcrossDepartments20261121.test.ts
           src/test/layoutIntegrityRegression.test.ts
           src/test/premiumCardHierarchy20261117.test.tsx

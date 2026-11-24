@@ -143,3 +143,79 @@ html body #root .sig-main-shell [data-sigapro-user-registry="compact"] {
     grid-template-columns: minmax(0,1fr) !important; padding: 12px;
   }
 }
+
+
+/* Financeiro usa o mesmo padrão: busca em uma linha; filtros e ações
+   em células flexíveis. Nenhuma mudança nas guias, liquidações ou valores. */
+@media (max-width: 1023px) {
+  html body #root .sig-main-shell .sig-finance-ledger__toolbar {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr);
+    width: 100%;
+    min-width: 0;
+    gap: 10px;
+    padding: 12px;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__search {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__filters {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit,minmax(min(100%,145px),1fr)) !important;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 auto !important;
+    gap: 8px;
+    overflow: visible !important;
+    padding: 0;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__filter {
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    height: auto;
+    padding: 8px;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal;
+    text-align: center;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__action-buttons {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit,minmax(min(100%,175px),1fr));
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__action-buttons > * {
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    height: auto !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    text-align: center;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__row
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__guide-type,.sig-finance-ledger__value) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    white-space: normal;
+  }
+  html body #root .sig-main-shell .sig-finance-ledger__pagination {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
