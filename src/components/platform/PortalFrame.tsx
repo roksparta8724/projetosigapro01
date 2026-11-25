@@ -1551,6 +1551,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                     topbarIconButton,
                   )}
                   aria-label="Organograma"
+                  data-mobile-topbar-organogram="true"
                   title="Organograma"
                 >
                   <Network className="h-[18px] w-[18px] text-white/92" />
@@ -1622,6 +1623,14 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                 </DropdownMenuLabel>
                 <MunicipalDepartmentSwitcher dark={true} />
                 <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem data-mobile-overflow-action="true" className="rounded-xl px-3 py-2.5 focus:bg-white/10" onSelect={() => setCommandOpen(true)}>
+                  <Search className="mr-2 h-4 w-4" />Pesquisar
+                </DropdownMenuItem>
+                {showMunicipalOrganogramShortcut ? (
+                  <DropdownMenuItem data-mobile-overflow-action="true" className="rounded-xl px-3 py-2.5 focus:bg-white/10" onSelect={() => navigate("/prefeitura/organograma")}>
+                    <Network className="mr-2 h-4 w-4" />Organograma
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem className="rounded-xl px-3 py-2.5 focus:bg-white/10" onClick={() => navigate("/perfil")}>
                   <UserRound className="mr-2 h-4 w-4" />Meu perfil
                 </DropdownMenuItem>

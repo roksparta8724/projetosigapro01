@@ -6,8 +6,8 @@
  * compact user directory as readable cards without changing table semantics
  * or invoking renderDetails twice.
  */
-/* The phone toolbar has one identity row and one utility row.
-   Tablet stays on a single line; desktop styles are not touched. */
+/* Compact single-row mobile toolbar. Secondary actions remain accessible
+   in the account menu on narrow phones; desktop styles are unchanged. */
 @media (max-width: 1023px) {
   html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-shell {
     box-sizing: border-box;
@@ -110,64 +110,64 @@
 }
 @media (max-width: 639px) {
   html body #root .sig-app-frame[data-premium-design="institutional-v3"] {
-    --sig-topbar-height-mobile: 108px !important;
+    --sig-topbar-height-mobile: 64px !important;
   }
   html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar,
   html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-shell {
     min-height: var(--sig-topbar-height-mobile) !important;
   }
   html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-shell {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) 56px;
-    grid-template-rows: 48px 44px;
+    display: flex !important;
+    flex-wrap: nowrap !important;
     align-items: center;
-    gap: 4px 8px !important;
-    padding: 6px 10px !important;
+    gap: 6px !important;
+    padding: 7px 8px !important;
   }
   html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-brand-viewport="mobile"] {
-    grid-column: 1;
-    grid-row: 1;
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-  }
-  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-logo,
-  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-badge {
-    width: 38px !important;
-    height: 38px !important;
-    flex: 0 0 38px;
-    border-radius: 10px !important;
-  }
-  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-subtitle {
-    display: block !important;
-    font-size: 10px !important;
-    line-height: 1.25 !important;
-    margin-top: 2px !important;
-    color: #dbeafe !important;
-    white-space: nowrap !important;
-    text-overflow: ellipsis;
-    overflow: hidden;
-  }
-  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-account-viewport="mobile"] {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-  }
-  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-actions-viewport="mobile"] {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    display: flex;
-    justify-content: flex-end;
-    width: 100%;
-    max-width: 100%;
+    flex: 1 1 0%;
     min-width: 0;
     gap: 6px !important;
   }
-  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-mobile-topbar-search="true"] {
-    flex: 1 1 0%;
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-logo,
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-badge {
+    width: 32px !important;
+    height: 32px !important;
+    flex: 0 0 32px;
+    border-radius: 9px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-title {
+    font-size: 12px !important;
+    letter-spacing: .035em !important;
+    line-height: 1.2 !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-subtitle {
+    display: none !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-actions-viewport="mobile"] {
+    display: flex;
+    flex: 0 0 auto;
+    min-width: 0;
+    gap: 4px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-account-viewport="mobile"] > button {
+    width: 44px !important;
+    min-width: 44px !important;
+    padding: 0 !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-topbar-account-viewport="mobile"] > button > svg:last-child {
+    display: none !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-mobile-topbar-search="true"],
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar [data-mobile-topbar-organogram="true"] {
+    display: none !important;
   }
   html body #root .sig-premium-topbar[data-account-dock="true"] > [data-radix-popper-content-wrapper]:has([data-account-panel="mobile"]) {
     width: min(360px,100%) !important;
+  }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  html body #root .sig-premium-topbar [data-account-panel="mobile"] [data-mobile-overflow-action="true"] {
+    display: none !important;
   }
 }
 
@@ -318,13 +318,13 @@
   }
   html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
   [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-logo {
-    width: 34px !important;
-    height: 34px !important;
-    flex-basis: 34px;
+    width: 30px !important;
+    height: 30px !important;
+    flex-basis: 30px;
   }
   html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar
   [data-topbar-brand-viewport="mobile"] .sig-topbar-brand-badge {
-    width: 34px !important;
-    height: 34px !important;
+    width: 30px !important;
+    height: 30px !important;
   }
 }
