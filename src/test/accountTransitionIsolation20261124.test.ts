@@ -20,7 +20,8 @@ describe("account transition isolation",()=>{
     expect(data).not.toContain("await backendClient.auth.signOut()");
     expect(data).toContain("currentAuthIdentityRef.current !== authenticatedUserId");
     const session=read("src/hooks/usePlatformSession.tsx");
-    expect(session).toContain("!businessUserId && !authResolved");
+    expect(session).toContain("!businessUserId && (isNeonBackend || !authResolved)");
+    expect(session).toContain("readCachedSession()?.id === cachedSession.id");
     const route=read("src/components/platform/PermissionRoute.tsx");
     expect(route.indexOf("if (!isAuthenticated && bootstrap.authResolved && bootstrap.isReady)")).toBeLessThan(route.indexOf("if (isInitialAccessResolution)"));
   });

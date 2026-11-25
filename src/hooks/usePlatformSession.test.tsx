@@ -128,6 +128,26 @@ describe("PlatformSessionProvider Neon profile-first identity", () => {
     );
   });
 
+  it("discards the previous profile as soon as explicit logout removes the cache, even during auth hydration", () => {
+    const { rerender } = render(<PlatformSessionProvider><Probe /></PlatformSessionProvider>);
+    expect(screen.getByTestId("session-id")).toHaveTextContent(gatewayMock.authenticatedProfileId);
+    window.localStorage.removeItem("sigapro.platform.session.v1");
+    gatewayMock.authenticatedUserId = null as unknown as string;
+    gatewayMock.authenticatedProfileId = null as unknown as string;
+    gatewayMock.authenticatedRole = null as unknown as typeof gatewayMock.authenticatedRole;
+    gatewayMock.authenticatedEmail = "";
+    gatewayMock.authenticatedMunicipalityId = null as unknown as string;
+    gatewayMock.authResolved = false;
+    gatewayMock.loading = true;
+    rerender(<PlatformSessionProvider><Probe /></PlatformSessionProvider>);
+    expect(screen.getByTestId("session-id")).toHaveTextContent("unknown");
+    gatewayMock.authResolved = true;
+    gatewayMock.loading = false;
+    rerender(<PlatformSessionProvider><Probe /></PlatformSessionProvider>);
+    expect(screen.getByTestId("session-id")).toHaveTextContent("unknown");
+    expect(window.localStorage.getItem("sigapro.platform.session.v1")).toBeNull();
+  });
+
   it("uses profile_id as the business session id while auth subject remains separate", () => {
     render(
       <PlatformSessionProvider>
