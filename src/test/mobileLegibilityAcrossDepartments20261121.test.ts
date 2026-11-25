@@ -54,7 +54,7 @@ describe("SIGAPRO — auditoria de leitura mobile 320/360/390/430/640/768/1024",
     // 320px: 16px padding + 12px shell gaps + 92px actions + 44px
     // account + 44px menu + 30px logo + 12px brand gaps leaves 70px text.
     expect(320 - (16+12+92+44+44+30+12)).toBeGreaterThanOrEqual(64);
-    expect(cssSource).not.toMatch(/\\[data-topbar-process-shortcut.*display\\s*:\\s*none/);
+    expect(rulesWith(small, "[data-topbar-process-shortcut").some((r) => declaration(r, "display").includes("none"))).toBe(false);
   });
 
   it("telas intermediárias 640–1023 não empurram título para trás de ícones", () => {
