@@ -38,17 +38,23 @@ describe("SIGAPRO — auditoria de leitura mobile 320/360/390/430/640/768/1024",
     const layout = rulesWith(small, ".sig-topbar-shell");
     expect(layout.some((r) => declaration(r, "display").includes("grid"))).toBe(true);
     expect(layout.some((r) => declaration(r, "grid-template-columns").includes("minmax(0, 1fr)"))).toBe(true);
-    expect(layout.some((r) => declaration(r, "grid-template-rows").includes("52px"))).toBe(true);
+    expect(layout.some((r) => declaration(r, "grid-template-rows").includes("48px 44px"))).toBe(true);
     expect(rulesWith(small, ".sig-app-frame").some((r) =>
-      declaration(r, "--sig-topbar-height-mobile").includes("104px"))).toBe(true);
+      declaration(r, "--sig-topbar-height-mobile").includes("108px"))).toBe(true);
     const body = read("src/index.css");
     expect(body).toContain("padding-top: var(--sig-topbar-height-mobile");
-    expect(rulesWith(small, ".sig-topbar-brand-title").some((r) =>
-      declaration(r, "-webkit-line-clamp").includes("2"))).toBe(true);
+    expect(rulesWith(small, '[data-topbar-account-viewport="mobile"]').some((r) =>
+      declaration(r, "grid-row").includes("1"))).toBe(true);
+    expect(rulesWith(small, '[data-mobile-topbar-search="true"]').some((r) =>
+      declaration(r, "flex").includes("1 1 0%"))).toBe(true);
     expect(rulesWith(small, "[data-topbar-actions-viewport").some((r) =>
       declaration(r, "justify-content").includes("flex-end"))).toBe(true);
-    expect(rulesWith(small, 'button[aria-label="Abrir conta do usuário"]').some((r) =>
+    expect(rulesFor("max-width: 1023px").some((r) => r.selector.includes('[data-topbar-account-viewport="mobile"] > button') &&
       declaration(r, "width").includes("56px"))).toBe(true);
+    const frame = read("src/components/platform/PortalFrame.tsx");
+    expect(frame).toContain('data-mobile-topbar-search="true"');
+    expect(frame).toContain('<MunicipalDepartmentSwitcher dark={true} />');
+    expect(frame).toContain('data-topbar-account-viewport="mobile"');
     // Responsive CSS must not silently discard process or notification actions.
     expect(cssSource).not.toMatch(/\[data-topbar-process-shortcut.*display\s*:\s*none/);
   });
