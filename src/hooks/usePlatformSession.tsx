@@ -87,7 +87,11 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
-    const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
+    // Only a still-present cache of this exact profile may bridge a Neon
+    // hydration gap. Explicit logout removes this marker synchronously.
+    // PermissionRoute independently requires authenticated identity.
+    const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved) &&
+      Boolean(cachedSession && readCachedSession()?.id === cachedSession.id);
 
     if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(
@@ -193,7 +197,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     if (authResolved && !businessUserId) {
       // No Neon, eventos transitórios de auth não podem apagar a sessão visual já estável.
       // O logout confirmado remove a chave pelo AppBootstrap; aí sim limpamos o contexto.
-      if (isNeonBackend && readCachedSession()) return;
+      if (isNeonBackend && cachedSessionRef.current && readCachedSession()?.id === cachedSessionRef.current.id) return;
       if (!cachedSessionRef.current) {
         writeCachedSession(null);
         return;

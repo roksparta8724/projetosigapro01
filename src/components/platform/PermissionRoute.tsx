@@ -51,6 +51,11 @@ export function PermissionRoute({
       (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || isAuthenticated)) ||
     (requiresMasterPermission && !hasStableAuthenticatedMasterView && !bootstrap.authResolved);
 
+  // A confirmed anonymous identity must never render a stale permission error.
+  if (!isAuthenticated && bootstrap.authResolved && bootstrap.isReady) {
+    return <Navigate to="/acesso" replace />;
+  }
+
   if (isInitialAccessResolution) {
     const documentRoute =
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.exec(location.pathname);
@@ -77,10 +82,6 @@ export function PermissionRoute({
     );
   }
 
-
-  if (!isAuthenticated && bootstrap.isReady && bootstrap.authResolved) {
-    return <Navigate to="/acesso" replace />;
-  }
 
   const authenticatedUser = storeIdentityConfirmed ? sessionUsers.find((item) => item.id === businessUserId || item.id === authenticatedUserId) : undefined;
   const accountStatus = [bootstrap.profile?.accountStatus, authenticatedUser?.accountStatus].find(status => status === "blocked" || status === "inactive") ?? bootstrap.profile?.accountStatus ?? authenticatedUser?.accountStatus;

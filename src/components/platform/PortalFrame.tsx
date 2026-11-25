@@ -1500,6 +1500,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
               onClick={() => setMobileSidebarOpen(true)}
               className="inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.06] text-white transition hover:bg-white/10 lg:hidden"
               aria-label="Abrir menu"
+              data-mobile-menu-trigger="true"
             >
               <Menu className="h-4.5 w-4.5" />
             </button>
@@ -1523,6 +1524,12 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
             style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
             data-topbar-actions-viewport="mobile"
           >
+              <button type="button" onClick={() => setCommandOpen(true)}
+                data-mobile-topbar-search="true" aria-label="Busca global" title="Pesquisar"
+                className={cn("flex min-w-0 items-center gap-2 rounded-xl px-3 text-left", topbarSearchButton)}>
+                <Search className="h-[18px] w-[18px] shrink-0" />
+                <span className="min-w-0 truncate text-xs font-semibold">Pesquisar</span>
+              </button>
               <Link
                 to={processShortcutPath}
                 data-topbar-process-shortcut="mobile"
@@ -1544,6 +1551,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                     topbarIconButton,
                   )}
                   aria-label="Organograma"
+                  data-mobile-topbar-organogram="true"
                   title="Organograma"
                 >
                   <Network className="h-[18px] w-[18px] text-white/92" />
@@ -1570,12 +1578,15 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   </span>
                 ) : null}
               </button>
+          </div>
+          <div data-topbar-account-viewport="mobile" className="min-w-0 shrink-0 lg:hidden"
+            style={{ display: isDesktopTopbarViewport ? "none" : undefined }}>
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    "flex h-[38px] items-center gap-1 rounded-[16px] px-1.5 transition duration-200",
+                    "flex h-[44px] items-center gap-1.5 rounded-[14px] px-2 transition duration-200",
                     topbarGhostButton,
                   )}
                   aria-label="Abrir conta do usuário"
@@ -1604,12 +1615,22 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                 className="sig-topbar-account-dropdown border border-white/12 bg-[var(--sig-primary-deep)] p-2 text-white"
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
               >
-                <DropdownMenuLabel className="min-w-0 px-3 py-3">
-                  <p className="truncate text-sm font-semibold" title={fullUserName}>{displayUserName}</p>
-                  <p className="mt-1 truncate text-xs text-white/75">{roleLabel}</p>
-                  {session.email ? <p className="mt-1 truncate text-xs text-white/65" title={session.email}>{displaySessionEmail}</p> : null}
+                <DropdownMenuLabel className="min-w-0 rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+                  <p className="break-words text-sm font-semibold [overflow-wrap:anywhere]" title={fullUserName}>{displayUserName}</p>
+                  <p className="mt-1 break-words text-xs text-white/85">{roleLabel}</p>
+                  {session.department ? <p className="mt-1 break-words text-xs text-white/75">{session.department}</p> : null}
+                  {session.email ? <p className="mt-1 break-words text-xs text-white/75 [overflow-wrap:anywhere]" title={session.email}>{displaySessionEmail}</p> : null}
                 </DropdownMenuLabel>
+                <MunicipalDepartmentSwitcher dark={true} />
                 <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem data-mobile-overflow-action="true" className="rounded-xl px-3 py-2.5 focus:bg-white/10" onSelect={() => setCommandOpen(true)}>
+                  <Search className="mr-2 h-4 w-4" />Pesquisar
+                </DropdownMenuItem>
+                {showMunicipalOrganogramShortcut ? (
+                  <DropdownMenuItem data-mobile-overflow-action="true" className="rounded-xl px-3 py-2.5 focus:bg-white/10" onSelect={() => navigate("/prefeitura/organograma")}>
+                    <Network className="mr-2 h-4 w-4" />Organograma
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem className="rounded-xl px-3 py-2.5 focus:bg-white/10" onClick={() => navigate("/perfil")}>
                   <UserRound className="mr-2 h-4 w-4" />Meu perfil
                 </DropdownMenuItem>
@@ -1618,6 +1639,9 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                     <Settings2 className="mr-2 h-4 w-4" />Configurações
                   </DropdownMenuItem>
                 ) : null}
+                <DropdownMenuItem className="rounded-xl px-3 py-2.5 focus:bg-white/10" onClick={async () => { await handleSignOut("/acesso"); }}>
+                  <LayoutDashboard className="mr-2 h-4 w-4" />Trocar conta
+                </DropdownMenuItem>
                 <DropdownMenuItem className="rounded-xl px-3 py-2.5 text-rose-100 focus:bg-rose-400/10 focus:text-white" onClick={async () => { await handleSignOut("/acesso"); }}>
                   <LogOut className="mr-2 h-4 w-4" />Sair
                 </DropdownMenuItem>

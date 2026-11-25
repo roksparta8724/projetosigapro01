@@ -6,6 +6,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { installSeamlessInternalRefresh } from "@/lib/seamlessInternalRefresh";
 import { canRefreshMountedWorkspace, type RefreshWorkspaceState } from "@/lib/workspaceRefreshEligibility";
 import { persistVerifiedRouteContinuity } from "@/lib/refreshContinuity";
+import { hasNewPublishedAppRelease } from "@/lib/appReleaseFreshness";
 
 /**
  * Listener único acima das rotas, instalado incondicionalmente no mount.
@@ -62,10 +63,34 @@ export function SeamlessRefreshGate() {
   ]);
 
   useLayoutEffect(() => {
+    let disposed = false;
+    let releaseReload = false;
+    let refreshInFlight: Promise<void> | null = null;
     const workspaceIsMounted = () => Boolean(document.querySelector(".sig-app-frame"));
     const hasVerifiedWorkspace = () =>
+      !disposed && !releaseReload &&
       latest.current.strictAuth &&
       canRefreshMountedWorkspace(latest.current.state, workspaceIsMounted());
+
+    const refreshCurrentRelease = () => {
+      if (refreshInFlight) return refreshInFlight;
+      const identity = latest.current.state.sessionId;
+      const route = window.location.href;
+      refreshInFlight = (async () => {
+        const changed = await hasNewPublishedAppRelease(document, window.location.origin);
+        if (disposed || !hasVerifiedWorkspace() ||
+            latest.current.state.sessionId !== identity || window.location.href !== route) return;
+        if (changed) {
+          // An explicit browser refresh must install a new release, not keep
+          // the old React tree. Deny the SW preservation handshake for this reload.
+          releaseReload = true;
+          window.location.reload();
+          return;
+        }
+        await latest.current.refreshRemoteStore();
+      })().finally(() => { refreshInFlight = null; });
+      return refreshInFlight;
+    };
 
     const onServiceWorkerMessage = (event: MessageEvent) => {
       const message = event.data as { type?: string; location?: string } | null;
@@ -90,14 +115,14 @@ export function SeamlessRefreshGate() {
       if (!eligible) return;
       // Backend revalidation without destroying the real frame, avatar, open
       // process controls or the user's unsaved form state.
-      void latest.current.refreshRemoteStore().catch((error) => {
+      void refreshCurrentRelease().catch((error) => {
         console.warn("[SIGAPRO][Refresh] Falha ao sincronizar dados sem desmontar a página.", error);
       });
     };
 
     const disposeRefresh = installSeamlessInternalRefresh({
       isAuthenticated: () =>
-        canRefreshMountedWorkspace(latest.current.state, workspaceIsMounted()),
+        !disposed && !releaseReload && canRefreshMountedWorkspace(latest.current.state, workspaceIsMounted()),
       refresh: async () => {
         if (!latest.current.strictAuth) {
           // Um F5 durante a hidratação nunca destrói o workspace; o backend
@@ -105,12 +130,13 @@ export function SeamlessRefreshGate() {
           queuedUntilVerified.current = true;
           return;
         }
-        await latest.current.refreshRemoteStore();
+        await refreshCurrentRelease();
       },
     });
 
     navigator.serviceWorker?.addEventListener("message", onServiceWorkerMessage);
     return () => {
+      disposed = true;
       disposeRefresh();
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };

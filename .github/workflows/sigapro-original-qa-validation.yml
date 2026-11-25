@@ -62,5 +62,8 @@ jobs:
           src/test/documentWorkspaceRegression.test.ts
           src/test/documentReanalysisRegression.test.ts
           src/test/assignedAnalystDocumentAccess.test.ts
+          src/test/appReleaseFreshness.test.ts
+          src/test/accountTransitionIsolation20261124.test.ts
+          src/hooks/usePlatformSession.test.tsx
       - name: Production-equivalent build for preview
         run: npm run build
