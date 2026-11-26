@@ -1,4 +1,5 @@
-import { Building2, Network } from "lucide-react";
+import { Building2, Network, Plus } from "lucide-react";
+import { isAdjunctUnit } from "@/lib/municipalUnitCodes";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
 import { cn } from "@/lib/utils";
 
@@ -86,15 +87,18 @@ function UnitNode({
   department,
   allDepartments,
   onEdit,
+  onAddChild,
   depth = 0,
 }: {
   department: MunicipalDepartmentRecord;
   allDepartments: MunicipalDepartmentRecord[];
   onEdit?: (department: MunicipalDepartmentRecord) => void;
+  onAddChild?: (parentId:string)=>void;
   depth?: number;
 }) {
   const acronym = getDepartmentAcronym(department);
-  const identity = getInstitutionalUnitIdentity(department.unitType);
+  const baseIdentity = getInstitutionalUnitIdentity(department.unitType);
+  const identity = isAdjunctUnit(department.name) && ["secretaria","diretoria"].includes(department.unitType) ? {...baseIdentity,short:department.unitType==="secretaria"?"SAD":"DAD",label:baseIdentity.label+" adjunta"} : baseIdentity;
   const children = allDepartments.filter(
     (item) => item.parentDepartmentId === department.id,
   );
@@ -121,7 +125,7 @@ function UnitNode({
       />
 
       <div className={cn(isRoot ? "p-5 pl-6" : "p-3.5 pl-5")}>
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <div
             data-organogram-icon="true"
             className={cn(
@@ -176,6 +180,7 @@ function UnitNode({
             </p>
           </div>
 
+          {onAddChild ? <button type="button" title="Adicionar unidade subordinada" aria-label={"Adicionar unidade em "+department.name} onClick={()=>onAddChild(department.id)} className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"><Plus size={15}/><span>Adicionar</span></button>:null}
           {onEdit ? (
             <button
               type="button"
@@ -202,6 +207,7 @@ function UnitNode({
                 department={child}
                 allDepartments={allDepartments}
                 onEdit={onEdit}
+                onAddChild={onAddChild}
                 depth={depth + 1}
               />
             ))}
@@ -216,10 +222,12 @@ export function MunicipalOrganizationChart({
   departments,
   emptyMessage = "Nenhuma unidade cadastrada no organograma municipal.",
   onEdit,
+  onAddChild,
 }: {
   departments: MunicipalDepartmentRecord[];
   emptyMessage?: string;
   onEdit?: (department: MunicipalDepartmentRecord) => void;
+  onAddChild?: (parentId:string)=>void;
 }) {
   const active = departments
     .filter((item) => item.isActive)
@@ -288,6 +296,7 @@ export function MunicipalOrganizationChart({
             department={department}
             allDepartments={active}
             onEdit={onEdit}
+            onAddChild={onAddChild}
           />
         ))}
       </div>

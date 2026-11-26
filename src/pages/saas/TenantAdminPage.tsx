@@ -34,6 +34,7 @@ import {MunicipalIdentityPrefix} from "@/components/platform/MunicipalIdentityPr
 import {useMunicipalIdentityBadges} from "@/hooks/useMunicipalAuthority";
 import {MunicipalAuthorityDesignationsEditor} from "@/components/platform/MunicipalAuthorityDesignationsEditor";
 import {authorityUnitPresets} from "@/lib/municipalAuthorityDesignations";
+import { adjunctUnitTemplates, suggestMunicipalUnitCode } from "@/lib/municipalUnitCodes";
 import { isSwitchableMunicipalStaffRole } from "@/lib/municipalStaffAssignments";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
@@ -707,6 +708,7 @@ export function TenantAdminPage() {
     }
   };
 
+  const suggestedOrgCode = suggestMunicipalUnitCode(orgForm.name, orgForm.unitType, departments, editingDepartmentId);
   const handleCreateDepartment = async (event: FormEvent) => {
     event.preventDefault();
     if (!effectiveScopeId || !orgForm.name.trim() || orgBusy) return;
@@ -733,7 +735,7 @@ export function TenantAdminPage() {
         description: orgForm.description.trim(),
         email: orgForm.email.trim(),
         phone: orgForm.phone.trim(),
-        sortOrder: activeDepartments.length * 10 + 10,
+        sortOrder: editingDepartmentId ? departments.find(d=>d.id===editingDepartmentId)?.sortOrder ?? 100 : Math.max(0,...departments.map(d=>d.sortOrder))+10,
       });
       const rows = await listRemoteMunicipalDepartments(effectiveScopeId);
       setDepartments(rows);
@@ -1625,6 +1627,7 @@ export function TenantAdminPage() {
                   departments={activeDepartments}
                   emptyMessage="Nenhuma unidade cadastrada. Crie a primeira estrutura ao lado para disponibilizar o organograma institucional."
                   onEdit={handleEditDepartment}
+                  onAddChild={session.role==="prefeitura_admin" ? (id)=>{setEditingDepartmentId(null);setOrgForm({code:"",name:"",unitType:"departamento",parentDepartmentId:id,description:"",email:"",phone:""});document.getElementById("municipal-org-editor")?.scrollIntoView({block:"nearest",behavior:"smooth"});} : undefined}
                 />
               </TableCard>
             </PageMainContent>
@@ -1635,11 +1638,13 @@ export function TenantAdminPage() {
                 icon={Plus}
                 contentClassName="space-y-4"
               >
-                <form className="space-y-4" onSubmit={handleCreateDepartment}>
-                  {!editingDepartmentId && session.role==="prefeitura_admin" ? <div className="space-y-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/30"><Label>Modelos de secretarias e diretorias</Label><Select value="__custom" onValueChange={value=>{const preset=authorityUnitPresets.find(p=>p.code===value);if(preset)setOrgForm(current=>({...current,...preset,parentDepartmentId:""}));}}><SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="__custom">Escolher modelo ou criar unidade própria</SelectItem>{authorityUnitPresets.map(p=><SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-600 dark:text-slate-300">Ajuste o nome, a sigla e a unidade superior antes de salvar. Nenhuma estrutura é criada automaticamente.</p></div>:null}
+                <form id="municipal-org-editor" className="space-y-4" onSubmit={handleCreateDepartment}>
+                  {!editingDepartmentId && session.role==="prefeitura_admin" ? <div className="space-y-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/30"><Label>Modelos de secretarias e diretorias</Label><Select value="__custom" onValueChange={value=>{const preset=authorityUnitPresets.find(p=>p.code===value);if(preset)setOrgForm(current=>({...current,...preset,parentDepartmentId:""}));}}><SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="__custom">Escolher modelo ou criar unidade própria</SelectItem>{authorityUnitPresets.map(p=><SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-600 dark:text-slate-300">Ajuste o nome e a unidade superior antes de salvar. Deixe a sigla vazia para geração automática.</p></div>:null}
+                  {!editingDepartmentId && session.role==="prefeitura_admin" ? <div className="flex flex-wrap gap-2">{adjunctUnitTemplates.map(template=><Button key={template.unitType} type="button" variant="outline" size="sm" className="rounded-xl dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100" onClick={()=>setOrgForm(current=>({...current,name:template.name,unitType:template.unitType,code:""}))}>{template.label}</Button>)}</div>:null}
                   <div className="space-y-2">
-                    <Label>Sigla</Label>
-                    <Input value={orgForm.code} onChange={(event) => setOrgForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))} placeholder="Ex.: PROT, FIN, ANU" maxLength={8} />
+                    <Label>Sigla {orgForm.code.trim()?"(manual)":"(automática)"}</Label>
+                    <Input value={orgForm.code} onChange={(event) => setOrgForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))} placeholder={suggestedOrgCode || "Automática"} maxLength={8} />
+                    <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{orgForm.code.trim()?"Limpe o campo para gerar automaticamente.":suggestedOrgCode?"Prévia: "+suggestedOrgCode+" · confirmada ao salvar.":"A sigla será gerada pelo nome e tipo."}</p>
                   </div>
                   <div className="space-y-2">
                     <Label>Nome da unidade</Label>
@@ -1655,6 +1660,8 @@ export function TenantAdminPage() {
                         <SelectItem value="departamento">Departamento</SelectItem>
                         <SelectItem value="setor">Setor</SelectItem>
                         <SelectItem value="coordenadoria">Coordenadoria</SelectItem>
+                        <SelectItem value="divisao">Divisão</SelectItem>
+                        <SelectItem value="unidade">Outra unidade institucional</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
