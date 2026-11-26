@@ -1,3 +1,4 @@
+import { findMunicipalUnitNameConflict, suggestDistinctMunicipalUnitName } from "@/lib/municipalUnitName";
 import { useMemo, useState } from "react";
 import { Network, PencilLine, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
@@ -72,8 +73,11 @@ export function MunicipalOrganizationPage() {
   const [editor, setEditor] = useState<EditorState>(EMPTY_EDITOR);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorStatus, setEditorStatus] = useState("");
+  const [editorError, setEditorError] = useState(false);
   const [savingUnit, setSavingUnit] = useState(false);
   const suggestedCode = suggestMunicipalUnitCode(editor.name, editor.unitType, departments, editor.id);
+  const nameConflict = findMunicipalUnitNameConflict(editor.name,departments,editor.id);
+  const distinctName = nameConflict ? suggestDistinctMunicipalUnitName(editor.name,editor.unitType,departments,editor.id,editor.parentDepartmentId,editor.code) : "";
 
   const descendantsOfEditingUnit = useMemo(() => {
     if (!editor.id) return new Set<string>();
@@ -112,7 +116,7 @@ export function MunicipalOrganizationPage() {
       parentDepartmentId,
       sortOrder: String(maxSort + 10),
     });
-    setEditorStatus("");
+    setEditorStatus("");setEditorError(false);
     setEditorOpen(true);
     window.requestAnimationFrame(()=>document.getElementById("municipal-organization-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
@@ -128,19 +132,21 @@ export function MunicipalOrganizationPage() {
       sortOrder: String(department.sortOrder ?? 100),
       isActive: department.isActive,
     });
-    setEditorStatus("");
+    setEditorStatus("");setEditorError(false);
     setEditorOpen(true);
     window.requestAnimationFrame(()=>document.getElementById("municipal-organization-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
 
   const saveEditor = async () => {
     if (!canEdit || !municipalityId || savingUnit) return;
+    setEditorError(false);setEditorStatus("");
     const name = editor.name.trim();
     if (!name) {
-      setEditorStatus("Informe o nome da unidade.");
+      setEditorError(true);setEditorStatus("Informe o nome da unidade.");
       return;
     }
 
+    if(nameConflict){setEditorError(true);setEditorStatus("O nome já está em uso. Escolha um nome distinto para preservar os vínculos.");return;}
     const sortOrder = Number(editor.sortOrder);
     const nextDepartment: MunicipalDepartmentRecord = {
       id: editor.id || `local-org-${crypto.randomUUID()}`,
@@ -192,7 +198,7 @@ export function MunicipalOrganizationPage() {
       setEditorOpen(false);
       setEditor(EMPTY_EDITOR);
     } catch (error) {
-      setEditorStatus(
+      setEditorError(true);setEditorStatus(
         error instanceof Error ? error.message : "Não foi possível salvar o organograma.",
       );
     } finally { setSavingUnit(false); }
@@ -200,6 +206,7 @@ export function MunicipalOrganizationPage() {
 
   const toggleUnit = async (department: MunicipalDepartmentRecord) => {
     if (!canEdit || !municipalityId) return;
+    setEditorError(false);setEditorStatus("");
     const nextActive = !department.isActive;
 
     try {
@@ -231,7 +238,7 @@ export function MunicipalOrganizationPage() {
           : `${department.name} voltou ao organograma ativo.`,
       );
     } catch (error) {
-      setEditorStatus(
+      setEditorError(true);setEditorStatus(
         error instanceof Error ? error.message : "Não foi possível alterar esta unidade.",
       );
     }
@@ -239,6 +246,7 @@ export function MunicipalOrganizationPage() {
 
   const removeUnit = async (department: MunicipalDepartmentRecord) => {
     if (!canEdit || !municipalityId) return;
+    setEditorError(false);setEditorStatus("");
 
     try {
       if (localValidation) {
@@ -273,7 +281,7 @@ export function MunicipalOrganizationPage() {
       setEditorOpen(false);
       setEditor(EMPTY_EDITOR);
     } catch (error) {
-      setEditorStatus(
+      setEditorError(true);setEditorStatus(
         error instanceof Error ? error.message : "Não foi possível remover esta unidade.",
       );
     }
@@ -370,7 +378,7 @@ export function MunicipalOrganizationPage() {
         ) : null}
 
         {editorStatus ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div role={editorError?"alert":"status"} className={"rounded-2xl border px-4 py-3 text-sm "+(editorError?"border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100":"border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100")}>
             {editorStatus}
           </div>
         ) : null}
@@ -391,11 +399,13 @@ export function MunicipalOrganizationPage() {
                 <Input
                   value={editor.name}
                   onChange={(event) =>
-                    setEditor((current) => ({ ...current, name: event.target.value }))
+                    {setEditor((current) => ({ ...current, name: event.target.value }));setEditorStatus("");setEditorError(false);}
                   }
                   placeholder="Ex.: Análise Urbanística"
+                  aria-invalid={Boolean(nameConflict)}
                   className="h-11 rounded-xl"
                 />
+                {nameConflict?<div role="alert" className="mt-2 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"><p>Já existe: <strong>{nameConflict.code || "Sem sigla"} — {nameConflict.name}</strong> ({nameConflict.isActive?"ativa":"inativa"}). Nenhuma unidade será sobrescrita.</p>{distinctName?<Button type="button" variant="outline" size="sm" className="h-auto min-h-8 max-w-full whitespace-normal text-left dark:border-amber-700 dark:bg-slate-900 dark:text-amber-100" onClick={()=>{setEditor(current=>({...current,name:distinctName}));setEditorStatus("");setEditorError(false);}}>Usar {distinctName}</Button>:null}</div>:null}
               </div>
 
               <div>
@@ -505,9 +515,7 @@ export function MunicipalOrganizationPage() {
               </div>
             </div>
 
-            {editorStatus && editorOpen ? (
-              <p className="mt-3 text-sm font-medium text-amber-700">{editorStatus}</p>
-            ) : null}
+            {editorError && editorStatus && editorOpen ? <p role="alert" className="mt-3 text-sm font-medium text-rose-800 dark:text-rose-200">{editorStatus}</p> : null}
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -542,7 +550,7 @@ export function MunicipalOrganizationPage() {
                 <Button
                   type="button"
                   className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
-                  onClick={() => void saveEditor()} disabled={savingUnit || !editor.name.trim()}
+                  onClick={() => void saveEditor()} disabled={savingUnit || !editor.name.trim() || Boolean(nameConflict)}
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Salvar estrutura

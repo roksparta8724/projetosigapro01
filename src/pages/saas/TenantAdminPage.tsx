@@ -1,4 +1,5 @@
-﻿import { FormEvent, useEffect, useMemo, useState } from "react";
+import { findMunicipalUnitNameConflict, suggestDistinctMunicipalUnitName } from "@/lib/municipalUnitName";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Clock3, ChevronDown, Network, PencilLine, Plus, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +44,7 @@ import { buildPlanCapacityMetrics } from "@/lib/planUsageDashboard";
 
 import {
   assignRemoteProfileDepartment,
-  listRemoteMunicipalDepartments,
+  listRemoteInternalMunicipalDepartments,
   listRemoteMunicipalUserRegistry,
   upsertRemoteMunicipalDepartment,
   type MunicipalDepartmentRecord,
@@ -450,6 +451,7 @@ export function TenantAdminPage() {
   );
 
   const [statusMessage, setStatusMessage] = useState("");
+  const [orgError,setOrgError]=useState(false);
   const [editStatusMessage, setEditStatusMessage] = useState("");
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [queueSearch] = useState("");
@@ -494,7 +496,7 @@ export function TenantAdminPage() {
       setDepartments([]);
       return () => { active = false; };
     }
-    void listRemoteMunicipalDepartments(effectiveScopeId)
+    void listRemoteInternalMunicipalDepartments(effectiveScopeId)
       .then((rows) => {
         if (active) setDepartments(rows);
       })
@@ -709,15 +711,19 @@ export function TenantAdminPage() {
   };
 
   const suggestedOrgCode = suggestMunicipalUnitCode(orgForm.name, orgForm.unitType, departments, editingDepartmentId);
+  const orgNameConflict = findMunicipalUnitNameConflict(orgForm.name,departments,editingDepartmentId);
+  const distinctOrgName = orgNameConflict ? suggestDistinctMunicipalUnitName(orgForm.name,orgForm.unitType,departments,editingDepartmentId,orgForm.parentDepartmentId,orgForm.code) : "";
   const handleCreateDepartment = async (event: FormEvent) => {
     event.preventDefault();
     if (!effectiveScopeId || !orgForm.name.trim() || orgBusy) return;
+    setOrgError(false);
+    if(orgNameConflict){setOrgError(true);setStatusMessage("O nome já pertence a outra unidade. Escolha um nome distinto.");return;}
     if (
       !editingDepartmentId &&
       planEntitlements.maxDepartments != null &&
       activeDepartments.length >= planEntitlements.maxDepartments
     ) {
-      setStatusMessage(
+      setOrgError(true);setStatusMessage(
         `Limite do plano atingido: ${activeDepartments.length}/${planEntitlements.maxDepartments} unidades no organograma.`,
       );
       return;
@@ -737,18 +743,19 @@ export function TenantAdminPage() {
         phone: orgForm.phone.trim(),
         sortOrder: editingDepartmentId ? departments.find(d=>d.id===editingDepartmentId)?.sortOrder ?? 100 : Math.max(0,...departments.map(d=>d.sortOrder))+10,
       });
-      const rows = await listRemoteMunicipalDepartments(effectiveScopeId);
+      const rows = await listRemoteInternalMunicipalDepartments(effectiveScopeId);
       setDepartments(rows);
       setOrgForm({ code: "", name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
       setEditingDepartmentId(null);
       setStatusMessage(editingDepartmentId ? "Unidade atualizada no organograma da Prefeitura." : "Unidade adicionada ao organograma da Prefeitura.");
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar a unidade.");
+      setOrgError(true);setStatusMessage(error instanceof Error ? error.message : "Não foi possível salvar a unidade.");
     } finally {
       setOrgBusy(false);
     }
   };
   const handleEditDepartment = (department: MunicipalDepartmentRecord) => {
+    setOrgError(false);
     setEditingDepartmentId(department.id);
     setOrgForm({
       code: department.code || "",
@@ -763,6 +770,7 @@ export function TenantAdminPage() {
   };
 
   const handleCancelDepartmentEdit = () => {
+    setOrgError(false);
     setEditingDepartmentId(null);
     setOrgForm({ code: "", name: "", unitType: "departamento", parentDepartmentId: "", description: "", email: "", phone: "" });
     setStatusMessage("");
@@ -789,12 +797,12 @@ export function TenantAdminPage() {
         sortOrder: current.sortOrder,
         isActive: false,
       });
-      const rows = await listRemoteMunicipalDepartments(effectiveScopeId);
+      const rows = await listRemoteInternalMunicipalDepartments(effectiveScopeId);
       setDepartments(rows);
       handleCancelDepartmentEdit();
       setStatusMessage("Unidade desativada do organograma.");
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Não foi possível desativar a unidade.");
+      setOrgError(true);setStatusMessage(error instanceof Error ? error.message : "Não foi possível desativar a unidade.");
     } finally {
       setOrgBusy(false);
     }
@@ -1178,7 +1186,7 @@ export function TenantAdminPage() {
         ) : null}
 
         {statusMessage ? (
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700">
+          <div role={workspaceView==="organograma"&&orgError?"alert":"status"} className={"rounded-2xl border p-4 text-sm leading-6 "+(workspaceView==="organograma"&&orgError?"border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100":"border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100")}>
             {statusMessage}
           </div>
         ) : null}
@@ -1648,7 +1656,8 @@ export function TenantAdminPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Nome da unidade</Label>
-                    <Input value={orgForm.name} onChange={(event) => setOrgForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ex.: Protocolo, Financeiro, Obras" />
+                    <Input value={orgForm.name} aria-invalid={Boolean(orgNameConflict)} onChange={(event) => {setOrgForm((current) => ({ ...current, name: event.target.value }));setOrgError(false);setStatusMessage("");}} placeholder="Ex.: Protocolo, Financeiro, Obras" />
+                    {orgNameConflict?<div role="alert" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"><p>Nome em uso: {orgNameConflict.code || "Sem sigla"} — {orgNameConflict.name} ({orgNameConflict.isActive?"ativa":"inativa"}).</p>{distinctOrgName?<Button type="button" size="sm" variant="outline" className="h-auto min-h-8 max-w-full whitespace-normal text-left dark:border-amber-700 dark:bg-slate-900 dark:text-amber-100" onClick={()=>{setOrgForm(current=>({...current,name:distinctOrgName}));setOrgError(false);setStatusMessage("");}}>Usar {distinctOrgName}</Button>:null}</div>:null}
                   </div>
                   <div className="space-y-2">
                     <Label>Tipo</Label>
@@ -1689,7 +1698,7 @@ export function TenantAdminPage() {
                     <Label>Telefone</Label>
                     <Input value={orgForm.phone} onChange={(event) => setOrgForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Opcional" />
                   </div>
-                  <Button type="submit" disabled={orgBusy || !orgForm.name.trim()} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
+                  <Button type="submit" disabled={orgBusy || !orgForm.name.trim() || Boolean(orgNameConflict)} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
                     {orgBusy ? "Salvando..." : editingDepartmentId ? "Salvar alterações" : "Adicionar ao organograma"}
                   </Button>
                   {editingDepartmentId ? (
