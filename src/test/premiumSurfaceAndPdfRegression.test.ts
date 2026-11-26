@@ -81,7 +81,12 @@ describe("premium PDF review workflow", () => {
 
     expect(detail).toContain('?ferramenta=highlight');
     expect(detail).toContain("Abrir documento e analisar");
-    expect(viewer).toContain("replaceAnalystViewerWithAnalysis");
+    expect(viewer).toContain("const openAnalysisWorkspace");
+    expect(viewer).toContain("if (!process || !document || !canAnalyzeDocument) return;");
+    expect(viewer).toContain("!isSignedAnalysisArchiveDocument(document)");
+    expect(viewer).toContain("canAnalyzeProcessDocument(session, process, effectiveScopeId)");
+    expect(viewer).toContain("/documentos/${document.id}/analisar${query}");
+    expect(viewer).toContain("documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl");
     expect(analysis).toContain('data-analysis-toolbar="true"');
     expect(analysis).toContain("Marcar área");
     expect(analysis).toContain("Adicionar texto");

@@ -1,5 +1,5 @@
 import { Archive, ArchiveRestore, CheckCircle2, RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { CreateProcessMarkerDialog, type CreatedPersonalMarker } from "@/components/platform/CreateProcessMarkerDialog";
@@ -79,6 +79,7 @@ export function MunicipalProcessRegistryPage() {
   const archiveStorageKey = `sigapro:municipal-process-registry:${session.id}:${effectiveScopeId || "default"}`;
   const [archivedProcessIds, setArchivedProcessIds] = useState<string[]>([]);
   const [selectedProcessIds, setSelectedProcessIds] = useState<string[]>([]);
+  const handledHandoff = useRef<string | null>(null);
   const mayOperate = isInternalRole(session.role) && session.role !== "prefeitura_admin";
   const unitName = session.department?.trim() || session.title?.trim() || "unidade atual";
   // SEI: after a dispatch the process leaves this unit's active queue, but
@@ -122,6 +123,11 @@ export function MunicipalProcessRegistryPage() {
   useEffect(() => {
     // Never carry a selection into another municipality or authenticated account.
     setSelectedProcessIds([]);
+    setActiveBatchAction(null);
+    setBatchSelected([]);
+    setPendingUnitAction(null);
+    setCreateMarkerOpen(false);
+    setBatchActionFeedback("");
   }, [archiveStorageKey]);
 
   useEffect(() => {
@@ -197,6 +203,8 @@ export function MunicipalProcessRegistryPage() {
       | null;
     const request = state?.sigaproProcessBatchRequest;
     if (!request || !remoteSyncedForCurrentUser) return;
+    const requestKey = `${archiveStorageKey}:${location.key}`;
+    if (handledHandoff.current === requestKey) return;
     const action = request.action;
     const knownActions: Array<ProcessWorkspaceAction | "concluir"> =
       ["prioridade", "atribuir", "encaminhar", "decisao", "etiquetas", "reabrir", "concluir"];
@@ -208,6 +216,8 @@ export function MunicipalProcessRegistryPage() {
     if (validAction && validIds && action === "concluir" &&
         mayOperate && unitSyncState === "loading") return;
 
+    // Consume the navigation intent before React updates dialogs or refreshes data.
+    handledHandoff.current = requestKey;
     const clearRequest = () => navigate(location.pathname + location.search, {
       replace: true, state: null,
     });
@@ -255,7 +265,7 @@ export function MunicipalProcessRegistryPage() {
   // Clear router state before dialogs mutate local state; a new render must
   // never reopen the same one-time request or submit a duplicate operation.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state, location.pathname, location.search, municipalityProcesses,
+  }, [location.state, location.key, location.pathname, location.search, archiveStorageKey, municipalityProcesses,
       remoteSyncedForCurrentUser, mayOperate, unitSyncState, navigate]);
 
   const selectedVisibleIds = visibleProcesses

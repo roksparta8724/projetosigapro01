@@ -30,11 +30,7 @@ jobs:
       - name: Tests (full suite, distributed)
         shell: bash
         run: |
-          if [[ "${{ matrix.shard }}" == "4" ]]; then
-            node scripts/qa-isolated-vitest-shard.mjs 4/8
-          else
-            npm test -- --shard=${{ matrix.shard }}/8 --no-file-parallelism --reporter=default
-          fi
+          node scripts/qa-isolated-vitest-shard.mjs ${{ matrix.shard }}/8
 
   quality:
     needs: tests
