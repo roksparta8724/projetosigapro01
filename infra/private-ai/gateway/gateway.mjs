@@ -23,19 +23,20 @@ function validToken(value, expected) {
   const stored = Buffer.from(expected);
   return provided.length === stored.length && timingSafeEqual(provided, stored);
 }
-function validBody(input, model) {
+function validBody(input, model, pdfText = false) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || input.model !== model ||
     !Array.isArray(input.messages) || input.messages.length < 2 ||
     input.messages.length > MAX_MESSAGES || !Number.isInteger(input.max_tokens) ||
-    input.max_tokens < 1 || input.max_tokens > MAX_OUTPUT_TOKENS ||
+    input.max_tokens < 1 || input.max_tokens > (pdfText ? 2000 : MAX_OUTPUT_TOKENS) ||
     typeof input.temperature !== 'number' || input.temperature < 0 || input.temperature > 1) return false;
+  if (pdfText && (input.messages.length !== 2 || input.temperature !== 0)) return false;
   if (input.messages[0]?.role !== 'system') return false;
   if (input.messages.at(-1)?.role !== 'user') return false;
   return input.messages.every((message, index) =>
     message && typeof message === 'object' && !Array.isArray(message) &&
     ((index === 0 && message.role === 'system') || (index > 0 && ['user', 'assistant'].includes(message.role))) &&
     typeof message.content === 'string' && message.content.trim().length > 0 &&
-    message.content.length <= (index === 0 ? 2000 : 1600),
+    message.content.length <= (index === 0 ? 2000 : pdfText ? 12000 : 1600),
   );
 }
 async function readBody(req) {
@@ -68,7 +69,7 @@ async function boundedResponse(response) {
 /** In production the upstream is Docker-internal, never selected by clients. */
 export function createGatewayServer({
   token, model, upstreamUrl = 'http://vllm:8000/v1/chat/completions',
-  maxConcurrent = 2, maxPerMinute = 30, requestTimeoutMs = 18_000,
+  maxConcurrent = 2, maxPerMinute = 30, requestTimeoutMs = 18_000, enablePdfText = false,
 }) {
   if (typeof token !== 'string' || token.length < 32 || token.length > 1024 ||
       !/^[\x21-\x7e]+$/.test(token)) throw new Error('Gateway service token missing or invalid');
@@ -83,7 +84,8 @@ export function createGatewayServer({
   const server = createServer(async (req, res) => {
     if (req.url === '/health' && req.method === 'GET')
       return send(res, 200, { ok: true, service: 'sigapro-ai-gateway' });
-    if (req.url !== '/v1/chat/completions') return send(res, 404, { error: 'Not found' });
+    const pdfText = req.url === '/v1/sigapro/pdf-text' && enablePdfText === true;
+    if (req.url !== '/v1/chat/completions' && !pdfText) return send(res, 404, { error: 'Not found' });
     if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
     if (!validToken(req.headers.authorization, token)) return send(res, 401, { error: 'Unauthorized' });
     const now = Date.now();
@@ -99,9 +101,9 @@ export function createGatewayServer({
         return send(res, error.message === 'TOO_LARGE' ? 413 : 400,
           { error: 'Invalid request' });
       }
-      if (!validBody(body, model)) return send(res, 400, { error: 'Invalid request' });
+      if (!validBody(body, model, pdfText)) return send(res, 400, { error: 'Invalid request' });
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), requestTimeoutMs);
+      const timer = setTimeout(() => controller.abort(), pdfText ? Math.min(42000, Math.max(requestTimeoutMs, 30000)) : requestTimeoutMs);
       try {
         // Never pass arbitrary provider flags, tools or file references.
         const safeBody = {
@@ -115,6 +117,7 @@ export function createGatewayServer({
         });
         if (!response.ok) return send(res, 502, { error: 'Model unavailable' });
         const data = await boundedResponse(response);
+        if(pdfText && data?.choices?.[0]?.finish_reason !== 'stop') return send(res, 502, { error: 'Incomplete model response' });
         const answer = data?.choices?.[0]?.message?.content;
         if (typeof answer !== 'string' || !answer.trim() || answer.length > 12_000)
           return send(res, 502, { error: 'Invalid model response' });
@@ -135,6 +138,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const server = createGatewayServer({
     token: process.env.SIGAPRO_AI_GATEWAY_TOKEN,
     model: process.env.SIGAPRO_AI_MODEL,
+    enablePdfText: process.env.SIGAPRO_AI_PDF_PRIVATE_ENABLED === 'true',
   });
   server.listen(8080, '0.0.0.0');
 }

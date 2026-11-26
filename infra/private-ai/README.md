@@ -18,7 +18,7 @@
 7. Somente após homologação, configurar variáveis **server-side** na Vercel: `SIGAPRO_AI_PROVIDER=private`, `SIGAPRO_AI_GATEWAY_URL=https://<dominio-real>`, `SIGAPRO_AI_GATEWAY_TOKEN`, `SIGAPRO_AI_MODEL`. Fazer deploy controlado e testar com contas autorizadas.
 
 ## Limitações e segurança
-- Isso é um conector para **assistente conversacional**; não realiza OCR, CAD, análise geométrica, RAG, aprovação urbanística, pagamentos ou assinaturas.
+- O gateway inclui interpretação **textual** opcional de PDFs via `/v1/sigapro/pdf-text`, desligada por padrão. Não realiza OCR, CAD, análise geométrica, RAG, aprovação urbanística, pagamentos ou assinaturas.
 - A sessão do usuário segue autorizada na Vercel/Neon; o gateway apenas autentica o **serviço SIGAPRO**, não substitui RLS.
 - OCR, documentos e RAG futuros exigirão escopo municipal e verificação de permissões antes de recuperar qualquer informação.
 - Limites por prefeitura/tenant, rate-limit distribuído, WAF, observabilidade, alta disponibilidade e proteção de rede/egress/DNS deverão ser acrescentados ou homologados **antes de operar múltiplas prefeituras em produção**.
@@ -26,3 +26,6 @@
 - Não habilitar `SIGAPRO_AI_PROVIDER=private` até o gateway completo estar validado.
 
 Fontes técnicas: https://docs.vllm.ai/en/latest/deployment/docker/ ; https://docs.docker.com/compose/how-tos/gpu-support/ .
+
+## Ativação futura da interpretação documental
+Após testar o servidor, autorizar o tratamento de dados e verificar custo e capacidade, habilite `SIGAPRO_AI_PDF_PRIVATE_ENABLED=true` no host e na Vercel; selecione `SIGAPRO_AI_PDF_PROVIDER=private` e `SIGAPRO_AI_PDF_EXTERNAL_POLICY=configured`. Na produção, a autorização `SIGAPRO_PDF_AI_PROD_ENABLED=true` continua necessária. A leitura local continua como padrão. O leitor extrai texto de páginas numeradas no SIGAPRO; envia somente texto limitado ao gateway configurado, sem PDF, URL ou nome de arquivo. Rejeita citações ausentes ou de outra página e não permite recuos geométricos. O gateway compartilha autenticação e limites do assistente. Não há fallback pago. Nenhum servidor foi contratado ou ativado com esta alteração.

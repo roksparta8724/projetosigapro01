@@ -25,6 +25,7 @@ services:
     environment:
       SIGAPRO_AI_GATEWAY_TOKEN: ${SIGAPRO_AI_GATEWAY_TOKEN:?set-secure-service-token}
       SIGAPRO_AI_MODEL: ${SIGAPRO_AI_MODEL:?set-model-id}
+      SIGAPRO_AI_PDF_PRIVATE_ENABLED: ${SIGAPRO_AI_PDF_PRIVATE_ENABLED:-false}
     read_only: true
     cap_drop:
       - ALL

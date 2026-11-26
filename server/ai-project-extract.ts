@@ -185,7 +185,7 @@ export default async function handler(req:Req,res:Res){
       enabled:available.enabled, maxPdfMb:8,
       provider:available.enabled?available.provider.kind:"none",
       mode:available.enabled
-        ?available.provider.kind==="cloudflare"?"text_only":"visual":"disabled",
+        ?["cloudflare","private"].includes(available.provider.kind)?"text_only":"visual":"disabled",
       documentReady,
       documentMessage:documentReady===null
         ?"Selecione a versão atual da planta para verificar a liberação técnica."
@@ -198,6 +198,7 @@ export default async function handler(req:Req,res:Res){
       providerConfiguredOnly:true,
       billingVerified:false,
       textAlternativeAvailable:textAlternative?.enabled===true,
+      privateTextAvailable:available.enabled&&available.provider.kind==="private",
       openaiVisualAlternativeAvailable:advancedVisual?.enabled===true,
       geminiQaFixture:geminiFixtureReady,
       geminiQaAvailable:geminiFixtureReady&&freeVisual?.enabled===true,
@@ -216,10 +217,11 @@ export default async function handler(req:Req,res:Res){
   // Never auto-switch visual analysis to text when Anthropic returns an error.
   // The analyst must explicitly choose Cloudflare and re-confirm PDF transfer.
   const textRequested=body.readingMode==="cloudflare_text";
+  const privateTextRequested=body.readingMode==="private_text";
   const openaiVisualRequested=body.readingMode==="openai_visual";
   const geminiQaRequested=body.readingMode==="gemini_qa";
   const nativeTextRequested=body.readingMode==="native_text";
-  if(body.readingMode!==undefined && !["visual","cloudflare_text","openai_visual","gemini_qa","native_text"].includes(String(body.readingMode)))
+  if(body.readingMode!==undefined && !["visual","cloudflare_text","openai_visual","gemini_qa","native_text","private_text"].includes(String(body.readingMode)))
     return json(res,400,{error:"Modo de leitura não reconhecido."});
   // Only native extraction can run in production without enabling a paid
   // external provider. QA visual alternatives never receive real documents.
@@ -252,13 +254,18 @@ export default async function handler(req:Req,res:Res){
       error:"O teste gratuito aceita exclusivamente o projeto fictício 04, nunca arquivos reais."
     });
     const available=resolveVisualPdfProvider(readEnv,
-      textRequested?"cloudflare_text":
+      privateTextRequested?"private_text":textRequested?"cloudflare_text":
         openaiVisualRequested?"openai_visual":
         geminiQaRequested?"gemini_qa":undefined);
     if(!nativeTextRequested&&!available.enabled)return json(res,503,{
       code:"SIGAPRO_PDF_AI_NOT_CONFIGURED",
       error:"O módulo SIGAPRO IA selecionado não está disponível. Solicite ao administrador a verificação da integração.",
     });
+    if(!nativeTextRequested&&available.enabled&&
+      (privateTextRequested?available.provider.kind!=="private":
+        textRequested?available.provider.kind!=="cloudflare":
+        ["private","cloudflare"].includes(available.provider.kind)))
+      return json(res,409,{code:"AI_MODE_PROVIDER_MISMATCH",error:"Selecione a modalidade correspondente ao provedor configurado. Nenhum documento foi transmitido."});
     const territorialContext=await inspectProcessTerritory(req,tenant,processId);
     const baseline=await callDataApiRpc<unknown>(req,"get_urban_process_legal_baseline_v1",{_process_id:processId});
     const legalBaseline=baseline.ok?verifiedUrbanBaseline(baseline.payload,tenant):null;
@@ -285,7 +292,8 @@ export default async function handler(req:Req,res:Res){
       documentId:doc.id,documentVersion:doc.version,fileName:doc.file_name,
       legalConformity:"not_evaluated",humanReviewRequired:true,
       aiProvider:nativeTextRequested?"sigapro_local":available.enabled?available.provider.kind:"none",
-      pdfSharedWithConfiguredAiProvider:!nativeTextRequested,
+      pdfSharedWithConfiguredAiProvider:!nativeTextRequested&&!privateTextRequested,
+      textSharedWithConfiguredAiProvider:privateTextRequested,
       territorialContext,legalBaseline});
   }catch(e){
     const code=e instanceof Error?e.message:"";
@@ -300,6 +308,8 @@ export default async function handler(req:Req,res:Res){
           ?"Não foi possível identificar as páginas do PDF. Confira a exportação original."
           :"O PDF está incompleto ou não pôde ser validado. Nenhum dado foi gravado."
     });
+    if(code==="PRIVATE_PDF_TEXT_LIMIT")return json(res,413,{code,error:"O texto completo excede o limite do servidor. Separe as pranchas ou utilize Leitura Local."});
+    if(code==="PRIVATE_PDF_PROVIDER_UNAVAILABLE")return json(res,503,{code,error:"Servidor documental indisponível. Nenhuma medida foi aplicada. Use Leitura Local."});
     if(code==="AI_RATE_LIMIT")return json(res,429,{code,
       error:"A cota gratuita ou o limite de requisições do serviço de leitura foi atingido. Nenhum dado foi gravado."});
     if(code==="AI_PROVIDER_BILLING")return json(res,402,{code,
