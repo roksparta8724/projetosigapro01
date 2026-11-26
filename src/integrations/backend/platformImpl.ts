@@ -1,5 +1,6 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
+import { collectCompleteScopedRows } from "@/lib/completeScopedRows";
 import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments } from "@/lib/municipalStaffAssignments";
 import { parseVerifiedMunicipalUserRegistry, reconcileVerifiedMunicipalUsers } from "@/lib/municipalUserRegistry";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
@@ -414,16 +415,28 @@ function municipalityResultData(value: unknown): DatabaseRow[] {
   return Array.isArray(value) ? (value as DatabaseRow[]) : [];
 }
 
+// The Neon Data API enforces row limits. Read a deterministic range of the
+// same RLS-authorized query; stop on inconsistent or failed continuation.
+type ScopedQuery = {
+  order: (column: string, options: { ascending: boolean }) => {
+    range: (from: number, to: number) => PromiseLike<{ data: DatabaseRow[] | null; error: unknown }>;
+  };
+};
+function loadCompleteScopedRows(query: () => ScopedQuery) {
+  return collectCompleteScopedRows<DatabaseRow>((offset, pageSize) =>
+    query().order("id", { ascending: false }).range(offset, offset + pageSize - 1));
+}
+
 async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
   if (!db) {
     throw new Error("Banco oficial indisponível.");
   }
 
-  const activeResult = await db
+  const activeResult = await loadCompleteScopedRows(() => db
     .from("processes")
     .select("*")
     .is("archived_at", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }));
 
   if (!focusProcessRouteKey) {
     return activeResult;
@@ -559,10 +572,10 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       ? Promise.resolve({ data: [], error: null })
       : db.from("tenant_settings").select("*"),
     db.from("municipalities").select("*").order("created_at", { ascending: false }).order("id", { ascending: false }),
-    db.from("municipality_branding").select("*"),
-    db.from("municipality_settings").select("*"),
-    db.from("profiles").select("*"),
-    db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null),
+    loadCompleteScopedRows(() => db.from("municipality_branding").select("*")),
+    loadCompleteScopedRows(() => db.from("municipality_settings").select("*")),
+    loadCompleteScopedRows(() => db.from("profiles").select("*")),
+    loadCompleteScopedRows(() => db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null)),
     db.from("roles").select("*"),
     db.from("departments").select("*"),
     loadProcessRowsForStore(focusProcessRouteKey),
@@ -570,27 +583,27 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     // direto no bootstrap global, porque o papel authenticated não possui
     // permissão por desenho de segurança.
     Promise.resolve({ data: [], error: null }),
-    db.from("properties").select("*"),
+    loadCompleteScopedRows(() => db.from("properties").select("*")),
     isNeonBackend
-      ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
-      : db.from("payment_guides").select("*").order("created_at", { ascending: false }),
-    db.from("process_parties").select("*"),
+      ? loadCompleteScopedRows(() => db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false }))
+      : loadCompleteScopedRows(() => db.from("payment_guides").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("process_parties").select("*")),
     isNeonBackend
       ? db.rpc("list_visible_process_party_private_data_v1")
       : Promise.resolve({ data: [], error: null }),
-    db.from("process_documents").select("*").order("created_at", { ascending: false }),
-    db.from("process_requirements").select("*").order("created_at", { ascending: false }),
-    db.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
-    db.from("process_reopen_history").select("*").order("created_at", { ascending: false }),
-    db.from("process_movements").select("*").order("created_at", { ascending: false }),
-    db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }),
-    db.from("process_messages").select("*").order("created_at", { ascending: false }),
-    db.from("process_markers").select("*").order("created_at", { ascending: false }),
-    db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
-    db.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
-    db.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
+    loadCompleteScopedRows(() => db.from("process_documents").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("process_requirements").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("process_audit_entries").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("process_reopen_history").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("process_movements").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("process_messages").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("process_markers").select("*").order("created_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("project_owner_requests").select("*").order("requested_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("project_owner_links").select("*").order("linked_at", { ascending: false })),
+    loadCompleteScopedRows(() => db.from("owner_professional_messages").select("*").order("created_at", { ascending: false })),
     db.from("plans").select("*"),
-    db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
+    loadCompleteScopedRows(() => db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false })),
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
       : Promise.resolve({ data: [], error: null }),
@@ -645,11 +658,11 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // removing valid processes from the analysis queue.
   let guidesResult = initialGuidesResult;
   if (isNeonBackend && guidesResult.error && processRows.length > 0) {
-    const retryGuides = await db
+    const retryGuides = await loadCompleteScopedRows(() => db
       .from("payment_guides")
       .select("*")
       .not("process_id", "is", null)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false }));
     if (!retryGuides.error) guidesResult = retryGuides;
   }
   if (processRows.length > 0 && guidesResult.error) {
@@ -715,7 +728,21 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       .map((process) => String(process.id ?? "").trim())
       .filter(Boolean);
 
-    for (let index = 0; index < visibleProcessIds.length; index += 8) {
+    // One bounded RPC per 100 IDs, not an HTTP request per process.
+    // Old deployments retain the original per-process RPC fallback.
+    let batchAvailable = true;
+    for (let index = 0; index < visibleProcessIds.length; index += 100) {
+      const { data, error } = await db.rpc("list_visible_construction_permits_v1", {
+        _process_ids: visibleProcessIds.slice(index, index + 100),
+      });
+      if (error || !Array.isArray(data)) {
+        batchAvailable = false;
+        constructionPermitRows.length = 0;
+        break;
+      }
+      constructionPermitRows.push(...data);
+    }
+    if (!batchAvailable) for (let index = 0; index < visibleProcessIds.length; index += 8) {
       const batch = visibleProcessIds.slice(index, index + 8);
       const permits = await Promise.all(
         batch.map(async (processId) => {
