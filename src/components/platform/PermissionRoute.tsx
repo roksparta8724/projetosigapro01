@@ -11,6 +11,7 @@ import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole, roleLa
 import type { Permission, SessionUser, UserRole } from "@/lib/platform";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { useMunicipalContextTransition } from "@/lib/municipalContextTransition";
+import { MunicipalTransitionSurface } from "@/components/platform/MunicipalTransitionSurface";
 import { getSessionLandingPath } from "@/lib/platform";
 
 export function PermissionRoute({
@@ -92,7 +93,7 @@ export function PermissionRoute({
   const permissionDataPending = !remoteSyncedForCurrentUser;
   const pendingAccess = () => <SecureRoutePending title="Verificando acesso municipal" detail="Aguardando confirmação dos vínculos e permissões desta conta." />;
 
-  if (!isActuallyBlocked && contextTransition) return pendingAccess();
+  if (!isActuallyBlocked && contextTransition) return <MunicipalTransitionSurface departmentName={contextTransition.departmentName} />;
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const isExternalRole =

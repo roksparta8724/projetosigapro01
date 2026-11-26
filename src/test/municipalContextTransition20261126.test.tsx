@@ -18,7 +18,7 @@ vi.mock("@/hooks/usePlatformData",()=>({usePlatformData:()=>mock.store}));
 vi.mock("@/hooks/useTenant",()=>({useTenant:()=>({mode:"root",loading:false,inactive:false,municipalityId:null})}));
 const assignment:MunicipalStaffAssignment={id:"finance",profileId:"profile",municipalityId:"city",departmentId:"fin",departmentName:"Financeiro",departmentCode:"FIN",role:"financeiro",isActive:true,isCurrent:false};
 let operation:ReturnType<typeof beginMunicipalContextTransition>=null;
-afterEach(()=>{if(operation)finishMunicipalContextTransition(operation);operation=null;mock.session.role="analista";mock.session.department="Análise Urbanística";mock.bootstrap.profile.accountStatus="active";});
+afterEach(()=>{vi.useRealTimers();if(operation)finishMunicipalContextTransition(operation);operation=null;mock.session.role="analista";mock.session.department="Análise Urbanística";mock.bootstrap.profile.accountStatus="active";});
 function App({landing=false}:{landing?:boolean}){
  return <MemoryRouter initialEntries={[{pathname:"/prefeitura/analise",state:landing?{sigaproContextLanding:true}:null}]}><Routes>
  <Route path="/prefeitura/analise" element={<PermissionRoute permission="review_processes"><p>Área técnica</p></PermissionRoute>}/>
@@ -44,6 +44,19 @@ describe("Troca de departamento — autorização sem falso bloqueio",()=>{
   expect(screen.queryByText(/Area indisponivel/)).not.toBeInTheDocument();
   act(()=>finishMunicipalContextTransition(operation!));
   expect(screen.getByText("Área financeira")).toBeInTheDocument();
+ });
+ it("não abre o aviso genérico de conexão após 12 segundos de troca legítima",()=>{
+  vi.useFakeTimers();
+  const {container}=render(<App/>);
+  act(()=>{operation=beginMunicipalContextTransition(assignment);});
+  expect(container.querySelector('[data-sigapro-department-transition="true"]')).toBeInTheDocument();
+  act(()=>vi.advanceTimersByTime(13000));
+  expect(screen.queryByText("A conexão está demorando")).not.toBeInTheDocument();
+  expect(screen.queryByText(/Area indisponivel/)).not.toBeInTheDocument();
+  expect(screen.queryByText("Área técnica")).not.toBeInTheDocument();
+  act(()=>vi.advanceTimersByTime(2000));
+  expect(screen.getByText("Sincronizando Financeiro…")).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
  });
  it("mantém a recusa real ao digitar uma URL sem permissão",()=>{
   mock.session.role="financeiro";mock.session.department="Financeiro";
