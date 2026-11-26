@@ -119,7 +119,7 @@ interface PlatformDataState {
   storeIdentityConfirmed: boolean;
   /** True only after the official database revalidated this user and all required records. */
   remoteSyncedForCurrentUser: boolean;
-  refreshRemoteStore: (focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment) => Promise<void>;
+  refreshRemoteStore: (focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment, confirmAssignment?: Promise<void>) => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
   tenantSettings: InstitutionSettings[];
@@ -1346,7 +1346,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
   }, [authenticatedProfileId, authenticatedUserId, authLoading]);
 
-  const refreshRemoteStore = async (focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment) => {
+  const refreshRemoteStore = async (focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment, confirmAssignment?: Promise<void>) => {
     if (!authenticatedUserId || !hasBackendEnv) {
       const error = new Error("Sessão ou banco oficial indisponível para atualizar os dados.");
       setDataError(error.message);
@@ -1362,7 +1362,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     const stillCurrent = () => currentAuthIdentityRef.current === identity && contextEpoch(profileId) === epoch;
     return refreshFlightsRef.current.run(identity, scope, async () => {
       try {
-        const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
+        // Read the scoped store and confirm the active lotation in parallel. Do not
+        // publish any data until both checks have completed successfully.
+        const [remote] = await Promise.all([
+          loadRemotePlatformStoreWithRetry(focusProcessRouteKey, expectedAssignment ? 1 : 3),
+          confirmAssignment ?? Promise.resolve(),
+        ]);
         // Never apply a late response from a previously signed-in account.
         if (!stillCurrent()) {
           if (expectedAssignment) throw new Error("A sessão mudou durante a troca de departamento.");

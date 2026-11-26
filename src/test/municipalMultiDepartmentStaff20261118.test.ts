@@ -44,14 +44,14 @@ describe("SIGAPRO — um login, múltiplas lotações com permissão real",()=>{
     expect(sql).toContain("PERFORM public._apply_staff_context_v1");
     expect(sql).toContain("role_id<>v_role_id");
     expect(switcher).toContain("await activateRemoteMunicipalStaffAssignment");
-    expect(switcher).toContain("await refreshRemoteStore(null, assignment)");
-    expect(switcher.indexOf("await refreshRemoteStore(null, assignment)")).toBeLessThan(switcher.indexOf("navigate(getSessionLandingPath"));
+    expect(switcher).toContain("await refreshRemoteStore(null, assignment, confirmAssignment)");
+    expect(switcher.indexOf("await refreshRemoteStore(null, assignment, confirmAssignment)")).toBeLessThan(switcher.indexOf("navigate(getSessionLandingPath"));
     expect(switcher).toContain("getMunicipalAssignmentForAccount");
     expect(api).toContain('db.rpc("activate_municipal_staff_assignment_v1"');
   });
   it("topbar fica único; seletor não faz login, reload, mudança de senha ou troca de identidade",()=>{
     expect(portal).toContain("<MunicipalDepartmentSwitcher dark={darkTopbar} />");
-    expect(switcher).toContain("if (rows.length < 2) return null");
+    expect(switcher).toContain("if (rows.length < 2 ||");
     expect(switcher).not.toContain("window.location.reload");
     expect(switcher).not.toContain("signOut");
     expect(switcher).not.toContain("signIn");
@@ -81,11 +81,15 @@ describe("SIGAPRO — um login, múltiplas lotações com permissão real",()=>{
     const readBack = switcher.indexOf("const verified = getMunicipalAssignmentForAccount(");
     const checkCurrent = switcher.indexOf("const active = verified.filter((item) => item.isCurrent);");
     const verifyRole = switcher.indexOf("active[0].role !== activated.role");
-    const refresh = switcher.indexOf("await refreshRemoteStore(null, assignment);");
+    const refresh = switcher.indexOf("await refreshRemoteStore(null, assignment, confirmAssignment);");
     const publish = switcher.indexOf("flushSync(() => {");
     const navigateAfter = switcher.indexOf("navigate(getSessionLandingPath(nextSession)");
     expect(readBack).toBeGreaterThan(-1);
     expect(switcher).toContain("await listRemoteMunicipalStaffAssignments(), session.id, municipalityId");
+    const provider=readFileSync("src/hooks/usePlatformData.tsx","utf8");
+    expect(provider).toContain("const [remote] = await Promise.all([");
+    expect(provider).toContain("confirmAssignment?.() ?? Promise.resolve()");
+    expect(provider.indexOf("const [remote] = await Promise.all([")).toBeLessThan(provider.indexOf("const confirmed = sanitized.sessionUsers.find"));
     expect(checkCurrent).toBeGreaterThan(readBack);
     expect(verifyRole).toBeGreaterThan(checkCurrent);
     expect(refresh).toBeGreaterThan(verifyRole);

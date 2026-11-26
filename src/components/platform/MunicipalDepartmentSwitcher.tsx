@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
+import { preloadLoginLanding } from "@/lib/loginLandingAccess";
 import {beginMunicipalContextTransition,finishMunicipalContextTransition,isCurrentMunicipalContextTransition,useMunicipalContextTransition} from "@/lib/municipalContextTransition";
 import { Building2, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -22,31 +23,35 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
   const { session } = usePlatformSession();
   const { refreshRemoteStore } = usePlatformData();
   const navigate = useNavigate();
-  const [rows, setRows] = useState<MunicipalStaffAssignment[]>([]);
+  const [rowState, setRowState] = useState<{profileId:string;municipalityId:string;rows:MunicipalStaffAssignment[]}|null>(null);
   const transition = useMunicipalContextTransition(session.id);
   const busyId = transition?.assignmentId ?? null;
   const municipalityId = session.municipalityId || session.tenantId || "";
+  const rows = rowState?.profileId===session.id && rowState.municipalityId===municipalityId ? rowState.rows : [];
+  const landingFor = (assignment:MunicipalStaffAssignment) => getSessionLandingPath({...session,role:assignment.role,department:assignment.departmentName,title:roleLabels[assignment.role]});
 
   useEffect(() => {
     let alive = true;
-    setRows([]);
     if (!session.id || session.id === "unknown" || !municipalityId ||
         !isSwitchableMunicipalStaffRole(session.role) || session.accountStatus !== "active") {
       return () => { alive = false; };
     }
     // No invented roles: only rows returned by the authenticated, scoped RPC.
     void listRemoteMunicipalStaffAssignments()
-      .then((all) => { if (alive) setRows(getMunicipalAssignmentForAccount(all,session.id,municipalityId)); })
-      .catch(() => { if (alive) setRows([]); });
+      .then((all) => { if (alive) setRowState({profileId:session.id,municipalityId,rows:getMunicipalAssignmentForAccount(all,session.id,municipalityId)}); })
+      .catch(() => { if (alive) setRowState(null); });
     return () => { alive = false; };
   }, [session.id,session.role,session.department,session.accountStatus,municipalityId]);
 
-  if (rows.length < 2) return null;
+  if (rows.length < 2 || !isSwitchableMunicipalStaffRole(session.role) || session.accountStatus!=="active") return null;
 
   const switchTo = async (assignment: MunicipalStaffAssignment) => {
-    if (busyId || assignment.isCurrent) return;
+    if (busyId || assignment.isCurrent || assignment.profileId!==session.id || assignment.municipalityId!==municipalityId) return;
     const operation = beginMunicipalContextTransition(assignment);
     if (!operation) return;
+    const destination=landingFor(assignment);
+    // Only downloads code; no destination component is mounted or authorized yet.
+    const routeReady=preloadLoginLanding(destination).catch(()=>undefined);
     try {
       const activated = await activateRemoteMunicipalStaffAssignment(assignment.id);
       if(!isCurrentMunicipalContextTransition(operation)) return;
@@ -58,18 +63,22 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
       // Confirm the active context through a second authenticated database read.
       // An RPC response alone is not enough: a revoked/mismatched assignment
       // must never appear as a successful role switch in the topbar.
-      const verified = getMunicipalAssignmentForAccount(
-        await listRemoteMunicipalStaffAssignments(), session.id, municipalityId,
-      );
-      const active = verified.filter((item) => item.isCurrent);
-      if (active.length !== 1 || active[0].id !== assignment.id ||
-          active[0].role !== activated.role ||
-          active[0].departmentId !== activated.departmentId) {
-        throw new Error("O departamento ativo não foi confirmado pelo banco. Atualize os vínculos e tente novamente.");
-      }
-      // Refresh canonical profile, permissions and process scopes BEFORE
-      // navigating or advertising the activated context.
-      await refreshRemoteStore(null, assignment);
+      const confirmAssignment = async () => {
+        const verified = getMunicipalAssignmentForAccount(
+          await listRemoteMunicipalStaffAssignments(), session.id, municipalityId,
+        );
+        const active = verified.filter((item) => item.isCurrent);
+        if (active.length !== 1 || active[0].id !== assignment.id ||
+            active[0].role !== activated.role ||
+            active[0].departmentId !== activated.departmentId) {
+          throw new Error("O departamento ativo não foi confirmado pelo banco.");
+        }
+        if(isCurrentMunicipalContextTransition(operation))setRowState({profileId:session.id,municipalityId,rows:verified});
+      };
+      // These read-only requests are independent after the transactional switch.
+      // The provider waits for confirmation BEFORE publishing the scoped store.
+      await refreshRemoteStore(null, assignment, confirmAssignment());
+      await routeReady;
       if (!isCurrentMunicipalContextTransition(operation)) return;
       // Commit the confirmed store and navigation together, before reopening
       // operational content. No optimistic profile or success toast.
@@ -77,7 +86,7 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
       flushSync(() => {
         navigate(getSessionLandingPath(nextSession), { replace: true, state:{sigaproContextLanding:true} });
       });
-    } catch (error) {
+    } catch {
       if(isCurrentMunicipalContextTransition(operation)) {
         // A timeout can occur after the database committed the switch.
         // Revalidate the scoped store; failure invalidates its authorization.
@@ -88,6 +97,7 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
           await refreshRemoteStore(null,current[0]);
           if(!isCurrentMunicipalContextTransition(operation)) return;
           if(current[0].id===assignment.id){
+            await routeReady;
             flushSync(()=>navigate(getSessionLandingPath({...session,role:current[0].role,department:current[0].departmentName,title:roleLabels[current[0].role]}),{replace:true,state:{sigaproContextLanding:true}}));
             return;
           }
@@ -97,7 +107,7 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
           // clears the confirmed identity rather than reopening stale data.
           try {await refreshRemoteStore(null,assignment);} catch { /* provider invalidates authorization */ }
         }
-        if(isCurrentMunicipalContextTransition(operation)) toast.error(error instanceof Error ? error.message : "Não foi possível trocar o departamento.");
+        if(isCurrentMunicipalContextTransition(operation)) toast.error("Não foi possível confirmar a troca de departamento. Tente novamente.");
       }
     } finally {
       finishMunicipalContextTransition(operation);
@@ -108,21 +118,23 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
     <div data-municipal-department-switcher="true" className="mt-3">
       <DropdownMenuSeparator className={dark ? "bg-white/15" : "bg-slate-200"} />
       <DropdownMenuLabel className={dark ? "px-3 py-2 text-slate-100" : "px-3 py-2 text-slate-900"}>
-        <span className="block text-[10px] font-bold uppercase tracking-[0.12em]">Trocar departamento</span>
+        <span className="block text-[10px] font-bold uppercase tracking-[0.12em]">Departamentos autorizados</span>
         <span className={dark ? "mt-1 block text-xs font-normal text-slate-300" : "mt-1 block text-xs font-normal text-slate-600"}>
-          Uma sessão · perfis autorizados
+          Escolha a unidade de trabalho
         </span>
       </DropdownMenuLabel>
       <div className="max-h-[250px] space-y-1 overflow-y-auto">
         {rows.map((item) => (
           <DropdownMenuItem key={item.id} disabled={Boolean(busyId) || item.isCurrent}
+            onPointerEnter={() => { if(!busyId&&!item.isCurrent)void preloadLoginLanding(landingFor(item)).catch(()=>undefined); }}
+            onFocus={() => { if(!busyId&&!item.isCurrent)void preloadLoginLanding(landingFor(item)).catch(()=>undefined); }}
             onSelect={() => { void switchTo(item); }}
             className={dark
-              ? "cursor-pointer rounded-xl px-3 py-2.5 text-slate-100 focus:bg-white/10 focus:text-white"
-              : "cursor-pointer rounded-xl px-3 py-2.5 text-slate-800 focus:bg-slate-100 focus:text-slate-950"}>
+              ? "min-h-11 cursor-pointer rounded-xl px-3 py-2.5 text-slate-100 focus:bg-white/10 focus:text-white data-[disabled]:opacity-100"
+              : "min-h-11 cursor-pointer rounded-xl px-3 py-2.5 text-slate-800 focus:bg-slate-100 focus:text-slate-950 data-[disabled]:opacity-100"}>
             <Building2 className="mr-2 h-4 w-4 shrink-0" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-semibold">{item.departmentName}</span>
+              <span className="block truncate text-xs font-semibold" title={item.departmentName}>{item.departmentName}</span>
               <span className={dark ? "mt-0.5 block text-[11px] text-slate-300" : "mt-0.5 block text-[11px] text-slate-500"}>
                 {roleLabels[item.role]}
               </span>

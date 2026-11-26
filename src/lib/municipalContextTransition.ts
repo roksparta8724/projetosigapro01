@@ -1,6 +1,6 @@
 import {useSyncExternalStore} from "react";
 import type {MunicipalStaffAssignment} from "./municipalStaffAssignments";
-type Transition={profileId:string;municipalityId:string;assignmentId:string;epoch:number};
+type Transition={profileId:string;municipalityId:string;assignmentId:string;departmentName:string;epoch:number};
 let active:Transition|null=null;
 const epochs=new Map<string,number>();
 const listeners=new Set<()=>void>();
@@ -11,7 +11,7 @@ export function beginMunicipalContextTransition(assignment:MunicipalStaffAssignm
  if(active?.profileId===assignment.profileId)return null;
  const epoch=contextEpoch(assignment.profileId)+1;
  epochs.set(assignment.profileId,epoch);
- active={profileId:assignment.profileId,municipalityId:assignment.municipalityId,assignmentId:assignment.id,epoch};
+ active={profileId:assignment.profileId,municipalityId:assignment.municipalityId,assignmentId:assignment.id,departmentName:assignment.departmentName,epoch};
  notify();return active;
 }
 export function finishMunicipalContextTransition(transition:Transition){
