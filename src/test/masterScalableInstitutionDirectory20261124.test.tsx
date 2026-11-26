@@ -106,6 +106,14 @@ describe("SIGAPRO Master escalável — milhares de prefeituras e separação de
     const backend=source("src/integrations/backend/platformImpl.ts");
     expect(backend).toContain("completeMunicipalityCatalog(municipalitiesResult)");
     expect(backend).toContain('.range(offset, offset + pageSize - 1)');
+    // A timestamp tie must have the same deterministic order on every page.
+    expect(backend.split('.order("created_at", { ascending: false }).order("id", { ascending: false })').length - 1).toBeGreaterThanOrEqual(2);
+    const indexes=source("neon/migrations/20261126_zzz_operational_read_indexes_v1.sql");
+    expect(indexes).toContain("public.municipalities (created_at DESC, id DESC)");
+    expect(indexes).toContain("public.processes (municipality_id, created_at DESC, id DESC) WHERE archived_at IS NULL");
+    for (const table of ["process_documents","process_audit_entries","process_movements"]) {
+      expect(indexes).toContain(`public.${table} (process_id, created_at DESC, id DESC)`);
+    }
     expect(backend).toContain("profileCountByMunicipality.get");
     expect(backend).toContain("processCountByMunicipality.get");
   });
