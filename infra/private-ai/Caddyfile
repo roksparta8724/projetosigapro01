@@ -1,7 +1,7 @@
 # TLS edge. DNS must resolve to the contracted GPU host before starting.
 # Avoid request-body/access logs: municipal prompts may contain sensitive data.
 {$SIGAPRO_AI_HOST} {
-    @chat path /v1/chat/completions
+    @chat path /v1/chat/completions /v1/sigapro/pdf-text
     handle @chat {
         reverse_proxy gateway:8080
     }

@@ -77,6 +77,8 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
   const cachedSessionRef = useRef<SessionUser | null>(readCachedSession());
   const [sessionVersion, setSessionVersion] = useState(0);
   const businessUserId = authenticatedProfileId || authenticatedUserId;
+  const currentBusinessUserRef=useRef(businessUserId);
+  currentBusinessUserRef.current=businessUserId;
   const canonicalSessionUser = useMemo(
     () => {
       if (!storeIdentityConfirmed || !businessUserId) return null;
@@ -176,7 +178,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
   useEffect(() => {
     const handleSessionUpdated = (event: Event) => {
       const detail = (event as CustomEvent<SessionUser>).detail;
-      if (!detail?.id || detail.id === "unknown") return;
+      if (!detail?.id || detail.id === "unknown" || detail.id !== currentBusinessUserRef.current) return;
       cachedSessionRef.current = detail;
       setSessionVersion((current) => current + 1);
     };

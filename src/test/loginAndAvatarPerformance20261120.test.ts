@@ -40,7 +40,7 @@ describe("SIGAPRO — login rápido e fotos privadas sem leituras redundantes", 
     expect(access).not.toContain("preloadLoginLanding(landingPath)");
     expect(access).not.toContain("const landingPath = getRoleLandingPath(role)");
     expect(access).toContain("const decision = await verifyLoginLandingAccess(");
-    expect(access).toContain("navigate(decision.path, { replace: true })");
+    expect(access).toContain("navigate(decision.path, { replace: true, state:{sigaproContextLanding:true} })");
     expect(access).not.toContain("await Promise.all([");
     const check = source("src/lib/loginLandingAccess.ts");
     expect(check).toContain('rpc("has_tenant_access"');

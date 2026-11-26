@@ -126,7 +126,7 @@ export function AcessoPage() {
         return;
       }
 
-      navigate(decision.path, { replace: true });
+      navigate(decision.path, { replace: true, state:{sigaproContextLanding:true} });
     } catch {
       setError("Não foi possível concluir o acesso institucional. Confirme sua conexão e tente novamente.");
     } finally {

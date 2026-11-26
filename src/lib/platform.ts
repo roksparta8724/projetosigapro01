@@ -2724,8 +2724,8 @@ function normalizeDepartmentAccessLabel(value: string | null | undefined) {
 function resolveDepartmentAccessBucket(value: string | null | undefined) {
   const normalized = normalizeDepartmentAccessLabel(value);
   if (!normalized) return "";
+  if (/finance|financa|fazenda|tesour|tribut|arrecad/.test(normalized)) return "financeiro";
   if (/protocolo|protocol|triagem|recepcao|administracao|administrativo|expediente|atendimento/.test(normalized)) return "protocolos";
-  if (/finance|financa|fazenda|tribut|arrecad/.test(normalized)) return "financeiro";
   if (/analise|urbanismo|urbanistic|obra|engenharia|planejamento|licenciamento|aprovacao|fiscal|fiscalizacao|postura|topografia|cadista/.test(normalized)) return "analise";
   return normalized;
 }
@@ -2744,6 +2744,12 @@ export function resolveSessionOperationalArea(
     return explicitDepartment;
   }
 
+  // A current operational role is authoritative when a custom department
+  // name has no recognized area; an old title cannot select another module.
+  if (session.role === "setor_intersetorial") return "protocolos";
+  if (session.role === "analista" || session.role === "fiscal") return "analise";
+  if (session.role === "financeiro") return "financeiro";
+
   const titleDepartment = resolveDepartmentAccessBucket(session.title || "");
   if (
     titleDepartment === "protocolos" ||
@@ -2755,12 +2761,6 @@ export function resolveSessionOperationalArea(
 
   // Compatibilidade com contas internas antigas ainda sem department_id.
   // O papel canônico é usado somente quando não existe um departamento explícito.
-  if (session.role === "setor_intersetorial") return "protocolos";
-  if (session.role === "analista") return "analise";
-  if (session.role === "financeiro") return "financeiro";
-  // Fiscalização de obras pertence à área técnica, como a rota oficial /prefeitura/analise.
-  // Antes o fallback enviava fiscais antigos sem lotação para Financeiro e bloqueava sua fila.
-  if (session.role === "fiscal") return "analise";
   return "";
 }
 
@@ -2793,6 +2793,15 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
     default:
       return "/dashboard";
   }
+}
+
+export function getSessionLandingPath(session: SessionUser) {
+  if (isInternalRole(session.role) && session.role !== "prefeitura_admin") {
+    const area = resolveSessionOperationalArea(session);
+    const required = area === "protocolos" ? "manage_protocols" : area === "analise" ? "review_processes" : area === "financeiro" ? "manage_financial" : null;
+    return area && required && can(session, required) ? "/prefeitura/" + area : "/dashboard";
+  }
+  return getRoleLandingPath(session.role);
 }
 
 export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOperationalArea) {

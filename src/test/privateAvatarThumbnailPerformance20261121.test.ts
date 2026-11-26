@@ -70,6 +70,6 @@ describe("SIGAPRO — perfil rápido com miniatura privada e original preservado
     const login = read("src/pages/saas/AcessoPage.tsx");
     expect(login).toContain("const decision = await verifyLoginLandingAccess(");
     expect(login).not.toContain("preloadLoginLanding(landingPath)");
-    expect(login).toContain("navigate(decision.path, { replace: true })");
+    expect(login).toContain("navigate(decision.path, { replace: true, state:{sigaproContextLanding:true} })");
   });
 });

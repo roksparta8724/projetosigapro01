@@ -1,9 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
 import { assertPersonalProcessMarkerLimit } from "@/lib/processMarkerLimits";
 import { IdentityScopedSingleFlight } from "@/lib/identityScopedSingleFlight";
+import { contextEpoch, isMunicipalContextBusy, cancelForeignMunicipalTransition } from "@/lib/municipalContextTransition";
+import type { MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
 import {
   type AccountStatus,
   buildProcessDocuments,
@@ -117,7 +119,7 @@ interface PlatformDataState {
   storeIdentityConfirmed: boolean;
   /** True only after the official database revalidated this user and all required records. */
   remoteSyncedForCurrentUser: boolean;
-  refreshRemoteStore: (focusProcessRouteKey?: string | null) => Promise<void>;
+  refreshRemoteStore: (focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment) => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
   tenantSettings: InstitutionSettings[];
@@ -1012,6 +1014,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const refreshFlightsRef = useRef(new IdentityScopedSingleFlight());
   const currentAuthIdentityRef = useRef(authenticatedUserId);
   currentAuthIdentityRef.current = authenticatedUserId;
+  useLayoutEffect(()=>{cancelForeignMunicipalTransition(authenticatedUserId ? authenticatedProfileId || authenticatedUserId : null);},[authenticatedProfileId,authenticatedUserId]);
   const allowRemoteInLocal =
     isNeonBackend ||
     (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
@@ -1070,9 +1073,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     let active = true;
+    const initialContextEpoch = contextEpoch(authenticatedProfileId || authenticatedUserId);
+    const contextStillCurrent = () => initialContextEpoch === contextEpoch(authenticatedProfileId || authenticatedUserId) && !isMunicipalContextBusy(authenticatedProfileId || authenticatedUserId);
 
     const bootstrap = async () => {
-      if (authLoading) return;
+      if (authLoading || isMunicipalContextBusy(authenticatedProfileId || authenticatedUserId)) return;
 
       if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasBackendEnv) {
         if (!active) return;
@@ -1245,7 +1250,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           if (initialStateRef.current) initialStateRef.current.legacyStore = null;
         }
 
-        if (!active) return;
+        if (!active || !contextStillCurrent()) return;
         const authoritativeProfile = findUserProfile(
           sanitized.userProfiles,
           authenticatedProfileId || authenticatedUserId,
@@ -1280,7 +1285,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         lastFetchedUserId.current = authenticatedUserId;
         setRemoteContextUserId(authenticatedUserId);
       } catch (error) {
-        if (!active || currentAuthIdentityRef.current !== authenticatedUserId) return;
+        if (!active || !contextStillCurrent() || currentAuthIdentityRef.current !== authenticatedUserId) return;
         // 401/403 from a data query can be an old token, missing module access
         // or a concurrent identity transition. Never let a data loader revoke
         // the current authentication session. AuthGateway owns logout.
@@ -1310,7 +1315,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             : "Banco oficial temporariamente indisponível.",
         );
       } finally {
-        if (active) setLoading(false);
+        if (active && contextStillCurrent()) setLoading(false);
       }
     };
 
@@ -1341,7 +1346,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
   }, [authenticatedProfileId, authenticatedUserId, authLoading]);
 
-  const refreshRemoteStore = async (focusProcessRouteKey?: string | null) => {
+  const refreshRemoteStore = async (focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment) => {
     if (!authenticatedUserId || !hasBackendEnv) {
       const error = new Error("Sessão ou banco oficial indisponível para atualizar os dados.");
       setDataError(error.message);
@@ -1349,12 +1354,28 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     }
 
     const identity = authenticatedUserId;
-    return refreshFlightsRef.current.run(identity, focusProcessRouteKey ?? "", async () => {
+    if(currentAuthIdentityRef.current !== identity) throw new Error("A sessão mudou durante a atualização.");
+    const profileId = authenticatedProfileId || identity;
+    if (!expectedAssignment && isMunicipalContextBusy(profileId)) return;
+    const epoch = contextEpoch(profileId);
+    const scope = JSON.stringify([focusProcessRouteKey ?? "", epoch, expectedAssignment?.id ?? ""]);
+    const stillCurrent = () => currentAuthIdentityRef.current === identity && contextEpoch(profileId) === epoch;
+    return refreshFlightsRef.current.run(identity, scope, async () => {
       try {
         const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
         // Never apply a late response from a previously signed-in account.
-        if (currentAuthIdentityRef.current !== identity) return;
+        if (!stillCurrent()) {
+          if (expectedAssignment) throw new Error("A sessão mudou durante a troca de departamento.");
+          return;
+        }
       let sanitized = buildSanitizedStore(remote, false);
+      if (expectedAssignment) {
+        const confirmed = sanitized.sessionUsers.find(user => user.id === profileId && user.municipalityId === expectedAssignment.municipalityId);
+        if (!confirmed || confirmed.accountStatus !== "active" || confirmed.role !== expectedAssignment.role || confirmed.department !== expectedAssignment.departmentName) {
+          setRemoteContextUserId(null);
+          throw new Error("O contexto operacional ainda não foi confirmado. Tente novamente.");
+        }
+      }
       const authoritativeProfile = findUserProfile(
         sanitized.userProfiles,
         authenticatedProfileId || authenticatedUserId,
@@ -1388,8 +1409,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       setDataError(null);
       lastFetchedUserId.current = authenticatedUserId;
       setRemoteContextUserId(authenticatedUserId);
+      setLoading(false);
       } catch (error) {
-        if (currentAuthIdentityRef.current === identity) {
+        if (stillCurrent()) {
+          if (expectedAssignment) {setRemoteContextUserId(null);lastFetchedUserId.current=null;setLoading(false);}
           setDataError(
             error instanceof Error && error.message
               ? `Banco oficial indisponível: ${error.message}`

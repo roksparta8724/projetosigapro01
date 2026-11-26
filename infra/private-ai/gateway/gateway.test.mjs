@@ -107,3 +107,17 @@ test('drops unexpected provider controls and credentials before forwarding to vL
   assert.deepEqual(Object.keys(forwarded).sort(), ['max_tokens', 'messages', 'model', 'temperature'].sort());
   assert.equal(forwarded.messages[0].extra, undefined);
 });
+
+test('private PDF text endpoint is opt-in, authenticates, shares limits and refuses truncated inference',async t=>{
+ const {base}=await setup(t);
+ assert.equal((await fetch(base+'/v1/sigapro/pdf-text',{method:'POST'})).status,404);
+ let count=0;
+ const active=await setup(t,()=>{count++;return {body:{choices:[{finish_reason:'stop',message:{content:'{"metrics":[]}'}}]}};},{enablePdfText:true,maxPerMinute:3});
+ const request=(auth='Bearer '+token,payload={...body,temperature:0,max_tokens:2000,messages:[body.messages[0],{role:'user',content:'x'.repeat(5000)}]})=>fetch(active.base+'/v1/sigapro/pdf-text',{method:'POST',headers:{Authorization:auth,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+ assert.equal((await request('Bearer wrong')).status,401);
+ assert.equal((await request()).status,200);
+ assert.equal((await request('Bearer '+token,{...body,temperature:0,max_tokens:2001})).status,400);
+ assert.equal(count,1);
+ const truncated=await setup(t,()=>({body:{choices:[{finish_reason:'length',message:{content:'{}'}}]}}),{enablePdfText:true});
+ assert.equal((await fetch(truncated.base+'/v1/sigapro/pdf-text',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({...body,temperature:0})})).status,502);
+});

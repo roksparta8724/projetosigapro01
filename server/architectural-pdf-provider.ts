@@ -8,9 +8,11 @@ import { extractNativeSelectablePdfPages } from "./native-architectural-pdf.js";
 import {parseOnePdfReadingJson} from "../src/lib/aiStructuredJson.js";
 import { URBAN_METRICS } from "../src/lib/urbanPrecheck.js";
 import { resolveCloudflareAiConfig } from "./cloudflare-ai-provider.js";
+import {resolvePrivatePdfTextProvider,extractPrivatePdfText} from "./private-pdf-text-provider.js";
 
 export type VisualPdfProvider = {
-  kind: "claude" | "openai" | "cloudflare" | "gemini";
+  kind: "claude" | "openai" | "cloudflare" | "gemini" | "private";
+  endpoint?: string;
   accountId?: string;
   key: string;
   model: string;
@@ -26,12 +28,13 @@ export function resolveVisualPdfProvider(
   get: (name: string) => string,
   // Preview-only opt-in selected by the authenticated user. Never used as a
   // silent billing fallback; the calling endpoint must enforce consent and scope.
-  requestedMode?: "cloudflare_text" | "openai_visual" | "gemini_qa",
+  requestedMode?: "cloudflare_text" | "openai_visual" | "gemini_qa" | "private_text",
 ): VisualPdfAvailability {
   if (get("SIGAPRO_AI_PDF_EXTERNAL_POLICY").trim().toLowerCase() === "local_only") {
     return {enabled:false,provider:null,message:"Política sem custo externo: Leitura Local disponível. Nenhum documento será enviado a uma API de IA."};
   }
-  const explicitPdfProvider = requestedMode === "cloudflare_text"
+  const explicitPdfProvider = requestedMode === "private_text"
+    ? "private" : requestedMode === "cloudflare_text"
     ? "cloudflare" : requestedMode === "openai_visual"
       ? "openai" : requestedMode === "gemini_qa"
         ? "gemini" : get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase();
@@ -43,6 +46,12 @@ export function resolveVisualPdfProvider(
   const openaiKey = get("OPENAI_API_KEY");
   if (enabledSetting === "false") return {enabled:false,provider:null,
     message:"Leitura visual desativada explicitamente neste ambiente."};
+  // The assistant's private gateway never silently becomes a PDF provider.
+  if(configuredProvider==="private"){
+    const config=get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase()==="private"?resolvePrivatePdfTextProvider(get):null;
+    return config?{enabled:true,provider:config,message:"Leitura documental pelo servidor configurado; sem análise geométrica."}:
+      {enabled:false,provider:null,message:"Servidor de leitura documental ainda não configurado. Use Leitura Local."};
+  }
   // Isolated free-tier experiment: never selected implicitly and never
   // available in Production, even with the preview credential present.
   if(requestedMode==="gemini_qa"){
@@ -360,8 +369,9 @@ export async function extractVisualPdf(
 ): Promise<DrawingExtraction> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 51000);
-  const encoded = provider.kind === "cloudflare" ? "" : Buffer.from(bytes).toString("base64");
+  const encoded = provider.kind === "cloudflare" || provider.kind === "private" ? "" : Buffer.from(bytes).toString("base64");
   try {
+    if(provider.kind==="private")return await extractPrivatePdfText(bytes,provider,controller.signal);
     if(provider.kind==="cloudflare")return await extractCloudflarePdf(bytes,fileName,provider,controller.signal);
     if(provider.kind==="gemini"){
       // Native PDF vision. Do not call Files API (which would retain an uploaded
