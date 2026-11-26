@@ -8,6 +8,16 @@ function env(vars:Record<string,string>){
 }
 afterEach(()=>vi.unstubAllGlobals());
 describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
+  it("enforces local-only policy before every external provider, even explicit requests",()=>{
+    const config=env({SIGAPRO_AI_PDF_EXTERNAL_POLICY:"local_only",SIGAPRO_AI_PDF_ENABLED:"true",ANTHROPIC_API_KEY:KEY,OPENAI_API_KEY:KEY,SIGAPRO_CF_ACCOUNT_ID:"a".repeat(32),SIGAPRO_CF_API_TOKEN:KEY,SIGAPRO_GEMINI_QA_ENABLED:"true",SIGAPRO_GEMINI_QA_API_KEY:KEY});
+    for(const mode of [undefined,"cloudflare_text","openai_visual","gemini_qa"] as const){
+      expect(resolveVisualPdfProvider(config,mode).enabled).toBe(false);
+    }
+  });
+  it("honors the explicit Cloudflare PDF provider instead of falling through to a paid model",()=>{
+    const cfg=resolveVisualPdfProvider(env({SIGAPRO_AI_PDF_PROVIDER:"cloudflare",SIGAPRO_CF_ACCOUNT_ID:"a".repeat(32),SIGAPRO_CF_API_TOKEN:KEY,ANTHROPIC_API_KEY:KEY}));
+    expect(cfg.enabled&&cfg.provider.kind).toBe("cloudflare");
+  });
   it("reuses explicitly selected Claude without requiring an OpenAI key",()=>{
     const provider=resolveVisualPdfProvider(env({
       SIGAPRO_AI_PROVIDER:"claude", ANTHROPIC_API_KEY:KEY,

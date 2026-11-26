@@ -28,6 +28,9 @@ export function resolveVisualPdfProvider(
   // silent billing fallback; the calling endpoint must enforce consent and scope.
   requestedMode?: "cloudflare_text" | "openai_visual" | "gemini_qa",
 ): VisualPdfAvailability {
+  if (get("SIGAPRO_AI_PDF_EXTERNAL_POLICY").trim().toLowerCase() === "local_only") {
+    return {enabled:false,provider:null,message:"Política sem custo externo: Leitura Local disponível. Nenhum documento será enviado a uma API de IA."};
+  }
   const explicitPdfProvider = requestedMode === "cloudflare_text"
     ? "cloudflare" : requestedMode === "openai_visual"
       ? "openai" : requestedMode === "gemini_qa"
@@ -52,7 +55,7 @@ export function resolveVisualPdfProvider(
   }
   // Reuse the user's existing Cloudflare account and Workers AI REST token.
   // R2 access keys are NEVER used to authenticate Workers AI.
-  if (configuredProvider === "cloudflare" && (!explicitPdfProvider || requestedMode === "cloudflare_text")) {
+  if (configuredProvider === "cloudflare") {
     const config=resolveCloudflareAiConfig({
       accountId:get("SIGAPRO_CF_ACCOUNT_ID"),
       token:get("SIGAPRO_CF_API_TOKEN"),
