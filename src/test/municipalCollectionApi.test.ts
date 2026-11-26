@@ -82,6 +82,15 @@ describe("municipal collection session -> API -> bank/provider", () => {
       .rejects.toBeInstanceOf(MunicipalCollectionRequestError);
   });
 
+  it("does not permit payload fields to override the selected municipality or action",async()=>{
+    const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue({ok:true,status:200,json:async()=>({status:"configured"})} as Response);
+    await municipalCollectionApiRequest("payment-connection",municipalityId,"get",{municipalityId:"other",action:"activate"});
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({municipalityId,action:"get"});
+  });
+  it("rejects an HTTP success that contains no confirmed JSON response",async()=>{
+    vi.spyOn(globalThis,"fetch").mockResolvedValue({ok:true,status:200,json:async()=>{throw Error("invalid JSON")}} as unknown as Response);
+    await expect(municipalCollectionApiRequest("payment-connection",municipalityId,"save")).rejects.toMatchObject({status:502});
+  });
   it("rejects invalid municipality IDs before fetching or obtaining a token", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
     await expect(municipalCollectionApiRequest("collection-configuration", "other-municipality", "bank_get"))
