@@ -17,3 +17,28 @@ export function suggestMunicipalUnitCode(name:string,unitType:string,existing:re
  for(let i=2;i<=9999;i++){const suffix=String(i),candidate=base.slice(0,8-suffix.length)+suffix;if(!used.has(candidate))return candidate;}
  return "";
 }
+
+/** The persisted base type retains existing scoped authority rules. The explicit
+ * editor subtype is represented by the canonical adjunct designation in the name.
+ * Merely choosing an adjunct type never grants a competence or a staff role. */
+export function municipalUnitEditorType(name:string,unitType:string){
+ return isAdjunctUnit(name)&&unitType==="secretaria"?"secretaria_adjunta":isAdjunctUnit(name)&&unitType==="diretoria"?"diretoria_adjunta":unitType;
+}
+export function changeMunicipalUnitEditorType(name:string,oldType:string,nextType:string,parentName=""){
+ const adjunct=nextType==="secretaria_adjunta"||nextType==="diretoria_adjunta";
+ const unitType=nextType==="secretaria_adjunta"?"secretaria":nextType==="diretoria_adjunta"?"diretoria":nextType;
+ const previous=municipalUnitEditorType(name,oldType);
+ if(previous===nextType)return {name,unitType};
+ if(adjunct){
+  const subject=name.trim().replace(/^(secretaria|secretári[oa]|secretari[oa]|diretoria|diretor[a]?)[\s-]*(adjunt[oa])?[\s-]*(de|da|do|das|dos)?\s*/i,"").trim();
+  const parentSubject=parentName.trim().replace(/^(secretaria|diretoria)(?:\s+(?:de|da|do|das|dos))?\s+/i,"");
+  const base=subject||parentSubject;
+  return {unitType,name:(unitType==="secretaria"?"Secretaria Adjunta":"Diretoria Adjunta")+(base?" de "+base:" de ")};
+ }
+ if(previous.endsWith("_adjunta")){
+  const subject=name.replace(/^(secretaria|secretári[oa]|secretari[oa]|diretoria|diretor[a]?)[\s-]*adjunt[oa][\s-]*(de|da|do|das|dos)?\s*/i,"").trim();
+  const label=unitType==="secretaria"?"Secretaria":unitType==="diretoria"?"Diretoria":"";
+  return {unitType,name:label?label+(subject?" de "+subject:" de "):subject};
+ }
+ return {name,unitType};
+}

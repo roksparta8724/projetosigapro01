@@ -98,7 +98,8 @@ function UnitNode({
 }) {
   const acronym = getDepartmentAcronym(department);
   const baseIdentity = getInstitutionalUnitIdentity(department.unitType);
-  const identity = isAdjunctUnit(department.name) && ["secretaria","diretoria"].includes(department.unitType) ? {...baseIdentity,short:department.unitType==="secretaria"?"SAD":"DAD",label:baseIdentity.label+" adjunta"} : baseIdentity;
+  const adjunct = isAdjunctUnit(department.name) && ["secretaria","diretoria"].includes(department.unitType);
+  const identity = adjunct ? {...baseIdentity,short:department.unitType==="secretaria"?"SAD":"DAD",label:baseIdentity.label+" adjunta",iconTone:"border-violet-200 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-200"} : baseIdentity;
   const children = allDepartments.filter(
     (item) => item.parentDepartmentId === department.id,
   );
@@ -109,6 +110,7 @@ function UnitNode({
       data-organogram-node="true"
       data-organogram-root={isRoot ? "true" : "false"}
       data-unit-type={(department.unitType || "unidade").toLocaleLowerCase("pt-BR")}
+      data-unit-adjunct={adjunct ? "true" : "false"}
       className={cn(
         "relative overflow-hidden border transition-shadow",
         isRoot
@@ -119,7 +121,7 @@ function UnitNode({
       <div
         className={cn(
           "absolute inset-y-0 left-0",
-          isRoot ? "w-1.5 bg-[linear-gradient(180deg,#0b5f8a_0%,#14b8a6_100%)]" : "w-1 bg-slate-300 dark:bg-slate-600",
+          isRoot ? "w-1.5 bg-[linear-gradient(180deg,#0b5f8a_0%,#14b8a6_100%)]" : adjunct ? "w-1 bg-violet-500 dark:bg-violet-400" : "w-1 bg-slate-300 dark:bg-slate-600",
         )}
         aria-hidden="true"
       />
@@ -171,7 +173,7 @@ function UnitNode({
             <p
               data-organogram-name="true"
               className={cn(
-                "mt-0.5 truncate text-slate-500 dark:text-slate-300",
+                "mt-0.5 break-words text-slate-500 dark:text-slate-300",
                 isRoot ? "text-[13px]" : "text-[12px]",
               )}
               title={department.name}
@@ -235,7 +237,8 @@ export function MunicipalOrganizationChart({
       (a, b) =>
         a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR"),
     );
-  const roots = active.filter((item) => !item.parentDepartmentId);
+  const activeIds = new Set(active.map(item=>item.id));
+  const roots = active.filter((item) => !item.parentDepartmentId || !activeIds.has(item.parentDepartmentId));
 
   if (active.length === 0) {
     return (

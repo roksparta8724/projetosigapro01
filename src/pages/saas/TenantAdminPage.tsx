@@ -34,7 +34,7 @@ import {MunicipalIdentityPrefix} from "@/components/platform/MunicipalIdentityPr
 import {useMunicipalIdentityBadges} from "@/hooks/useMunicipalAuthority";
 import {MunicipalAuthorityDesignationsEditor} from "@/components/platform/MunicipalAuthorityDesignationsEditor";
 import {authorityUnitPresets} from "@/lib/municipalAuthorityDesignations";
-import { adjunctUnitTemplates, suggestMunicipalUnitCode } from "@/lib/municipalUnitCodes";
+import { adjunctUnitTemplates, suggestMunicipalUnitCode, municipalUnitEditorType, changeMunicipalUnitEditorType } from "@/lib/municipalUnitCodes";
 import { isSwitchableMunicipalStaffRole } from "@/lib/municipalStaffAssignments";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
@@ -1644,7 +1644,7 @@ export function TenantAdminPage() {
                   <div className="space-y-2">
                     <Label>Sigla {orgForm.code.trim()?"(manual)":"(automática)"}</Label>
                     <Input value={orgForm.code} onChange={(event) => setOrgForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))} placeholder={suggestedOrgCode || "Automática"} maxLength={8} />
-                    <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{orgForm.code.trim()?"Limpe o campo para gerar automaticamente.":suggestedOrgCode?"Prévia: "+suggestedOrgCode+" · confirmada ao salvar.":"A sigla será gerada pelo nome e tipo."}</p>
+                    <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{orgForm.code.trim()?"Sigla atual preservada.":suggestedOrgCode?"Prévia: "+suggestedOrgCode+" · confirmada ao salvar.":"A sigla será gerada pelo nome e tipo."}</p>{orgForm.code.trim()?<Button type="button" variant="outline" size="sm" disabled={orgBusy} className="h-8 rounded-lg dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" onClick={()=>setOrgForm(current=>({...current,code:""}))}>Gerar sigla automática</Button>:null}</div>
                   </div>
                   <div className="space-y-2">
                     <Label>Nome da unidade</Label>
@@ -1652,11 +1652,13 @@ export function TenantAdminPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Tipo</Label>
-                    <Select value={orgForm.unitType} onValueChange={(value) => setOrgForm((current) => ({ ...current, unitType: value }))}>
+                    <Select value={municipalUnitEditorType(orgForm.name,orgForm.unitType)} onValueChange={(value) => setOrgForm(current=>({...current,...changeMunicipalUnitEditorType(current.name,current.unitType,value,departments.find(d=>d.id===current.parentDepartmentId)?.name),code:""}))}>
                       <SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="secretaria">Secretaria</SelectItem>
-                        <SelectItem value="diretoria">Diretoria</SelectItem>
+                        <SelectItem value="secretaria">Secretaria titular</SelectItem>
+                        <SelectItem value="secretaria_adjunta">Secretaria adjunta</SelectItem>
+                        <SelectItem value="diretoria">Diretoria titular</SelectItem>
+                        <SelectItem value="diretoria_adjunta">Diretoria adjunta</SelectItem>
                         <SelectItem value="departamento">Departamento</SelectItem>
                         <SelectItem value="setor">Setor</SelectItem>
                         <SelectItem value="coordenadoria">Coordenadoria</SelectItem>

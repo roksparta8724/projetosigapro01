@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Network, PencilLine, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
-import { adjunctUnitTemplates, suggestMunicipalUnitCode } from "@/lib/municipalUnitCodes";
+import { adjunctUnitTemplates, suggestMunicipalUnitCode, municipalUnitEditorType, changeMunicipalUnitEditorType } from "@/lib/municipalUnitCodes";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { PageShell } from "@/components/platform/PageShell";
 import { TableCard } from "@/components/platform/TableCard";
@@ -17,8 +17,10 @@ import {
 } from "@/integrations/backend/platform";
 
 const UNIT_TYPES = [
-  ["secretaria", "Secretaria"],
-  ["diretoria", "Diretoria"],
+  ["secretaria", "Secretaria titular"],
+  ["secretaria_adjunta", "Secretaria adjunta"],
+  ["diretoria", "Diretoria titular"],
+  ["diretoria_adjunta", "Diretoria adjunta"],
   ["departamento", "Departamento"],
   ["coordenadoria", "Coordenadoria"],
   ["setor", "Setor"],
@@ -409,7 +411,7 @@ export function MunicipalOrganizationPage() {
                   maxLength={8}
                   className="h-11 rounded-xl uppercase"
                 />
-                <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{editor.code.trim() ? "Limpe o campo para gerar a sigla novamente." : suggestedCode ? "Prévia: "+suggestedCode+" · confirmada ao salvar." : "A sigla será gerada a partir do nome e tipo."}</p>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2"><p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{editor.code.trim() ? "Sigla atual preservada até você solicitar nova geração." : suggestedCode ? "Prévia: "+suggestedCode+" · confirmada ao salvar." : "A sigla será gerada a partir do nome e tipo."}</p>{editor.code.trim()?<Button type="button" variant="outline" size="sm" disabled={savingUnit} className="h-8 rounded-lg dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" onClick={()=>setEditor(current=>({...current,code:""}))}>Gerar sigla automática</Button>:null}</div>
               </div>
 
               <div>
@@ -417,10 +419,8 @@ export function MunicipalOrganizationPage() {
                   Tipo
                 </p>
                 <Select
-                  value={editor.unitType}
-                  onValueChange={(value) =>
-                    setEditor((current) => ({ ...current, unitType: value }))
-                  }
+                  value={municipalUnitEditorType(editor.name,editor.unitType)}
+                  onValueChange={(value) => setEditor(current=>({...current,...changeMunicipalUnitEditorType(current.name,current.unitType,value,departments.find(d=>d.id===current.parentDepartmentId)?.name),code:""}))}
                 >
                   <SelectTrigger className="h-11 rounded-xl bg-white">
                     <SelectValue />
@@ -465,7 +465,7 @@ export function MunicipalOrganizationPage() {
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  Ordem
+                  Posição na unidade superior (opcional)
                 </p>
                 <Input
                   type="number"
@@ -478,6 +478,7 @@ export function MunicipalOrganizationPage() {
                   }
                   className="h-11 rounded-xl"
                 />
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Preenchida automaticamente. Menor número aparece primeiro; não altera a hierarquia.</p>
               </div>
 
               <div>
