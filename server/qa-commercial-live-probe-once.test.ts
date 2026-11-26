@@ -59,6 +59,8 @@ describe("Isolated real commercial integration evidence",()=>{
   const key="sigapro-qa-e2e-disposable/"+randomUUID()+"/synthetic-architecture-"+sha+".pdf";
   const s3=new S3Client({region:"auto",endpoint,maxAttempts:1,credentials:{accessKeyId,secretAccessKey}});
   let created=false;
+  let failure:Error|undefined;
+  let cleanupFailure=false;
   try{
    await s3.send(new PutObjectCommand({Bucket:bucket,Key:key,Body:bytes,ContentType:"application/pdf",IfNoneMatch:"*",Metadata:{sha256:sha,qaonly:"true"}}),{abortSignal:AbortSignal.timeout(10000)});
    created=true;
@@ -74,22 +76,24 @@ describe("Isolated real commercial integration evidence",()=>{
    expect(report.total).toBe(3);expect(report.passed).toBe(3);expect(reading.automaticallyApproved).toBe(false);
    emit("native_pdf_reader","PASS_THREE_MEASUREMENTS_FROM_R2");
   }catch(error){
-   emit("new_r2_pdf","FAIL_ROUNDTRIP");throw Error(error instanceof Error&&error.message==="QA_R2_BYTE_MISMATCH"?"QA_R2_BYTE_MISMATCH":"QA_R2_ROUNDTRIP_FAILED");
+   emit("new_r2_pdf","FAIL_ROUNDTRIP");failure=Error(error instanceof Error&&error.message==="QA_R2_BYTE_MISMATCH"?"QA_R2_BYTE_MISMATCH":"QA_R2_ROUNDTRIP_FAILED");
   }finally{
    try{
     if(created){
      await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:key}),{abortSignal:AbortSignal.timeout(10000)});
      try{
       await s3.send(new HeadObjectCommand({Bucket:bucket,Key:key}),{abortSignal:AbortSignal.timeout(10000)});
-      throw Error("QA_R2_DISPOSABLE_NOT_DELETED");
+      cleanupFailure=true;
      }catch(error){
       const e=error as {name?:string;$metadata?:{httpStatusCode?:number}};
-      if(e.$metadata?.httpStatusCode!==404&&!["NotFound","NoSuchKey"].includes(String(e.name)))throw Error("QA_R2_DISPOSABLE_CLEANUP_NOT_VERIFIED");
+      if(e.$metadata?.httpStatusCode!==404&&!["NotFound","NoSuchKey"].includes(String(e.name)))cleanupFailure=true;
      }
-     emit("new_r2_pdf_cleanup","PASS");
+     emit("new_r2_pdf_cleanup",cleanupFailure?"FAIL":"PASS");
     }
-   }finally{s3.destroy();}
+   }catch{cleanupFailure=true;emit("new_r2_pdf_cleanup","FAIL");}finally{s3.destroy();}
   }
+  if(cleanupFailure)throw Error("QA_R2_DISPOSABLE_CLEANUP_NOT_VERIFIED");
+  if(failure)throw failure;
  },65000);
  (enabled?it:it.skip)("makes one visual inference on artificial architectural plan only",async()=>{
   const resolved=resolveVisualPdfProvider(get);
