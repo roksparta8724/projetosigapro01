@@ -1,7 +1,8 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { collectCompleteScopedRows } from "@/lib/completeScopedRows";
-import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments } from "@/lib/municipalStaffAssignments";
+import {parseMunicipalStaffStoreBatch,type MunicipalStaffStoreBatch} from "@/lib/municipalStaffStoreBatch";
+import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments, type MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
 import { parseVerifiedMunicipalUserRegistry, reconcileVerifiedMunicipalUsers } from "@/lib/municipalUserRegistry";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
@@ -491,10 +492,22 @@ async function completeMunicipalityCatalog(firstResponse: {
   throw new Error("A carteira excedeu a capacidade segura da leitura em páginas. Use busca paginada do servidor.");
 }
 
-export async function loadRemotePlatformStore(focusProcessRouteKey?: string | null) {
+export async function loadRemotePlatformStore(focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment) {
   if (!db) {
     throw new Error("Banco oficial indisponível.");
   }
+
+  // Batch exclusively for an authorized switch. Normal paginated queries
+  // remain the fallback. Never reuse previous department data.
+  let switchBatch:MunicipalStaffStoreBatch|null=null;
+  if(isNeonBackend && expectedAssignment && !focusProcessRouteKey){
+    try{
+      const result=await db.rpc("municipal_staff_store_batch_v1",{_assignment_id:expectedAssignment.id});
+      if(!result.error)switchBatch=parseMunicipalStaffStoreBatch(result.data,expectedAssignment);
+    }catch{ /* fall back to original scoped reads */ }
+  }
+  const readSwitchRows=(key:keyof MunicipalStaffStoreBatch,load:()=>PromiseLike<unknown>)=>
+    switchBatch ? Promise.resolve({data:switchBatch[key],error:null}) : load();
 
   const [
     tenantsResult,
@@ -540,39 +553,39 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
       : db.from("tenant_settings").select("*"),
-    db.from("municipalities").select("*").order("created_at", { ascending: false }).order("id", { ascending: false }),
-    loadCompleteScopedRows(() => db.from("municipality_branding").select("*")),
-    loadCompleteScopedRows(() => db.from("municipality_settings").select("*")),
-    loadCompleteScopedRows(() => db.from("profiles").select("*")),
-    loadCompleteScopedRows(() => db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null)),
-    db.from("roles").select("*"),
-    db.from("departments").select("*"),
-    loadProcessRowsForStore(focusProcessRouteKey),
+    readSwitchRows("municipalities",()=>db.from("municipalities").select("*").order("created_at", { ascending: false }).order("id", { ascending: false })),
+    readSwitchRows("municipality_branding",()=>loadCompleteScopedRows(() => db.from("municipality_branding").select("*"))),
+    readSwitchRows("municipality_settings",()=>loadCompleteScopedRows(() => db.from("municipality_settings").select("*"))),
+    readSwitchRows("profiles",()=>loadCompleteScopedRows(() => db.from("profiles").select("*"))),
+    readSwitchRows("tenant_memberships",()=>loadCompleteScopedRows(() => db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null))),
+    readSwitchRows("roles",()=>db.from("roles").select("*")),
+    readSwitchRows("departments",()=>db.from("departments").select("*")),
+    readSwitchRows("processes",()=>loadProcessRowsForStore(focusProcessRouteKey)),
     // A tabela interna do Alvará é RPC-only no Neon. Não faça SELECT
     // direto no bootstrap global, porque o papel authenticated não possui
     // permissão por desenho de segurança.
     Promise.resolve({ data: [], error: null }),
-    loadCompleteScopedRows(() => db.from("properties").select("*")),
+    readSwitchRows("properties",()=>loadCompleteScopedRows(() => db.from("properties").select("*"))),
     isNeonBackend
-      ? loadCompleteScopedRows(() => db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false }))
+      ? readSwitchRows("payment_guides",()=>loadCompleteScopedRows(() => db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })))
       : loadCompleteScopedRows(() => db.from("payment_guides").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("process_parties").select("*")),
+    readSwitchRows("process_parties",()=>loadCompleteScopedRows(() => db.from("process_parties").select("*"))),
     isNeonBackend
       ? db.rpc("list_visible_process_party_private_data_v1")
       : Promise.resolve({ data: [], error: null }),
-    loadCompleteScopedRows(() => db.from("process_documents").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("process_requirements").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("process_audit_entries").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("process_reopen_history").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("process_movements").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("process_messages").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("process_markers").select("*").order("created_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("project_owner_requests").select("*").order("requested_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("project_owner_links").select("*").order("linked_at", { ascending: false })),
-    loadCompleteScopedRows(() => db.from("owner_professional_messages").select("*").order("created_at", { ascending: false })),
-    db.from("plans").select("*"),
-    loadCompleteScopedRows(() => db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false })),
+    readSwitchRows("process_documents",()=>loadCompleteScopedRows(() => db.from("process_documents").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_requirements",()=>loadCompleteScopedRows(() => db.from("process_requirements").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_audit_entries",()=>loadCompleteScopedRows(() => db.from("process_audit_entries").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_reopen_history",()=>loadCompleteScopedRows(() => db.from("process_reopen_history").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_movements",()=>loadCompleteScopedRows(() => db.from("process_movements").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("interdepartmental_dispatches",()=>loadCompleteScopedRows(() => db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_messages",()=>loadCompleteScopedRows(() => db.from("process_messages").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_markers",()=>loadCompleteScopedRows(() => db.from("process_markers").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("project_owner_requests",()=>loadCompleteScopedRows(() => db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }))),
+    readSwitchRows("project_owner_links",()=>loadCompleteScopedRows(() => db.from("project_owner_links").select("*").order("linked_at", { ascending: false }))),
+    readSwitchRows("owner_professional_messages",()=>loadCompleteScopedRows(() => db.from("owner_professional_messages").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("plans",()=>db.from("plans").select("*")),
+    readSwitchRows("client_plan_assignments",()=>loadCompleteScopedRows(() => db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }))),
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
       : Promise.resolve({ data: [], error: null }),
