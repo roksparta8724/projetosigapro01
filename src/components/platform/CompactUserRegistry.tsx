@@ -2,6 +2,8 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { accessLevelLabels, roleLabels, type SessionUser, type UserProfile } from "@/lib/platform";
+import {MunicipalIdentityPrefix} from "@/components/platform/MunicipalIdentityPrefix";
+import type {MunicipalIdentityBadge} from "@/lib/municipalAuthorityDesignations";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
@@ -26,13 +28,14 @@ export type CompactUserRegistryProps = {
   renderDetails: (user: SessionUser) => ReactNode;
   /** Read from the municipality-scoped profile store, never invent a photo. */
   getAvatarProfile?: (user: SessionUser) => UserProfile | null;
+  identityBadges?: ReadonlyMap<string,MunicipalIdentityBadge>;
   filterKey?: string;
   pageSize?: number;
   label?: string;
 };
 
 export function CompactUserRegistry({
-  users, page, onPageChange, renderDetails, getAvatarProfile, filterKey = "", pageSize = 20,
+  users, page, onPageChange, renderDetails, getAvatarProfile, identityBadges, filterKey = "", pageSize = 20,
   label = "Cadastro de usuários",
 }: CompactUserRegistryProps) {
   const { isAuthenticated, authResolved, authenticatedUserId, authenticatedProfileId } = useAuthGateway();
@@ -106,7 +109,7 @@ export function CompactUserRegistry({
                             fallbackClassName="!bg-slate-100 !text-slate-700"
                           />
                           <div className="min-w-0">
-                            <p className="truncate font-semibold text-slate-950" title={user.name}>{user.name || "Usuário"}</p>
+                            <div className="flex min-w-0 items-center gap-1.5"><MunicipalIdentityPrefix badge={identityBadges?.get(user.id)}/><p className="min-w-0 truncate font-semibold text-slate-950 dark:text-slate-100" title={user.name}>{user.name || "Usuário"}</p></div>
                             <p className="truncate text-xs text-slate-500" title={user.email}>{user.email || "E-mail não informado"}</p>
                           </div>
                         </div>

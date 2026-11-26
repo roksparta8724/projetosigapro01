@@ -962,12 +962,12 @@ function isAuthError(error: unknown) {
   return status === 401 || status === 403;
 }
 
-async function loadRemotePlatformStoreWithRetry(focusProcessRouteKey?: string | null, maxAttempts = 3) {
+async function loadRemotePlatformStoreWithRetry(focusProcessRouteKey?: string | null, maxAttempts = 3, expectedAssignment?: MunicipalStaffAssignment) {
   let lastError: unknown = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await loadRemotePlatformStore(focusProcessRouteKey);
+      return await loadRemotePlatformStore(focusProcessRouteKey, expectedAssignment);
     } catch (error) {
       lastError = error;
       if (isAuthError(error) || attempt >= maxAttempts) {
@@ -1365,7 +1365,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         // Read the scoped store and confirm the active lotation in parallel. Do not
         // publish any data until both checks have completed successfully.
         const [remote] = await Promise.all([
-          loadRemotePlatformStoreWithRetry(focusProcessRouteKey, expectedAssignment ? 1 : 3),
+          loadRemotePlatformStoreWithRetry(focusProcessRouteKey, expectedAssignment ? 1 : 3, expectedAssignment),
           confirmAssignment?.() ?? Promise.resolve(),
         ]);
         // Never apply a late response from a previously signed-in account.

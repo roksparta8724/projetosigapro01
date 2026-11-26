@@ -1,4 +1,7 @@
+import { ExternalCertificateSigningOptions } from "@/components/platform/ExternalCertificateSigningOptions";
 import { useEffect, useMemo, useState } from "react";
+import {useMunicipalAuthorityCapabilities} from "@/hooks/useMunicipalAuthority";
+import {isNeonBackend} from "@/integrations/backend/config";
 import {
   BadgeCheck,
   Building2,
@@ -155,6 +158,7 @@ export function ConstructionPermitPanel({
       technicalProfile?.registrationNumber ||
       "",
   }));
+  const authority=useMunicipalAuthorityCapabilities(process.id,session.id,session.role+":"+session.department,!externalView&&isNeonBackend);
   const directors = useMemo(
     () => getMunicipalDirectorCandidates(sessionUsers, municipalityId),
     [municipalityId, sessionUsers],
@@ -337,12 +341,12 @@ export function ConstructionPermitPanel({
     directorRequestPending &&
     !directorOfficial &&
     !externalView &&
-    userCanSignPermitAsDirector(session);
+    (isNeonBackend?authority.director:userCanSignPermitAsDirector(session));
   const canSignSecretary =
     directorOfficial &&
     !secretaryOfficial &&
     !externalView &&
-    userCanSignPermitAsSecretary(session);
+    (isNeonBackend?authority.secretary:userCanSignPermitAsSecretary(session));
   const canPreview = Boolean(
     permit &&
     (directorOfficial || manualSignatureSelected),
@@ -1137,7 +1141,7 @@ export function ConstructionPermitPanel({
                     </div>
                     {!directorOfficial &&
                     directorRequestPending &&
-                    userCanSignPermitAsDirector(session) ? (
+                    (isNeonBackend?authority.director:userCanSignPermitAsDirector(session)) ? (
                       <Button
                         type="button"
                         data-premium-action="strong"
@@ -1254,9 +1258,9 @@ export function ConstructionPermitPanel({
                             Um PDF manual já foi preparado, mas o Analista ainda pode mudar para assinatura eletrônica. Ao solicitar abaixo, o modo manual é cancelado e o Alvará passa para a fila da Diretoria.
                           </p>
                         ) : null}
-                        {directors.length > 0 ? (
+                        {(isNeonBackend?authority.directorNames.length:directors.length) > 0 ? (
                           <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                            Diretoria identificada: {directors.map((director) => director.name).join(", ")}.
+                            Diretoria identificada: {(isNeonBackend?authority.directorNames:directors.map((director)=>director.name)).join(", ")}.
                           </p>
                         ) : (
                           <p className="mt-2 text-xs font-semibold text-sky-700 dark:text-sky-300">
@@ -1673,13 +1677,14 @@ export function ConstructionPermitPanel({
                           : "Assinatura da Secretaria"}
                       </DialogTitle>
                       <DialogDescription className="mt-1 !text-slate-200">
-                        Confirme com sua senha de acesso. O SIGAPRO registrará a identidade, data, código de verificação e SHA-256 da versão assinada.
+                        Na modalidade interna, confirme com sua senha. O SIGAPRO registrará identidade, data, código de verificação e SHA-256 da versão. Essa modalidade não é um certificado GOV.BR ou ICP-Brasil.
                       </DialogDescription>
                     </div>
                   </div>
                 </DialogHeader>
 
-                <div className="space-y-4 px-6 py-5">
+                <div className="max-h-[55dvh] space-y-4 overflow-y-auto px-6 py-5">
+                  <ExternalCertificateSigningOptions disabled={signatureBusy} />
                   <div>
                     <label className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
                       Senha de acesso

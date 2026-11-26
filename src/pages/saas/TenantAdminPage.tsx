@@ -30,6 +30,10 @@ import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
 import { MunicipalStaffAssignmentsEditor } from "@/components/platform/MunicipalStaffAssignmentsEditor";
+import {MunicipalIdentityPrefix} from "@/components/platform/MunicipalIdentityPrefix";
+import {useMunicipalIdentityBadges} from "@/hooks/useMunicipalAuthority";
+import {MunicipalAuthorityDesignationsEditor} from "@/components/platform/MunicipalAuthorityDesignationsEditor";
+import {authorityUnitPresets} from "@/lib/municipalAuthorityDesignations";
 import { isSwitchableMunicipalStaffRole } from "@/lib/municipalStaffAssignments";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
@@ -230,7 +234,7 @@ function applyMunicipalDepartmentSelection<
       nextRole === "prefeitura_admin"
         ? "3"
         : nextRole === "prefeitura_supervisor"
-          ? "2"
+          ? (current.accessLevel === "3" ? "3" : "2")
           : current.accessLevel || "1",
   };
 }
@@ -519,6 +523,8 @@ export function TenantAdminPage() {
     });
   }, [roleFilter, search, segment, statusFilter, tenantUsers]);
 
+  const visibleIdentityIds=useMemo(()=>session.role==="prefeitura_admin"&&workspaceView==="usuarios"?paginateMunicipalItems(filteredUsers,userPage,20).items.map(user=>user.id):[],[filteredUsers,userPage,session.role,workspaceView]);
+  const identityBadges=useMunicipalIdentityBadges(effectiveScopeId||"",session.id,visibleIdentityIds,String(municipalRegistryRefresh));
   const metrics = useMemo(() => ({ protocolsInProgress: tenantProcesses.filter((process) => !isAdministrativelyClosed(process)).length, inAnalysis: tenantProcesses.filter(isVerifiedTechnicalAnalysis).length, pendingPayments: tenantProcesses.filter((process) => hasPendingGuide(process)).length, approved: tenantProcesses.filter((process) => process.status === "deferido").length }), [tenantProcesses, tenantSettings]);
   const inconsistentTriageCount = useMemo(() =>
     tenantProcesses.filter(hasPrematureAnalysisStage).length, [tenantProcesses]);
@@ -654,7 +660,7 @@ export function TenantAdminPage() {
       const updated = await updateTenantUser(userId, {
         name: normalizedName,
         role: resolvedRole,
-        profileLabel: resolvedRole === "profissional_externo" ? editForm.profileLabel : "",
+        profileLabel: ["profissional_externo","prefeitura_supervisor"].includes(resolvedRole) ? editForm.profileLabel : "",
         title: normalizedTitle,
         department: selectedDepartment?.name ?? editForm.department.trim(),
         userType: resolvedRole === "profissional_externo" ? "Profissional externo" : "Funcionário da Prefeitura",
@@ -895,6 +901,7 @@ export function TenantAdminPage() {
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2.5">
+                  <MunicipalIdentityPrefix badge={identityBadges.get(user.id)}/>
                   <p className="sig-fit-title text-lg font-black leading-7 tracking-[-0.015em] text-slate-950">
                     {user.name}
                   </p>
@@ -1032,6 +1039,10 @@ export function TenantAdminPage() {
             </div>
           ) : null}
 
+          {session.role === "prefeitura_admin" && effectiveScopeId && user.id!==session.id &&
+            (isSwitchableMunicipalStaffRole(user.role)||user.role==="prefeitura_supervisor"||user.role==="prefeitura_admin") ? (
+              <MunicipalAuthorityDesignationsEditor key={"authority-"+user.id} municipalityId={effectiveScopeId} profileId={user.id} departments={activeDepartments} supervisor={user.role==="prefeitura_supervisor"} onOrganogram={()=>{setWorkspaceView("organograma");window.scrollTo({top:0,behavior:"instant"});}}/>
+            ) : null}
           {session.role === "prefeitura_admin" && effectiveScopeId &&
             isSwitchableMunicipalStaffRole(user.role) ? (
               <MunicipalStaffAssignmentsEditor
@@ -1040,6 +1051,7 @@ export function TenantAdminPage() {
                 municipalityId={effectiveScopeId}
                 currentDepartment={user.department || ""}
                 departments={activeDepartments}
+                identityBadge={identityBadges.get(user.id)}
                 onChanged={refreshRemoteStore}
               />
             ) : null}
@@ -1591,6 +1603,7 @@ export function TenantAdminPage() {
                   onPageChange={setUserPage}
                   filterKey={[segment, statusFilter, roleFilter, search, effectiveScopeId || ""].join(":")}
                   getAvatarProfile={(user) => getUserProfile(user.id, user.email) ?? null}
+                  identityBadges={identityBadges}
                   renderDetails={renderUserCard}
                   label="Usuários da Prefeitura" />
               </div>
@@ -1623,6 +1636,7 @@ export function TenantAdminPage() {
                 contentClassName="space-y-4"
               >
                 <form className="space-y-4" onSubmit={handleCreateDepartment}>
+                  {!editingDepartmentId && session.role==="prefeitura_admin" ? <div className="space-y-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/30"><Label>Modelos de secretarias e diretorias</Label><Select value="__custom" onValueChange={value=>{const preset=authorityUnitPresets.find(p=>p.code===value);if(preset)setOrgForm(current=>({...current,...preset,parentDepartmentId:""}));}}><SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="__custom">Escolher modelo ou criar unidade própria</SelectItem>{authorityUnitPresets.map(p=><SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-600 dark:text-slate-300">Ajuste o nome, a sigla e a unidade superior antes de salvar. Nenhuma estrutura é criada automaticamente.</p></div>:null}
                   <div className="space-y-2">
                     <Label>Sigla</Label>
                     <Input value={orgForm.code} onChange={(event) => setOrgForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))} placeholder="Ex.: PROT, FIN, ANU" maxLength={8} />
