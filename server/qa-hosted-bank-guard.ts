@@ -1,3 +1,4 @@
+import {currentQaPreview} from "./qa-runtime-scope.js";
 /** Bank sandbox endpoints are allowed ONLY on a named isolated QA branch.
  * Production tokens, the production database and a generic Preview are
  * rejected before any external provider POST. No secrets are logged.
@@ -10,7 +11,7 @@ export function isIsolatedQaBankRuntime(
      env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES==="true" &&
      (!env.VERCEL_ENV||env.VERCEL_ENV==="development"))return true;
   if(env.VERCEL_ENV!=="preview" ||
-     env.VERCEL_GIT_COMMIT_REF!=="fix/qa-triagem-analise-pagamento-20261101")
+     (env.VERCEL_GIT_COMMIT_REF!=="fix/qa-triagem-analise-pagamento-20261101" && !currentQaPreview(env)))
     return false;
   try{
     const db=new URL(String(env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL||""));
@@ -18,14 +19,14 @@ export function isIsolatedQaBankRuntime(
     if(!["postgres:","postgresql:"].includes(db.protocol)||
        api.protocol!=="https:")return false;
     const marker=/^(ep-[a-z0-9-]+)\.apirest\./.exec(api.hostname)?.[1];
-    return Boolean(marker &&
+    return Boolean(marker === "ep-misty-breeze-b4ri8ig0" &&
       db.username==="sigapro_qa_webhook_worker" &&
       db.pathname==="/sigapro_migration_stage_20260923" &&
       (db.searchParams.get("sslmode")==="require"||
        db.searchParams.get("sslmode")==="verify-full") &&
-      (db.hostname.startsWith(marker+".") ||
-       db.hostname.startsWith(marker+"-pooler.")) &&
-      !marker.includes("blue-cloud"));
+      (db.hostname===marker+".c-6.us-east-2.aws.neon.tech" ||
+       db.hostname===marker+"-pooler.c-6.us-east-2.aws.neon.tech") &&
+      !["options","service","host","user"].some(key=>db.searchParams.has(key)));
   }catch{return false;}
 }
 export function assertIsolatedQaBankRuntime(

@@ -10,6 +10,7 @@
  * idempotent signed-receipt evidence.
  */
 import {createHash} from "node:crypto";
+import {currentQaPreview} from "./qa-runtime-scope.js";
 import {createRequire} from "node:module";
 import type {IncomingMessage,ServerResponse} from "node:http";
 import {verifyMercadoPagoOrderWebhook,type MPOrderNotice} from "./mp-webhook-signature.js";
@@ -30,7 +31,7 @@ const requireNode=createRequire(import.meta.url);
 const qaBranch="fix/qa-triagem-analise-pagamento-20261101";
 
 export function isQaMpWebhookEnvironment(env:NodeJS.ProcessEnv=process.env):boolean{
- return env.VERCEL_ENV==="preview" && env.VERCEL_GIT_COMMIT_REF===qaBranch;
+ return env.VERCEL_ENV==="preview" && (env.VERCEL_GIT_COMMIT_REF===qaBranch || currentQaPreview(env));
 }
 
 export function qaMpWebhookDatabaseUrl(env:NodeJS.ProcessEnv=process.env):string {
