@@ -28,7 +28,13 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Tests (full suite, distributed)
-        run: npm test -- --shard=${{ matrix.shard }}/8 --no-file-parallelism --reporter=default
+        shell: bash
+        run: |
+          if [[ "${{ matrix.shard }}" == "4" ]]; then
+            node scripts/qa-isolated-vitest-shard.mjs 4/8
+          else
+            npm test -- --shard=${{ matrix.shard }}/8 --no-file-parallelism --reporter=default
+          fi
 
   quality:
     needs: tests
