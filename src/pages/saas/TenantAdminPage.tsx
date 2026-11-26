@@ -30,6 +30,8 @@ import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
 import { MunicipalStaffAssignmentsEditor } from "@/components/platform/MunicipalStaffAssignmentsEditor";
+import {MunicipalIdentityPrefix} from "@/components/platform/MunicipalIdentityPrefix";
+import {useMunicipalIdentityBadges} from "@/hooks/useMunicipalAuthority";
 import {MunicipalAuthorityDesignationsEditor} from "@/components/platform/MunicipalAuthorityDesignationsEditor";
 import {authorityUnitPresets} from "@/lib/municipalAuthorityDesignations";
 import { isSwitchableMunicipalStaffRole } from "@/lib/municipalStaffAssignments";
@@ -232,7 +234,7 @@ function applyMunicipalDepartmentSelection<
       nextRole === "prefeitura_admin"
         ? "3"
         : nextRole === "prefeitura_supervisor"
-          ? "2"
+          ? (current.accessLevel === "3" ? "3" : "2")
           : current.accessLevel || "1",
   };
 }
@@ -521,6 +523,8 @@ export function TenantAdminPage() {
     });
   }, [roleFilter, search, segment, statusFilter, tenantUsers]);
 
+  const visibleIdentityIds=useMemo(()=>session.role==="prefeitura_admin"&&workspaceView==="usuarios"?paginateMunicipalItems(filteredUsers,userPage,20).items.map(user=>user.id):[],[filteredUsers,userPage,session.role,workspaceView]);
+  const identityBadges=useMunicipalIdentityBadges(effectiveScopeId||"",session.id,visibleIdentityIds,String(municipalRegistryRefresh));
   const metrics = useMemo(() => ({ protocolsInProgress: tenantProcesses.filter((process) => !isAdministrativelyClosed(process)).length, inAnalysis: tenantProcesses.filter(isVerifiedTechnicalAnalysis).length, pendingPayments: tenantProcesses.filter((process) => hasPendingGuide(process)).length, approved: tenantProcesses.filter((process) => process.status === "deferido").length }), [tenantProcesses, tenantSettings]);
   const inconsistentTriageCount = useMemo(() =>
     tenantProcesses.filter(hasPrematureAnalysisStage).length, [tenantProcesses]);
@@ -656,7 +660,7 @@ export function TenantAdminPage() {
       const updated = await updateTenantUser(userId, {
         name: normalizedName,
         role: resolvedRole,
-        profileLabel: resolvedRole === "profissional_externo" ? editForm.profileLabel : "",
+        profileLabel: ["profissional_externo","prefeitura_supervisor"].includes(resolvedRole) ? editForm.profileLabel : "",
         title: normalizedTitle,
         department: selectedDepartment?.name ?? editForm.department.trim(),
         userType: resolvedRole === "profissional_externo" ? "Profissional externo" : "Funcionário da Prefeitura",
@@ -897,6 +901,7 @@ export function TenantAdminPage() {
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2.5">
+                  <MunicipalIdentityPrefix badge={identityBadges.get(user.id)}/>
                   <p className="sig-fit-title text-lg font-black leading-7 tracking-[-0.015em] text-slate-950">
                     {user.name}
                   </p>
@@ -1036,7 +1041,7 @@ export function TenantAdminPage() {
 
           {session.role === "prefeitura_admin" && effectiveScopeId && user.id!==session.id &&
             (isSwitchableMunicipalStaffRole(user.role)||user.role==="prefeitura_supervisor"||user.role==="prefeitura_admin") ? (
-              <MunicipalAuthorityDesignationsEditor key={"authority-"+user.id} municipalityId={effectiveScopeId} profileId={user.id} departments={activeDepartments} onOrganogram={()=>{setWorkspaceView("organograma");window.scrollTo({top:0,behavior:"instant"});}}/>
+              <MunicipalAuthorityDesignationsEditor key={"authority-"+user.id} municipalityId={effectiveScopeId} profileId={user.id} departments={activeDepartments} supervisor={user.role==="prefeitura_supervisor"} onOrganogram={()=>{setWorkspaceView("organograma");window.scrollTo({top:0,behavior:"instant"});}}/>
             ) : null}
           {session.role === "prefeitura_admin" && effectiveScopeId &&
             isSwitchableMunicipalStaffRole(user.role) ? (
@@ -1597,6 +1602,7 @@ export function TenantAdminPage() {
                   onPageChange={setUserPage}
                   filterKey={[segment, statusFilter, roleFilter, search, effectiveScopeId || ""].join(":")}
                   getAvatarProfile={(user) => getUserProfile(user.id, user.email) ?? null}
+                  identityBadges={identityBadges}
                   renderDetails={renderUserCard}
                   label="Usuários da Prefeitura" />
               </div>

@@ -55,6 +55,8 @@ import {
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
+import {useMunicipalAuthorityCapabilities} from "@/hooks/useMunicipalAuthority";
+import {isNeonBackend} from "@/integrations/backend/config";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
@@ -393,6 +395,7 @@ export function ProcessDetailPage() {
       },
     };
   }, [baseProcess, directProcessState]);
+  const authority=useMunicipalAuthorityCapabilities(process?.id||"",session.id,session.role+":"+session.department,isNeonBackend&&session.role==="prefeitura_supervisor");
 
   useEffect(() => {
     if (!processId || !session.id || session.id === "unknown") return;
@@ -1316,7 +1319,7 @@ export function ProcessDetailPage() {
     ["master_admin", "master_ops", "prefeitura_supervisor", "analista", "fiscal"].includes(session.role);
   const isAnalysisSupervisor =
     session.role === "prefeitura_supervisor" &&
-    canAccessMunicipalArea(session, "analise");
+    (isNeonBackend?authority.supervision:canAccessMunicipalArea(session, "analise"));
   const runSupervisorAction = async (
     action: () => Promise<void>,
     successMessage: string,

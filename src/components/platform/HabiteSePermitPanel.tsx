@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import {useMunicipalAuthorityCapabilities} from "@/hooks/useMunicipalAuthority";
+import {isNeonBackend} from "@/integrations/backend/config";
 import {
   BadgeCheck,
   Building2,
@@ -330,13 +332,14 @@ export function HabiteSePermitPanel({
     };
   }, [process.id]);
 
-  const isDirector = userCanSignPermitAsDirector(session);
-  const isSecretary = userCanSignPermitAsSecretary(session);
+  const authority=useMunicipalAuthorityCapabilities(process.id,session.id,session.role+":"+session.department,!externalView&&isNeonBackend);
+  const isDirector = isNeonBackend?authority.director:userCanSignPermitAsDirector(session);
+  const isSecretary = isNeonBackend?authority.secretary:userCanSignPermitAsSecretary(session);
   const canCloseProcess =
     !isReadOnlyMunicipalAdmin && (
       canManage ||
       isDirector ||
-      ["prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role)
+      ["master_admin", "master_ops"].includes(session.role) || (!isNeonBackend&&session.role==="prefeitura_supervisor")
     );
 
   const refresh = async () => {

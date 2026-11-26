@@ -1,7 +1,7 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { collectCompleteScopedRows } from "@/lib/completeScopedRows";
-import {parseAuthorityDesignations} from "@/lib/municipalAuthorityDesignations";
+import {parseAuthorityDesignations,parseMunicipalIdentityBadges,parseMunicipalAuthorityCapabilities} from "@/lib/municipalAuthorityDesignations";
 import {parseMunicipalStaffStoreBatch,type MunicipalStaffStoreBatch} from "@/lib/municipalStaffStoreBatch";
 import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments, type MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
 import { parseVerifiedMunicipalUserRegistry, reconcileVerifiedMunicipalUsers } from "@/lib/municipalUserRegistry";
@@ -5152,4 +5152,24 @@ export async function setRemoteMunicipalAuthorityDesignation(municipalityId:stri
  const {data,error}=await db.rpc("set_municipal_authority_designation_v1",{_municipality_id:municipalityId,_profile_id:profileId,_department_id:departmentId,_enabled:enabled});
  if(error)throw new Error(error.message||"Falha ao salvar designação.");
  return parseAuthorityDesignations(data,municipalityId,profileId);
+}
+
+export async function setRemoteMunicipalAuthorityPreferences(municipalityId:string,profileId:string,designationId:string,makePrimary:boolean|null,urbanismAuthorized:boolean|null){
+ if(!db||!isNeonBackend)throw Error("Cadastro institucional indisponível.");
+ const {data,error}=await db.rpc("set_municipal_authority_preferences_v1",{_municipality_id:municipalityId,_profile_id:profileId,_designation_id:designationId,_make_primary:makePrimary,_urbanism_authorized:urbanismAuthorized});
+ if(error)throw Error(error.message||"Falha ao definir competência institucional.");
+ return parseAuthorityDesignations(data,municipalityId,profileId);
+}
+export async function listRemoteMunicipalIdentityBadges(municipalityId:string,profileIds:readonly string[]){
+ if(!db||!isNeonBackend||!profileIds.length)return [];
+ if(profileIds.length>100)throw Error("Consulta de identificação excedeu a página autorizada.");
+ const {data,error}=await db.rpc("list_municipal_identity_badges_v1",{_municipality_id:municipalityId,_profile_ids:[...profileIds]});
+ if(error)throw Error(error.message||"Identificação institucional indisponível.");
+ return parseMunicipalIdentityBadges(data,municipalityId,profileIds);
+}
+export async function getRemoteMunicipalAuthorityCapabilities(processId:string){
+ if(!db||!isNeonBackend)throw Error("Competência institucional indisponível.");
+ const {data,error}=await db.rpc("get_current_municipal_authority_capabilities_v1",{_process_id:processId});
+ if(error)throw Error(error.message||"Competência institucional indisponível.");
+ return parseMunicipalAuthorityCapabilities(data);
 }

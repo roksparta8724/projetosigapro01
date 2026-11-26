@@ -67,6 +67,8 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import {MunicipalIdentityPrefix} from "@/components/platform/MunicipalIdentityPrefix";
+import {useMunicipalIdentityBadges} from "@/hooks/useMunicipalAuthority";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
@@ -881,6 +883,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     return Array.from(groups.entries());
   }, [filteredSearchItems]);
 
+  const authorityIdentity=useMunicipalIdentityBadges(session.municipalityId||session.tenantId||"",session.id,isInternalRole(session.role)&&session.id!=="unknown"&&(authenticatedProfileId===session.id||(!authenticatedProfileId&&authenticatedUserId===session.id))?[session.id]:[],session.department||"").get(session.id);
   const fullUserName = displayProfile?.fullName?.trim() || session.name || "Usuário institucional";
   const displayUserName = formatDisplayText(fullUserName, "name", {
     fallback: "Usuário institucional",
@@ -1613,7 +1616,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
               >
                 <DropdownMenuLabel className="min-w-0 rounded-xl border border-white/10 bg-white/5 px-3 py-3">
-                  <p className="break-words text-sm font-semibold [overflow-wrap:anywhere]" title={fullUserName}>{displayUserName}</p>
+                  <div className="flex min-w-0 items-center gap-1.5"><MunicipalIdentityPrefix badge={authorityIdentity} dark/><p className="min-w-0 break-words text-sm font-semibold [overflow-wrap:anywhere]" title={fullUserName}>{displayUserName}</p></div>
                   <p className="mt-1 break-words text-xs text-white/85">{roleLabel}</p>
                   {session.department ? <p className="mt-1 break-words text-xs text-white/75">{session.department}</p> : null}
                   {session.email ? <p className="mt-1 break-words text-xs text-white/75 [overflow-wrap:anywhere]" title={session.email}>{displaySessionEmail}</p> : null}
@@ -2244,7 +2247,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                       topbarProfileButton,
                     )}
                     aria-label="Abrir conta do usuário"
-                    title={fullUserName}
+                    title={authorityIdentity?.code ? authorityIdentity.code+" · "+fullUserName : fullUserName}
                   >
                     <UserAvatar
                       key={authenticatedAvatarOwnerId || session.id}
@@ -2307,6 +2310,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
 
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
+                          <MunicipalIdentityPrefix badge={authorityIdentity} dark={darkTopbar}/>
                           <p className={cn("sig-fit-title text-[15px] font-semibold leading-tight", darkTopbar ? "text-white" : "text-slate-950")} title={fullUserName}>
                             {displayUserName}
                           </p>
