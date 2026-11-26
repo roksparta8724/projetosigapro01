@@ -3222,8 +3222,8 @@ export function canEditAssignedAnalysisArtifact(
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (session.role !== "analista" && session.role !== "prefeitura_supervisor") return false;
 
-  const effectiveScopeId = scopeId || getOperationalScopeId(session);
-  if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, process)) {
+  const effectiveScopeId = getOperationalScopeId(session);
+  if (!effectiveScopeId || (scopeId && scopeId !== effectiveScopeId) || !matchesOperationalScope(effectiveScopeId, process)) {
     return false;
   }
 

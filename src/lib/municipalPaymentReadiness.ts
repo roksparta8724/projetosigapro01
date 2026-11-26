@@ -9,9 +9,17 @@ export type PaymentReadinessConnection = {
   credentials_configured?: boolean;
   webhook_configured?: boolean;
   last_test_status?: string | null;
+  last_tested_at?: string | null;
 } | null;
 
-export function municipalPaymentReadiness(connection: PaymentReadinessConnection) {
+export function hasFreshMunicipalPaymentTest(connection: PaymentReadinessConnection, now = Date.now()): boolean {
+  if (connection?.last_test_status !== "ok" || !connection.last_tested_at) return false;
+  const testedAt = Date.parse(connection.last_tested_at);
+  return Number.isFinite(testedAt) && testedAt >= now - 24 * 60 * 60 * 1000 &&
+    testedAt <= now + 5 * 60 * 1000;
+}
+
+export function municipalPaymentReadiness(connection: PaymentReadinessConnection, now = Date.now()) {
   if (!connection || !connection.provider || !connection.credentials_configured && connection.provider === "mercado_pago") {
     return {
       code: "credentials_missing" as const,
@@ -52,6 +60,13 @@ export function municipalPaymentReadiness(connection: PaymentReadinessConnection
       code: "test_pending" as const,
       title: "Teste oficial da conexão pendente",
       detail: "Execute Testar conexão. O teste de credenciais não comprova liquidação de uma guia.",
+    };
+  }
+  if (connection.status !== "active" && !hasFreshMunicipalPaymentTest(connection, now)) {
+    return {
+      code: "test_pending" as const,
+      title: "Renove o teste da conexão bancária",
+      detail: "Para ativar, confirme novamente as credenciais atuais. O teste tem validade de 24 horas.",
     };
   }
   if (connection.status !== "active") {

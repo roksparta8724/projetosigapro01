@@ -521,9 +521,10 @@ export function HabiteSePermitPanel({
   const directorSigned = Boolean(directorSigner);
   const secretarySigned = Boolean(secretarySigner);
   const issuedSignatureUnverified = permit?.status === "emitido" && !directorSigned;
+  const issuancePending = permit?.status === "aguardando_diretor" && directorSigned;
   const effectivePermitStatus = issuedSignatureUnverified
     ? "verificacao_pendente"
-    : directorSigned ? "emitido" : permit?.status || "rascunho";
+    : issuancePending ? "emissao_pendente" : permit?.status || "rascunho";
   const effectiveDirectorName = issuedSignatureUnverified
     ? null : directorSigner?.name || permit?.directorName || null;
 
@@ -652,6 +653,23 @@ export function HabiteSePermitPanel({
     setPasswordDialog(kind);
   };
 
+  const retryIssuance = async () => {
+    if (!issuancePending || !isDirector || isReadOnlyMunicipalAdmin || externalView || !paymentConfirmed) return;
+    setBusy("finalize-issuance");
+    setNotice("");
+    try {
+      const result = await finalizeHabiteSePermit(process.id);
+      setPermit(result.permit);
+      setDirectorRequestPending(false);
+      await onProcessRefresh?.();
+      await refresh();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Não foi possível confirmar a emissão no banco oficial.");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const confirmSignature = async () => {
     if (!passwordDialog || !password.trim() || !permit) return;
 
@@ -688,6 +706,8 @@ export function HabiteSePermitPanel({
       }
 
       setSignatureState(signatures);
+      setPasswordDialog(null);
+      setPassword("");
       if (signingSecretary) {
         setSecretaryRequestPending(false);
       } else {
@@ -709,8 +729,8 @@ export function HabiteSePermitPanel({
   };
 
   const completeProcess = async () => {
-    if (!directorSigned || !permit) {
-      setNotice("O processo só pode ser concluído depois da assinatura válida da Diretoria.");
+    if (!directorSigned || permit?.status !== "emitido") {
+      setNotice("O processo só pode ser concluído depois da assinatura válida da Diretoria e da emissão confirmada.");
       return;
     }
     if (!canCloseProcess || !onCompleteProcess) {
@@ -929,7 +949,9 @@ export function HabiteSePermitPanel({
                     ? "Aguardando Diretoria"
                     : effectivePermitStatus === "verificacao_pendente"
                       ? "Conferência da assinatura"
-                      : "Em elaboração"}
+                      : effectivePermitStatus === "emissao_pendente"
+                        ? "Emissão pendente"
+                        : "Em elaboração"}
               </span>
             </Badge>
           </div>
@@ -960,7 +982,7 @@ export function HabiteSePermitPanel({
             </div>
           </div>
 
-          {!externalView && canManage && effectivePermitStatus !== "emitido" ? (
+          {!externalView && canManage && permit?.status !== "emitido" && !issuancePending ? (
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/35">
               <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-500/30 dark:bg-sky-950/25 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -1080,7 +1102,22 @@ export function HabiteSePermitPanel({
             </div>
           ) : null}
 
-          {directorSigned ? (
+          {issuancePending ? (
+            <div role="status" data-habite-se-issuance-pending="true" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-100">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold">Assinatura registrada. Emissão ainda não confirmada.</p>
+                <p className="mt-1 text-xs leading-relaxed">A Diretoria pode retomar a emissão sem repetir a assinatura. A conclusão permanece bloqueada.</p>
+              </div>
+              {!externalView && isDirector && !isReadOnlyMunicipalAdmin ? (
+                <Button type="button" className="shrink-0 rounded-full bg-violet-700 !text-white hover:bg-violet-600" disabled={Boolean(busy) || !paymentConfirmed} onClick={() => void retryIssuance()}>
+                  {busy === "finalize-issuance" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                  Retomar emissão
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {directorSigned && permit?.status === "emitido" ? (
             <div className="space-y-3">
               <div
                 data-habite-se-director-request="signed"
@@ -1182,7 +1219,7 @@ export function HabiteSePermitPanel({
           ) : null}
 
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
-            {!externalView && canManage && permit?.status !== "emitido" ? (
+            {!externalView && canManage && permit?.status !== "emitido" && !issuancePending ? (
               <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(busy)} onClick={() => void saveDraft()}>
                 {busy === "save" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Salvar / retificar Alvará

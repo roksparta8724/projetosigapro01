@@ -216,6 +216,7 @@ export async function testMercadoPagoToken(accessToken: string) {
 
   const response = await fetch("https://api.mercadopago.com/v1/payment_methods", {
     method: "GET",
+    signal: AbortSignal.timeout(10000),
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
@@ -233,7 +234,8 @@ export async function testMercadoPagoToken(accessToken: string) {
     );
   }
 
-  const rows = Array.isArray(payload) ? payload : [];
+  if (!Array.isArray(payload)) throw new Error("O provedor retornou um formato de resposta inválido.");
+  const rows = payload;
   const methods = rows
     .map((row) => {
       const source =
@@ -248,19 +250,17 @@ export async function testMercadoPagoToken(accessToken: string) {
     })
     .filter((row) => row.id);
 
-  return {
-    ok: true,
-    boletoAvailable: methods.some(
+  const boletoAvailable = methods.some(
       (method) =>
         method.id.toLowerCase() === "boleto" ||
         (method.type.toLowerCase() === "ticket" &&
           /boleto/i.test(`${method.id} ${method.name}`)),
-    ),
-    pixAvailable: methods.some(
+    );
+  const pixAvailable = methods.some(
       (method) =>
         method.id.toLowerCase() === "pix" ||
         /pix/i.test(`${method.id} ${method.name}`),
-    ),
-    methods,
-  };
+    );
+  if (!boletoAvailable && !pixAvailable) throw new Error("Nenhum meio de arrecadação suportado foi confirmado pelo provedor.");
+  return { ok:true,boletoAvailable,pixAvailable,methods };
 }

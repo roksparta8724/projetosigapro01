@@ -65,5 +65,22 @@ jobs:
           src/test/appReleaseFreshness.test.ts
           src/test/accountTransitionIsolation20261124.test.ts
           src/hooks/usePlatformSession.test.tsx
+          src/test/formalAnalysisDocumentsAndAuditV2.test.ts
+          src/test/loginFastAccessGateQa.test.ts
+          src/test/architecturalPremiumReaderControlsQa.test.ts
+          src/test/masterPermissionBootstrapGuard20261119.test.ts
+          src/test/officialAnalysisReadAndSignatureLocalRegression.test.ts
+          src/test/analystDocumentAssignmentGateQa.test.ts
+          src/integrations/backend/platformSettings.test.ts
+          src/test/municipalPaymentSetupProof.test.ts
+          src/lib/municipalPaymentReadiness.test.ts
+          src/lib/bankCodes.test.ts
+          src/test/officialPaymentGuideBarcodeRegression.test.tsx
+          src/test/habiteSeCompletionRealRpcRegression.test.ts
+          src/test/architecturalPdfPreflightQa.test.ts
+          src/test/municipalCollectionApi.test.ts
+          src/test/municipalCollectionConfiguration.test.ts
+          server/architectural-document-guard.test.ts
+          src/test/architecturalPdfAiExtraction.test.ts
       - name: Production-equivalent build for preview
         run: npm run build

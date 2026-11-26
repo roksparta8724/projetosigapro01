@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
-import { municipalPaymentReadiness } from "@/lib/municipalPaymentReadiness";
+import { hasFreshMunicipalPaymentTest, municipalPaymentReadiness } from "@/lib/municipalPaymentReadiness";
 
 type PaymentConnection = {
   municipality_id?: string;
@@ -35,6 +35,7 @@ type PaymentConnection = {
   last_test_status?: string | null;
   last_test_message?: string | null;
   updated_at?: string | null;
+  productionRuntimeReady?: boolean;
   testOk?: boolean;
   boletoAvailable?: boolean;
   pixAvailable?: boolean;
@@ -53,6 +54,14 @@ async function paymentRequest(
   );
 }
 
+function formatPaymentTestDate(value?: string | null) {
+  if (!value) return "ainda não realizado";
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? parsed.toLocaleString("pt-BR")
+    : "data não disponível";
+}
+
 function providerLabel(provider?: PaymentConnection["provider"]) {
   if (provider === "mercado_pago") return "Mercado Pago";
   if (provider === "bank_direct") return "Banco / convênio (integração específica)";
@@ -68,6 +77,7 @@ export function MunicipalPaymentSettings({
 }) {
   const requestGeneration = useRef(0);
   const [connection, setConnection] = useState<PaymentConnection | null>(null);
+  const [productionRuntimeReady,setProductionRuntimeReady]=useState(false);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
@@ -81,7 +91,7 @@ export function MunicipalPaymentSettings({
   const connectionMatchesForm = connection?.provider === form.provider && connection?.environment === form.environment;
   const isActive = connectionMatchesForm && connection?.status === "active";
   const readiness = municipalPaymentReadiness(connection);
-  const hasValidTest = connectionMatchesForm && connection?.last_test_status === "ok";
+  const hasValidTest = connectionMatchesForm && hasFreshMunicipalPaymentTest(connection);
   const provider = form.provider;
   const sameCredentialScope = connectionMatchesForm && form.provider === "mercado_pago";
   const hasAccessToken = Boolean(form.accessToken.trim()) ||
@@ -106,6 +116,7 @@ export function MunicipalPaymentSettings({
     const generation = ++requestGeneration.current;
     // A response from another municipality must never populate this account.
     setConnection(null);
+    setProductionRuntimeReady(false);
     setLoadFailed(false);
     setForm({ provider: "mercado_pago", environment: "test", accessToken: "", webhookSecret: "" });
     setMessage("");
@@ -115,6 +126,7 @@ export function MunicipalPaymentSettings({
       const current = await paymentRequest(municipalityId, "get");
       if (generation !== requestGeneration.current) return;
       setConnection(current);
+      setProductionRuntimeReady(current.productionRuntimeReady===true);
       setLoadFailed(false);
       setForm({
         provider: current.provider || "mercado_pago",
@@ -184,9 +196,25 @@ export function MunicipalPaymentSettings({
       );
     } catch (error) {
       if (generation !== requestGeneration.current) return;
-      // Do not call load(): that clears the error and masks the exact reason
-      // a provider test was rejected by Neon or its bank endpoint.
-      setMessage(municipalCollectionError(error));
+      // Never leave an old successful test visible after a rejected or uncertain test.
+      // Refresh the canonical status without clearing the actionable diagnostic.
+      const diagnostic = municipalCollectionError(error);
+      setMessage(diagnostic);
+      setConnection(current => current ? { ...current, last_test_status: null } : null);
+      try {
+        const current = await paymentRequest(municipalityId, "get");
+        if (generation !== requestGeneration.current) return;
+        // A stale successful test must not re-enable activation after this attempt failed.
+        setConnection({
+          ...current,
+          last_test_status: current.last_test_status === "ok" ? null : current.last_test_status,
+        });
+        setProductionRuntimeReady(current.productionRuntimeReady === true);
+      } catch {
+        if (generation !== requestGeneration.current) return;
+        setProductionRuntimeReady(false);
+        setLoadFailed(true);
+      }
     } finally {
       if (generation === requestGeneration.current) setBusy("");
     }
@@ -230,27 +258,27 @@ export function MunicipalPaymentSettings({
         </div>
         <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{readiness.detail}</p>
         {readiness.code === "test_only" ? (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950">
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
             Atenção: uma conta Mercado Pago de testes não comprova baixa de guia ou recebimento real.
           </p>
         ) : null}
       </section>
       {!busy && !loadFailed && !connection?.provider ? (
-        <p data-municipal-bank-missing="true" role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+        <p data-municipal-bank-missing="true" role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
           Nenhuma conexão de provedor foi encontrada para esta Prefeitura neste ambiente. O cadastro bancário não se transfere automaticamente de testes ou de outra Prefeitura: configure a credencial da instituição titular, salve, teste a integração e só então ative a arrecadação. Um banco por convênio direto exige adaptador homologado, e a baixa manual não significa conciliação automática.
         </p>
       ) : null}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <div data-collection-payment-card="provider" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+        <div data-collection-payment-card="provider" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
                 Provedor financeiro da Prefeitura
               </p>
-              <h3 className="mt-2 text-lg font-semibold text-slate-950">
+              <h3 className="mt-2 text-lg font-semibold text-slate-950 dark:text-slate-100">
                 {providerLabel(provider)}
               </h3>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
                 Cada Prefeitura contratante possui sua própria conexão. O Access
                 Token e o segredo do Webhook são cifrados no servidor e nunca
                 ficam disponíveis para outras Prefeituras.
@@ -259,8 +287,8 @@ export function MunicipalPaymentSettings({
             <div
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
                 isActive
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border-sky-200 bg-sky-50 text-sky-800"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                  : "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200"
               }`}
             >
               <span
@@ -273,32 +301,32 @@ export function MunicipalPaymentSettings({
           </div>
 
           <div data-collection-payment-features="true" className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <CreditCard className="h-5 w-5 text-slate-700" />
-              <p className="mt-3 text-sm font-semibold text-slate-900">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+              <CreditCard className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+              <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Cobrança oficial
               </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
                 Linha digitável e código de barras vêm do provedor, nunca são
                 fabricados pelo SIGAPRO.
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <Webhook className="h-5 w-5 text-slate-700" />
-              <p className="mt-3 text-sm font-semibold text-slate-900">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+              <Webhook className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+              <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Baixa automática
               </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
                 O Webhook permitirá registrar pagamento e autenticação bancária
                 quando a integração de produção for ativada.
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <ShieldCheck className="h-5 w-5 text-slate-700" />
-              <p className="mt-3 text-sm font-semibold text-slate-900">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+              <ShieldCheck className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+              <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Segredos isolados
               </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
                 Tokens e chaves secretas são protegidos no backend por
                 Prefeitura.
               </p>
@@ -306,9 +334,9 @@ export function MunicipalPaymentSettings({
           </div>
         </div>
 
-        <div data-collection-payment-card="status" className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+        <div data-collection-payment-card="status" className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
               {isActive ? (
                 <BadgeCheck className="h-5 w-5 text-emerald-700" />
               ) : (
@@ -316,17 +344,17 @@ export function MunicipalPaymentSettings({
               )}
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-950">
+              <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
                 Situação da credencial
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-300">
                 {connection?.credentials_configured
                   ? connection.credential_fingerprint || "Credencial configurada"
                   : "Nenhum Access Token municipal armazenado"}
               </p>
             </div>
           </div>
-          <div className="mt-4 space-y-2 text-sm text-slate-600">
+          <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300">
             <p>
               Ambiente:{" "}
               {connection?.environment === "production"
@@ -341,24 +369,22 @@ export function MunicipalPaymentSettings({
             </p>
             <p>
               Último teste:{" "}
-              {connection?.last_tested_at
-                ? new Date(connection.last_tested_at).toLocaleString("pt-BR")
-                : "ainda não realizado"}
+              {formatPaymentTestDate(connection?.last_tested_at)}
             </p>
           </div>
         </div>
       </div>
 
-      <div data-collection-payment-card="credentials" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div data-collection-payment-card="credentials" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
               Credenciais do provedor
             </p>
-            <h3 className="mt-2 text-lg font-semibold text-slate-950">
+            <h3 className="mt-2 text-lg font-semibold text-slate-950 dark:text-slate-100">
               Conectar a conta de arrecadação
             </h3>
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300">
               Use as credenciais da própria Prefeitura. Em homologação podem ser
               usadas credenciais de teste; produção deve usar a conta oficial do
               município.
@@ -434,7 +460,7 @@ export function MunicipalPaymentSettings({
                       : "Access Token da Prefeitura"
                   }
                 />
-                <p className="text-xs leading-5 text-slate-500">
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-300">
                   Nunca é exibido novamente após salvar.
                 </p>
               </div>
@@ -456,7 +482,7 @@ export function MunicipalPaymentSettings({
                       : "Secret signature do Mercado Pago"
                   }
                 />
-                <p className="text-xs leading-5 text-slate-500">
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-300">
                   Usada para validar notificações de pagamento no backend.
                 </p>
               </div>
@@ -465,8 +491,8 @@ export function MunicipalPaymentSettings({
         </div>
 
         {form.provider === "mercado_pago" && form.environment === "production" ? (
-          <div data-municipal-bank-webhook-setup="true" className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-900">URL oficial para notificações de pagamento</p>
+          <div data-municipal-bank-webhook-setup="true" className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">URL oficial para notificações de pagamento</p>
             <div className="flex flex-wrap items-center gap-2">
               <Input aria-label="URL de Webhook da Prefeitura" readOnly value={webhookUrl} className="min-w-0 flex-1 font-mono text-xs" />
               <Button type="button" variant="outline" onClick={() => {
@@ -475,29 +501,34 @@ export function MunicipalPaymentSettings({
                   .catch(() => setMessage("Selecione a URL exibida e copie-a manualmente."));
               }}>Copiar URL</Button>
             </div>
-            <p className="text-xs leading-5 text-slate-600">
+            <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
               Cadastre esta URL na aplicação Mercado Pago da Prefeitura para notificações de Orders (order).
               Copie a chave secreta desse Webhook para o campo protegido acima.
             </p>
+            {!productionRuntimeReady ? (
+              <p role="status" data-bank-platform-release-pending="true" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+                O cadastro e a validação da credencial de produção não equivalem à liberação de cobrança. A emissão real depende também da liberação segura da infraestrutura SIGAPRO. Nenhuma cobrança será criada enquanto essa etapa estiver pendente.
+              </p>
+            ) : null}
             {!connectionMatchesForm ? (
-              <p className="text-xs font-semibold text-amber-800">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
                 Novo provedor ou ambiente: as credenciais anteriores não serão reaproveitadas.
               </p>
             ) : null}
             {form.environment === "production" && !hasWebhookSecret ? (
-              <p className="text-xs font-semibold text-amber-800">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
                 A produção exige segredo de Webhook para ativação e baixa automática.
               </p>
             ) : null}
           </div>
         ) : null}
         {form.provider === "mercado_pago" && form.environment === "test" ? (
-          <p data-bank-test-webhook-note="true" className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-900">
+          <p data-bank-test-webhook-note="true" className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
             Homologação: use somente credenciais de teste. A URL acima é apresentada apenas em produção,
             pois o webhook oficial exige notificações de pagamentos reais e não aceita eventos simulados.
           </p>
         ) : null}
-        <div role="status" data-municipal-provider-capabilities="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
+        <div role="status" data-municipal-provider-capabilities="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
           {form.provider === "mercado_pago"
             ? "Mercado Pago: utilize a conta de testes na homologação. A conexão técnica verifica a credencial, mas não confirma uma cobrança real, conciliação ou titularidade municipal. Tokens antigos do ambiente local não são vinculados automaticamente a uma Prefeitura."
             : form.provider === "bank_direct"
@@ -506,17 +537,24 @@ export function MunicipalPaymentSettings({
         </div>
         {message ? (
           <div
+            role={isCollectionSuccessMessage(message) ? "status" : "alert"}
             className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
               isCollectionSuccessMessage(message)
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-amber-200 bg-amber-50 text-amber-900"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
             }`}
           >
             {message}
           </div>
         ) : null}
 
-        {loadFailed ? <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950"><span>Conexão do provedor não confirmada. Credenciais anteriores protegidas; nenhum salvamento foi realizado.</span><Button type="button" variant="outline" disabled={!!busy} onClick={() => void load()}>Tentar conectar novamente</Button></div> : null}
+        {loadFailed ? <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"><span>Conexão do provedor não confirmada. Credenciais anteriores protegidas; nenhum salvamento foi realizado.</span><Button type="button" variant="outline" disabled={!!busy} onClick={() => void load()}>Tentar conectar novamente</Button></div> : null}
+        {connectionMatchesForm && form.provider === "mercado_pago" && !isActive &&
+          connection?.last_test_status === "ok" && !hasValidTest ? (
+          <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+            O teste anterior venceu ou não tem data válida. Teste a conexão novamente para ativar.
+          </p>
+        ) : null}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button
             type="button"
@@ -538,7 +576,7 @@ export function MunicipalPaymentSettings({
             }
             onClick={() => void test()}
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
             {busy === "test" ? "Testando..." : "Testar conexão"}
           </Button>
           <Button
@@ -550,7 +588,7 @@ export function MunicipalPaymentSettings({
               form.provider === "bank_direct" ||
               (form.provider === "mercado_pago" &&
                 (!hasValidTest || !connection.credentials_configured ||
-                (form.environment === "production" && !connection.webhook_configured))) ||
+                (form.environment === "production" && (!connection.webhook_configured || !productionRuntimeReady)))) ||
               isActive
             }
             onClick={() => void activate()}

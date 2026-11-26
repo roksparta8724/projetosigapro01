@@ -50,7 +50,10 @@ describe("SIGAPRO IA — PDF architectural drawing extraction, fail closed",()=>
   const panel=readFileSync("src/components/platform/ArchitecturalPdfAiPanel.tsx","utf8");
   const precheck=readFileSync("src/components/platform/UrbanPrecheckPanel.tsx","utf8");
   expect(endpoint).toContain('process.env.VERCEL_ENV!=="preview"');
-  expect(endpoint).toContain("authorize_technical_document_signing_v1");
+  expect(endpoint).toContain("authorize_architectural_reading_v1");
+  expect(endpoint).not.toContain("authorize_technical_document_signing_v1");
+  expect(endpoint).toContain("allowed.ok&&allowed.payload===true?doc:null");
+  expect(endpoint).toContain("verifyPersistedPdfIntegrity(bytes,expectedHash,expectedSize)");
   expect(endpoint).toContain("get_current_profile_context");
   const provider=readFileSync("server/architectural-pdf-provider.ts","utf8");
   expect(endpoint).toContain("resolveVisualPdfProvider");

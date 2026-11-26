@@ -23,7 +23,7 @@ export async function municipalCollectionApiRequest<T>(
   payload: Record<string, unknown> = {},
   timeoutMs = 15000,
 ): Promise<T> {
-  if (!municipalityId || !/^[0-9a-f-]{36}$/i.test(municipalityId)) {
+  if (!municipalityId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(municipalityId)) {
     throw new MunicipalCollectionRequestError("Prefeitura não identificada. Volte à área de Administração e selecione a Prefeitura.", 400);
   }
 
@@ -91,14 +91,17 @@ export async function municipalCollectionApiRequest<T>(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ municipalityId, action, ...payload }),
+      body: JSON.stringify({ ...payload, municipalityId, action }),
     });
-    const data = await response.json().catch(() => ({})) as T & { error?: string };
+    const data = await response.json().catch(() => null) as (T & { error?: string }) | null;
     if (!response.ok) {
       throw new MunicipalCollectionRequestError(
-        String(data.error || `O servidor retornou HTTP ${response.status} ao consultar a Prefeitura.`),
+        String(data?.error || `O servidor retornou HTTP ${response.status} ao consultar a Prefeitura.`),
         response.status,
       );
+    }
+    if (!data || typeof data !== "object" || Array.isArray(data) || data.error) {
+      throw new MunicipalCollectionRequestError("O servidor não confirmou a operação. Consulte o cadastro antes de repetir.",502);
     }
     return data;
   } catch (error) {

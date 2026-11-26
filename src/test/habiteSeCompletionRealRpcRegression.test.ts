@@ -61,3 +61,21 @@ describe("Habite-se — confirmação estrita do processo e estado",()=>{
   await expect(finalizeHabiteSePermit("qa")).rejects.toThrow("não confirmou");
  });
 });
+
+describe("Habite-se — emissão confirmada, retomada e comprovação",()=>{
+  it("não apresenta assinatura persistida como emissão concluída",()=>{
+    expect(panel).toContain('issuancePending ? "emissao_pendente"');
+    expect(panel).toContain('data-habite-se-issuance-pending="true"');
+    expect(panel).toContain("Retomar emissão");
+    expect(panel).not.toContain('directorSigned ? "emitido"');
+  });
+  it("exige autoridade da Diretoria, versão assinada e confirmação financeira no banco",()=>{
+    const sql=readFileSync("neon/migrations/20261126_zzzz_habite_se_authoritative_issuance_v1.sql","utf8");
+    expect(sql).toContain("get_process_artifact_signature_context_v1(_process_id,'diretoria')");
+    expect(sql).toContain("b.artifact_payload->'formData'=_permit.form_data");
+    expect(sql).toContain("s.document_hash=b.evidence_hash");
+    expect(sql).toContain("s.reauthenticated_at is not null");
+    expect(sql).toContain("s.evidence_version>=4");
+    expect(sql).toContain("Emissão bloqueada: guia de Habite-se");
+  });
+});

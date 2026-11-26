@@ -90,7 +90,7 @@ async function verifiedDocument(req:Req,tenant:string,processId:string,documentI
       .replace(/[\u0300-\u036f]/g,"").toLowerCase()))return null;
   const declared=Number(doc.file_size_bytes||0);
   if(!Number.isFinite(declared)||declared<0||declared>MAX_PDF_BYTES)throw new Error("PDF_LIMIT");
-  const allowed=await callDataApiRpc<boolean>(req,"authorize_technical_document_signing_v1",{
+  const allowed=await callDataApiRpc<boolean>(req,"authorize_architectural_reading_v1",{
     _document_id:documentId,
   });
   return allowed.ok&&allowed.payload===true?doc:null;

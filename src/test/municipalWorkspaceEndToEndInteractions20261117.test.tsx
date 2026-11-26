@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MunicipalProcessRegistryPage } from "@/pages/saas/MunicipalProcessRegistryPage";
 
 const state = vi.hoisted(() => ({
@@ -12,6 +12,8 @@ const state = vi.hoisted(() => ({
   listUnits: vi.fn().mockRejectedValue(new Error("Unidade não instalada na homologação")),
   setUnit: vi.fn().mockResolvedValue(undefined),
   refresh: vi.fn().mockResolvedValue(undefined),
+  removeMarker: vi.fn().mockResolvedValue(undefined),
+  addPreset: vi.fn(),
 }));
 const process = {
   id: "e1d319ac-09f9-4b88-b86d-a9436eab0808",
@@ -27,23 +29,32 @@ const process = {
   sla: { currentStage: "Análise Urbanística", breached: false, hoursRemaining: 36, dueDate: "" },
 };
 
+const processes = [process];
+const sessionUsers: unknown[] = [];
+const municipality = { id: "municipal-qa", name: "Prefeitura QA" };
+const departments = [
+  { id: "department1", name: "Análise Urbanística", isActive: true },
+  { id: "department2", name: "Financeiro", isActive: true },
+];
+const presets = [{ id: "tag1", label: "Retorno", colorId: "red", color: "#dc2626", emoji: "", active: true }];
+const sessionByRole = new Map(["prefeitura_admin", "analista"].map(role => [role, {
+  id: "account-qa", name: "Ana Técnica", role,
+  accountStatus: "active", department: "Análise Urbanística", title: "Técnica",
+  municipalityId: "municipal-qa", tenantId: "municipal-qa",
+}]));
 vi.mock("@/hooks/usePlatformSession", () => ({
-  usePlatformSession: () => ({ session: {
-    id: "account-qa", name: "Ana Técnica", role: state.role,
-    accountStatus: "active", department: "Análise Urbanística", title: "Técnica",
-    municipalityId: "municipal-qa", tenantId: "municipal-qa",
-  } }),
+  usePlatformSession: () => ({ session: sessionByRole.get(state.role) }),
 }));
 vi.mock("@/hooks/useMunicipality", () => ({
-  useMunicipality: () => ({ municipality: { id: "municipal-qa", name: "Prefeitura QA" }, scopeId: "municipal-qa" }),
+  useMunicipality: () => ({ municipality, scopeId: "municipal-qa" }),
 }));
 vi.mock("@/hooks/usePlatformData", () => ({
   usePlatformData: () => ({
-    processes: [process], remoteSyncedForCurrentUser: true,
+    processes, remoteSyncedForCurrentUser: true,
     dataError: null, loading: false, refreshRemoteStore: state.refresh,
     addProcessMarkerWithColor: state.markerWrite,
-    removeProcessMarker: vi.fn().mockResolvedValue(undefined),
-    sessionUsers: [], assignProcessAnalysis: state.assign,
+    removeProcessMarker: state.removeMarker,
+    sessionUsers, assignProcessAnalysis: state.assign,
     reassignProcessAnalysis: state.assign, dispatchProcess: state.dispatch,
   }),
 }));
@@ -51,16 +62,11 @@ vi.mock("@/hooks/useMarkerPresets", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/hooks/useMarkerPresets")>();
   return {
     ...real,
-    useMarkerPresets: () => ({ presets: [
-      { id: "tag1", label: "Retorno", colorId: "red", color: "#dc2626", emoji: "", active: true },
-    ], addPreset: vi.fn() }),
+    useMarkerPresets: () => ({ presets, addPreset: state.addPreset }),
   };
 });
 vi.mock("@/hooks/useMunicipalOrganogram", () => ({
-  useMunicipalOrganogram: () => ({ departments: [
-    { id: "department1", name: "Análise Urbanística", isActive: true },
-    { id: "department2", name: "Financeiro", isActive: true },
-  ] }),
+  useMunicipalOrganogram: () => ({ departments }),
 }));
 vi.mock("@/hooks/useLivePlatformRefresh", () => ({
   useLivePlatformRefresh: () => undefined,
@@ -90,6 +96,7 @@ function actionButton(name: string) {
   return screen.getByRole("button", { name: new RegExp("^" + name, "i") });
 }
 describe("SIGAPRO — integração REAL da barra ao Controle de Processos", () => {
+  afterEach(() => cleanup());
   beforeEach(() => {
     state.role = "prefeitura_admin";
     state.markerWrite.mockClear();

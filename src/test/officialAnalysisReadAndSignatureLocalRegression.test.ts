@@ -12,7 +12,9 @@ describe("documentos SIGAPRO: leitura e autoria",()=>{
   it("permite supervisao setorial sem dar edicao ao funcionario de outro setor",()=>{
     expect(canViewMunicipalProcessDocument({...analyst,id:"dir",role:"prefeitura_supervisor",title:"Diretor Municipal"},process,tenant)).toBe(true);
     expect(canViewMunicipalProcessDocument({...analyst,id:"sec",role:"prefeitura_supervisor",title:"Secretário Municipal"},process,tenant)).toBe(true);
-    expect(canViewMunicipalProcessDocument({...analyst,id:"fin",role:"financeiro",department:"Financeiro"},process,tenant)).toBe(false);
+    const finance = {...analyst,id:"fin",role:"financeiro",department:"Financeiro"} as SessionUser;
+    expect(canViewMunicipalProcessDocument(finance,process,tenant)).toBe(true);
+    expect(canAnalyzeProcessDocument(finance,process,tenant)).toBe(false);
   });
   it("bloqueia usuario externo e contas inativas",()=>{
     expect(canViewMunicipalProcessDocument({...analyst,id:"ext",role:"profissional_externo"},process,tenant)).toBe(false);

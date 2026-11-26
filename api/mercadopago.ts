@@ -18,6 +18,7 @@ import handleQaMpWebhook from "../server/mp-qa-webhook.js";
 import {assertIsolatedQaBankRuntime} from "../server/qa-hosted-bank-guard.js";
 import {qaMercadoPagoPix} from "../server/qa-mercadopago-pix.js";
 import { assertMunicipalCredentialSave, assertMunicipalCredentialActivation } from "../server/municipal-payment-credential-validation.js";
+import { assertProductionMunicipalSetupRuntime, assertProductionMunicipalActivationRuntime, municipalPaymentSetupProof } from "../server/municipal-payment-setup-proof.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
@@ -178,7 +179,9 @@ export default async function handler(req: Req, res: Res) {
           "get_municipal_payment_connection_v1",
           { _municipality_id: municipalityId },
         );
-        json(res, 200, connection || {});
+        let productionRuntimeReady=false;
+        try { assertProductionMunicipalActivationRuntime(); productionRuntimeReady=true; } catch { /* readiness only; no credentials exposed */ }
+        json(res, 200, {...(connection || {}),productionRuntimeReady});
         return;
       }
 
@@ -196,6 +199,7 @@ export default async function handler(req: Req, res: Res) {
           { _municipality_id: municipalityId },
         );
         assertMunicipalCredentialSave({provider,environment,accessToken,webhookSecret},saved);
+        if(environment==="production" && provider==="mercado_pago") assertProductionMunicipalSetupRuntime();
 
         let accessCiphertext: string | null = null;
         let accessFingerprint: string | null = null;
@@ -237,38 +241,23 @@ export default async function handler(req: Req, res: Res) {
           throw new Error("Salve o Access Token da Prefeitura antes de testar.");
         }
 
+        if(secretConfig.environment==="production") assertProductionMunicipalSetupRuntime();
+        let result: Awaited<ReturnType<typeof testMercadoPagoToken>>;
         try {
-          const result = await testMercadoPagoToken(
-            decryptPaymentAccessToken(secretConfig.credentials_ciphertext),
-          );
-          const connection = await rpcOrThrow<MunicipalPaymentConnection>(
-            req,
-            "mark_municipal_payment_test_v1",
-            {
-              _municipality_id: municipalityId,
-              _ok: true,
-              _message: `Conexão Mercado Pago validada. Boleto: ${result.boletoAvailable ? "sim" : "não"} · PIX: ${result.pixAvailable ? "sim" : "não"}.`,
-            },
-          );
-          json(res, 200, {
-            ...(connection || {}),
-            testOk: true,
-            boletoAvailable: result.boletoAvailable,
-            pixAvailable: result.pixAvailable,
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Falha no teste do provedor.";
-          await rpcOrThrow<MunicipalPaymentConnection>(
-            req,
-            "mark_municipal_payment_test_v1",
-            {
-              _municipality_id: municipalityId,
-              _ok: false,
-              _message: message,
-            },
-          ).catch(() => null);
-          json(res, 400, { error: message, testOk: false });
+          result = await testMercadoPagoToken(decryptPaymentAccessToken(secretConfig.credentials_ciphertext));
+        } catch {
+          await rpcOrThrow<MunicipalPaymentConnection>(req,"mark_municipal_payment_test_v2",
+            municipalPaymentSetupProof(secretConfig,municipalityId,"test",false,false,false)).catch(()=>null);
+          json(res,422,{error:"O provedor não confirmou a credencial ou os meios de pagamento. Confira a conta e tente novamente.",testOk:false});
+          return;
         }
+        // Persist only the response for the exact encrypted credentials that were tested.
+        // Concurrent edits fail closed; a late response never validates a replacement token.
+        const connection = await rpcOrThrow<MunicipalPaymentConnection>(req,"mark_municipal_payment_test_v2",
+          municipalPaymentSetupProof(secretConfig,municipalityId,"test",true,result.boletoAvailable,result.pixAvailable));
+        if(connection?.municipality_id!==municipalityId || connection.last_test_status!=="ok")
+          throw new Error("O banco não confirmou o teste da configuração atual.");
+        json(res,200,{...connection,testOk:true,boletoAvailable:result.boletoAvailable,pixAvailable:result.pixAvailable});
         return;
       }
 
@@ -278,19 +267,25 @@ export default async function handler(req: Req, res: Res) {
           { _municipality_id: municipalityId },
         );
         assertMunicipalCredentialActivation(prior);
-        const connection = await rpcOrThrow<MunicipalPaymentConnection>(
-          req,
-          "activate_municipal_payment_connection_v1",
-          { _municipality_id: municipalityId },
-        );
-        json(res, 200, connection || {});
+        let connection: MunicipalPaymentConnection | null;
+        if(prior?.provider==="mercado_pago" && prior.environment==="production"){
+          assertProductionMunicipalActivationRuntime();
+          const exact=await getMunicipalPaymentSecretAdmin(req,municipalityId);
+          connection=await rpcOrThrow<MunicipalPaymentConnection>(req,"activate_municipal_payment_connection_v2",
+            municipalPaymentSetupProof(exact,municipalityId,"activate",true,false,false));
+        }else{
+          connection=await rpcOrThrow<MunicipalPaymentConnection>(req,"activate_municipal_payment_connection_v1",{_municipality_id:municipalityId});
+        }
+        if(connection?.municipality_id!==municipalityId || connection.status!=="active")
+          throw new Error("O banco não confirmou a ativação da Prefeitura.");
+        json(res,200,connection);
         return;
       }
 
       json(res, 400, { error: "Ação de pagamento inválida." });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao configurar pagamentos.";
-      console.error("[SIGAPRO][MunicipalPayment] configuração", { error: message });
+      console.warn("[SIGAPRO][MunicipalPayment] configuração não confirmada");
       json(res, 400, { error: message });
     }
     return;

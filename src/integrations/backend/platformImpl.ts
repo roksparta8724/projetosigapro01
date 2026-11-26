@@ -489,7 +489,8 @@ async function completeMunicipalityCatalog(firstResponse: {
   const seen = new Set(first.map((row) => String(row.id ?? "")).filter(Boolean));
   for (let offset = pageSize; offset < 200000; offset += pageSize) {
     const { data, error } = await db.from("municipalities").select("*")
-      .order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
+      .order("created_at", { ascending: false }).order("id", { ascending: false })
+      .range(offset, offset + pageSize - 1);
     if (error) throw new Error(error.message || "A leitura de uma página da carteira falhou.");
     const next = Array.isArray(data) ? data as DatabaseRow[] : [];
     let uniqueCount = 0;
@@ -557,7 +558,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
       : db.from("tenant_settings").select("*"),
-    db.from("municipalities").select("*").order("created_at", { ascending: false }),
+    db.from("municipalities").select("*").order("created_at", { ascending: false }).order("id", { ascending: false }),
     db.from("municipality_branding").select("*"),
     db.from("municipality_settings").select("*"),
     db.from("profiles").select("*"),

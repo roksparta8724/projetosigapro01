@@ -144,7 +144,12 @@ describe("municipal collection configuration", () => {
   it("keeps failed provider-test diagnostics visible instead of clearing them", () => {
     const provider = read("src/components/platform/MunicipalPaymentSettings.tsx");
     const testBlock = provider.slice(provider.indexOf("const test = async"), provider.indexOf("const activate = async"));
-    expect(testBlock).toContain("setMessage(municipalCollectionError(error))");
+    expect(testBlock).toContain("const diagnostic = municipalCollectionError(error)");
+    expect(testBlock).toContain("setMessage(diagnostic)");
+    expect(testBlock).toContain('last_test_status: current.last_test_status === "ok" ? null : current.last_test_status');
+    expect(testBlock.indexOf("setMessage(diagnostic)")).toBeLessThan(testBlock.indexOf('paymentRequest(municipalityId, "get")'));
+    expect(testBlock).toContain("setLoadFailed(true)");
+    expect(testBlock).toContain("setProductionRuntimeReady(false)");
     expect(testBlock).not.toContain("void load()");
   });
 

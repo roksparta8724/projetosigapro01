@@ -16,8 +16,8 @@ describe("SIGAPRO — mesa de análise premium a partir do vídeo QA04",()=>{
     expect(reader).toContain('bg-white p-3.5 text-slate-900');
     expect(reader).toContain('dark:bg-[#1a3049] dark:text-white');
     expect(reader).toContain('disabled:!text-slate-700 disabled:opacity-100');
-    expect(analysis).toContain('disabled:!text-slate-600');
-    expect(analysis).toContain('disabled:bg-slate-100');
+    expect(analysis).toContain('disabled:bg-slate-700 disabled:!text-white');
+    expect(analysis).toContain('disabled:cursor-not-allowed');
   });
   it("o toolbar comunica página e zoom ao PDF real, sem alterar a origem do arquivo",()=>{
     expect(analysis).toContain('data-sigapro-pdf-synced-page={page}');
