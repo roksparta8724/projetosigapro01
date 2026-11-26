@@ -73,6 +73,7 @@ jobs:
           src/test/analystDocumentAssignmentGateQa.test.ts
           src/integrations/backend/platformSettings.test.ts
           src/test/municipalPaymentSetupProof.test.ts
+          src/lib/municipalPaymentReadiness.test.ts
           src/test/architecturalPdfPreflightQa.test.ts
           src/test/municipalCollectionApi.test.ts
           src/test/municipalCollectionConfiguration.test.ts

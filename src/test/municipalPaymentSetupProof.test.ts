@@ -1,4 +1,5 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
+import {readFileSync} from "node:fs";
 import {municipalPaymentSetupProof,assertProductionMunicipalSetupRuntime} from "../../server/municipal-payment-setup-proof";
 import {testMercadoPagoToken} from "../../server/municipal-payment";
 const city="49dac0b6-6352-4744-9aab-9ff91c59d970";
@@ -14,6 +15,17 @@ describe("municipal setup evidence",()=>{
   expect(municipalPaymentSetupProof(config,city,"activate",true,false,false,now)._mac).not.toBe(p._mac);
   expect(()=>municipalPaymentSetupProof(config,"other","test",true,true,false,now)).toThrow();
   expect(JSON.stringify(p)).not.toContain("synthetic-a");
+ });
+ it("requires fresh exact sandbox test evidence even on direct legacy activation RPC",()=>{
+  const sql=readFileSync("neon/migrations/20261126_zz_municipal_payment_test_activation_guard_v1.sql","utf8");
+  expect(sql).toContain("connection.last_test_status IS DISTINCT FROM 'ok'");
+  expect(sql).toContain("connection.environment IS DISTINCT FROM 'test'");
+  expect(sql).toContain("connection.last_tested_at IS NULL");
+  expect(sql).toContain("interval '24 hours'");
+  expect(sql).toContain("connection.verified_test_digest IS DISTINCT FROM");
+  expect(sql).toContain("extensions.digest(connection.credentials_ciphertext,'sha256')");
+  expect(sql).toContain("REVOKE ALL ON FUNCTION public.activate_municipal_payment_connection_v1(uuid) FROM PUBLIC,anonymous");
+  expect(sql).not.toContain("UPDATE public.payment_guides");
  });
  it("never accepts a production setup on preview",()=>{
   expect(()=>assertProductionMunicipalSetupRuntime({VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:"main"})).toThrow();

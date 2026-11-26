@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
-import { municipalPaymentReadiness } from "@/lib/municipalPaymentReadiness";
+import { hasFreshMunicipalPaymentTest, municipalPaymentReadiness } from "@/lib/municipalPaymentReadiness";
 
 type PaymentConnection = {
   municipality_id?: string;
@@ -91,7 +91,7 @@ export function MunicipalPaymentSettings({
   const connectionMatchesForm = connection?.provider === form.provider && connection?.environment === form.environment;
   const isActive = connectionMatchesForm && connection?.status === "active";
   const readiness = municipalPaymentReadiness(connection);
-  const hasValidTest = connectionMatchesForm && connection?.last_test_status === "ok";
+  const hasValidTest = connectionMatchesForm && hasFreshMunicipalPaymentTest(connection);
   const provider = form.provider;
   const sameCredentialScope = connectionMatchesForm && form.provider === "mercado_pago";
   const hasAccessToken = Boolean(form.accessToken.trim()) ||
@@ -549,6 +549,12 @@ export function MunicipalPaymentSettings({
         ) : null}
 
         {loadFailed ? <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"><span>Conexão do provedor não confirmada. Credenciais anteriores protegidas; nenhum salvamento foi realizado.</span><Button type="button" variant="outline" disabled={!!busy} onClick={() => void load()}>Tentar conectar novamente</Button></div> : null}
+        {connectionMatchesForm && form.provider === "mercado_pago" && !isActive &&
+          connection?.last_test_status === "ok" && !hasValidTest ? (
+          <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+            O teste anterior venceu ou não tem data válida. Teste a conexão novamente para ativar.
+          </p>
+        ) : null}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button
             type="button"
@@ -570,7 +576,7 @@ export function MunicipalPaymentSettings({
             }
             onClick={() => void test()}
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
             {busy === "test" ? "Testando..." : "Testar conexão"}
           </Button>
           <Button
