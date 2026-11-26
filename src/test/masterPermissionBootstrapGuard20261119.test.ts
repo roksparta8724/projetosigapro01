@@ -12,7 +12,8 @@ describe("SIGAPRO Master — sessão, rota e bloqueio legítimo", () => {
     expect(app).toContain('<PermissionRoute permission="view_master_dashboard">');
     expect(platform).toContain('master_admin: ["view_master_dashboard"');
     expect(platform).toContain('master_ops: ["view_master_dashboard"');
-    expect(guard).toContain('!isActuallyBlocked && can(session, permission)');
+    expect(guard).toContain('const permissionAllowed = can(session, permission) && departmentRouteAllowed && roleAllowed');
+    expect(guard).toContain('!isActuallyBlocked && permissionAllowed && (!needsDepartmentContext || storeIdentityConfirmed)');
     expect(guard).toContain('const hasStableAuthenticatedMasterView =');
     expect(guard).toContain('!hasStableAuthenticatedMasterView &&');
   });
@@ -20,11 +21,13 @@ describe("SIGAPRO Master — sessão, rota e bloqueio legítimo", () => {
   it("não mostra acesso negado antes da confirmação da identidade Master", () => {
     expect(guard).toContain('permission === "view_master_dashboard" || permission === "manage_commercial_plans"');
     expect(guard).toContain('!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading');
-    expect(guard).toContain('isPlatformIdentityResolving ||');
+    expect(guard).toContain('(!hasStableAuthenticatedView &&');
+    expect(guard).toContain('session.id === businessUserId');
     expect(guard.indexOf('if (isInitialAccessResolution)')).toBeLessThan(
       guard.indexOf('const isMaster = session.role === "master_admin"'),
     );
-    expect(guard).toContain('hasValidRefreshContinuity() && !allowedRoles && !requiresMasterPermission');
+    expect(guard).not.toContain('hasValidRefreshContinuity()');
+    expect(guard).toContain('if (!isActuallyBlocked && permissionDataPending) return pendingAccess()');
   });
 
   it("mostra o perfil ativo sem expor email ou forçar permissão", () => {

@@ -19,7 +19,11 @@ describe("SIGAPRO documentos oficiais e auditoria", () => {
   it("roteia leitura para visualizador e nao para mesa de edicao", () => {
     const source = read("src/pages/saas/ProcessDetailPage.tsx");
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
-    expect(source).toContain("SIGAPRO_DOCUMENT_ROUTING_READONLY_V2");
+    expect(source).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
+    expect(source).toContain("Boolean(forceAnalysis &&");
+    expect(source).toContain("!isSignedAnalysisArchiveDocument(selectedDocument)");
+    expect(source).toContain("canAnalyzeProcessDocument(session, process, effectiveScopeId)");
+    expect(source).toContain("openDocumentWorkspace(documentId, false)");
     expect(analysis).toContain("SIGAPRO_ANALYSIS_ROUTE_READONLY_REDIRECT_V2");
     expect(analysis).toContain('"/visualizar"');
   });

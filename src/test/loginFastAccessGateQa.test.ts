@@ -104,11 +104,14 @@ describe("SIGAPRO QA — entrada rápida com autorização institucional real", 
   it("não deixa timer de logout pendente nem logs de depuração após sair", () => {
     const bootstrap=readFileSync("src/hooks/useAppBootstrap.tsx","utf8");
     const gateway=readFileSync("src/hooks/useAuthGateway.tsx","utf8");
-    expect(bootstrap).toContain("if (timeoutId !== null) clearTimeout(timeoutId)");
+    const logout = bootstrap.slice(bootstrap.lastIndexOf("signOut: async () => {"));
+    expect(logout).not.toContain("Promise.race");
+    expect(logout).toContain("await remoteTask");
+    expect(bootstrap).toContain("await remoteSignOutRef.current");
     expect(bootstrap).not.toContain('console.warn("[Logout] signOut timeout fallback")');
     expect(gateway).not.toContain('console.log("[Logout] signOut start")');
     expect(gateway).not.toContain('console.log("[Logout] signOut result")');
-    expect(gateway).toContain("} finally {");
+    expect(gateway.indexOf("transientKeys.forEach((key) => localStorage.removeItem(key))")).toBeLessThan(gateway.indexOf("await signOutTask"));
     expect(gateway).toContain("transientKeys.forEach((key) => localStorage.removeItem(key))");
   });
 

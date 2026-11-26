@@ -1094,7 +1094,6 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
   }, [commandOpen]);
 
   const handleSignOut = async (destination = "/acesso") => {
-    console.log("[Logout] click");
 
     // O signOut limpa a identidade LOCAL de forma síncrona antes do primeiro await.
     // Disparamos essa limpeza no mesmo evento da navegação para que /acesso seja
@@ -1103,9 +1102,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     navigate(destination, { replace: true });
 
     try {
-      console.log("[Logout] signOut start");
       await signOutTask;
-      console.log("[Logout] signOut result");
     } catch (error) {
       console.warn("[SIGAPRO] Falha ao encerrar sessao remota apos a troca de rota.", error);
     }

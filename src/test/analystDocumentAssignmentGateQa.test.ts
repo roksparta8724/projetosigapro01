@@ -11,7 +11,10 @@ describe("SIGAPRO QA — acesso à edição documental após atribuição",()=>{
     expect(viewer).toContain("canAnalyzeProcessDocument(session, process, effectiveScopeId)");
     expect(detail).toContain("canAnalyzeProcessDocument(session, process, effectiveScopeId)");
     expect(analysis).toContain("canAnalyzeProcessDocument(session, process, effectiveScopeId)");
-    expect(permissions).toContain("return worksInAnalysis && isAssignedAnalyst");
+    expect(permissions).toContain("return worksInAnalysis;");
+    expect(permissions).toContain('canAccessMunicipalArea(session, "analise") &&');
+    expect(permissions).toContain("isProcessOwnedBySessionDepartment(session, process)");
+    expect(permissions).toContain("if (!isProcessReleasedToUrbanAnalysis(process)) return false");
     expect(permissions).toContain('if (session.role === "prefeitura_admin") return false');
   });
   it("explica bloqueio e encaminha à fila com ação oficial",()=>{
