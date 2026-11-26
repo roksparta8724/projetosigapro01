@@ -147,6 +147,12 @@ begin
 
   _role := lower(coalesce(public.current_role_code(),_profile.role,''));
 
+  -- Gestores da plataforma e administradores municipais não assinam atos processuais.
+  if public.is_master() or _role in ('master_admin','master_ops','prefeitura_admin','admin_prefeitura','admin_municipality')
+     or lower(coalesce(_profile.role,'')) in ('master_admin','master_ops','prefeitura_admin','admin_prefeitura','admin_municipality') then
+    raise exception using errcode='42501', message='Gestão administrativa não autoriza assinatura de atos processuais.';
+  end if;
+
   select coalesce(
       nullif(btrim(tm.position_title),''),
       nullif(btrim(tm.profile_label),''),
@@ -169,14 +175,11 @@ begin
     -- A assinatura técnica pertence ao Analista responsável atual. A Diretoria
     -- assina no slot próprio "diretoria", nunca se passando pelo Analista.
     _allowed :=
-      public.is_master()
-      or (
-        _role in ('analista','analyst')
-        and public.can_sign_assigned_analysis_v1(_process_id)
-      );
+      _role in ('analista','analyst')
+      and public.can_sign_assigned_analysis_v1(_process_id);
   elsif _slot='conferencia_fiscal' then
     _allowed :=
-      _role in ('master_admin','master_ops','prefeitura_admin','prefeitura_supervisor','fiscal')
+      _role in ('prefeitura_supervisor','fiscal')
       or lower(coalesce(_position,'')) ~ '(fiscal|diretor|diretora|secret[aá]ri)';
   elsif _slot in ('diretoria','secretaria') then
     _position := public._municipal_urbanism_authority_title_v1(_profile.id,coalesce(_process.municipality_id,_process.tenant_id),_slot);
