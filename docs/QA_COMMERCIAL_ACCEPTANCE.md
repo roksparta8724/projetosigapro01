@@ -74,7 +74,7 @@ representar um merge temporário em vez do commit publicado.
 O workflow manual **SIGAPRO Commercial Acceptance QA** exige SHA completo,
 ID numérico de uma execução aprovada que tenha publicado um artifact
 sanitizado com nome `sigapro-qa-evidence-<sha>`, e origem na branch
-`fix/qa-triagem-analise-pagamento-20261101`. O GitHub Action baixa esse
+`fix/homologacao-geral-sei-dashboard-bank-20261113`. O GitHub Action baixa esse
 artifact e usa o diretório privado da execução. Configure **required
 reviewers** para o environment `qa-commercial-approval` e confira a
 proveniência da execução de evidências antes de aprovar. **Não utilize

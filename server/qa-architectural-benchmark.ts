@@ -1,5 +1,6 @@
 /** QA-only benchmark of a real three-page synthetic PDF, no R2 or money. */
 import type {IncomingMessage,ServerResponse} from "node:http";
+import {currentQaPreview} from "./qa-runtime-scope.js";
 import {callDataApiRpc,readBearer} from "./municipal-storage.js";
 import {createQa04ArchitecturalPdfBytes} from "../src/lib/qa04ArchitecturalFixture.js";
 import {extractNativeArchitecturalPdf} from "./native-architectural-pdf.js";
@@ -9,7 +10,7 @@ type Req=IncomingMessage&{method?:string;body?:unknown};
 const QA="fix/qa-triagem-analise-pagamento-20261101";
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 export const qaBenchmarkEnabled=(env:NodeJS.ProcessEnv=process.env)=>
- env.VERCEL_ENV==="preview"&&env.VERCEL_GIT_COMMIT_REF===QA;
+ env.VERCEL_ENV==="preview"&&(env.VERCEL_GIT_COMMIT_REF===QA||currentQaPreview(env));
 function respond(res:ServerResponse,status:number,payload:Record<string,unknown>){
  res.statusCode=status;
  res.setHeader("Content-Type","application/json; charset=utf-8");

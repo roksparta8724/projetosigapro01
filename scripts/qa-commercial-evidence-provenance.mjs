@@ -7,7 +7,7 @@
 import {fileURLToPath} from "node:url";
 import {resolve} from "node:path";
 
-export const QA_BRANCH="fix/qa-triagem-analise-pagamento-20261101";
+export const QA_BRANCH="fix/homologacao-geral-sei-dashboard-bank-20261113";
 const SHA=/^[0-9a-f]{40}$/;
 const RUN=/^[1-9][0-9]{0,15}$/;
 const REPO=/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;

@@ -3,7 +3,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {Readable} from "node:stream";
 import {createHash} from "node:crypto";
-import {expectedDamKey,qaDatabaseEndpointMatches,verifyPdfStream,
+import {expectedDamKey,qaDatabaseEndpointMatches,isCurrentQaAuditScope,verifyPdfStream,
   inspectExistingQaDam,MAX_BYTES,classifyR2ReadFailure,diagnoseR2MissingObject} from "./qa-r2-original-bytes.mjs";
 const sha=createHash("sha256").update("%PDF-1.7\nExample private synthetic content\n").digest("hex");
 const city="49dac0b6-6352-4744-9aab-9ff91c59d970";
@@ -95,4 +95,18 @@ test("only read-only R2 calls distinguish bucket missing, object missing and wro
   assert.equal(await diagnoseR2MissingObject({send:async command=>
     command.constructor.name==="HeadBucketCommand"?{}:{Contents:[{Key:entry.replace(sha,"f".repeat(64))}]}
   },"sigapro-documentos",entry),"NOT_VERIFIED_ORIGINAL_KEY_MISMATCH");
+});
+
+test("current QA evidence scope pins the branch, worker, SSL, exact host and database",()=>{
+  const env={VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:"fix/homologacao-geral-sei-dashboard-bank-20261113",
+    VITE_SIGAPRO_NEON_ISOLATED:"true",
+    VITE_NEON_DATA_API_URL:"https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1",
+    SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL:"postgresql://sigapro_qa_webhook_worker:dummy@ep-misty-breeze-b4ri8ig0.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923?sslmode=require"};
+  assert.equal(isCurrentQaAuditScope(env),true);
+  for(const change of [{VERCEL_ENV:"production"},{VERCEL_GIT_COMMIT_REF:"main"},
+    {VITE_SIGAPRO_NEON_ISOLATED:"false"},
+    {VITE_NEON_DATA_API_URL:env.VITE_NEON_DATA_API_URL.replace(".neon.tech",".neon.tech.invalid")},
+    {SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL:env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL.replace("sigapro_qa_webhook_worker","neondb_owner")},
+    {SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL:env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL+"&options=-c%20role%3Dneondb_owner"}])
+    assert.equal(isCurrentQaAuditScope({...env,...change}),false);
 });

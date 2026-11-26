@@ -188,6 +188,15 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/closedProcessLifecycleQa.test.ts",
     "src/test/paidTriageDocumentReturnFlow.test.ts",
   ]);
+  run("current-qa-proof-control-tests",["--test","scripts/qa-r2-original-bytes.test.mjs","scripts/qa-r2-dam-exact-recovery.test.mjs","scripts/qa-visual-provider-config.test.mjs"]);
+  run("current-qa-provider-config",["scripts/qa-visual-provider-config.mjs"]);
+  run("current-qa-original-byte-audit",["scripts/qa-r2-original-bytes.mjs"]);
+  run("current-qa-live-readonly-integrations",["node_modules/vitest/vitest.mjs","run","--maxWorkers=1","server/qa-live-current-readiness.test.ts"],{SIGAPRO_QA_LIVE_READONLY_CHECKS:"true"});
+  // Exact one-shot mark, only the active preview; no customer data or bank orders.
+  if(String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[qa-commercial-probe-once]")){
+    run("qa-historical-original-exact-recovery",["scripts/qa-r2-dam-exact-recovery.mjs"]);
+    run("qa-commercial-real-synthetic-probe",["node_modules/vitest/vitest.mjs","run","--maxWorkers=1","server/qa-commercial-live-probe-once.test.ts"],{SIGAPRO_QA_COMMERCIAL_PROBE_ONCE:"true"});
+  }
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS unified municipal process-control preview checks.");
 }
 if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANCH){
