@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
 import { assertPersonalProcessMarkerLimit } from "@/lib/processMarkerLimits";
 import { IdentityScopedSingleFlight } from "@/lib/identityScopedSingleFlight";
-import { contextEpoch } from "@/lib/municipalContextTransition";
+import { contextEpoch, isMunicipalContextBusy } from "@/lib/municipalContextTransition";
 import type { MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
 import {
   type AccountStatus,
@@ -1073,10 +1073,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     let active = true;
     const initialContextEpoch = contextEpoch(authenticatedProfileId || authenticatedUserId);
-    const contextStillCurrent = () => initialContextEpoch === contextEpoch(authenticatedProfileId || authenticatedUserId);
+    const contextStillCurrent = () => initialContextEpoch === contextEpoch(authenticatedProfileId || authenticatedUserId) && !isMunicipalContextBusy(authenticatedProfileId || authenticatedUserId);
 
     const bootstrap = async () => {
-      if (authLoading) return;
+      if (authLoading || isMunicipalContextBusy(authenticatedProfileId || authenticatedUserId)) return;
 
       if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasBackendEnv) {
         if (!active) return;
@@ -1354,6 +1354,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
     const identity = authenticatedUserId;
     const profileId = authenticatedProfileId || identity;
+    if (!expectedAssignment && isMunicipalContextBusy(profileId)) return;
     const epoch = contextEpoch(profileId);
     const scope = JSON.stringify([focusProcessRouteKey ?? "", epoch, expectedAssignment?.id ?? ""]);
     const stillCurrent = () => currentAuthIdentityRef.current === identity && contextEpoch(profileId) === epoch;

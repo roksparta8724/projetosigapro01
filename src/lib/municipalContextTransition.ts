@@ -5,6 +5,7 @@ let active:Transition|null=null;
 const epochs=new Map<string,number>();
 const listeners=new Set<()=>void>();
 const notify=()=>listeners.forEach(fn=>fn());
+export const isMunicipalContextBusy=(id:string|null|undefined)=>Boolean(id&&active?.profileId===id);
 export const contextEpoch=(id:string|null|undefined)=>epochs.get(id||"")??0;
 export function beginMunicipalContextTransition(assignment:MunicipalStaffAssignment):Transition|null{
  if(active?.profileId===assignment.profileId)return null;
