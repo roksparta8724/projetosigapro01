@@ -32,7 +32,8 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(get).toContain('verifiedDocument(req,');
     expect(get).toContain('documentReady=false');
     expect(get).toContain('mode:available.enabled');
-    expect(get).toContain('provider.kind==="cloudflare"?"text_only":"visual"');
+    expect(get).toContain('["cloudflare","private"].includes(available.provider.kind)?"text_only":"visual"');
+    expect(get).toContain('privateTextAvailable:available.enabled&&available.provider.kind==="private"');
     const authorization=api.slice(api.indexOf("async function verifiedDocument"),
       api.indexOf("async function pdfBytes"));
     expect(authorization).toContain('authorize_architectural_reading_v1');

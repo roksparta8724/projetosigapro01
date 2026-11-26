@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
+import {beginMunicipalContextTransition,finishMunicipalContextTransition,isCurrentMunicipalContextTransition,useMunicipalContextTransition} from "@/lib/municipalContextTransition";
 import { Building2, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -9,7 +11,7 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { getRoleLandingPath, roleLabels } from "@/lib/platform";
+import { getSessionLandingPath, roleLabels } from "@/lib/platform";
 import {
   getMunicipalAssignmentForAccount,
   isSwitchableMunicipalStaffRole,
@@ -21,7 +23,8 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
   const { refreshRemoteStore } = usePlatformData();
   const navigate = useNavigate();
   const [rows, setRows] = useState<MunicipalStaffAssignment[]>([]);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const transition = useMunicipalContextTransition(session.id);
+  const busyId = transition?.assignmentId ?? null;
   const municipalityId = session.municipalityId || session.tenantId || "";
 
   useEffect(() => {
@@ -42,7 +45,8 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
 
   const switchTo = async (assignment: MunicipalStaffAssignment) => {
     if (busyId || assignment.isCurrent) return;
-    setBusyId(assignment.id);
+    const operation = beginMunicipalContextTransition(assignment);
+    if (!operation) return;
     try {
       const activated = await activateRemoteMunicipalStaffAssignment(assignment.id);
       if (activated.profileId !== session.id ||
@@ -64,18 +68,18 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
       }
       // Refresh canonical profile, permissions and process scopes BEFORE
       // navigating or advertising the activated context.
-      await refreshRemoteStore();
-      window.dispatchEvent(new CustomEvent("sigapro-platform-session-updated", {
-        detail: {
-          ...session, role: activated.role, department: activated.departmentName,
-        },
-      }));
-      navigate(getRoleLandingPath(activated.role), { replace: true });
-      toast.success("Departamento ativo: " + activated.departmentName);
+      await refreshRemoteStore(null, assignment);
+      if (!isCurrentMunicipalContextTransition(operation)) return;
+      // Commit the confirmed store and navigation together, before reopening
+      // operational content. No optimistic profile or success toast.
+      const nextSession = {...session,role:activated.role,department:activated.departmentName,title:roleLabels[activated.role]};
+      flushSync(() => {
+        navigate(getSessionLandingPath(nextSession), { replace: true, state:{sigaproContextLanding:true} });
+      });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível trocar o departamento.");
+      if(isCurrentMunicipalContextTransition(operation)) toast.error(error instanceof Error ? error.message : "Não foi possível trocar o departamento.");
     } finally {
-      setBusyId(null);
+      finishMunicipalContextTransition(operation);
     }
   };
 

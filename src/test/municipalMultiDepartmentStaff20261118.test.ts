@@ -44,8 +44,8 @@ describe("SIGAPRO — um login, múltiplas lotações com permissão real",()=>{
     expect(sql).toContain("PERFORM public._apply_staff_context_v1");
     expect(sql).toContain("role_id<>v_role_id");
     expect(switcher).toContain("await activateRemoteMunicipalStaffAssignment");
-    expect(switcher).toContain("await refreshRemoteStore()");
-    expect(switcher.indexOf("await refreshRemoteStore()")).toBeLessThan(switcher.indexOf("navigate(getRoleLandingPath"));
+    expect(switcher).toContain("await refreshRemoteStore(null, assignment)");
+    expect(switcher.indexOf("await refreshRemoteStore(null, assignment)")).toBeLessThan(switcher.indexOf("navigate(getSessionLandingPath"));
     expect(switcher).toContain("getMunicipalAssignmentForAccount");
     expect(api).toContain('db.rpc("activate_municipal_staff_assignment_v1"');
   });
@@ -56,6 +56,7 @@ describe("SIGAPRO — um login, múltiplas lotações com permissão real",()=>{
     expect(switcher).not.toContain("signOut");
     expect(switcher).not.toContain("signIn");
     expect(switcher).toContain("toast.error");
+    expect(switcher).not.toContain("toast.success");
   });
   it("gestão de usuários da Prefeitura inclui autorizações com contraste claro e escuro",()=>{
     expect(admin).toContain("session.role === \"prefeitura_admin\"");
@@ -80,9 +81,9 @@ describe("SIGAPRO — um login, múltiplas lotações com permissão real",()=>{
     const readBack = switcher.indexOf("const verified = getMunicipalAssignmentForAccount(");
     const checkCurrent = switcher.indexOf("const active = verified.filter((item) => item.isCurrent);");
     const verifyRole = switcher.indexOf("active[0].role !== activated.role");
-    const refresh = switcher.indexOf("await refreshRemoteStore();");
-    const publish = switcher.indexOf('window.dispatchEvent(new CustomEvent("sigapro-platform-session-updated"');
-    const navigateAfter = switcher.indexOf("navigate(getRoleLandingPath(activated.role)");
+    const refresh = switcher.indexOf("await refreshRemoteStore(null, assignment);");
+    const publish = switcher.indexOf("flushSync(() => {");
+    const navigateAfter = switcher.indexOf("navigate(getSessionLandingPath(nextSession)");
     expect(readBack).toBeGreaterThan(-1);
     expect(switcher).toContain("await listRemoteMunicipalStaffAssignments(), session.id, municipalityId");
     expect(checkCurrent).toBeGreaterThan(readBack);

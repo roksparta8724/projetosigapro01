@@ -10,6 +10,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole, roleLabels } from "@/lib/platform";
 import type { Permission, SessionUser, UserRole } from "@/lib/platform";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
+import { useMunicipalContextTransition } from "@/lib/municipalContextTransition";
+import { getSessionLandingPath } from "@/lib/platform";
 
 export function PermissionRoute({
   permission,
@@ -27,6 +29,7 @@ export function PermissionRoute({
   const { sessionUsers, remoteSyncedForCurrentUser, storeIdentityConfirmed } = usePlatformData();
   const { session } = usePlatformSession();
   const tenant = useTenant();
+  const contextTransition = useMunicipalContextTransition(session.id);
   const verifiedScopeId =
     bootstrap.profile?.municipalityId ??
     session.municipalityId ??
@@ -88,6 +91,8 @@ export function PermissionRoute({
   const isActuallyBlocked = accountStatus === "blocked" || accountStatus === "inactive" || Boolean(authenticatedUser?.deletedAt);
   const permissionDataPending = !remoteSyncedForCurrentUser;
   const pendingAccess = () => <SecureRoutePending title="Verificando acesso municipal" detail="Aguardando confirmação dos vínculos e permissões desta conta." />;
+
+  if (!isActuallyBlocked && contextTransition) return pendingAccess();
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const isExternalRole =
@@ -210,6 +215,13 @@ export function PermissionRoute({
   // A missing department/role during hydration is not a confirmed refusal.
   if (!isActuallyBlocked && permissionDataPending) return pendingAccess();
 
+  // A login/department landing can be corrected to the verified department;
+  // direct navigation to a forbidden URL remains a genuine refusal.
+  const landingPath = getSessionLandingPath(session);
+  if (!isActuallyBlocked && location.state?.sigaproContextLanding === true &&
+      remoteSyncedForCurrentUser && landingPath !== location.pathname) {
+    return <Navigate to={landingPath} replace />;
+  }
   const fallbackPath = resolveAllowedArea(session);
 
   return (

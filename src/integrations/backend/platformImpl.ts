@@ -362,47 +362,16 @@ function resolveDepartmentBackedRole(
   department: string | null | undefined,
 ): SessionUser["role"] {
   const storedRole = normalizeStoredRole(role);
+  // Neon already authorizes the role in the canonical profile/membership.
+  // Never promote, demote or reinterpret it using a display label.
+  if (isNeonBackend) return storedRole;
   const normalizedDepartment = (department ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-
-  // Perfis externos nunca podem ser convertidos em funcionário municipal
-  // apenas porque o vínculo técnico possui um rótulo de departamento como
-  // "Profissional Externo" ou "Portal externo". A identidade externa é estável.
-  if (
-    storedRole === "profissional_externo" ||
-    storedRole === "property_owner" ||
-    storedRole === "proprietario_consulta"
-  ) {
-    return storedRole;
-  }
-
-  if (!normalizedDepartment) return storedRole;
-
-  // Para contas realmente internas, o departamento define a área operacional;
-  // o cargo/função permanece apenas descritivo.
-  if (
-    storedRole === "master_admin" ||
-    storedRole === "master_ops" ||
-    storedRole === "prefeitura_admin" ||
-    storedRole === "prefeitura_supervisor"
-  ) {
-    return storedRole;
-  }
-
-  if (/(urbanismo|obras|engenharia|planejamento|licenciamento|aprovacao)/.test(normalizedDepartment)) {
-    return "analista";
-  }
-  if (/(finance|financa|fazenda|tesour|arrecad|tribut)/.test(normalizedDepartment)) {
-    return "financeiro";
-  }
-  if (/(fiscaliz|postura)/.test(normalizedDepartment)) {
-    return "fiscal";
-  }
-
-  return "setor_intersetorial";
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  if (!normalizedDepartment || !["analista","financeiro","fiscal","setor_intersetorial"].includes(storedRole)) return storedRole;
+  if (/(finance|financa|fazenda|tesour|arrecad|tribut)/.test(normalizedDepartment)) return "financeiro";
+  if (/(fiscaliz|fiscal|postura)/.test(normalizedDepartment)) return "fiscal";
+  if (/(analise|urbanis|obras|engenharia|planejamento|licenciamento|aprovacao|topografia)/.test(normalizedDepartment)) return "analista";
+  return storedRole;
 }
 
 function storedAccessLevel(levelName: string | null | undefined, role: SessionUser["role"]): 1 | 2 | 3 {
@@ -1400,10 +1369,10 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       profile?.id ??
       membership.user_id;
     const departmentName =
-      membership.department ||
       (profile?.department_id ? departmentById.get(profile.department_id)?.name : "") ||
-      "";
-    const roleCode = resolveDepartmentBackedRole(role?.code ?? profile?.role, departmentName);
+      membership.department || "";
+    const roleCode = resolveDepartmentBackedRole(
+      isNeonBackend && profile?.role ? profile.role : role?.code ?? profile?.role, departmentName);
     const accountStatus =
       profile?.account_status === "blocked" || membership.account_status === "blocked" || membership.blocked_at
         ? "blocked"
