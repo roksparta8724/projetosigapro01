@@ -5173,3 +5173,10 @@ export async function getRemoteMunicipalAuthorityCapabilities(processId:string){
  if(error)throw Error(error.message||"Competência institucional indisponível.");
  return parseMunicipalAuthorityCapabilities(data);
 }
+
+export async function setRemoteMunicipalStaffIdentityPrimary(municipalityId:string,profileId:string,departmentId:string|null){
+ if(!db||!isNeonBackend)throw Error("Identificação institucional indisponível.");
+ const {data,error}=await db.rpc("set_municipal_staff_identity_primary_v1",{_municipality_id:municipalityId,_profile_id:profileId,_department_id:departmentId});
+ if(error)throw Error(error.message||"Falha ao fixar a unidade de identificação.");
+ return parseMunicipalIdentityBadges(data,municipalityId,[profileId]);
+}

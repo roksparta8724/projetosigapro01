@@ -20,14 +20,14 @@ export function parseAuthorityDesignations(value:unknown,municipalityId:string,p
  });
 }
 
-export type MunicipalIdentityBadge={profileId:string;municipalityId:string;code:string;name:string;kind:string;fixed:boolean};
+export type MunicipalIdentityBadge={profileId:string;municipalityId:string;departmentId:string|null;code:string;name:string;kind:string;fixed:boolean;authority:boolean};
 export function parseMunicipalIdentityBadges(value:unknown,municipalityId:string,profileIds:readonly string[]):MunicipalIdentityBadge[]{
  if(!Array.isArray(value))throw Error("Identificação institucional não confirmada.");
  const seen=new Set<string>();
  return value.map((item:unknown)=>{
   if(!item||typeof item!=="object")throw Error("Identificação inválida.");
   const row=item as Record<string,unknown>;
-  if(typeof row.profileId!=="string"||!profileIds.includes(row.profileId)||seen.has(row.profileId)||row.municipalityId!==municipalityId||typeof row.code!=="string"||typeof row.name!=="string"||typeof row.kind!=="string"||typeof row.fixed!=="boolean")throw Error("Identificação institucional fora do escopo.");
+  if(typeof row.profileId!=="string"||!profileIds.includes(row.profileId)||seen.has(row.profileId)||row.municipalityId!==municipalityId||typeof row.code!=="string"||typeof row.name!=="string"||typeof row.kind!=="string"||typeof row.fixed!=="boolean"||typeof row.authority!=="boolean"||(row.departmentId!==null&&typeof row.departmentId!=="string"))throw Error("Identificação institucional fora do escopo.");
   seen.add(row.profileId);return row as MunicipalIdentityBadge;
  });
 }

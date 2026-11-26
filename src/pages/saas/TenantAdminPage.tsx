@@ -1051,6 +1051,7 @@ export function TenantAdminPage() {
                 municipalityId={effectiveScopeId}
                 currentDepartment={user.department || ""}
                 departments={activeDepartments}
+                identityBadge={identityBadges.get(user.id)}
                 onChanged={refreshRemoteStore}
               />
             ) : null}

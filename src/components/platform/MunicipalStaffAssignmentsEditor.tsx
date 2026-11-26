@@ -4,18 +4,22 @@ import { Button } from "@/components/ui/button";
 import {
   listRemoteMunicipalStaffAssignments,
   setRemoteMunicipalStaffDepartment,
+  setRemoteMunicipalStaffIdentityPrimary,
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
+import {MUNICIPAL_AUTHORITY_UPDATED} from "@/hooks/useMunicipalAuthority";
+import type {MunicipalIdentityBadge} from "@/lib/municipalAuthorityDesignations";
 import type { MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
 
 export function MunicipalStaffAssignmentsEditor({
-  municipalityId, profileId, currentDepartment, departments, onChanged,
+  municipalityId, profileId, currentDepartment, departments, onChanged, identityBadge,
 }: {
   municipalityId: string;
   profileId: string;
   currentDepartment: string;
   departments: MunicipalDepartmentRecord[];
   onChanged?: () => Promise<unknown>;
+  identityBadge?: MunicipalIdentityBadge;
 }) {
   const [assignments, setAssignments] = useState<MunicipalStaffAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +60,7 @@ export function MunicipalStaffAssignmentsEditor({
     try {
       await setRemoteMunicipalStaffDepartment({ municipalityId, profileId, departmentId, enabled });
       await load();
+      window.dispatchEvent(new Event(MUNICIPAL_AUTHORITY_UPDATED));
       await onChanged?.();
       setMessage(enabled
         ? "Departamento autorizado. O profissional poderá escolhê-lo com o mesmo login."
@@ -67,6 +72,12 @@ export function MunicipalStaffAssignmentsEditor({
     }
   };
 
+  const fixIdentity=async(departmentId:string|null)=>{
+    if(savingId)return;
+    setSavingId(departmentId||"identity");setError("");setMessage("");
+    try{await setRemoteMunicipalStaffIdentityPrimary(municipalityId,profileId,departmentId);window.dispatchEvent(new Event(MUNICIPAL_AUTHORITY_UPDATED));}
+    catch(e){setError(e instanceof Error?e.message:"Não foi possível fixar a identificação.");}finally{setSavingId(null);}
+  };
   return (
     <section
       data-municipal-multi-department="true"
@@ -124,9 +135,9 @@ export function MunicipalStaffAssignmentsEditor({
                 key={department.id}
                 data-municipal-assignment-card="true"
                 data-assignment-state={isCurrent ? "current" : selected ? "authorized" : "available"}
-                className={`flex min-w-0 flex-col gap-3 rounded-[17px] border p-3.5 shadow-[0_3px_12px_rgba(15,23,42,0.035)] transition-colors sm:flex-row sm:items-center sm:justify-between ${surfaceTone}`}
+                className={`flex min-w-0 flex-wrap items-center gap-2 rounded-[17px] border p-3.5 shadow-[0_3px_12px_rgba(15,23,42,0.035)] transition-colors ${surfaceTone}`}
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1 basis-[130px]">
                   <p className="truncate text-[13px] font-bold leading-5 text-slate-950 dark:text-white" title={department.name}>
                     {department.code ? department.code + " · " : ""}{department.name}
                   </p>
@@ -158,12 +169,14 @@ export function MunicipalStaffAssignmentsEditor({
                   {selected ? <><Check className="mr-1 h-3.5 w-3.5" />Autorizado</> : "Autorizar"}
                   {busy ? "..." : null}
                 </Button>
+                {(selected||legacyDepartment)&&department.code?<label className="flex min-w-0 shrink-0 items-center gap-1.5 text-[10px] font-semibold text-slate-700 dark:text-slate-200" title="Fixar esta lotação como sigla antes do nome"><input type="radio" name={"staff-identity-"+profileId} checked={Boolean(identityBadge?.fixed&&!identityBadge.authority&&identityBadge.departmentId===department.id)} disabled={Boolean(savingId)} onChange={()=>void fixIdentity(department.id)} className="h-4 w-4 shrink-0 accent-sky-700"/><span>Fixar sigla</span></label>:null}
               </div>
             );
           })}
         </div>
       ) : null}
 
+      {identityBadge?.fixed&&!identityBadge.authority?<div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2 text-xs text-slate-700 dark:border-sky-800 dark:bg-sky-950/30 dark:text-slate-200"><span className="min-w-0">Identificação fixa: <strong>{identityBadge.code}</strong></span><Button type="button" variant="outline" size="sm" disabled={Boolean(savingId)} onClick={()=>void fixIdentity(null)} className="h-8 shrink-0 rounded-lg">Usar lotação atual</Button></div>:null}
       {departments.length === 0 && !loading ? (
         <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
           Cadastre departamentos no organograma para atribuir acesso.
