@@ -7,11 +7,11 @@
  */
 import {resolve} from "node:path";
 import {fileURLToPath} from "node:url";
-import {qaDatabaseEndpointMatches} from "./qa-r2-original-bytes.mjs";
+import {qaDatabaseEndpointMatches,isCurrentQaAuditScope} from "./qa-r2-original-bytes.mjs";
 const QA_BRANCH="fix/qa-triagem-analise-pagamento-20261101";
 const nonblank=(x)=>typeof x==="string" && x.trim().length>=20;
 export function inspectVisualProviderEnvironment(env=process.env) {
-  if(env.VERCEL_ENV!=="preview"||env.VERCEL_GIT_COMMIT_REF!==QA_BRANCH||
+  if(env.VERCEL_ENV!=="preview"||(env.VERCEL_GIT_COMMIT_REF!==QA_BRANCH&&!isCurrentQaAuditScope(env))||
      !qaDatabaseEndpointMatches(
        String(env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL||""),
        String(env.VITE_NEON_DATA_API_URL||"")

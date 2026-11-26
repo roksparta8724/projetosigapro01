@@ -28,15 +28,31 @@ export function expectedDamKey(row) {
 }
 export function qaDatabaseEndpointMatches(dbUrl,dataApiUrl) {
   try {
-    const dbHost=new URL(dbUrl).hostname;
-    const apiHost=new URL(dataApiUrl).hostname;
-    const apiIdentity=/^(ep-[a-z0-9-]+)\.apirest\./.exec(apiHost)?.[1];
-    return Boolean(apiIdentity &&
-      (dbHost===apiIdentity+".c-6.us-east-2.aws.neon.tech" ||
-       dbHost.startsWith(apiIdentity+".") ||
-       dbHost.startsWith(apiIdentity+"-pooler.")) &&
-      !apiIdentity.includes("blue-cloud"));
+    const db=new URL(dbUrl),api=new URL(dataApiUrl);
+    const identity="ep-misty-breeze-b4ri8ig0";
+    const suffix=".c-6.us-east-2.aws.neon.tech";
+    return ["postgres:","postgresql:"].includes(db.protocol) &&
+      api.protocol==="https:" && !api.username && !api.password && !api.port &&
+      api.hostname===identity+".apirest"+suffix &&
+      [identity+suffix,identity+"-pooler"+suffix].includes(db.hostname) &&
+      !["options","service","host","user"].some(key=>db.searchParams.has(key));
   } catch { return false; }
+}
+/** The current release branch must match the independently verified QA database. */
+export function isCurrentQaAuditScope(env=process.env) {
+  if(env.VERCEL_ENV!=="preview" ||
+     env.VERCEL_GIT_COMMIT_REF!=="fix/homologacao-geral-sei-dashboard-bank-20261113" ||
+     env.VITE_SIGAPRO_NEON_ISOLATED!=="true")return false;
+  try{
+    const db=new URL(String(env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL||""));
+    const api=new URL(String(env.VITE_NEON_DATA_API_URL||""));
+    return qaDatabaseEndpointMatches(db.href,api.href) &&
+      db.username==="sigapro_qa_webhook_worker" &&
+      db.pathname==="/sigapro_migration_stage_20260923" &&
+      ["require","verify-full"].includes(db.searchParams.get("sslmode")) &&
+      api.pathname.replace(/\/$/,"")==="/sigapro_migration_stage_20260923/rest/v1" &&
+      !api.search && !api.hash;
+  }catch{return false;}
 }
 export async function verifyPdfStream(body,expectedHash) {
   if(!body || !body[Symbol.asyncIterator] || !SHA256.test(expectedHash)) return false;
@@ -97,7 +113,7 @@ export async function diagnoseR2MissingObject(client,bucket,objectKey) {
 
 export async function inspectExistingQaDam(env=process.env) {
   if(env.VERCEL_ENV!=="preview" ||
-     env.VERCEL_GIT_COMMIT_REF!=="fix/qa-triagem-analise-pagamento-20261101")
+     (env.VERCEL_GIT_COMMIT_REF!=="fix/qa-triagem-analise-pagamento-20261101"&&!isCurrentQaAuditScope(env)))
     return "NOT_VERIFIED_SCOPE";
   const dbUrl=String(env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL||"");
   const dataApi=String(env.VITE_NEON_DATA_API_URL||"");

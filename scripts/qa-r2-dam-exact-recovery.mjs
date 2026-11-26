@@ -15,7 +15,7 @@ import {
 } from "@aws-sdk/client-s3";
 import {fileURLToPath} from "node:url";
 import {resolve} from "node:path";
-import {qaDatabaseEndpointMatches,expectedDamKey,verifyPdfStream,SHA256,UUID,MAX_BYTES}
+import {qaDatabaseEndpointMatches,isCurrentQaAuditScope,expectedDamKey,verifyPdfStream,SHA256,UUID,MAX_BYTES}
   from "./qa-r2-original-bytes.mjs";
 
 export const MAX_LISTED=2200;
@@ -77,7 +77,7 @@ export async function identifyExactSource(client,bucket,row) {
 }
 
 function checkQaConfig(env) {
-  if(env.VERCEL_ENV!=="preview"||env.VERCEL_GIT_COMMIT_REF!==BRANCH)
+  if(env.VERCEL_ENV!=="preview"||(env.VERCEL_GIT_COMMIT_REF!==BRANCH&&!isCurrentQaAuditScope(env)))
     return "NOT_VERIFIED_SCOPE";
   const url=String(env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL||"");
   const api=String(env.VITE_NEON_DATA_API_URL||"");
@@ -106,6 +106,7 @@ export async function searchAndRestoreQaOriginal(env=process.env) {
     row=resp.rows?.[0];
   }catch{return "NOT_VERIFIED_DB"}
   finally{try{await db?.end()}catch{}}
+  if(!row)return "NOT_VERIFIED_NO_ORIGINAL";
   const canonical=expectedDamKey(row);
   if(!canonical||row.original_pdf_key!==canonical)return "INTEGRITY_MISMATCH";
   const bucket=String(env.R2_BUCKET_DOCUMENTOS);
