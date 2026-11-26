@@ -77,7 +77,7 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
       };
       // These read-only requests are independent after the transactional switch.
       // The provider waits for confirmation BEFORE publishing the scoped store.
-      await refreshRemoteStore(null, assignment, confirmAssignment());
+      await refreshRemoteStore(null, assignment, confirmAssignment);
       await routeReady;
       if (!isCurrentMunicipalContextTransition(operation)) return;
       // Commit the confirmed store and navigation together, before reopening
@@ -98,6 +98,7 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
           if(!isCurrentMunicipalContextTransition(operation)) return;
           if(current[0].id===assignment.id){
             await routeReady;
+            if(!isCurrentMunicipalContextTransition(operation)) return;
             flushSync(()=>navigate(getSessionLandingPath({...session,role:current[0].role,department:current[0].departmentName,title:roleLabels[current[0].role]}),{replace:true,state:{sigaproContextLanding:true}}));
             return;
           }
