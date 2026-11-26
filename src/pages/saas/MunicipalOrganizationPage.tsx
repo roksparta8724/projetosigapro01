@@ -112,6 +112,7 @@ export function MunicipalOrganizationPage() {
     });
     setEditorStatus("");
     setEditorOpen(true);
+    window.requestAnimationFrame(()=>document.getElementById("municipal-organization-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
 
   const startEdit = (department: MunicipalDepartmentRecord) => {
@@ -127,6 +128,7 @@ export function MunicipalOrganizationPage() {
     });
     setEditorStatus("");
     setEditorOpen(true);
+    window.requestAnimationFrame(()=>document.getElementById("municipal-organization-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
 
   const saveEditor = async () => {
@@ -377,6 +379,7 @@ export function MunicipalOrganizationPage() {
             description="Defina a posição desta unidade dentro do organograma municipal."
             icon={PencilLine}
           >
+            <div id="municipal-organization-editor" className="scroll-mt-24"/>
             {!editor.id ? <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/40"><span className="w-full text-xs font-semibold text-slate-700 dark:text-slate-200">Modelos opcionais · ou digite qualquer nome</span>{adjunctUnitTemplates.map(template=><Button key={template.unitType} type="button" variant="outline" size="sm" disabled={savingUnit} className="rounded-xl dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100" onClick={()=>setEditor(current=>({...current,name:template.name,unitType:template.unitType,code:""}))}>{template.label}</Button>)}</div>:null}
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div>
