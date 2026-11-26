@@ -19,7 +19,8 @@ describe("SIGAPRO — prontidão bancária por prefeitura", () => {
     expect(municipalPaymentReadiness({ ...production, webhook_configured: false }).code).toBe("webhook_missing");
     expect(municipalPaymentReadiness({ ...production, last_test_status: "error" }).code).toBe("test_pending");
     expect(municipalPaymentReadiness({ ...production, status: "configured", last_tested_at: new Date().toISOString() }).code).toBe("activation_pending");
-    expect(municipalPaymentReadiness(production).code).toBe("technical_connection_active");
+    expect(municipalPaymentReadiness(production).code).toBe("test_pending");
+    expect(municipalPaymentReadiness({...production,last_tested_at:new Date().toISOString()}).code).toBe("technical_connection_active");
   });
   it("rejeita teste ausente, inválido, vencido ou futuro demais antes da ativação", () => {
     const now = Date.parse("2026-11-26T13:00:00Z");

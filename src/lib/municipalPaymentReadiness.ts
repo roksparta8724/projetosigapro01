@@ -62,11 +62,11 @@ export function municipalPaymentReadiness(connection: PaymentReadinessConnection
       detail: "Execute Testar conexão. O teste de credenciais não comprova liquidação de uma guia.",
     };
   }
-  if (connection.status !== "active" && !hasFreshMunicipalPaymentTest(connection, now)) {
+  if (!hasFreshMunicipalPaymentTest(connection, now)) {
     return {
       code: "test_pending" as const,
       title: "Renove o teste da conexão bancária",
-      detail: "Para ativar, confirme novamente as credenciais atuais. O teste tem validade de 24 horas.",
+      detail: "Confirme novamente as credenciais atuais. O indicador de prontidão exige teste válido nas últimas 24 horas, inclusive para conexões já ativas.",
     };
   }
   if (connection.status !== "active") {

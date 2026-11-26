@@ -62,10 +62,11 @@ function formatPaymentTestDate(value?: string | null) {
     : "data não disponível";
 }
 
-function providerLabel(provider?: PaymentConnection["provider"]) {
+function providerLabel(provider?: PaymentConnection["provider"] | "") {
   if (provider === "mercado_pago") return "Mercado Pago";
   if (provider === "bank_direct") return "Banco / convênio (integração específica)";
-  return "PIX / baixa manual";
+  if (provider === "manual") return "PIX / baixa manual";
+  return "Selecione a instituição ou modalidade";
 }
 
 export function MunicipalPaymentSettings({
@@ -82,7 +83,7 @@ export function MunicipalPaymentSettings({
   const [message, setMessage] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
   const [form, setForm] = useState({
-    provider: "mercado_pago" as "mercado_pago" | "bank_direct" | "manual",
+    provider: "" as "" | "mercado_pago" | "bank_direct" | "manual",
     environment: "test" as "test" | "production",
     accessToken: "",
     webhookSecret: "",
@@ -99,8 +100,8 @@ export function MunicipalPaymentSettings({
   const hasWebhookSecret = Boolean(form.webhookSecret.trim()) ||
     Boolean(sameCredentialScope && connection?.webhook_configured);
   const hasUnsavedCredentials = Boolean(form.accessToken.trim() || form.webhookSecret.trim());
-  const selectionReady = form.provider !== "mercado_pago" ||
-    (hasAccessToken && (form.environment !== "production" || hasWebhookSecret));
+  const selectionReady = Boolean(form.provider) && (form.provider !== "mercado_pago" ||
+    (hasAccessToken && (form.environment !== "production" || hasWebhookSecret)));
   const webhookUrl = `https://sigapromunicipal.com.br/api/mercadopago-webhook?municipality_id=${encodeURIComponent(municipalityId)}`;
 
   const statusLabel = useMemo(() => {
@@ -118,7 +119,7 @@ export function MunicipalPaymentSettings({
     setConnection(null);
     setProductionRuntimeReady(false);
     setLoadFailed(false);
-    setForm({ provider: "mercado_pago", environment: "test", accessToken: "", webhookSecret: "" });
+    setForm({ provider: "", environment: "test", accessToken: "", webhookSecret: "" });
     setMessage("");
     if (!municipalityId) { setBusy(""); return; }
     setBusy("load");
@@ -129,7 +130,7 @@ export function MunicipalPaymentSettings({
       setProductionRuntimeReady(current.productionRuntimeReady===true);
       setLoadFailed(false);
       setForm({
-        provider: current.provider || "mercado_pago",
+        provider: current.provider || "",
         environment: current.environment || "test",
         accessToken: "",
         webhookSecret: "",
@@ -151,6 +152,7 @@ export function MunicipalPaymentSettings({
 
   const save = async () => {
     if (loadFailed || !connection) return;
+    if (!form.provider) { setMessage("Selecione a modalidade de arrecadação da Prefeitura."); return; }
     if (!selectionReady) {
       setMessage(form.environment === "production"
         ? "Informe o Access Token e a chave do Webhook de produção. Credenciais de teste não podem ser reutilizadas."
@@ -259,7 +261,7 @@ export function MunicipalPaymentSettings({
         <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{readiness.detail}</p>
         {readiness.code === "test_only" ? (
           <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
-            Atenção: uma conta Mercado Pago de testes não comprova baixa de guia ou recebimento real.
+            Atenção: uma conta bancária de testes não comprova baixa de guia ou recebimento real.
           </p>
         ) : null}
       </section>
@@ -317,8 +319,7 @@ export function MunicipalPaymentSettings({
                 Baixa automática
               </p>
               <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
-                O Webhook permitirá registrar pagamento e autenticação bancária
-                quando a integração de produção for ativada.
+                A baixa depende da integração homologada da instituição: API, retorno bancário ou notificação autenticada.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
@@ -408,11 +409,11 @@ export function MunicipalPaymentSettings({
               }
             >
               <SelectTrigger className="h-11 rounded-xl">
-                <SelectValue />
+                <SelectValue placeholder="Selecione a modalidade" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="mercado_pago">Mercado Pago</SelectItem>
                 <SelectItem value="bank_direct">Banco / convênio direto</SelectItem>
+                <SelectItem value="mercado_pago">Mercado Pago</SelectItem>
                 <SelectItem value="manual">PIX / baixa manual</SelectItem>
               </SelectContent>
             </Select>
@@ -533,7 +534,9 @@ export function MunicipalPaymentSettings({
             ? "Mercado Pago: utilize a conta de testes na homologação. A conexão técnica verifica a credencial, mas não confirma uma cobrança real, conciliação ou titularidade municipal. Tokens antigos do ambiente local não são vinculados automaticamente a uma Prefeitura."
             : form.provider === "bank_direct"
               ? "Banco ou convênio direto: o cadastro identifica o banco escolhido. A emissão automática permanece indisponível até a integração bancária específica ser homologada."
-              : "PIX/baixa manual: a Tesouraria confere e registra pagamentos. Esta modalidade não consulta pagamentos automaticamente."}
+              : form.provider === "manual"
+                ? "PIX/baixa manual: a Tesouraria confere e registra pagamentos. Esta modalidade não consulta pagamentos automaticamente."
+                : "Nenhum provedor selecionado. Cada instituição possui seu próprio contrato e integração; o SIGAPRO não exige Mercado Pago."}
         </div>
         {message ? (
           <div
@@ -560,7 +563,7 @@ export function MunicipalPaymentSettings({
             type="button"
             variant="outline"
             className="rounded-full"
-            disabled={Boolean(busy) || loadFailed || !connection}
+            disabled={Boolean(busy) || loadFailed || !connection || !form.provider}
             onClick={() => void save()}
           >
             {busy === "save" ? "Salvando..." : "Salvar conexão"}
@@ -585,7 +588,7 @@ export function MunicipalPaymentSettings({
             disabled={
               Boolean(busy) || loadFailed || !connection ||
               !connectionMatchesForm || hasUnsavedCredentials ||
-              form.provider === "bank_direct" ||
+              (!form.provider || form.provider === "bank_direct") ||
               (form.provider === "mercado_pago" &&
                 (!hasValidTest || !connection.credentials_configured ||
                 (form.environment === "production" && (!connection.webhook_configured || !productionRuntimeReady)))) ||

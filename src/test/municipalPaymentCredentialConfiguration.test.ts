@@ -26,6 +26,13 @@ describe("Municipal banking credentials - safe reusable configuration",()=>{
     expect(()=>assertMunicipalCredentialActivation({...saved,environment:"production",last_test_status:"ok"})).not.toThrow();
     expect(()=>assertMunicipalCredentialActivation({provider:"manual"})).not.toThrow();
   });
+  it("does not preselect any payment provider for a new municipality",()=>{
+    const ui=readFileSync("src/components/platform/MunicipalPaymentSettings.tsx","utf8");
+    expect(ui).toContain('provider: "" as "" | "mercado_pago" | "bank_direct" | "manual"');
+    expect(ui).toContain('provider: current.provider || ""');
+    expect(ui).toContain('!connection || !form.provider');
+    expect(ui).toContain('<SelectValue placeholder="Selecione a modalidade" />');
+  });
   it("prevents stale test/production credentials from leaking via UI shortcuts",()=>{
     const ui=readFileSync("src/components/platform/MunicipalPaymentSettings.tsx","utf8");
     const api=readFileSync("api/mercadopago.ts","utf8");
