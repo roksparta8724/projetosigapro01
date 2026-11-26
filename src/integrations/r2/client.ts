@@ -322,7 +322,7 @@ async function uploadLargeLegalPdf(input: {bucket:string;objectKey:string;file:F
    method:"POST",headers:{"Content-Type":"application/json",...headers},
    credentials:"same-origin",body:JSON.stringify({...base,...payload}),signal:controller.signal,
   });
-  const result=await response.json().catch(()=>({})) as {ok?:boolean;error?:string;objectKey?:string};
+  const result=await response.json().catch(()=>({})) as {ok?:boolean;error?:string;objectKey?:string;sha256?:string;fileSizeBytes?:number};
   if(!response.ok||result.ok!==true)
    throw Error(result.error||"Não foi possível gravar o PDF no servidor do SIGAPRO (HTTP "+response.status+").");
   return result;
@@ -336,9 +336,9 @@ async function uploadLargeLegalPdf(input: {bucket:string;objectKey:string;file:F
     base64:await fileToBase64(slice)});
   }
   const completed=await send({action:"finalize",fileSha256});
-  if(completed.objectKey!==input.objectKey)
+  if(completed.objectKey!==input.objectKey||completed.sha256!==fileSha256||completed.fileSizeBytes!==input.file.size)
    throw Error("O servidor não confirmou o documento original no armazenamento.");
-  return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:"",sha256:fileSha256,fileSizeBytes:input.file.size} satisfies R2UploadResult;
+  return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:"",sha256:completed.sha256,fileSizeBytes:completed.fileSizeBytes} satisfies R2UploadResult;
  }catch(err){
   if(controller.signal.aborted)throw Error("Tempo limite ao enviar o PDF; o original foi preservado.");
   throw err;

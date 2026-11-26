@@ -57,7 +57,7 @@ async function postPart(body:Record<string,unknown>,token:string,timeoutMs=90000
       signal:controller.signal,
     });
     const data = await response.json().catch(()=>({})) as {
-      ok?:boolean;objectKey?:string;publicUrl?:string;error?:string;
+      ok?:boolean;objectKey?:string;publicUrl?:string;error?:string;sha256?:string;fileSizeBytes?:number;
     };
     if (!response.ok || !data.ok) throw new Error(
       data.error || (response.status===401||response.status===403
@@ -109,9 +109,9 @@ export async function uploadLargeProcessAttachment(
         chunkSha256:digest,base64:bytesToBase64(new Uint8Array(bytes))},token);
     }
     const stored = await postPart({...base,action:"finalize",fileSha256},token,180000);
-    if (stored.objectKey !== input.objectKey)
+    if (stored.objectKey !== input.objectKey || stored.sha256 !== fileSha256 || stored.fileSizeBytes !== input.file.size)
       throw new Error("O R2 não confirmou o arquivo no local de armazenamento esperado.");
-    return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:"",sha256:fileSha256,fileSizeBytes:input.file.size};
+    return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:"",sha256:stored.sha256,fileSizeBytes:stored.fileSizeBytes};
   } catch(error) {
     // Best effort staging cleanup; the server always rechecks identity.
     await postPart({...base,action:"abort"},token,15000).catch(()=>undefined);

@@ -1,3 +1,4 @@
+import { assertStoredDocumentBytes } from "../document-storage-integrity.js";
 /**
  * SIGAPRO: bounded same-origin transport for large municipal process attachments.
  *
@@ -262,8 +263,10 @@ export default async function handler(req: Req, res: Res) {
             bucket,objectKey:official,logicalObjectKey:v.objectKey,
             expectedSha256:v.damOriginal.sha256,expectedBytes:v.fileSize,
           });
+        } else {
+          await assertStoredDocumentBytes(client,{bucket,objectKey:official,expectedSha256:v.fileSha256!,expectedBytes:v.fileSize,contentType:v.contentType,maxBytes:MAX_PROCESS_ATTACHMENT_BYTES,requirePdf:v.contentType==="application/pdf"});
         }
-        return respond(res,200,{ok:true,objectKey:v.objectKey,publicUrl:"",resumed:true});
+        return respond(res,200,{ok:true,objectKey:v.objectKey,publicUrl:"",resumed:true,sha256:v.fileSha256,fileSizeBytes:v.fileSize});
       }
       return respond(res,409,{error:"A revisão já existe e não pode ser sobrescrita."});
     } catch(error) { if (statusOf(error) !== 404) throw error; }
@@ -327,11 +330,13 @@ export default async function handler(req: Req, res: Res) {
         bucket,objectKey:official,logicalObjectKey:v.objectKey,
         expectedSha256:v.damOriginal.sha256,expectedBytes:v.fileSize,
       });
+    } else {
+      await assertStoredDocumentBytes(client,{bucket,objectKey:official,expectedSha256:v.fileSha256!,expectedBytes:v.fileSize,contentType:v.contentType,maxBytes:MAX_PROCESS_ATTACHMENT_BYTES,requirePdf:v.contentType==="application/pdf"});
     }
     await client.send(new DeleteObjectsCommand({Bucket:bucket,Delete:{
       Objects:Array.from({length:v.count},(_,i)=>({Key:partKey(i)})),Quiet:true,
     }})).catch(()=>undefined);
-    return respond(res,200,{ok:true,objectKey:v.objectKey,publicUrl:""});
+    return respond(res,200,{ok:true,objectKey:v.objectKey,publicUrl:"",sha256:v.fileSha256,fileSizeBytes:v.fileSize});
   } catch(error) {
     const status=statusOf(error);
     return respond(res,status===404||status===412?409:503,{

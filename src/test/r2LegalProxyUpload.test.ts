@@ -76,6 +76,16 @@ describe("Server-only legal PDF upload without browser R2 CORS",()=>{
   expect(r.status).toBe(400);
   expect(mock.send).not.toHaveBeenCalled();
  });
+ it("recusa revisão existente com metadados corretos mas bytes adulterados",async()=>{
+  mock.send.mockImplementation(async(cmd:{kind:string})=>{
+   if(cmd.kind==="HeadObjectCommand")return {ContentLength:size,ContentType:"application/pdf",Metadata:{sha256:fullSha}};
+   if(cmd.kind==="GetObjectCommand"){const changed=Buffer.from(first);changed[10]^=1;return {ContentLength:size,ContentType:"application/pdf",Body:(async function*(){yield changed;yield last;})()};}
+   throw Error("unexpected mutation");
+  });
+  const r=await run({...base,action:"finalize",fileSha256:fullSha});
+  expect(r.status).toBe(502);
+  expect(mock.send.mock.calls.map(([cmd])=>cmd.kind)).toEqual(["HeadObjectCommand","GetObjectCommand"]);
+ });
  it("combines chunks, verifies total SHA and cleans up staging objects",async()=>{
   const calls:string[]=[];
   mock.send.mockImplementation(async(cmd:{kind:string})=>{
@@ -88,6 +98,7 @@ describe("Server-only legal PDF upload without browser R2 CORS",()=>{
    if(cmd.kind==="CreateMultipartUploadCommand")return {UploadId:"mp1"};
    if(cmd.kind==="GetObjectCommand"){
     const i=calls.filter(x=>x==="GetObjectCommand").length-1;
+    if(i>=pieces.length)return {ContentLength:size,ContentType:"application/pdf",Body:(async function*(){yield* pieces;})()};
     const bytes=pieces[i];
     return {Body:{transformToByteArray:async()=>bytes},Metadata:{sha256:sha(bytes)}};
    }
@@ -96,7 +107,8 @@ describe("Server-only legal PDF upload without browser R2 CORS",()=>{
   });
   const r=await run({...base,action:"finalize",fileSha256:fullSha});
   expect(r.status).toBe(200);
-  expect(r.output).toMatchObject({ok:true,objectKey:key});
+  expect(r.output).toMatchObject({ok:true,objectKey:key,sha256:fullSha,fileSizeBytes:size});
+  expect(mock.send.mock.calls.find(([cmd])=>cmd.kind==="CompleteMultipartUploadCommand")?.[0].input.IfNoneMatch).toBe("*");
   expect(calls).toContain("UploadPartCommand");
   expect(calls).toContain("CompleteMultipartUploadCommand");
   expect(calls).toContain("DeleteObjectsCommand");
