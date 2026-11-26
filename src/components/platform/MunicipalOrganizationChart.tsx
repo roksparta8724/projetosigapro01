@@ -1,4 +1,4 @@
-import { Building2, Network, Plus } from "lucide-react";
+import { Building2, Network, Plus, Pencil } from "lucide-react";
 import { isAdjunctUnit } from "@/lib/municipalUnitCodes";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
 import { cn } from "@/lib/utils";
@@ -112,7 +112,7 @@ function UnitNode({
       data-unit-type={(department.unitType || "unidade").toLocaleLowerCase("pt-BR")}
       data-unit-adjunct={adjunct ? "true" : "false"}
       className={cn(
-        "relative overflow-hidden border transition-shadow",
+        "relative min-w-0 overflow-hidden border transition-shadow",
         isRoot
           ? "rounded-[26px] border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfe_100%)] shadow-[0_14px_34px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#12283a_0%,#0b1927_100%)]"
           : "rounded-[18px] border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/80",
@@ -126,81 +126,48 @@ function UnitNode({
         aria-hidden="true"
       />
 
-      <div className={cn(isRoot ? "p-5 pl-6" : "p-3.5 pl-5")}>
-        <div className="flex flex-wrap items-start gap-3">
-          <div
-            data-organogram-icon="true"
-            className={cn(
-              "flex shrink-0 items-center justify-center border",
-              identity.iconTone,
-              isRoot
-                ? "h-11 w-11 rounded-[14px]"
-                : "h-9 w-9 rounded-xl",
-            )}
-          >
-            <Building2 className={isRoot ? "h-[18px] w-[18px]" : "h-4 w-4"} />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                data-organogram-level-badge="true"
-                data-organogram-code-surface="blue"
-                data-contrast-surface="dark"
-                className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-h-7 min-w-[54px] items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
-                title={identity.label}
-              >
-                <strong data-organogram-code-text="true" className="block whitespace-nowrap text-[12px] font-extrabold leading-4 tracking-[0.04em] text-white">{identity.short}</strong>
-              </span>
-              <span
-                data-organogram-level-label="true"
-                className="text-[12px] font-semibold uppercase tracking-[0.06em] text-slate-500 dark:text-slate-300"
-              >
-                {identity.label}
-              </span>
+      <div className={cn("min-w-0", isRoot ? "p-4 pl-5 sm:p-5 sm:pl-6" : "p-3 pl-4")}>
+        {/* Actions occupy the header only. The institutional name owns the full width below. */}
+        <div data-organogram-unit-header="true" className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div
+              data-organogram-icon="true"
+              className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border", identity.iconTone)}
+              aria-hidden="true"
+            >
+              <Building2 className="h-4 w-4" />
             </div>
-
-            <p
-              data-organogram-acronym="true"
-              className={cn(
-                "mt-2 font-black tracking-[-0.02em] text-slate-950 dark:text-white",
-                isRoot ? "text-[22px] leading-7" : "text-[18px] leading-6",
-              )}
-              title={department.name}
+            <span
+              data-organogram-level-badge="true"
+              data-organogram-code-surface="blue"
+              data-contrast-surface="dark"
+              className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-h-7 min-w-[54px] shrink-0 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
+              title={identity.label}
             >
-              {acronym}
-            </p>
-            <p
-              data-organogram-name="true"
-              className={cn(
-                "mt-0.5 break-words text-slate-500 dark:text-slate-300",
-                isRoot ? "text-[13px]" : "text-[12px]",
-              )}
-              title={department.name}
-            >
-              {department.name}
-            </p>
+              <strong data-organogram-code-text="true" className="block whitespace-nowrap text-[12px] font-extrabold leading-4 tracking-[0.04em] !text-white">{identity.short}</strong>
+            </span>
+            <span data-organogram-level-label="true" className="min-w-0 text-[11px] font-semibold uppercase leading-4 tracking-[0.025em] text-slate-600 dark:text-slate-300">
+              {identity.label}
+            </span>
           </div>
-
-          {onAddChild ? <button type="button" title="Adicionar unidade subordinada" aria-label={"Adicionar unidade em "+department.name} onClick={()=>onAddChild(department.id)} className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"><Plus size={15}/><span>Adicionar</span></button>:null}
-          {onEdit ? (
-            <button
-              type="button"
-              data-organogram-edit="true"
-              onClick={() => onEdit(department)}
-              className="inline-flex h-9 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-sky-500 dark:hover:bg-slate-700"
-            >
-              Editar
-            </button>
+          {(onAddChild || onEdit) ? (
+            <div data-organogram-unit-actions="true" className="flex shrink-0 items-center gap-1.5">
+              {onAddChild ? <button type="button" title="Adicionar unidade subordinada" aria-label={"Adicionar unidade em "+department.name} onClick={()=>onAddChild(department.id)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"><Plus size={17} aria-hidden="true"/></button>:null}
+              {onEdit ? <button type="button" data-organogram-edit="true" title="Editar unidade" aria-label={"Editar "+department.name} onClick={()=>onEdit(department)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"><Pencil size={15} aria-hidden="true"/></button>:null}
+            </div>
           ) : null}
+        </div>
+        <div data-organogram-unit-copy="true" className="mt-2 min-w-0 w-full">
+          <p data-organogram-acronym="true" className={cn("font-black tracking-[-0.02em] text-slate-950 dark:text-white",isRoot?"text-[22px] leading-7":"text-[18px] leading-6")} title={department.name}>{acronym}</p>
+          <p data-organogram-name="true" className={cn("mt-0.5 whitespace-normal [overflow-wrap:break-word] leading-5 text-slate-600 dark:text-slate-300",isRoot?"text-[13px]":"text-[12px]")} title={department.name}>{department.name}</p>
         </div>
 
         {children.length > 0 ? (
           <div
             data-organogram-children="true"
             className={cn(
-              "mt-4 space-y-2.5 border-l",
-              isRoot ? "ml-5 border-sky-200 pl-4 dark:border-sky-800" : "ml-4 border-slate-200 pl-3 dark:border-slate-700",
+              "mt-3 min-w-0 space-y-2 border-l",
+              isRoot ? "ml-1 border-sky-200 pl-2.5 sm:pl-3 dark:border-sky-800" : "ml-0.5 border-slate-200 pl-2 dark:border-slate-700",
             )}
           >
             {children.map((child) => (
@@ -242,7 +209,7 @@ export function MunicipalOrganizationChart({
 
   if (active.length === 0) {
     return (
-      <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+      <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
         {emptyMessage}
       </div>
     );
@@ -261,8 +228,8 @@ export function MunicipalOrganizationChart({
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {["secretaria", "diretoria", "departamento", "setor"].map((type) => {
-            const identity = getInstitutionalUnitIdentity(type);
+          {["secretaria", "secretaria_adjunta", "diretoria", "diretoria_adjunta", "departamento", "setor"].map((type) => {
+            const identity = type==="secretaria_adjunta"?{...getInstitutionalUnitIdentity("secretaria"),short:"SAD",label:"Secretaria adjunta"}:type==="diretoria_adjunta"?{...getInstitutionalUnitIdentity("diretoria"),short:"DAD",label:"Diretoria adjunta"}:getInstitutionalUnitIdentity(type);
             return (
               <span
                 key={type}
@@ -292,7 +259,7 @@ export function MunicipalOrganizationChart({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+      <div data-organogram-responsive-grid="true" className="grid min-w-0 items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,25rem),1fr))]">
         {roots.map((department) => (
           <UnitNode
             key={department.id}
