@@ -654,7 +654,7 @@ export function HabiteSePermitPanel({
   };
 
   const retryIssuance = async () => {
-    if (!issuancePending || !isDirector || isReadOnlyMunicipalAdmin || !dataReady) return;
+    if (!issuancePending || !isDirector || isReadOnlyMunicipalAdmin || externalView || !paymentConfirmed) return;
     setBusy("finalize-issuance");
     setNotice("");
     try {
@@ -1109,7 +1109,7 @@ export function HabiteSePermitPanel({
                 <p className="mt-1 text-xs leading-relaxed">A Diretoria pode retomar a emissão sem repetir a assinatura. A conclusão permanece bloqueada.</p>
               </div>
               {!externalView && isDirector && !isReadOnlyMunicipalAdmin ? (
-                <Button type="button" className="shrink-0 rounded-full bg-violet-700 !text-white hover:bg-violet-600" disabled={Boolean(busy) || !dataReady} onClick={() => void retryIssuance()}>
+                <Button type="button" className="shrink-0 rounded-full bg-violet-700 !text-white hover:bg-violet-600" disabled={Boolean(busy) || !paymentConfirmed} onClick={() => void retryIssuance()}>
                   {busy === "finalize-issuance" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                   Retomar emissão
                 </Button>
