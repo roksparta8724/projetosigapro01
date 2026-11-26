@@ -1,3 +1,4 @@
+import { ExternalCertificateSigningOptions } from "@/components/platform/ExternalCertificateSigningOptions";
 import { useEffect, useMemo, useState } from "react";
 import {useMunicipalAuthorityCapabilities} from "@/hooks/useMunicipalAuthority";
 import {isNeonBackend} from "@/integrations/backend/config";
@@ -1676,13 +1677,14 @@ export function ConstructionPermitPanel({
                           : "Assinatura da Secretaria"}
                       </DialogTitle>
                       <DialogDescription className="mt-1 !text-slate-200">
-                        Confirme com sua senha de acesso. O SIGAPRO registrará a identidade, data, código de verificação e SHA-256 da versão assinada.
+                        Na modalidade interna, confirme com sua senha. O SIGAPRO registrará identidade, data, código de verificação e SHA-256 da versão. Essa modalidade não é um certificado GOV.BR ou ICP-Brasil.
                       </DialogDescription>
                     </div>
                   </div>
                 </DialogHeader>
 
-                <div className="space-y-4 px-6 py-5">
+                <div className="max-h-[55dvh] space-y-4 overflow-y-auto px-6 py-5">
+                  <ExternalCertificateSigningOptions disabled={signatureBusy} />
                   <div>
                     <label className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
                       Senha de acesso

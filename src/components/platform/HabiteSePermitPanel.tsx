@@ -1,3 +1,4 @@
+import { ExternalCertificateSigningOptions } from "@/components/platform/ExternalCertificateSigningOptions";
 import { useEffect, useMemo, useState } from "react";
 import {useMunicipalAuthorityCapabilities} from "@/hooks/useMunicipalAuthority";
 import {isNeonBackend} from "@/integrations/backend/config";
@@ -1410,7 +1411,7 @@ export function HabiteSePermitPanel({
       </Dialog>
 
       <Dialog open={Boolean(passwordDialog)} onOpenChange={(open) => !open && !busy && setPasswordDialog(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">
               {passwordDialog === "secretary"
@@ -1424,10 +1425,12 @@ export function HabiteSePermitPanel({
                 ? "Confirme sua senha de acesso. Esta assinatura é complementar e não altera o caráter conclusivo da assinatura já realizada pela Diretoria."
                 : "Confirme sua senha de acesso. A assinatura eletrônica do Diretor será vinculada exatamente a esta versão do Alvará de Habite-se e concluirá a emissão."}
             </p>
+            <ExternalCertificateSigningOptions disabled={Boolean(busy)} />
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Assinatura interna SIGAPRO — não utiliza certificado GOV.BR ou ICP-Brasil.</p>
             <Input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Senha de acesso" />
             <Button type="button" className="w-full bg-sky-700 font-bold !text-white hover:bg-sky-600" disabled={!password || Boolean(busy)} onClick={() => void confirmSignature()}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Signature className="mr-2 h-4 w-4" />}
-              Confirmar assinatura eletrônica
+              Confirmar assinatura interna
             </Button>
           </div>
         </DialogContent>
