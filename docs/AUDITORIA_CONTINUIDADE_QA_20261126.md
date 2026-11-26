@@ -7,7 +7,7 @@ Não autoriza merge, produção, alteração de credenciais ou pagamento real.
 ## Diagnóstico medido no banco isolado
 - 8 processos, 11 guias, 1 alvará de aprovação com status signed e 1 habite-se emitido.
 - 1 guia com referência de PDF original + SHA; 2 vinculadas a pagamento bancário; 1 com autenticação bancária. 8 registros com indicação de pagamento sem timestamp de autenticação bancária (inclui fixtures/legado; não é prova de irregularidade financeira).
-- Uma conexão Mercado Pago TEST ativa, último teste ok; nenhum webhook registrado.
+- Uma conexão Mercado Pago TEST ativa, último teste ok; nenhum webhook na tabela genérica. A tabela específica Mercado Pago contém 2 eventos assinados, 1 evidência de baixa consistente com a guia e SHA registrado; ainda não comprova nova jornada ponta a ponta nem objeto físico.
 - Dez critérios de aceite comercial permanecem pendentes no manifesto público. Status de processo e CI não substituem teste autenticado E2E.
 
 ## Correção de arquivos desta rodada
@@ -22,3 +22,6 @@ A proteção por ambiente de R2 ainda precisa de demonstração independente: as
 5. Certificação GOV.BR/ICP: callback, identidade/CPF, PAdES, guarda imutável, credenciais e homologação oficial. Infraestrutura parcial não autoriza emissão.
 6. UX/segurança: jornada autenticada de todos os perfis, duas prefeituras, mobile e temas; medições de desempenho e recuperação Neon/R2.
 7. Revisão humana das dez provas privadas vinculadas ao SHA final; produção somente por nova autorização expressa.
+
+## Conciliação de eventos repetidos
+O ingest QA podia substituir a observação que sustentava uma baixa já registrada por um estado não associado. A migração preserva a observação creditada e seu vínculo, serializa a atualização do recebimento existente e recusa reuso do mesmo request com hash divergente. A nova observação incompatível é devolvida para revisão, sem alterar o crédito anterior. Comparação exata de valor; não implica estorno automático. Migração somente em QA.
