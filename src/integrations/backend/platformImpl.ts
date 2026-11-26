@@ -1,3 +1,4 @@
+import { municipalUnitSaveError } from "@/lib/municipalUnitName";
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { collectCompleteScopedRows } from "@/lib/completeScopedRows";
@@ -3722,7 +3723,7 @@ export async function upsertRemoteMunicipalDepartment(input: {
     _sort_order: input.sortOrder ?? 100,
     _is_active: input.isActive ?? true,
   });
-  if (error) throw new Error(error.message || "Não foi possível salvar a unidade do organograma.");
+  if (error) throw new Error(municipalUnitSaveError(error.message));
   return mapMunicipalDepartment((data ?? {}) as Record<string, unknown>);
 }
 
