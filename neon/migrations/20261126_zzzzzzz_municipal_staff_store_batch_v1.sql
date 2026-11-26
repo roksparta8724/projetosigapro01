@@ -45,7 +45,7 @@ BEGIN
  OR pg_column_size(v_rows)>1500000 THEN RETURN NULL; END IF;
  RETURN jsonb_build_object('profileId',v_profile,'assignmentId',_assignment_id,'municipalityId',v_assignment->>'municipalityId','departmentId',v_assignment->>'departmentId','role',v_assignment->>'role','rows',v_rows);
 END;
-$function$
+$function$;
 
 REVOKE ALL ON FUNCTION public.municipal_staff_store_batch_v1(uuid) FROM PUBLIC, anonymous;
 GRANT EXECUTE ON FUNCTION public.municipal_staff_store_batch_v1(uuid) TO authenticated;
