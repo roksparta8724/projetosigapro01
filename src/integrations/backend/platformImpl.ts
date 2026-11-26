@@ -1,6 +1,7 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { collectCompleteScopedRows } from "@/lib/completeScopedRows";
+import {parseAuthorityDesignations} from "@/lib/municipalAuthorityDesignations";
 import {parseMunicipalStaffStoreBatch,type MunicipalStaffStoreBatch} from "@/lib/municipalStaffStoreBatch";
 import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments, type MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
 import { parseVerifiedMunicipalUserRegistry, reconcileVerifiedMunicipalUsers } from "@/lib/municipalUserRegistry";
@@ -5139,3 +5140,16 @@ export async function loadPublicPlansCatalog() {
   })) as PlanItem[];
 }
 
+
+export async function listRemoteMunicipalAuthorityDesignations(municipalityId:string,profileId:string){
+ if(!db||!isNeonBackend)throw new Error("Cadastro institucional indisponível.");
+ const {data,error}=await db.rpc("list_municipal_authority_designations_v1",{_municipality_id:municipalityId,_profile_id:profileId});
+ if(error)throw new Error(error.message||"Falha ao consultar designações.");
+ return parseAuthorityDesignations(data,municipalityId,profileId);
+}
+export async function setRemoteMunicipalAuthorityDesignation(municipalityId:string,profileId:string,departmentId:string,enabled:boolean){
+ if(!db||!isNeonBackend)throw new Error("Cadastro institucional indisponível.");
+ const {data,error}=await db.rpc("set_municipal_authority_designation_v1",{_municipality_id:municipalityId,_profile_id:profileId,_department_id:departmentId,_enabled:enabled});
+ if(error)throw new Error(error.message||"Falha ao salvar designação.");
+ return parseAuthorityDesignations(data,municipalityId,profileId);
+}

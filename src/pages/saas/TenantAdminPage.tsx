@@ -30,6 +30,8 @@ import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
 import { MunicipalStaffAssignmentsEditor } from "@/components/platform/MunicipalStaffAssignmentsEditor";
+import {MunicipalAuthorityDesignationsEditor} from "@/components/platform/MunicipalAuthorityDesignationsEditor";
+import {authorityUnitPresets} from "@/lib/municipalAuthorityDesignations";
 import { isSwitchableMunicipalStaffRole } from "@/lib/municipalStaffAssignments";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
@@ -1032,6 +1034,10 @@ export function TenantAdminPage() {
             </div>
           ) : null}
 
+          {session.role === "prefeitura_admin" && effectiveScopeId && user.id!==session.id &&
+            (isSwitchableMunicipalStaffRole(user.role)||user.role==="prefeitura_supervisor"||user.role==="prefeitura_admin") ? (
+              <MunicipalAuthorityDesignationsEditor key={"authority-"+user.id} municipalityId={effectiveScopeId} profileId={user.id} departments={activeDepartments} onOrganogram={()=>{setWorkspaceView("organograma");window.scrollTo({top:0,behavior:"instant"});}}/>
+            ) : null}
           {session.role === "prefeitura_admin" && effectiveScopeId &&
             isSwitchableMunicipalStaffRole(user.role) ? (
               <MunicipalStaffAssignmentsEditor
@@ -1623,6 +1629,7 @@ export function TenantAdminPage() {
                 contentClassName="space-y-4"
               >
                 <form className="space-y-4" onSubmit={handleCreateDepartment}>
+                  {!editingDepartmentId && session.role==="prefeitura_admin" ? <div className="space-y-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/30"><Label>Modelos de secretarias e diretorias</Label><Select value="__custom" onValueChange={value=>{const preset=authorityUnitPresets.find(p=>p.code===value);if(preset)setOrgForm(current=>({...current,...preset,parentDepartmentId:""}));}}><SelectTrigger className="h-11 rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="__custom">Escolher modelo ou criar unidade própria</SelectItem>{authorityUnitPresets.map(p=><SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-600 dark:text-slate-300">Ajuste o nome, a sigla e a unidade superior antes de salvar. Nenhuma estrutura é criada automaticamente.</p></div>:null}
                   <div className="space-y-2">
                     <Label>Sigla</Label>
                     <Input value={orgForm.code} onChange={(event) => setOrgForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))} placeholder="Ex.: PROT, FIN, ANU" maxLength={8} />
