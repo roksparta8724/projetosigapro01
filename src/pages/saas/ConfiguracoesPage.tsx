@@ -3505,7 +3505,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       />
       {activeSettingsView === "overview" ? overviewSection : null}
       {activeSettingsView === "certificates" && session.role === "prefeitura_admin" && canManageTenantSettings ? (
-        <MunicipalCertificateReadiness municipalityName={tenantForm.name || municipality?.name || ""} />
+        <MunicipalCertificateReadiness municipalityId={String(selectedTenantId || scopeId || session.tenantId || "")} municipalityName={tenantForm.name || municipality?.name || ""} />
       ) : null}
       {canManageTenantSettings && activeSettingsView === "storage" ? (
         <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
