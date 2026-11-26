@@ -73,6 +73,7 @@ jobs:
           src/test/analystDocumentAssignmentGateQa.test.ts
           src/integrations/backend/platformSettings.test.ts
           src/test/municipalPaymentSetupProof.test.ts
+          src/test/architecturalPdfPreflightQa.test.ts
           src/test/municipalCollectionApi.test.ts
       - name: Production-equivalent build for preview
         run: npm run build

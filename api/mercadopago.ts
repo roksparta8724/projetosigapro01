@@ -179,7 +179,9 @@ export default async function handler(req: Req, res: Res) {
           "get_municipal_payment_connection_v1",
           { _municipality_id: municipalityId },
         );
-        json(res, 200, connection || {});
+        let productionRuntimeReady=false;
+        try { assertProductionMunicipalActivationRuntime(); productionRuntimeReady=true; } catch { /* readiness only; no credentials exposed */ }
+        json(res, 200, {...(connection || {}),productionRuntimeReady});
         return;
       }
 

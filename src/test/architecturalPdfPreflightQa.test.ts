@@ -35,7 +35,14 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(get).toContain('provider.kind==="cloudflare"?"text_only":"visual"');
     const authorization=api.slice(api.indexOf("async function verifiedDocument"),
       api.indexOf("async function pdfBytes"));
-    expect(authorization).toContain('authorize_technical_document_signing_v1');
+    expect(authorization).toContain('authorize_architectural_reading_v1');
+    expect(authorization).not.toContain('authorize_technical_document_signing_v1');
+    const migration=file("neon/migrations/20261126_architectural_reading_authorization_v1.sql");
+    expect(migration).toContain("public.process_technical_release_verified_v1");
+    expect(migration).toContain("public.process_is_in_analysis_area");
+    expect(migration).toContain("public.profile_operational_area(actor.id)='analise'");
+    expect(migration).toContain("public.can_write_process_analysis");
+    expect(migration).toContain("FROM PUBLIC,anonymous");
     expect(authorization).toContain('doc.is_valid!==true');
     expect(authorization).toContain('doc.municipality_id!==tenant');
     expect(authorization).toContain('doc.invalidated_at!==null');

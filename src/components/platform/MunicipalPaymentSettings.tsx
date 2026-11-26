@@ -35,6 +35,7 @@ type PaymentConnection = {
   last_test_status?: string | null;
   last_test_message?: string | null;
   updated_at?: string | null;
+  productionRuntimeReady?: boolean;
   testOk?: boolean;
   boletoAvailable?: boolean;
   pixAvailable?: boolean;
@@ -68,6 +69,7 @@ export function MunicipalPaymentSettings({
 }) {
   const requestGeneration = useRef(0);
   const [connection, setConnection] = useState<PaymentConnection | null>(null);
+  const [productionRuntimeReady,setProductionRuntimeReady]=useState(false);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
@@ -106,6 +108,7 @@ export function MunicipalPaymentSettings({
     const generation = ++requestGeneration.current;
     // A response from another municipality must never populate this account.
     setConnection(null);
+    setProductionRuntimeReady(false);
     setLoadFailed(false);
     setForm({ provider: "mercado_pago", environment: "test", accessToken: "", webhookSecret: "" });
     setMessage("");
@@ -115,6 +118,7 @@ export function MunicipalPaymentSettings({
       const current = await paymentRequest(municipalityId, "get");
       if (generation !== requestGeneration.current) return;
       setConnection(current);
+      setProductionRuntimeReady(current.productionRuntimeReady===true);
       setLoadFailed(false);
       setForm({
         provider: current.provider || "mercado_pago",
@@ -184,9 +188,20 @@ export function MunicipalPaymentSettings({
       );
     } catch (error) {
       if (generation !== requestGeneration.current) return;
-      // Do not call load(): that clears the error and masks the exact reason
-      // a provider test was rejected by Neon or its bank endpoint.
-      setMessage(municipalCollectionError(error));
+      // Never leave an old successful test visible after a rejected or uncertain test.
+      // Refresh the canonical status without clearing the actionable diagnostic.
+      const diagnostic=municipalCollectionError(error);
+      setConnection(current=>current?{...current,last_test_status:null}:null);
+      try {
+        const current=await paymentRequest(municipalityId,"get");
+        if(generation!==requestGeneration.current)return;
+        setConnection(current);
+        setProductionRuntimeReady(current.productionRuntimeReady===true);
+      } catch {
+        if(generation!==requestGeneration.current)return;
+        setLoadFailed(true);
+      }
+      if(generation===requestGeneration.current)setMessage(diagnostic);
     } finally {
       if (generation === requestGeneration.current) setBusy("");
     }
@@ -479,6 +494,11 @@ export function MunicipalPaymentSettings({
               Cadastre esta URL na aplicação Mercado Pago da Prefeitura para notificações de Orders (order).
               Copie a chave secreta desse Webhook para o campo protegido acima.
             </p>
+            {!productionRuntimeReady ? (
+              <p role="status" data-bank-platform-release-pending="true" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
+                O cadastro e a validação da credencial de produção não equivalem à liberação de cobrança. A emissão real depende também da liberação segura da infraestrutura SIGAPRO. Nenhuma cobrança será criada enquanto essa etapa estiver pendente.
+              </p>
+            ) : null}
             {!connectionMatchesForm ? (
               <p className="text-xs font-semibold text-amber-800">
                 Novo provedor ou ambiente: as credenciais anteriores não serão reaproveitadas.
@@ -550,7 +570,7 @@ export function MunicipalPaymentSettings({
               form.provider === "bank_direct" ||
               (form.provider === "mercado_pago" &&
                 (!hasValidTest || !connection.credentials_configured ||
-                (form.environment === "production" && !connection.webhook_configured))) ||
+                (form.environment === "production" && (!connection.webhook_configured || !productionRuntimeReady)))) ||
               isActive
             }
             onClick={() => void activate()}
