@@ -2,6 +2,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { QRCodeSVG } from "qrcode.react";
 import { isValidPixPayload } from "@/lib/pix";
+import { encodeBankBarcodeI25, normalizeOfficialBanking } from "@/lib/bankCodes";
 
 export interface PaymentGuideDebtRow {
   year: string;
@@ -85,34 +86,18 @@ function sumDebtRows(rows: PaymentGuideDebtRow[]) {
   }, 0);
 }
 
-function normalizeBarcode(code: string) {
-  return code.replace(/\s+/g, "").trim();
-}
-
-function formatDigitableLine(code: string) {
-  const raw = normalizeBarcode(code);
-  if (!raw) return "";
-  return raw.match(/.{1,5}/g)?.join(" ") ?? raw;
-}
-
-function buildBarcodeBars(code: string) {
-  const normalized = normalizeBarcode(code);
-  return normalized.split("").map((digit, index) => {
-    const width = Number(digit || 0) % 3 === 0 ? 3 : Number(digit || 0) % 2 === 0 ? 2 : 1;
-    return (
-      <span
-        key={`${digit}-${index}`}
-        style={{
-          display: "inline-block",
-          width: `${width}px`,
-          height: `${index % 4 === 0 ? 56 : 44}px`,
-          background: "#111827",
-          marginRight: "1px",
-          verticalAlign: "bottom",
-        }}
-      />
-    );
-  });
+function OfficialBankBarcode({ value }: { value: string }) {
+  const encoded = encodeBankBarcodeI25(value);
+  if (!encoded) return <span role="status" style={{ fontSize: "11px", color: "#475569" }}>Código bancário indisponível ou divergente. Consulte a Prefeitura.</span>;
+  return (
+    <svg viewBox={`0 0 ${encoded.totalWidth} 60`} width="100%" height="60"
+      preserveAspectRatio="none" role="img" aria-label="Código de barras bancário I25"
+      style={{ display: "block", background: "#fff" }}>
+      {encoded.bars.map((bar, index) => (
+        <rect key={index} x={bar.x} y="0" width={bar.width} height="60" fill="#000" />
+      ))}
+    </svg>
+  );
 }
 
 function OfficialPixMatrix({ value }: { value: string }) {
@@ -176,6 +161,7 @@ export function OfficialPaymentGuideDocument({
   data: OfficialPaymentGuideData;
   previewMode?: boolean;
 }) {
+  const banking = normalizeOfficialBanking(data.bank.barcodeValue, data.bank.digitableLine);
   const totalAmount = data.totals?.totalAmount ?? sumDebtRows(data.debtRows);
   const amountToPay = data.totals?.amountToPay ?? data.bank.chargedAmount ?? totalAmount;
   const discount = data.bank.discount ?? 0;
@@ -378,15 +364,15 @@ export function OfficialPaymentGuideDocument({
           <div style={{ border: "1px solid #9ca3af", padding: "10px 12px" }}>
             <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#4b5563", marginBottom: "6px" }}>Linha digitável</div>
             <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: "14px", fontWeight: 700, wordBreak: "break-all" }}>
-              {data.bank.digitableLine}
+              {banking.digitableLine || "Linha digitável indisponível ou divergente."}
             </div>
 
             <div style={{ marginTop: "12px", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#4b5563", marginBottom: "6px" }}>Código de barras</div>
             <div style={{ minHeight: "60px", border: "1px solid #9ca3af", padding: "8px", display: "flex", alignItems: "flex-end" }}>
-              {buildBarcodeBars(data.bank.barcodeValue)}
+              <OfficialBankBarcode value={banking.barcode} />
             </div>
             <div style={{ marginTop: "6px", fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: "11px", wordBreak: "break-all" }}>
-              {formatDigitableLine(data.bank.barcodeValue)}
+              {banking.barcode}
             </div>
           </div>
 
