@@ -1,7 +1,7 @@
 CREATE OR REPLACE FUNCTION public.municipal_staff_store_batch_v1(_assignment_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
- STABLE
+ STABLE SECURITY INVOKER
  SET search_path TO 'pg_catalog', 'public'
  SET row_security TO 'on'
 AS $function$
