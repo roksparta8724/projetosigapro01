@@ -18,3 +18,6 @@ Status: interface de orientação externa implementada. A assinatura certificada
 7. Só habilitar o botão de assinatura integrada quando os testes e a política municipal forem aprovados. Não substituir os controles existentes por links externos.
 
 A interface atual fornece acesso ao assinador oficial GOV.BR e ao VALIDAR, sem registrar assinatura ou emitir alvará. O ICP-Brasil externo depende do assinador do titular. Não há importação certificada automática implementada nesta alteração.
+
+## Implementação incremental — transporte de homologação
+`server/iti-signature-sandbox.ts` contém as operações reais de autorização OAuth, troca de código, leitura de certificado e solicitação PKCS#7, com hosts fixos de homologação, escopo exclusivo, timeout e tamanho limitado. Não está exposto por rota nem conectado à emissão. Os testes usam respostas simuladas e não comprovam assinatura real. A prefeitura vê o painel de requisitos em Configurações > Assinaturas digitais. A liberação de produção exige Login Único e hospedagem em domínio oficial do governo, conforme manual atual. Ainda faltam persistência e consumo atômico da sessão, cofre municipal, PDF ByteRange, validação criptográfica/identidade, arquivamento e transição oficial. Não habilitar antes dessas etapas.

@@ -8,6 +8,7 @@ import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileD
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
+import { MunicipalCertificateReadiness } from "@/components/platform/MunicipalCertificateReadiness";
 import { MunicipalUrbanRulesSettings } from "@/components/platform/MunicipalUrbanRulesSettings";
 import { UrbanLegislationRegistryPanel } from "@/components/platform/UrbanLegislationRegistryPanel";
 import { UrbanLegislationContinuityPanel } from "@/components/platform/UrbanLegislationContinuityPanel";
@@ -731,6 +732,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     | "account"
     | "advanced"
     | "storage"
+    | "certificates"
     | "platform"
   >(() => {
     if (typeof window === "undefined") return "branding";
@@ -746,6 +748,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       "account",
       "advanced",
       "storage",
+      "certificates",
       "platform",
     ]);
     return allowed.has(String(requested || ""))
@@ -760,6 +763,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
           | "account"
           | "advanced"
           | "storage"
+          | "certificates"
           | "platform")
       : "branding";
   });
@@ -3494,11 +3498,15 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
           { value: "account", label: "Preferências", helper: "Conta e alertas" },
           { value: "advanced", label: "Parâmetros avançados", helper: "Regras e base local" },
           { value: "storage", label: "Dados e armazenamento", helper: "Nuvem ou servidor da Prefeitura" },
+          ...(session.role === "prefeitura_admin" && canManageTenantSettings ? [{ value: "certificates", label: "Assinaturas digitais", helper: "GOV.BR e ICP-Brasil" }] : []),
         ]}
         value={activeSettingsView}
         onChange={(value) => setActiveSettingsView(value as typeof activeSettingsView)}
       />
       {activeSettingsView === "overview" ? overviewSection : null}
+      {activeSettingsView === "certificates" && session.role === "prefeitura_admin" && canManageTenantSettings ? (
+        <MunicipalCertificateReadiness municipalityName={tenantForm.name || municipality?.name || ""} />
+      ) : null}
       {canManageTenantSettings && activeSettingsView === "storage" ? (
         <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
           <PageMainContent className="w-full">
