@@ -76,6 +76,7 @@ jobs:
           src/lib/municipalPaymentReadiness.test.ts
           src/lib/bankCodes.test.ts
           src/test/officialPaymentGuideBarcodeRegression.test.tsx
+          src/test/habiteSeCompletionRealRpcRegression.test.ts
           src/test/architecturalPdfPreflightQa.test.ts
           src/test/municipalCollectionApi.test.ts
           src/test/municipalCollectionConfiguration.test.ts
