@@ -34,3 +34,9 @@ O ensaio real de RPC inicialmente falhou: formulário legado correspondia à fic
 
 ## Privacidade do histórico externo
 Quatro políticas de leitura agora exigem acesso ao processo e respeitam a visibilidade interna/externa de exigências, auditoria, movimentações e despachos. Ensaio executado com SET LOCAL ROLE authenticated e claims de perfis QA: analista visualiza ambas as exigências; profissional vinculado visualiza só a compartilhada, sem histórico interno; movimentações públicas permanecem acessíveis. Fixtures e efeitos de teste revertidos. Não equivale a auditoria integral de LGPD.
+
+## Arrecadação: proteção do recebimento de produção validada em QA
+A rotina de produção agora preserva recebimento que já sustenta crédito, recusa alteração de hash/referência e limita a baixa a guias pendentes. Retorno incompatível após crédito gera revisão interna deduplicada, sem desfazer guia ou alvará. Ensaio SQL em QA com guia sintética e conexão de provedor simulada somente dentro de subtransação: cancelada recusada, pendente compensada, reenvio idempotente, dois retornos de estorno geraram uma revisão, recebimento original intacto, hash divergente recusado. Rollback confirmado, sem evento externo ou dinheiro. Não implementa estorno bancário automático.
+
+## Recuperação
+Neon informa janela de histórico de 21600 segundos (6 h). Tentativa de snapshot da branch QA recusada (HTTP 400: non-root branch). Nenhuma restauração ou alteração na raiz de produção foi realizada. Cópias antigas existentes não comprovam recuperação atual. A prova de recuperação permanece aberta.
