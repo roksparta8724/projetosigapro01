@@ -40,3 +40,5 @@ A rotina de produção agora preserva recebimento que já sustenta crédito, rec
 
 ## Recuperação
 Neon informa janela de histórico de 21600 segundos (6 h). Tentativa de snapshot da branch QA recusada (HTTP 400: non-root branch). Nenhuma restauração ou alteração na raiz de produção foi realizada. Cópias antigas existentes não comprovam recuperação atual. A prova de recuperação permanece aberta.
+
+A tentativa de criar cópia temporária da QA também foi recusada por limite de branches (HTTP 422). Nenhuma cópia foi criada, nenhuma branch removida. Logs da preview 3625b0b: worker bancário PASS_LEAST_PRIVILEGE_REAL_CONNECTION; R2 original NOT_VERIFIED_ORIGINAL_OBJECT_MISSING; documento artificial INTEGRITY_MISMATCH; provedor visual CONFIGURED_NOT_PROVEN. A busca do PDF exato agora pode executar separadamente em modo somente leitura; restauração requer bucket QA dedicado explicitamente autorizado e comprovação dos bytes. Não executar escrita em bucket compartilhado, nem reconstruir guia histórica.

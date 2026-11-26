@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {Readable} from "node:stream";
-import {candidateKeyMatches,listScopedCandidates,identifyExactSource,MAX_LISTED}
+import {candidateKeyMatches,listScopedCandidates,identifyExactSource,MAX_LISTED,qaRecoveryWriteAuthorized}
   from "./qa-r2-dam-exact-recovery.mjs";
 
 const bytes=Buffer.from("%PDF-1.7\nQA FICTIONAL ORIGINAL PDF - NEVER A LEGAL DOCUMENT\n%%EOF\n");
@@ -69,4 +69,17 @@ test("scan limit never reports a missing backup as exhaustive",async()=>{
   const client={send:async()=>({Contents:[{Key:alternate,Size:bytes.length}],IsTruncated:true,
     NextContinuationToken:"next"})};
   assert.equal((await listScopedCandidates(client,"qa-docs",row,1)).status,"SCAN_LIMIT");
+});
+
+test("recovery is read-only until a dedicated QA bucket is explicitly authorized",()=>{
+ const env={VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:"fix/homologacao-geral-sei-dashboard-bank-20261113",VITE_SIGAPRO_NEON_ISOLATED:"true",
+ VITE_NEON_DATA_API_URL:"https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1",
+ SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL:"postgresql://sigapro_qa_webhook_worker:dummy@ep-misty-breeze-b4ri8ig0.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923?sslmode=verify-full",
+ R2_BUCKET_DOCUMENTOS:"sigapro-qa-documents",SIGAPRO_QA_R2_RECOVERY_BUCKET:"sigapro-qa-documents"};
+ assert.equal(qaRecoveryWriteAuthorized(env),false);
+ const authorized={...env,SIGAPRO_QA_R2_RECOVERY_WRITE:"true"};
+ assert.equal(qaRecoveryWriteAuthorized(authorized),true);
+ assert.equal(qaRecoveryWriteAuthorized({...authorized,R2_BUCKET_DOCUMENTOS:"sigapro-documentos",SIGAPRO_QA_R2_RECOVERY_BUCKET:"sigapro-documentos"}),false);
+ assert.equal(qaRecoveryWriteAuthorized({...authorized,VERCEL_ENV:"production"}),false);
+ assert.equal(qaRecoveryWriteAuthorized({...authorized,SIGAPRO_QA_R2_RECOVERY_BUCKET:"sigapro-qa-other"}),false);
 });

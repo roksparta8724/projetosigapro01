@@ -192,6 +192,10 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
   run("current-qa-provider-config",["scripts/qa-visual-provider-config.mjs"]);
   run("current-qa-original-byte-audit",["scripts/qa-r2-original-bytes.mjs"]);
   run("current-qa-live-readonly-integrations",["node_modules/vitest/vitest.mjs","run","--maxWorkers=1","server/qa-live-current-readiness.test.ts"],{SIGAPRO_QA_LIVE_READONLY_CHECKS:"true"});
+  // Read-only forensic scan, separated from the paid model call and disposable upload probe.
+  if(String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[qa-recovery-readonly]")){
+    run("qa-historical-original-source-discovery",["scripts/qa-r2-dam-exact-recovery.mjs"],{SIGAPRO_QA_R2_RECOVERY_WRITE:"false"});
+  }
   // Exact one-shot mark, only the active preview; no customer data or bank orders.
   if(String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[qa-commercial-probe-once]")){
     run("qa-historical-original-exact-recovery",["scripts/qa-r2-dam-exact-recovery.mjs"]);
