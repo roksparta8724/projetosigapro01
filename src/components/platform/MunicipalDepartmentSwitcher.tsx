@@ -49,6 +49,7 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
     if (!operation) return;
     try {
       const activated = await activateRemoteMunicipalStaffAssignment(assignment.id);
+      if(!isCurrentMunicipalContextTransition(operation)) return;
       if (activated.profileId !== session.id ||
           activated.municipalityId !== municipalityId ||
           activated.departmentId !== assignment.departmentId) {
@@ -77,7 +78,27 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
         navigate(getSessionLandingPath(nextSession), { replace: true, state:{sigaproContextLanding:true} });
       });
     } catch (error) {
-      if(isCurrentMunicipalContextTransition(operation)) toast.error(error instanceof Error ? error.message : "Não foi possível trocar o departamento.");
+      if(isCurrentMunicipalContextTransition(operation)) {
+        // A timeout can occur after the database committed the switch.
+        // Revalidate the scoped store; failure invalidates its authorization.
+        try {
+          const current = getMunicipalAssignmentForAccount(await listRemoteMunicipalStaffAssignments(),session.id,municipalityId).filter(item=>item.isCurrent);
+          if(!isCurrentMunicipalContextTransition(operation)) return;
+          if(current.length!==1) throw Error("Lotação ativa não confirmada.");
+          await refreshRemoteStore(null,current[0]);
+          if(!isCurrentMunicipalContextTransition(operation)) return;
+          if(current[0].id===assignment.id){
+            flushSync(()=>navigate(getSessionLandingPath({...session,role:current[0].role,department:current[0].departmentName,title:roleLabels[current[0].role]}),{replace:true,state:{sigaproContextLanding:true}}));
+            return;
+          }
+        } catch {
+          if(!isCurrentMunicipalContextTransition(operation)) return;
+          // Force a verified refresh; on mismatch/network failure the provider
+          // clears the confirmed identity rather than reopening stale data.
+          try {await refreshRemoteStore(null,assignment);} catch { /* provider invalidates authorization */ }
+        }
+        if(isCurrentMunicipalContextTransition(operation)) toast.error(error instanceof Error ? error.message : "Não foi possível trocar o departamento.");
+      }
     } finally {
       finishMunicipalContextTransition(operation);
     }

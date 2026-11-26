@@ -1,10 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
 import { assertPersonalProcessMarkerLimit } from "@/lib/processMarkerLimits";
 import { IdentityScopedSingleFlight } from "@/lib/identityScopedSingleFlight";
-import { contextEpoch, isMunicipalContextBusy } from "@/lib/municipalContextTransition";
+import { contextEpoch, isMunicipalContextBusy, cancelForeignMunicipalTransition } from "@/lib/municipalContextTransition";
 import type { MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
 import {
   type AccountStatus,
@@ -1014,6 +1014,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const refreshFlightsRef = useRef(new IdentityScopedSingleFlight());
   const currentAuthIdentityRef = useRef(authenticatedUserId);
   currentAuthIdentityRef.current = authenticatedUserId;
+  useLayoutEffect(()=>{cancelForeignMunicipalTransition(authenticatedUserId ? authenticatedProfileId || authenticatedUserId : null);},[authenticatedProfileId,authenticatedUserId]);
   const allowRemoteInLocal =
     isNeonBackend ||
     (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
@@ -1353,6 +1354,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     }
 
     const identity = authenticatedUserId;
+    if(currentAuthIdentityRef.current !== identity) throw new Error("A sessão mudou durante a atualização.");
     const profileId = authenticatedProfileId || identity;
     if (!expectedAssignment && isMunicipalContextBusy(profileId)) return;
     const epoch = contextEpoch(profileId);

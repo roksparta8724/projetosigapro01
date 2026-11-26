@@ -18,6 +18,9 @@ export function finishMunicipalContextTransition(transition:Transition){
  if(active===transition){active=null;notify();}
 }
 export function isCurrentMunicipalContextTransition(transition:Transition){return active===transition;}
+export function cancelForeignMunicipalTransition(profileId:string|null){
+ if(active&&active.profileId!==profileId){const old=active;epochs.set(old.profileId,contextEpoch(old.profileId)+1);active=null;notify();}
+}
 const subscribe=(fn:()=>void)=>{listeners.add(fn);return()=>{listeners.delete(fn);};};
 const snapshot=()=>active;
 export function useMunicipalContextTransition(profileId:string){

@@ -7,9 +7,11 @@ describe("SIGAPRO QA — estabilidade do painel e consultas municipais", () => {
   it("desduplica consultas do mesmo usuário e ignora resposta da conta anterior", () => {
     const provider = read("src/hooks/usePlatformData.tsx");
     expect(provider).toContain("new IdentityScopedSingleFlight()");
-    expect(provider).toContain("return refreshFlightsRef.current.run(identity, focusProcessRouteKey ??");
-    expect(provider).toContain("if (currentAuthIdentityRef.current !== identity) return");
-    expect(provider).toContain("if (currentAuthIdentityRef.current === identity)");
+    expect(provider).toContain("return refreshFlightsRef.current.run(identity, scope,");
+    expect(provider).toContain('JSON.stringify([focusProcessRouteKey ?? "", epoch, expectedAssignment?.id ?? ""])');
+    expect(provider).toContain("currentAuthIdentityRef.current === identity && contextEpoch(profileId) === epoch");
+    expect(provider).toContain("if (!stillCurrent())");
+    expect(provider).toContain("if (stillCurrent())");
   });
 
   it("não consulta toda a plataforma em intervalos de 1-8s", () => {
