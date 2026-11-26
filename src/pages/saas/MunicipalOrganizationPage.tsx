@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Network, PencilLine, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
+import { adjunctUnitTemplates, suggestMunicipalUnitCode, municipalUnitEditorType, changeMunicipalUnitEditorType } from "@/lib/municipalUnitCodes";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { PageShell } from "@/components/platform/PageShell";
 import { TableCard } from "@/components/platform/TableCard";
@@ -16,8 +17,10 @@ import {
 } from "@/integrations/backend/platform";
 
 const UNIT_TYPES = [
-  ["secretaria", "Secretaria"],
-  ["diretoria", "Diretoria"],
+  ["secretaria", "Secretaria titular"],
+  ["secretaria_adjunta", "Secretaria adjunta"],
+  ["diretoria", "Diretoria titular"],
+  ["diretoria_adjunta", "Diretoria adjunta"],
   ["departamento", "Departamento"],
   ["coordenadoria", "Coordenadoria"],
   ["setor", "Setor"],
@@ -69,6 +72,8 @@ export function MunicipalOrganizationPage() {
   const [editor, setEditor] = useState<EditorState>(EMPTY_EDITOR);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorStatus, setEditorStatus] = useState("");
+  const [savingUnit, setSavingUnit] = useState(false);
+  const suggestedCode = suggestMunicipalUnitCode(editor.name, editor.unitType, departments, editor.id);
 
   const descendantsOfEditingUnit = useMemo(() => {
     if (!editor.id) return new Set<string>();
@@ -109,6 +114,7 @@ export function MunicipalOrganizationPage() {
     });
     setEditorStatus("");
     setEditorOpen(true);
+    window.requestAnimationFrame(()=>document.getElementById("municipal-organization-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
 
   const startEdit = (department: MunicipalDepartmentRecord) => {
@@ -124,10 +130,11 @@ export function MunicipalOrganizationPage() {
     });
     setEditorStatus("");
     setEditorOpen(true);
+    window.requestAnimationFrame(()=>document.getElementById("municipal-organization-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
 
   const saveEditor = async () => {
-    if (!canEdit || !municipalityId) return;
+    if (!canEdit || !municipalityId || savingUnit) return;
     const name = editor.name.trim();
     if (!name) {
       setEditorStatus("Informe o nome da unidade.");
@@ -138,7 +145,7 @@ export function MunicipalOrganizationPage() {
     const nextDepartment: MunicipalDepartmentRecord = {
       id: editor.id || `local-org-${crypto.randomUUID()}`,
       municipalityId,
-      code: editor.code.trim().toUpperCase(),
+      code: editor.code.trim().toUpperCase() || suggestedCode,
       name,
       description: editor.id
         ? departments.find((item) => item.id === editor.id)?.description || ""
@@ -160,6 +167,7 @@ export function MunicipalOrganizationPage() {
       ? departments.map((item) => (item.id === editor.id ? nextDepartment : item))
       : [...departments, nextDepartment];
 
+    setSavingUnit(true);
     try {
       if (localValidation) {
         saveLocalDepartments(next);
@@ -169,7 +177,7 @@ export function MunicipalOrganizationPage() {
           municipalityId,
           departmentId: editor.id,
           name: nextDepartment.name,
-          code: nextDepartment.code,
+          code: editor.code.trim().toUpperCase(), // blank requests authoritative automatic code
           description: nextDepartment.description,
           email: nextDepartment.email,
           phone: nextDepartment.phone,
@@ -187,7 +195,7 @@ export function MunicipalOrganizationPage() {
       setEditorStatus(
         error instanceof Error ? error.message : "Não foi possível salvar o organograma.",
       );
-    }
+    } finally { setSavingUnit(false); }
   };
 
   const toggleUnit = async (department: MunicipalDepartmentRecord) => {
@@ -373,6 +381,8 @@ export function MunicipalOrganizationPage() {
             description="Defina a posição desta unidade dentro do organograma municipal."
             icon={PencilLine}
           >
+            <div id="municipal-organization-editor" className="scroll-mt-24"/>
+            {!editor.id ? <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/40"><span className="w-full text-xs font-semibold text-slate-700 dark:text-slate-200">Modelos opcionais · ou digite qualquer nome</span>{adjunctUnitTemplates.map(template=><Button key={template.unitType} type="button" variant="outline" size="sm" disabled={savingUnit} className="rounded-xl dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100" onClick={()=>setEditor(current=>({...current,name:template.name,unitType:template.unitType,code:""}))}>{template.label}</Button>)}</div>:null}
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
@@ -390,16 +400,18 @@ export function MunicipalOrganizationPage() {
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  Sigla
+                  Sigla {editor.code.trim() ? "(manual)" : "(automática)"}
                 </p>
                 <Input
                   value={editor.code}
                   onChange={(event) =>
                     setEditor((current) => ({ ...current, code: event.target.value }))
                   }
-                  placeholder="Ex.: ANU"
+                  placeholder={suggestedCode || "Automática"}
+                  maxLength={8}
                   className="h-11 rounded-xl uppercase"
                 />
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2"><p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{editor.code.trim() ? "Sigla atual preservada até você solicitar nova geração." : suggestedCode ? "Prévia: "+suggestedCode+" · confirmada ao salvar." : "A sigla será gerada a partir do nome e tipo."}</p>{editor.code.trim()?<Button type="button" variant="outline" size="sm" disabled={savingUnit} className="h-8 rounded-lg dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" onClick={()=>setEditor(current=>({...current,code:""}))}>Gerar sigla automática</Button>:null}</div>
               </div>
 
               <div>
@@ -407,10 +419,8 @@ export function MunicipalOrganizationPage() {
                   Tipo
                 </p>
                 <Select
-                  value={editor.unitType}
-                  onValueChange={(value) =>
-                    setEditor((current) => ({ ...current, unitType: value }))
-                  }
+                  value={municipalUnitEditorType(editor.name,editor.unitType)}
+                  onValueChange={(value) => setEditor(current=>({...current,...changeMunicipalUnitEditorType(current.name,current.unitType,value,departments.find(d=>d.id===current.parentDepartmentId)?.name),code:""}))}
                 >
                   <SelectTrigger className="h-11 rounded-xl bg-white">
                     <SelectValue />
@@ -455,7 +465,7 @@ export function MunicipalOrganizationPage() {
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  Ordem
+                  Posição na unidade superior (opcional)
                 </p>
                 <Input
                   type="number"
@@ -468,6 +478,7 @@ export function MunicipalOrganizationPage() {
                   }
                   className="h-11 rounded-xl"
                 />
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Preenchida automaticamente. Menor número aparece primeiro; não altera a hierarquia.</p>
               </div>
 
               <div>
@@ -531,7 +542,7 @@ export function MunicipalOrganizationPage() {
                 <Button
                   type="button"
                   className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
-                  onClick={() => void saveEditor()}
+                  onClick={() => void saveEditor()} disabled={savingUnit || !editor.name.trim()}
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Salvar estrutura
@@ -549,6 +560,7 @@ export function MunicipalOrganizationPage() {
           <MunicipalOrganizationChart
             departments={departments}
             onEdit={canEdit ? startEdit : undefined}
+              onAddChild={canEdit ? startCreate : undefined}
           />
 
           {canEdit && departments.length > 0 ? (

@@ -1,4 +1,5 @@
-import { Building2, Network } from "lucide-react";
+import { Building2, Network, Plus } from "lucide-react";
+import { isAdjunctUnit } from "@/lib/municipalUnitCodes";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
 import { cn } from "@/lib/utils";
 
@@ -86,15 +87,19 @@ function UnitNode({
   department,
   allDepartments,
   onEdit,
+  onAddChild,
   depth = 0,
 }: {
   department: MunicipalDepartmentRecord;
   allDepartments: MunicipalDepartmentRecord[];
   onEdit?: (department: MunicipalDepartmentRecord) => void;
+  onAddChild?: (parentId:string)=>void;
   depth?: number;
 }) {
   const acronym = getDepartmentAcronym(department);
-  const identity = getInstitutionalUnitIdentity(department.unitType);
+  const baseIdentity = getInstitutionalUnitIdentity(department.unitType);
+  const adjunct = isAdjunctUnit(department.name) && ["secretaria","diretoria"].includes(department.unitType);
+  const identity = adjunct ? {...baseIdentity,short:department.unitType==="secretaria"?"SAD":"DAD",label:baseIdentity.label+" adjunta",iconTone:"border-violet-200 bg-violet-100 text-violet-800 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-200"} : baseIdentity;
   const children = allDepartments.filter(
     (item) => item.parentDepartmentId === department.id,
   );
@@ -105,6 +110,7 @@ function UnitNode({
       data-organogram-node="true"
       data-organogram-root={isRoot ? "true" : "false"}
       data-unit-type={(department.unitType || "unidade").toLocaleLowerCase("pt-BR")}
+      data-unit-adjunct={adjunct ? "true" : "false"}
       className={cn(
         "relative overflow-hidden border transition-shadow",
         isRoot
@@ -115,13 +121,13 @@ function UnitNode({
       <div
         className={cn(
           "absolute inset-y-0 left-0",
-          isRoot ? "w-1.5 bg-[linear-gradient(180deg,#0b5f8a_0%,#14b8a6_100%)]" : "w-1 bg-slate-300 dark:bg-slate-600",
+          isRoot ? "w-1.5 bg-[linear-gradient(180deg,#0b5f8a_0%,#14b8a6_100%)]" : adjunct ? "w-1 bg-violet-500 dark:bg-violet-400" : "w-1 bg-slate-300 dark:bg-slate-600",
         )}
         aria-hidden="true"
       />
 
       <div className={cn(isRoot ? "p-5 pl-6" : "p-3.5 pl-5")}>
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <div
             data-organogram-icon="true"
             className={cn(
@@ -167,7 +173,7 @@ function UnitNode({
             <p
               data-organogram-name="true"
               className={cn(
-                "mt-0.5 truncate text-slate-500 dark:text-slate-300",
+                "mt-0.5 break-words text-slate-500 dark:text-slate-300",
                 isRoot ? "text-[13px]" : "text-[12px]",
               )}
               title={department.name}
@@ -176,6 +182,7 @@ function UnitNode({
             </p>
           </div>
 
+          {onAddChild ? <button type="button" title="Adicionar unidade subordinada" aria-label={"Adicionar unidade em "+department.name} onClick={()=>onAddChild(department.id)} className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"><Plus size={15}/><span>Adicionar</span></button>:null}
           {onEdit ? (
             <button
               type="button"
@@ -202,6 +209,7 @@ function UnitNode({
                 department={child}
                 allDepartments={allDepartments}
                 onEdit={onEdit}
+                onAddChild={onAddChild}
                 depth={depth + 1}
               />
             ))}
@@ -216,10 +224,12 @@ export function MunicipalOrganizationChart({
   departments,
   emptyMessage = "Nenhuma unidade cadastrada no organograma municipal.",
   onEdit,
+  onAddChild,
 }: {
   departments: MunicipalDepartmentRecord[];
   emptyMessage?: string;
   onEdit?: (department: MunicipalDepartmentRecord) => void;
+  onAddChild?: (parentId:string)=>void;
 }) {
   const active = departments
     .filter((item) => item.isActive)
@@ -227,7 +237,8 @@ export function MunicipalOrganizationChart({
       (a, b) =>
         a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR"),
     );
-  const roots = active.filter((item) => !item.parentDepartmentId);
+  const activeIds = new Set(active.map(item=>item.id));
+  const roots = active.filter((item) => !item.parentDepartmentId || !activeIds.has(item.parentDepartmentId));
 
   if (active.length === 0) {
     return (
@@ -288,6 +299,7 @@ export function MunicipalOrganizationChart({
             department={department}
             allDepartments={active}
             onEdit={onEdit}
+            onAddChild={onAddChild}
           />
         ))}
       </div>
