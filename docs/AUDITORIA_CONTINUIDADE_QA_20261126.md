@@ -25,3 +25,6 @@ A proteção por ambiente de R2 ainda precisa de demonstração independente: as
 
 ## Conciliação de eventos repetidos
 O ingest QA podia substituir a observação que sustentava uma baixa já registrada por um estado não associado. A migração preserva a observação creditada e seu vínculo, serializa a atualização do recebimento existente e recusa reuso do mesmo request com hash divergente. A nova observação incompatível é devolvida para revisão, sem alterar o crédito anterior. Comparação exata de valor; não implica estorno automático. Migração somente em QA.
+
+## Ensaio lógico executado em 26/11 (ciclo de aprovação)
+O ensaio anterior falhava por omitir o SHA exigido pelo banco. Atualizado para calcular hash de bytes fictícios em subtransação revertida. Resultado: 18 etapas registradas, todas concluídas, rollback verificado. Inclui quatro anexos obrigatórios, triagem automática somente após o quarto, análise, reabertura de documento, comunique-se (criação, resposta e conclusão), recusa de financeiro e de analista de outro município, rascunho de alvará e rejeição de assinatura fictícia. A migração restringe exigências técnicas à equipe competente, bloqueia mutações em processo encerrado e serializa resposta/conclusão. Não equivale a upload R2, login pelo browser ou emissão real assinada.
