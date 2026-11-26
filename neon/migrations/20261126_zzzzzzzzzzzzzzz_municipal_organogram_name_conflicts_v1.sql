@@ -57,6 +57,6 @@ EXCEPTION WHEN unique_violation THEN
   RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='Já existe uma unidade com este nome nesta Prefeitura, inclusive entre as inativas. Use um nome distinto.';
  END IF;
  RAISE;
-END $;
+END $$;
 REVOKE ALL ON FUNCTION public.upsert_municipal_department_v1(uuid,uuid,text,text,text,text,text,uuid,text,integer,boolean) FROM PUBLIC,anonymous;
 GRANT EXECUTE ON FUNCTION public.upsert_municipal_department_v1(uuid,uuid,text,text,text,text,text,uuid,text,integer,boolean) TO authenticated;
