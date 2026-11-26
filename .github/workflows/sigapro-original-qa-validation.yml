@@ -75,5 +75,8 @@ jobs:
           src/test/municipalPaymentSetupProof.test.ts
           src/test/architecturalPdfPreflightQa.test.ts
           src/test/municipalCollectionApi.test.ts
+          src/test/municipalCollectionConfiguration.test.ts
+          server/architectural-document-guard.test.ts
+          src/test/architecturalPdfAiExtraction.test.ts
       - name: Production-equivalent build for preview
         run: npm run build
