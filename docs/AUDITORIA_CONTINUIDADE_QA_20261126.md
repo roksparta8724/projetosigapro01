@@ -31,3 +31,6 @@ O ensaio anterior falhava por omitir o SHA exigido pelo banco. Atualizado para c
 
 ## Habite-se: bloqueio corrigido e conclusão testada
 O ensaio real de RPC inicialmente falhou: formulário legado correspondia à ficha anterior (v1), enquanto o diretor assinou v2 com observações distintas. O diretor e instante da assinatura coincidem com a emissão. A nova migração resolve a versão única correspondente à emissão, exige identidade, instante, hash, escopo, reautenticação e evidência v4; leitura, reconsulta e conclusão usam essa versão. Nova emissão continua exigindo igualdade com rascunho. Conclusão em QA passou, segunda chamada idempotente, um movimento, formulário e assinatura preservados e rollback verificado. Não é uma nova vistoria/assinatura real nem comprova PDF físico.
+
+## Privacidade do histórico externo
+Quatro políticas de leitura agora exigem acesso ao processo e respeitam a visibilidade interna/externa de exigências, auditoria, movimentações e despachos. Ensaio executado com SET LOCAL ROLE authenticated e claims de perfis QA: analista visualiza ambas as exigências; profissional vinculado visualiza só a compartilhada, sem histórico interno; movimentações públicas permanecem acessíveis. Fixtures e efeitos de teste revertidos. Não equivale a auditoria integral de LGPD.
