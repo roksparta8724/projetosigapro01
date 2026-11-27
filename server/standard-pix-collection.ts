@@ -87,7 +87,9 @@ export function inspectStandardPixCharge(response:unknown,expected:PixGuideExpec
      amount===null||amount<=0)return denied("invalid_response");
   if(unique.has(id))return denied("duplicate_receipts",ids);
   unique.add(id);ids.push(id);
+  if(p.devolucoes!==undefined&&!Array.isArray(p.devolucoes))return denied("invalid_response",ids);
   if(Array.isArray(p.devolucoes)&&p.devolucoes.length>0)return denied("partial_or_refunded",ids);
+  if(p.txid!==undefined&&p.txid!==expected.txid)return denied("wrong_charge",ids);
   paid+=amount;
   if(!Number.isSafeInteger(paid)||paid>expected.amountCents)return denied("amount_mismatch",ids);
  }

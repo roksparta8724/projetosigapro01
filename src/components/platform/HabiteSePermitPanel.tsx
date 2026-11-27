@@ -1425,7 +1425,7 @@ export function HabiteSePermitPanel({
                 ? "Confirme sua senha de acesso. Esta assinatura é complementar e não altera o caráter conclusivo da assinatura já realizada pela Diretoria."
                 : "Confirme sua senha de acesso. A assinatura eletrônica do Diretor será vinculada exatamente a esta versão do Alvará de Habite-se e concluirá a emissão."}
             </p>
-            <ExternalCertificateSigningOptions disabled={Boolean(busy)} />
+            <ExternalCertificateSigningOptions disabled={Boolean(busy)} sandbox={passwordDialog && isNeonBackend && !externalView && (passwordDialog==="director"?isDirector:isSecretary) ? {processId:process.id,artifactType:"habite_se_permit",signerSlot:passwordDialog==="director"?"diretoria":"secretaria"} : undefined} />
             <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Assinatura interna SIGAPRO — não utiliza certificado GOV.BR ou ICP-Brasil.</p>
             <Input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Senha de acesso" />
             <Button type="button" className="w-full bg-sky-700 font-bold !text-white hover:bg-sky-600" disabled={!password || Boolean(busy)} onClick={() => void confirmSignature()}>

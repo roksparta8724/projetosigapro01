@@ -6,8 +6,9 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
  * Retorna { bucket, objectKey, publicUrl }
  */
 
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
+import { assertStoredDocumentBytes } from "../document-storage-integrity.js";
 import { assertStoredDamOriginal } from "../dam-original-integrity.js";
 import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { safeAvatarMime } from "./profile-avatar-open.js";
@@ -102,14 +103,13 @@ async function putR2ObjectWithFallback(input: {
           expectedSha256: input.metadata.sha256, expectedBytes: input.body.length,
         });
       } else if (isCreateOnlyDocumentBucket(input.bucket)) {
-        // Every other municipal document must be physically readable, too.
-        const head = await client.send(new HeadObjectCommand({
-          Bucket: input.bucket, Key: input.objectKey,
-        }));
-        if (head.ContentLength !== input.body.length ||
-            String(head.ContentType || "").toLowerCase() !== input.contentType.toLowerCase()) {
-          throw new Error("R2_DOCUMENT_OBJECT_NOT_CONFIRMED");
-        }
+        // Verify persisted bytes, not merely object metadata.
+        await assertStoredDocumentBytes(client,{
+          bucket:input.bucket,objectKey:input.objectKey,
+          expectedSha256:createHash("sha256").update(input.body).digest("hex"),
+          expectedBytes:input.body.length,contentType:input.contentType,
+          maxBytes:MAX_R2_UPLOAD_REQUEST_BYTES,requirePdf:input.contentType.toLowerCase()==="application/pdf",
+        });
       }
       return;
     } catch (error) {
@@ -600,13 +600,11 @@ export default async function handler(req: Req, res: Res) {
           expectedSha256: damOriginalMetadata.sha256, expectedBytes: buffer.length,
         });
       } else if (isCreateOnlyDocumentBucket(bucket)) {
-        const head = await municipalTarget.client.send(new HeadObjectCommand({
-          Bucket: municipalTarget.bucket, Key: municipalTarget.objectKey,
-        }));
-        if (head.ContentLength !== buffer.length ||
-            String(head.ContentType || "").toLowerCase() !== resolvedContentType.toLowerCase()) {
-          throw new Error("R2_DOCUMENT_OBJECT_NOT_CONFIRMED");
-        }
+        await assertStoredDocumentBytes(municipalTarget.client,{
+          bucket:municipalTarget.bucket,objectKey:municipalTarget.objectKey,
+          expectedSha256:receivedSha256,expectedBytes:buffer.length,contentType:resolvedContentType,
+          maxBytes:MAX_R2_UPLOAD_REQUEST_BYTES,requirePdf:resolvedContentType.toLowerCase()==="application/pdf",
+        });
       }
 
       json(res, 200, {

@@ -1,3 +1,4 @@
+import { assertStoredDocumentBytes } from "../document-storage-integrity.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createHash } from "node:crypto";
 import {
@@ -143,8 +144,10 @@ export default async function handler(req:Req,res:Res){
   try{
    const existing=await client.send(new HeadObjectCommand({Bucket:bucket,Key:official}));
    if(existing.ContentLength===a.fileSize&&existing.ContentType==="application/pdf"&&
-    existing.Metadata?.sha256===a.fileHash)
-    return json(res,200,{ok:true,objectKey:a.objectKey,resumed:true});
+    existing.Metadata?.sha256===a.fileHash){
+    await assertStoredDocumentBytes(client,{bucket,objectKey:official,expectedSha256:a.fileHash!,expectedBytes:a.fileSize,contentType:"application/pdf",maxBytes:MAX_OFFICIAL_LEGAL_PDF_BYTES,requirePdf:true});
+    return json(res,200,{ok:true,objectKey:a.objectKey,resumed:true,sha256:a.fileHash,fileSizeBytes:a.fileSize});
+   }
    return json(res,409,{error:"Esta revisão já contém outro PDF. O SIGAPRO não sobrescreve arquivos oficiais."});
   }catch(e){if(httpStatus(e)!==404)throw e;}
   const created=await client.send(new CreateMultipartUploadCommand({
@@ -178,7 +181,7 @@ export default async function handler(req:Req,res:Res){
    if(total!==a.fileSize||assembledHash.digest("hex")!==a.fileHash)throw Error("BAD_FILE_SHA256");
    await client.send(new CompleteMultipartUploadCommand({
     Bucket:bucket,Key:official,UploadId:created.UploadId,
-    MultipartUpload:{Parts:uploaded},
+    MultipartUpload:{Parts:uploaded},IfNoneMatch:"*",
    }));
    success=true;
   }finally{
@@ -190,10 +193,11 @@ export default async function handler(req:Req,res:Res){
   if(verified.ContentLength!==a.fileSize||verified.ContentType!=="application/pdf"||
    verified.Metadata?.sha256!==a.fileHash)
    return json(res,502,{error:"O armazenamento não confirmou a integridade do PDF."});
+  await assertStoredDocumentBytes(client,{bucket,objectKey:official,expectedSha256:a.fileHash!,expectedBytes:a.fileSize,contentType:"application/pdf",maxBytes:MAX_OFFICIAL_LEGAL_PDF_BYTES,requirePdf:true});
   await client.send(new DeleteObjectsCommand({Bucket:bucket,Delete:{
    Objects:Array.from({length:a.count},(_,i)=>({Key:stage(i)})),Quiet:true,
   }})).catch(()=>undefined);
-  return json(res,200,{ok:true,objectKey:a.objectKey,publicUrl:""});
+  return json(res,200,{ok:true,objectKey:a.objectKey,publicUrl:"",sha256:a.fileHash,fileSizeBytes:a.fileSize});
  }catch(error){
   const code=httpStatus(error);
   return json(res,code===404||code===412?409:502,{

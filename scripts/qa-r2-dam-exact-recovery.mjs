@@ -90,6 +90,17 @@ function checkQaConfig(env) {
   return "READY";
 }
 
+/** A shared storage account is not proof of QA isolation. Default to discovery
+ * only. An operator must separately provision a dedicated, scoped QA bucket
+ * and explicitly authorize recovery before an object can be created. */
+export function qaRecoveryWriteAuthorized(env=process.env) {
+  const bucket=String(env.R2_BUCKET_DOCUMENTOS||"").trim();
+  return isCurrentQaAuditScope(env)&&
+    env.SIGAPRO_QA_R2_RECOVERY_WRITE==="true"&&
+    /^sigapro-qa-[a-z0-9][a-z0-9-]{1,50}$/.test(bucket)&&
+    env.SIGAPRO_QA_R2_RECOVERY_BUCKET===bucket;
+}
+
 export async function searchAndRestoreQaOriginal(env=process.env) {
   const ready=checkQaConfig(env);
   if(ready!=="READY")return ready;
@@ -127,6 +138,7 @@ export async function searchAndRestoreQaOriginal(env=process.env) {
     }
     const found=await identifyExactSource(client,bucket,row);
     if(found.status!=="EXACT_SHA_SOURCE_FOUND")return found.status;
+    if(!qaRecoveryWriteAuthorized(env))return "EXACT_SHA_SOURCE_FOUND_READONLY";
     // Source is a fully hashed byte-for-byte copy in the SAME municipality.
     // Verify bytes once more before copying, cap RAM and disallow overwrites.
     const download=await client.send(new GetObjectCommand({Bucket:bucket,Key:found.sourceKey}));

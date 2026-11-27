@@ -9,8 +9,10 @@ export type MpOrderObservation = {
 function money(value:unknown):number|null {
  const raw=typeof value==="string"||typeof value==="number"?String(value):"";
  if(!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/.test(raw))return null;
- const n=Number(raw);
- return Number.isSafeInteger(Math.round(n*100))?Math.round(n*100)/100:null;
+ const [whole,fraction=""]=raw.split(".");
+ const cents=Number(whole)*100+Number(fraction.padEnd(2,"0"));
+ // Municipal guide amounts must be exactly representable as cents.
+ return Number.isSafeInteger(cents)&&cents<=999_999_999_999?cents/100:null;
 }
 function sameCents(...values:(number|null)[]):boolean {
  return values.length>0 && values.every(v=>v!==null&&v>0&&Math.round(v*100)===Math.round(values[0]! *100));
@@ -18,7 +20,7 @@ function sameCents(...values:(number|null)[]):boolean {
 export async function fetchMunicipalMpOrder(orderId:string,token:string):Promise<MpOrderObservation>{
  const response=await fetch("https://api.mercadopago.com/v1/orders/"+encodeURIComponent(orderId),{
   method:"GET",headers:{Accept:"application/json",Authorization:`Bearer ${token}`},
-  signal:AbortSignal.timeout(6500),
+  redirect:"error",cache:"no-store",signal:AbortSignal.timeout(6500),
  });
  if(!response.ok) return {fetched:false,status:"provider_http_"+response.status,reference:"",currency:"",amount:null};
  const raw=await response.json().catch(()=>null) as Record<string,unknown>|null;
@@ -55,8 +57,10 @@ export async function fetchMunicipalMpOrder(orderId:string,token:string):Promise
  const transactionStatusDetail=String(single?.status_detail||"").slice(0,96);
  const transactionAmount=money(single?.amount);
  const transactionPaidAmount=money(single?.paid_amount);
- const noChargeback=Array.isArray(chargebacks)?chargebacks.length===0:chargebacks==null;
- const noRefund=Array.isArray(refunds)?refunds.length===0:refunds==null;
+ const absentOrEmpty=(value:unknown)=>value==null||(Array.isArray(value)&&value.length===0);
+ const noChargeback=[chargebacks,raw.chargebacks,single?.chargebacks].every(absentOrEmpty);
+ const noRefund=[refunds,raw.refunds,single?.refunds].every(absentOrEmpty)&&
+   [raw.total_refunded_amount,single?.refunded_amount,single?.amount_refunded].every(v=>v===undefined||money(v)===0);
  // Only the two supported municipal collection methods may credit a guide.
  // They must also match the original order/payment, exact cents and any
  // reversal checks. Cards and other transfer methods remain unrecognized.

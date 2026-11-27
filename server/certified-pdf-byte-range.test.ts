@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe,it,expect } from "vitest";
-import { inspectPreparedPdfSignature,embedUnverifiedPkcs7,type PreparedSignatureRange } from "./certified-pdf-byte-range";
+import { inspectPreparedPdfSignature,embedUnverifiedPkcs7,assertEmbeddedCmsBytes,type PreparedSignatureRange } from "./certified-pdf-byte-range";
 const sha=(v:Uint8Array)=>createHash("sha256").update(v).digest("hex");
 function fixture(){
  const prefix="%PDF-1.7\n1 0 obj\n<< /Type /Sig /ByteRange [0000000000 0000000000 0000000000 0000000000] /Contents ";
@@ -33,5 +33,19 @@ describe("Prepared PDF ByteRange integrity",()=>{
  it("rejects reuse of a populated signature slot",()=>{
   const {pdf,range}=fixture();pdf[range[1]+1]=49;
   expect(()=>inspectPreparedPdfSignature(pdf,range,sha(pdf))).toThrow(/NOT_EMPTY/);
+ });
+});
+
+describe("Final PDF serialization",()=>{
+ it("rejects changed signed bytes, replaced CMS, padding and trailing revisions",()=>{
+  const {pdf,range}=fixture(), p=inspectPreparedPdfSignature(pdf,range,sha(pdf)), cms=Buffer.alloc(32,0x30);
+  const signed=embedUnverifiedPkcs7(pdf,range,sha(pdf),p.byteRangeSha256,cms).bytes;
+  const input={preparedBytes:pdf,signedBytes:signed,range,preparedSha256:sha(pdf),byteRangeSha256:p.byteRangeSha256,cmsDer:cms};
+  expect(assertEmbeddedCmsBytes(input)).toMatchObject({sha256:sha(signed),embeddedCmsVerified:true,pdfPolicyVerified:false,issuanceAuthorized:false});
+  for(const offset of [12,range[1]+1,range[1]+100,range[2]-1,range[2]]){
+   const changed=Buffer.from(signed);changed[offset]^=1;
+   expect(()=>assertEmbeddedCmsBytes({...input,signedBytes:changed})).toThrow();
+  }
+  expect(()=>assertEmbeddedCmsBytes({...input,signedBytes:Buffer.concat([signed,Buffer.from("\n%%EOF")])})).toThrow();
  });
 });

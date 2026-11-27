@@ -189,7 +189,7 @@ export async function resolveMercadoPagoMunicipalAccessToken(
   // Propagate authorization, unavailable schema and network errors.
   // Fallback to a global Mercado Pago account would route tax money incorrectly.
   const config = await resolveMunicipalPaymentSecret(req, id);
-  if (config.municipality_id && config.municipality_id !== id) {
+  if (config.municipality_id && config.municipality_id !== id.toLowerCase()) {
     throw new Error("A conexão bancária não pertence à Prefeitura solicitada.");
   }
   if (
@@ -202,6 +202,7 @@ export async function resolveMercadoPagoMunicipalAccessToken(
       "Mercado Pago não está ativo e homologado para esta Prefeitura. Cadastre e teste a credencial municipal em Guias e Arrecadação.",
     );
   }
+  if(config.municipality_id!==id.toLowerCase())throw Error("A conexão bancária não pertence à Prefeitura solicitada.");
   return {
     token: decryptPaymentAccessToken(config.credentials_ciphertext),
     environment: config.environment,
@@ -216,6 +217,8 @@ export async function testMercadoPagoToken(accessToken: string) {
 
   const response = await fetch("https://api.mercadopago.com/v1/payment_methods", {
     method: "GET",
+    redirect:"error",
+    cache:"no-store",
     signal: AbortSignal.timeout(10000),
     headers: {
       Accept: "application/json",

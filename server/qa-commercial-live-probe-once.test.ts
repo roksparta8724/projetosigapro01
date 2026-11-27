@@ -16,7 +16,8 @@ import {createQa04ArchitecturalPdfBytes} from "../src/lib/qa04ArchitecturalFixtu
 import {extractNativeArchitecturalPdf} from "./native-architectural-pdf";
 import {benchmarkQa04ArchitecturalReadings} from "../src/lib/architecturalPdfReadings";
 import {resolveVisualPdfProvider,extractVisualPdf} from "./architectural-pdf-provider";
-const enabled=currentQaPreview(process.env)&&process.env.SIGAPRO_QA_COMMERCIAL_PROBE_ONCE==="true";
+const fullProbe=currentQaPreview(process.env)&&process.env.SIGAPRO_QA_COMMERCIAL_PROBE_ONCE==="true";
+const enabled=fullProbe||(currentQaPreview(process.env)&&process.env.SIGAPRO_QA_PROVIDER_READONLY_ONCE==="true");
 const emit=(name:string,status:string)=>console.log("SIGAPRO_COMMERCIAL_PROBE "+JSON.stringify({name,status}));
 const get=(key:string)=>String(process.env[key]||"").trim();
 const requireNode=createRequire(import.meta.url);
@@ -24,6 +25,12 @@ type Db={connect():Promise<void>;end():Promise<void>;query(sql:string,args:unkno
 const fixtureCity="49dac0b6-6352-4744-9aab-9ff91c59d970";
 const digest=(bytes:Uint8Array)=>createHash("sha256").update(bytes).digest("hex");
 describe("Isolated real commercial integration evidence",()=>{
+ (enabled?it:it.skip)("reads the independently generated architecture fixture locally",()=>{
+   const reading=extractNativeArchitecturalPdf(new Uint8Array(createQa04ArchitecturalPdfBytes()));
+   const comparison=benchmarkQa04ArchitecturalReadings(reading.readings);
+   expect(comparison.total).toBe(3);expect(comparison.passed).toBe(3);expect(reading.automaticallyApproved).toBe(false);
+   emit("native_pdf_reader","PASS_THREE_MEASUREMENTS_GENERATED_FIXTURE");
+ });
  (enabled?it:it.skip)("checks the actual configured municipal sandbox credential with a read-only provider GET",async()=>{
   let url:string;
   try{url=qaMpWebhookDatabaseUrl()}catch{emit("bank_provider","NOT_VERIFIED_WORKER_CONFIG");return;}
@@ -50,7 +57,7 @@ describe("Isolated real commercial integration evidence",()=>{
    emit("bank_provider","NOT_VERIFIED_DB");
   }finally{try{await db.end()}catch{/* no secrets */}}
  },30000);
- (enabled?it:it.skip)("stores and reopens newly generated synthetic PDF, verifies bytes and cleanup",async()=>{
+ (fullProbe?it:it.skip)("stores and reopens newly generated synthetic PDF, verifies bytes and cleanup",async()=>{
   const endpoint=resolveR2Endpoint(),bucket=get("R2_BUCKET_DOCUMENTOS"),accessKeyId=get("R2_ACCESS_KEY_ID"),secretAccessKey=get("R2_SECRET_ACCESS_KEY");
   if(!/^https:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com$/.test(endpoint)||!bucket||!accessKeyId||!secretAccessKey){
    emit("new_r2_pdf","NOT_VERIFIED_CONFIG");return;
@@ -97,7 +104,9 @@ describe("Isolated real commercial integration evidence",()=>{
  },65000);
  (enabled?it:it.skip)("makes one visual inference on artificial architectural plan only",async()=>{
   const resolved=resolveVisualPdfProvider(get);
-  if(!resolved.enabled||!["claude","openai"].includes(resolved.provider.kind)){emit("visual_ai","NOT_VERIFIED_CONFIG");return;}
+  if(get("SIGAPRO_AI_PDF_EXTERNAL_POLICY").toLowerCase()==="local_only"){emit("visual_ai","LOCAL_ONLY_POLICY");return;}
+   if(get("SIGAPRO_AI_PDF_ENABLED").toLowerCase()==="false"){emit("visual_ai","DISABLED");return;}
+   if(!resolved.enabled||!["claude","openai"].includes(resolved.provider.kind)){emit("visual_ai","NOT_VERIFIED_CONFIG");return;}
   try{
    const result=await extractVisualPdf(new Uint8Array(createQa04ArchitecturalPdfBytes()),"SIGAPRO-QA-SYNTHETIC-NO-LEGAL-VALUE.pdf",resolved.provider);
    const comparison=benchmarkQa04ArchitecturalReadings(result.readings);

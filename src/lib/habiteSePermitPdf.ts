@@ -1,4 +1,6 @@
 import { jsPDF } from "jspdf";
+import { applyPermitRenderMetadata, markUnsignedCertificateDraft, type CertifiedDraftRenderOptions } from "./certifiedPermitRenderOptions";
+import { appendPermitContinuations, permitSummaryLines, type PermitContinuation } from "./permitPdfContinuation";
 import { createQrCodeDataUrl } from "@/lib/qrCode";
 import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 import type { ProcessRecord } from "@/lib/platform";
@@ -26,6 +28,7 @@ export type HabiteSePermitPdfInput = {
   secretarySignature?: HabiteSePermitPdfSignature | null;
   verificationCode?: string | null;
   evidenceHash?: string | null;
+  certifiedDraft?: CertifiedDraftRenderOptions;
 };
 
 type PdfColor = readonly [number, number, number];
@@ -196,6 +199,7 @@ function drawParagraphBox(
   height: number,
   title: string,
   body: string,
+  continuations: PermitContinuation[],
 ) {
   fill(pdf, color.white);
   draw(pdf, color.line);
@@ -211,7 +215,9 @@ function drawParagraphBox(
   pdf.setFontSize(5.25);
   textColor(pdf, color.ink);
   const lines = pdf.splitTextToSize(body || "—", width - 6) as string[];
-  pdf.text(lines.slice(0, Math.max(1, Math.floor((height - 7) / 2.55))), x + 3, y + 7.6, {
+  const summary = permitSummaryLines(lines, Math.max(2, Math.floor((height - 7) / 2.55)));
+  if(summary.overflow) continuations.push({title,body});
+  pdf.text(summary.lines, x + 3, y + 7.6, {
     lineHeightFactor: 1.16,
   });
 }
@@ -284,19 +290,22 @@ export async function buildHabiteSePermitPdfBlob({
   secretarySignature,
   verificationCode,
   evidenceHash,
+  certifiedDraft,
 }: HabiteSePermitPdfInput) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  if (certifiedDraft) applyPermitRenderMetadata(pdf, certifiedDraft);
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 10;
   const contentWidth = pageWidth - margin * 2;
   const gap = 3;
+  const continuations: PermitContinuation[] = [];
 
   const isCampoLimpo = /campo\s+limpo\s+paulista/i.test(municipalityName);
   const logoUrl =
     municipalityLogoUrl ||
     (isCampoLimpo ? CAMPO_LIMPO_BRASAO_FALLBACK : "");
-  const logoDataUrl =
+  const logoDataUrl = certifiedDraft ? certifiedDraft.logoDataUrl ?? null :
     (await loadImageDataUrl(logoUrl)) ||
     (isCampoLimpo ? await loadImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK) : null);
 
@@ -324,7 +333,8 @@ export async function buildHabiteSePermitPdfBlob({
     municipalityPhone ||
     (isCampoLimpo ? "(11) 4038-8300" : "");
 
-  const emitted = permit.status === "emitido" && Boolean(directorSignature?.signedAt);
+  if (certifiedDraft) { directorSignature = null; secretarySignature = null; verificationCode = null; evidenceHash = null; }
+  const emitted = !certifiedDraft && permit.status === "emitido" && Boolean(directorSignature?.signedAt);
   const waitingDirector = permit.status === "aguardando_diretor";
   const statusLabel = emitted
     ? "EMITIDO"
@@ -478,6 +488,7 @@ export async function buildHabiteSePermitPdfBlob({
     22,
     "Certificação municipal",
     "Após análise documental, vistoria/conferência e confirmação do recolhimento da taxa de Habite-se, fica certificado o atendimento das condições registradas neste processo para ocupação do imóvel acima identificado.",
+    continuations,
   );
   y += 24;
 
@@ -489,6 +500,7 @@ export async function buildHabiteSePermitPdfBlob({
     18,
     "Condições, ressalvas e condicionantes",
     permit.formData.conditions || "Sem ressalvas ou condicionantes pendentes registradas no processo para a emissão deste Alvará de Habite-se.",
+    continuations,
   );
   y += 20;
 
@@ -500,6 +512,7 @@ export async function buildHabiteSePermitPdfBlob({
     18,
     "Parecer técnico conclusivo",
     permit.formData.observations || "Com base na documentação técnica, no projeto aprovado e nos registros de vistoria constantes do processo, a edificação encontra-se concluída e apta à ocupação para o uso declarado, observadas as condições do licenciamento e as normas técnicas aplicáveis.",
+    continuations,
   );
   y += 21;
 
@@ -583,6 +596,8 @@ export async function buildHabiteSePermitPdfBlob({
 
   // A propriedade só é usada para manter o título no Blob/navegador consistente.
   void fileTitle;
+  appendPermitContinuations(pdf,{municipality:officialMunicipalityName,permitNumber:permit.permitNumber,protocol:process.protocol,documentTitle:"Alvará de Habite-se",sections:continuations});
+  if (certifiedDraft) markUnsignedCertificateDraft(pdf);
   return pdf.output("blob");
 }
 

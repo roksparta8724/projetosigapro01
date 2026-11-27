@@ -15,6 +15,11 @@ DECLARE
   _admin_sub text;
   _doc_title text;
   _doc_file text;
+  _fixture_bytes bytea;
+  _requirement_id uuid;
+  _reopened_doc uuid;
+  _finance_sub text;
+  _foreign_sub text;
   _stage text := 'prepare';
   _details jsonb := '[]'::jsonb;
   _result jsonb;
@@ -74,6 +79,8 @@ BEGIN
         WHEN 'ART/RRT' THEN 'art-rrt'
         ELSE 'matricula-imovel'
       END;
+      -- Synthetic bytes hashed only in this rollback-only logical test, never a claim of storage.
+      _fixture_bytes := convert_to('%PDF-1.4' || chr(10) || 'QA ONLY ' || _doc_file || chr(10) || '%%EOF','UTF8');
       PERFORM public.append_process_documents(
         _id,jsonb_build_array(jsonb_build_object(
           'label',_doc_title,
@@ -81,7 +88,8 @@ BEGIN
           'filePath',format('municipalities/%s/protocols/%s/%s-%s.pdf',
              _tenant,_owner_profile,gen_random_uuid(),_doc_file),
           'fileName',_doc_file||'.pdf',
-          'fileSizeBytes',4096,
+          'fileSizeBytes',octet_length(_fixture_bytes),
+          'fileHash',encode(sha256(_fixture_bytes),'hex'),
           'mimeType','application/pdf',
           'source','profissional',
           'reviewStatus','pendente',
@@ -125,6 +133,42 @@ BEGIN
       'approvedCount',(SELECT count(*) FROM public.process_documents
          WHERE process_id=_id AND review_status='aprovado')));
 
+    _stage:='reopen-document-review';
+    SELECT id INTO _reopened_doc FROM public.process_documents WHERE process_id=_id AND is_required ORDER BY id LIMIT 1;
+    _result:=public.reopen_process_document_analysis_v1(_reopened_doc,'Reanálise fictícia de homologação');
+    IF _result->'document'->>'review_status' IS DISTINCT FROM 'pendente' THEN RAISE EXCEPTION 'Reopening not confirmed'; END IF;
+    PERFORM public.review_process_document(_reopened_doc,'aprovado');
+    _details:=_details||jsonb_build_array(jsonb_build_object('stage',_stage,'result','approved_again'));
+    _stage:='requirement-create';
+    _result:=public.create_process_requirement(_id,'QA — Comunique-se','Ensaio transacional, sem validade',now()+interval '5 days',NULL,'misto');
+    _requirement_id:=(_result->'requirement'->>'id')::uuid;
+    IF _requirement_id IS NULL THEN RAISE EXCEPTION 'Requirement ID missing'; END IF;
+    _stage:='requirement-finance-denied';
+    SELECT i.provider_user_id INTO _finance_sub FROM public.profiles p JOIN public.profile_auth_identities i ON i.profile_id=p.id
+    WHERE p.municipality_id=_tenant AND p.role='financeiro' AND p.account_status='active' AND p.deleted_at IS NULL AND i.provider='neon' AND i.is_active LIMIT 1;
+    IF _finance_sub IS NULL THEN RAISE EXCEPTION 'No finance identity'; END IF;
+    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',_finance_sub)::text,true);
+    BEGIN
+      PERFORM public.complete_process_requirement(_requirement_id);
+      RAISE EXCEPTION 'UNSAFE: finance closed technical requirement';
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    _details:=_details||jsonb_build_array(jsonb_build_object('stage',_stage,'blocked',true));
+    _stage:='requirement-foreign-tenant-denied';
+    SELECT i.provider_user_id INTO _foreign_sub FROM public.profiles p JOIN public.profile_auth_identities i ON i.profile_id=p.id
+    WHERE p.municipality_id<>_tenant AND p.role='analista' AND p.account_status='active' AND p.deleted_at IS NULL AND i.provider='neon' AND i.is_active LIMIT 1;
+    IF _foreign_sub IS NULL THEN RAISE EXCEPTION 'No foreign analyst fixture'; END IF;
+    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',_foreign_sub)::text,true);
+    IF public.has_process_access(_id) THEN RAISE EXCEPTION 'UNSAFE: foreign access'; END IF;
+    _details:=_details||jsonb_build_array(jsonb_build_object('stage',_stage,'blocked',true));
+    _stage:='requirement-external-reply';
+    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',_owner_sub)::text,true);
+    _result:=public.respond_process_requirement(_requirement_id,'Resposta fictícia da homologação');
+    IF _result->'requirement'->>'status' IS DISTINCT FROM 'respondida' THEN RAISE EXCEPTION 'Response not confirmed'; END IF;
+    _stage:='requirement-analyst-close';
+    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',_analyst_sub)::text,true);
+    _result:=public.complete_process_requirement(_requirement_id);
+    IF _result->'requirement'->>'status' IS DISTINCT FROM 'atendida' THEN RAISE EXCEPTION 'Closure not confirmed'; END IF;
+    _details:=_details||jsonb_build_array(jsonb_build_object('stage','comunique-se-cycle','result','created_replied_closed'));
     _stage:='save-urban-analysis-sheet-draft';
     _result:=public.save_process_analysis_sheet_v2(_id,
       jsonb_build_object('schema','sigapro.urban-analysis-checklist.v2',

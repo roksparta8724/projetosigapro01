@@ -1684,7 +1684,7 @@ export function ConstructionPermitPanel({
                 </DialogHeader>
 
                 <div className="max-h-[55dvh] space-y-4 overflow-y-auto px-6 py-5">
-                  <ExternalCertificateSigningOptions disabled={signatureBusy} />
+                  <ExternalCertificateSigningOptions disabled={signatureBusy} sandbox={signatureDialog && isNeonBackend && (signatureDialog === "director" ? canSignDirector : canSignSecretary) ? {processId:process.id,artifactType:"construction_permit",signerSlot:signatureDialog==="director"?"diretoria":"secretaria"} : undefined} />
                   <div>
                     <label className="text-xs font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
                       Senha de acesso

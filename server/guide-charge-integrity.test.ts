@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { assertProviderChargeMatchesGuide, persistGuideCharge, signVerifiedBankCharge, type StoredGuide } from "./guide-persistence";
+import { assertGuideProviderWriteAccess, assertProviderChargeMatchesGuide, persistGuideCharge, signVerifiedBankCharge, type StoredGuide } from "./guide-persistence";
 import type { MercadoPagoGuideBoletoResult } from "./mercadopago";
 import { callDataApiRpc } from "./municipal-storage";
 import type { ApiReq } from "./municipal-storage";
@@ -39,6 +39,12 @@ describe("SIGAPRO QA — conciliação bancária não pode atribuir ordem indevi
     expect(() => assertProviderChargeMatchesGuide({...guide,paid:true},charge)).toThrow(/compensada/);
     expect(() => assertProviderChargeMatchesGuide({...guide,status:"confirmado"},charge)).toThrow(/compensada/);
     expect(() => assertProviderChargeMatchesGuide({...guide,collection_mode_snapshot:"municipal_system"},charge)).toThrow(/sistema bancário próprio/);
+  });
+  it.each(["cancelada","cancelled","estornada","reembolsada","desconhecida",""])("recusa nova cobrança fora de estado pendente: %s",async status=>{
+    const invalid={...guide,status,paid:false};
+    await expect(assertGuideProviderWriteAccess(req,invalid)).rejects.toThrow(/não está pendente/);
+    await expect(persistGuideCharge(req,invalid,charge)).rejects.toThrow(/não está pendente/);
+    expect(callDataApiRpc).not.toHaveBeenCalled();
   });
   it("rejeita todos os casos indevidos antes de chamar a persistência Neon", async () => {
     const bad = [

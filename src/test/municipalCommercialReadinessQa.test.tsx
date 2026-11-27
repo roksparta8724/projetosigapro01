@@ -82,6 +82,27 @@ describe("SIGAPRO: one municipal commercial readiness evidence source",()=>{
     expect(screen.queryByText(/Liberação comercial não certificada/)).not.toBeInTheDocument();
   });
 
+  it("rejects malformed evidence, impossible counts and contradictory production claims",async()=>{
+    for(const parts of [{financialProvider:null},{bankAuthenticatedOriginalsProduction:-1},{historicalDirectorSignatures:"2"},{checkedAt:"invalid date"},{independentR2ByteAuditVerified:true},{financialProvider:{provider:"mercado_pago",environment:"test",activeAndTestedForProduction:true}}]){
+      mocks.request.mockResolvedValueOnce(data(tenantA,parts));
+      const rendered=view();
+      await screen.findByRole("alert");
+      expect(screen.queryByText(/Liberação comercial não certificada/)).not.toBeInTheDocument();
+      rendered.unmount();
+    }
+  });
+
+  it("clears previous municipality evidence before a delayed new response",async()=>{
+    mocks.request.mockResolvedValueOnce(data(tenantA,{bankAuthenticatedOriginalsProduction:99}));
+    const rendered=view();await screen.findByText(/99\. Evidências legais/);
+    let finish:(value:unknown)=>void=()=>{};
+    mocks.request.mockReturnValueOnce(new Promise(resolve=>{finish=resolve;}));
+    rendered.rerender(<MemoryRouter><MunicipalCommercialReadiness municipalityId={tenantB}/></MemoryRouter>);
+    expect(screen.queryByText(/99\. Evidências legais/)).not.toBeInTheDocument();
+    finish(data(tenantB));
+    await screen.findByText(/0\. Evidências legais conferidas: 0/);
+  });
+
   it("shows authenticated lookup failures without claiming approval",async()=>{
     mocks.request.mockRejectedValue(new Error("Sem acesso a configuracao desta Prefeitura"));
     view();

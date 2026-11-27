@@ -44,6 +44,8 @@ describe("Bank-neutral Banco Central Pix API contract (no banking claims)",()=>{
   expect(inspectStandardPixCharge(cob({pix:[payment(e2e,"123.45",[{}])]}),base).reason).toBe("partial_or_refunded");
   expect(inspectStandardPixCharge(cob({pix:[{...payment(),horario:"invalid-date"}]}),base).reason).toBe("invalid_response");
   expect(inspectStandardPixCharge(cob({pix:[payment("fake")]}),base).reason).toBe("invalid_response");
+  expect(inspectStandardPixCharge(cob({pix:[{...payment(),devolucoes:{status:"DEVOLVIDO"}}]}),base).reason).toBe("invalid_response");
+  expect(inspectStandardPixCharge(cob({pix:[{...payment(),txid:"OUTRO"}]}),base).reason).toBe("wrong_charge");
  });
  it("rejects malformed charge identities and amounts before any operation",()=>{
   expect(()=>buildStandardPixCharge({...base,txid:"SHORT"})).toThrow(/txid/);

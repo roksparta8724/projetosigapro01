@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
   rpc: vi.fn(), bearer: vi.fn(), target: vi.fn(), sign: vi.fn(),
@@ -10,6 +11,7 @@ vi.mock("../../server/r2-runtime.js", () => ({ resolveR2Endpoint: mock.endpoint 
 vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: mock.sign }));
 vi.mock("@aws-sdk/client-s3", () => ({
   S3Client: class { send(command: unknown) { return mock.send(command); } },
+  GetObjectCommand: class { constructor(public input: unknown) {} },
   HeadObjectCommand: class { constructor(public input: unknown) {} },
   PutObjectCommand: class { constructor(public input: unknown) {} },
 }));
@@ -134,11 +136,19 @@ describe("SIGAPRO — direct secure legal PDF upload", () => {
     vi.unstubAllGlobals();
   });
   it("confirms the real object size before accepting its permanent R2 reference", async () => {
-    const r = await call({ body:{ ...body, action:"verify" } });
+    const bytes=Buffer.from("%PDF-1.7\nQA original\n%%EOF"),fileSha256=createHash("sha256").update(bytes).digest("hex");
+    const verify={...body,action:"verify",fileSize:bytes.length,fileSha256};
+    expect((await call({body:{...verify,fileSha256:undefined}})).status).toBe(400);
+    const stream=(b:Buffer)=>({ContentLength:b.length,ContentType:"application/pdf",Body:(async function*(){yield b;})()});
+    mock.send.mockResolvedValueOnce(stream(bytes));
+    const r=await call({body:verify});
     expect(r.status).toBe(200);
-    expect(r.output.ok).toBe(true);
-    mock.send.mockResolvedValueOnce({ContentLength:5,ContentType:"application/pdf"});
-    expect((await call({ body:{...body,action:"verify"} })).status).toBe(409);
+    expect(r.output).toMatchObject({ok:true,sha256:fileSha256,fileSizeBytes:bytes.length});
+    const changed=Buffer.from(bytes);changed[10]^=1;
+    mock.send.mockResolvedValueOnce(stream(changed));
+    expect((await call({body:verify})).status).toBe(409);
+    mock.send.mockResolvedValueOnce({ContentLength:bytes.length,ContentType:"application/pdf"});
+    expect((await call({body:verify})).status).toBe(409);
   });
   it("requires a separate municipal legal-editor role for registry PDF uploads", async () => {
     const key = objectKey.replace("legislation-plano-diretor", "legislation-registry");

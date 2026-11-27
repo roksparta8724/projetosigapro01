@@ -37,7 +37,7 @@ describe("SIGAPRO QA — upload real do navegador em partes sem chave R2", () =>
       const body = JSON.parse(String(options.body)) as Record<string,unknown>;
       calls.push({url,body,options});
       return {ok:true,status:200,json:async()=>({
-        ok:true,...(body.action==="finalize"?{objectKey}:{}),
+        ok:true,...(body.action==="finalize"?{objectKey,sha256:body.fileSha256,fileSizeBytes:body.fileSize}:{}),
       })};
     });
     vi.stubGlobal("fetch",fetchSpy);
@@ -66,6 +66,15 @@ describe("SIGAPRO QA — upload real do navegador em partes sem chave R2", () =>
       .toBe(createHash("sha256").update(pdf.sourceBytes).digest("hex"));
   });
 
+  it("não registra anexo sem confirmação do hash e tamanho pelo servidor",async()=>{
+    vi.stubGlobal("crypto",webcrypto);
+    const pdf=fakePdf(PROCESS_INLINE_MAX_BYTES+1);
+    vi.stubGlobal("fetch",vi.fn(async (_url:string,options:RequestInit)=>{
+      const body=JSON.parse(String(options.body));
+      return {ok:true,status:200,json:async()=>({ok:true,...(body.action==="finalize"?{objectKey,sha256:"0".repeat(64),fileSizeBytes:pdf.size}:{})})};
+    }));
+    await expect(uploadLargeProcessAttachment({bucket:"process-documents",objectKey,file:pdf as unknown as File},auth)).rejects.toThrow("não confirmou");
+  });
   it("quando o envio falha, solicita exclusão somente do staging privado",async()=>{
     vi.stubGlobal("crypto",webcrypto);
     const pdf=fakePdf(PROCESS_INLINE_MAX_BYTES+1);

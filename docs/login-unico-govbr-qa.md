@@ -1,0 +1,7 @@
+# Login Único GOV.BR — preparação de homologação (27/11/2026)
+
+Referências oficiais: https://acesso.gov.br/roteiro-tecnico/iniciarintegracao.html e https://manual-integracao-assinatura-eletronica.servicos.gov.br/pt-br/latest/iniciarintegracao.html.
+
+O módulo server/govbr-signing-login.ts implementa transporte de homologação do Login Único separado do OAuth ITI: PKCE S256, state, nonce, troca de código com Basic, consulta JWK fixa, verificação RS256 dos tokens ID e access, emissor/audiência/expiração, CPF do perfil esperado, nível prata/ouro e URL de logout. Testes com chave RSA efêmera e fronteiras HTTP simuladas. Não retorna CPF, access token, ID token ou credenciais.
+
+Este módulo não é um login municipal conectado: falta persistir e consumir atomicamente o desafio sob identidade Neon, ligar a confirmação ao início da assinatura, completar o logout no navegador e cadastrar credenciais Login Único por prefeitura. A configuração inicial é estritamente uma prefeitura QA via SIGAPRO_QA_GOVBR_LOGIN_*; não substitui o cofre ITI. Não habilitar a rota de assinatura externa sem esse controle conectado. Também falta validação específica de identidade do certificado avançado, política de PDF PAdES e emissão oficial. O manual exige credenciamento do gestor público, Login Único e domínio governamental autorizado para produção; não se presume que o domínio comercial seja elegível. Nenhuma credencial externa foi fornecida ou usada.

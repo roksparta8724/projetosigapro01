@@ -46,7 +46,13 @@ export async function readStoredGuide(req: ApiReq, municipalityId: string | unde
   return result.payload;
 }
 
+function assertPayableGuide(guide: StoredGuide) {
+  if (guide.paid === true || ['compensada','pago','paid','confirmed','confirmado'].includes(String(guide.status||'').trim().toLowerCase())) throw new Error('Guia já compensada não permite vincular outra cobrança.');
+  if (!['pendente','pending','aguardando_pagamento'].includes(String(guide.status||'').trim().toLowerCase())) throw new Error('Guia não está pendente e não admite nova cobrança bancária.');
+}
+
 export async function assertGuideProviderWriteAccess(req: ApiReq, guide: StoredGuide, sandboxOnly = false) {
+  assertPayableGuide(guide);
   if (guide.collection_mode_snapshot === "municipal_system") {
     throw new Error("Esta guia pertence ao sistema próprio de arrecadação da Prefeitura; o SIGAPRO não emitirá outra cobrança.");
   }
@@ -117,12 +123,7 @@ export function assertProviderChargeMatchesGuide(
   if (guide.collection_mode_snapshot === "municipal_system") {
     throw new Error("Cobrança pertence ao sistema bancário próprio da Prefeitura.");
   }
-  if (guide.paid === true ||
-      ["compensada", "pago", "paid", "confirmed", "confirmado"].includes(
-        String(guide.status || "").trim().toLowerCase(),
-      )) {
-    throw new Error("Guia já compensada não permite vincular outra cobrança.");
-  }
+  assertPayableGuide(guide);
   if (!charge.ok || !guide.guide_number || !charge.orderId ||
       charge.externalReference !== guide.guide_number) {
     throw new Error("Somente cobrança bancária confirmada e vinculada à guia original pode ser persistida.");
