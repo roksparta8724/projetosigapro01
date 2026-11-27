@@ -2546,6 +2546,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
             }}
             inverseMain={inverseMainTheme}
             darkSurface={darkSidebar}
+            activeDepartment={isInternalRole(session.role) && dataReadyForCurrentUser ? session.department : undefined}
           />
         ) : null}
 

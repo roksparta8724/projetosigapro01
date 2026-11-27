@@ -19,6 +19,7 @@ export type AppSidebarGroup = {
 type SidebarInnerProps = {
   pathname: string;
   groups: AppSidebarGroup[];
+  activeDepartment?: string;
   expanded?: boolean;
   darkSurface?: boolean;
   onNavigate?: () => void;
@@ -62,6 +63,7 @@ function getInitialExpandedItems(groups: AppSidebarGroup[], pathname: string) {
 function SidebarInner({
   pathname,
   groups,
+  activeDepartment,
   expanded = true,
   darkSurface = true,
   onNavigate,
@@ -103,6 +105,7 @@ function SidebarInner({
         </div>
       ) : null}
 
+      {activeDepartment ? <div data-sigapro-active-department="true" title={activeDepartment} className={cn("sigapro-active-department",!expanded&&"sigapro-active-department-collapsed")}><span aria-hidden="true" className="sigapro-department-dot"/>{expanded?<div className="min-w-0"><span className="sigapro-department-caption">Departamento ativo</span><strong className="sigapro-department-name">{activeDepartment}</strong></div>:<span className="sr-only">Departamento ativo: {activeDepartment}</span>}</div>:null}
       <div
         ref={scrollContainerRef}
         className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-2.5 py-3.5" : "px-2 py-3.5")}
@@ -328,6 +331,7 @@ function SidebarInner({
 export function AppSidebar({
   pathname,
   groups,
+  activeDepartment,
   expanded = true,
   className,
   inverseMain = false,
@@ -337,6 +341,7 @@ export function AppSidebar({
 }: {
   pathname: string;
   groups: AppSidebarGroup[];
+  activeDepartment?: string;
   expanded?: boolean;
   className?: string;
   inverseMain?: boolean;
@@ -368,14 +373,19 @@ export function AppSidebar({
       node.scrollTop = nextScrollTop;
       pendingScrollRestoreRef.current = null;
     }
-    if (!pendingNearestRevealRef.current || !activeItemNodeRef.current) return;
+    if (!pendingNearestRevealRef.current) return;
+    // Desktop and mobile both exist in the DOM. Resolve the selected element
+    // from the visible scroll container, never from the hidden duplicate.
+    const selected = node.querySelector<HTMLElement>('[aria-current="page"]') ?? node.querySelector<HTMLElement>('[data-sidebar-active="true"]');
+    if (!selected) return;
     pendingNearestRevealRef.current = false;
-    const activeRect = activeItemNodeRef.current.getBoundingClientRect();
+    const activeRect = selected.getBoundingClientRect();
     const containerRect = node.getBoundingClientRect();
     const isAbove = activeRect.top < containerRect.top;
     const isBelow = activeRect.bottom > containerRect.bottom;
     if (isAbove || isBelow) {
-      activeItemNodeRef.current.scrollIntoView({ block: "nearest", inline: "nearest" });
+      // Move only the sidebar, not the main document or institutional chrome.
+      node.scrollTop += isAbove ? activeRect.top-containerRect.top : activeRect.bottom-containerRect.bottom;
     }
   }, [activeScrollContainerRef]);
 
@@ -416,6 +426,7 @@ export function AppSidebar({
         <SidebarInner
           pathname={pathname}
           groups={groups}
+          activeDepartment={activeDepartment}
           expanded={expanded}
           darkSurface={darkSurface}
           onNavigate={handleNavigate}
@@ -458,6 +469,7 @@ export function AppSidebar({
           <SidebarInner
             pathname={pathname}
             groups={groups}
+            activeDepartment={activeDepartment}
             expanded
             darkSurface={darkSurface}
             onNavigate={handleNavigate}

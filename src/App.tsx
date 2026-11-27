@@ -143,8 +143,21 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   if (pathname.startsWith("/prefeitura/organograma")) return import("@/pages/saas/MunicipalOrganizationPage");
   if (pathname.startsWith("/prefeitura/processos")) return import("@/pages/saas/MunicipalProcessRegistryPage");
   if (pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage");
+  if (/\/processos\/[^/]+\/documentos\/[^/]+\/visualizar$/.test(pathname)) return import("@/pages/saas/DocumentViewerPage");
+  if (/\/processos\/[^/]+\/documentos\/[^/]+\/analisar$/.test(pathname)) return import("@/pages/saas/DocumentAnalysisPage");
   if (pathname.startsWith("/processos/")) return import("@/pages/saas/ProcessDetailPage");
+  if (pathname === "/externo/controle/em-andamento" || pathname === "/externo/controle/rascunhos") return import("@/pages/saas/ExternalDraftsPage");
+  if (pathname.startsWith("/externo/controle")) return import("@/pages/saas/ExternalProcessControlPage");
+  if (pathname === "/externo/protocolar" || pathname === "/externo/habite-se") return import("@/pages/saas/ProtocolarProjetoPage");
+  if (pathname.startsWith("/externo/pagamentos")) return import("@/pages/saas/ExternalPaymentsPage");
+  if (pathname.startsWith("/externo/historico")) return import("@/pages/saas/ExternalHistoryPage");
+  if (pathname.startsWith("/externo/mensagens")) return import("@/pages/saas/ExternalMessagesPage");
   if (pathname.startsWith("/externo")) return import("@/pages/saas/ExternalPortalPage");
+  if (pathname === "/proprietario") return import("@/pages/saas/OwnerPortalPage");
+  if (pathname === "/assistente-ia") return import("@/pages/saas/AiAssistantPage");
+  if (pathname === "/legislacao/zoneamento") return import("@/pages/saas/ZoningPage");
+  if (pathname === "/legislacao") return import("@/pages/saas/LegislationPage");
+  if (pathname === "/cadastro-gestao/legislacao" || pathname === "/legislacao/gestao") return import("@/pages/saas/ConfiguracoesPage");
   if (pathname.startsWith("/configuracoes")) return import("@/pages/saas/ConfiguracoesPage");
   if (pathname.startsWith("/perfil")) return import("@/pages/saas/PerfilPage");
   if (pathname.startsWith("/notificacoes")) return import("@/pages/saas/NotificationsPage");
@@ -163,7 +176,7 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
  */
 function isWorkspaceBootPath(pathname: string): boolean {
   if (/\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname)) return false;
-  return /^\/(dashboard(?:\/|$)|prefeitura(?:\/|$)|master(?:\/|$)|processos(?:\/|$)|externo(?:\/|$)|proprietario(?:\/|$)|perfil(?:\/|$)|configuracoes(?:\/|$)|notificacoes(?:\/|$)|historico(?:\/|$)|buscar(?:\/|$)|legislacoes(?:\/|$)|zoneamento(?:\/|$))/.test(pathname);
+  return /^\/(dashboard(?:\/|$)|prefeitura(?:\/|$)|master(?:\/|$)|processos(?:\/|$)|externo(?:\/|$)|proprietario(?:\/|$)|perfil(?:\/|$)|configuracoes(?:\/|$)|notificacoes(?:\/|$)|historico(?:\/|$)|buscar(?:\/|$)|legislacoes(?:\/|$)|zoneamento(?:\/|$)|legislacao(?:\/|$)|cadastro-gestao(?:\/|$)|assistente-ia(?:\/|$))/.test(pathname);
 }
 
 if (typeof window !== "undefined") {
@@ -173,6 +186,9 @@ if (typeof window !== "undefined") {
   const initialPath = window.location.pathname;
   if (isWorkspaceBootPath(initialPath)) {
     void import("@/components/platform/PortalFrame").catch(() => undefined);
+    void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);
+  } else if (/\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(initialPath)) {
+    // Standalone document route: warm only its own code, not the portal frame.
     void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);
   } else {
     void preloadCurrentPublicRoute(initialPath)?.catch(() => undefined);
@@ -232,6 +248,7 @@ const AppRoutes = () => {
       void preloadCurrentInternalRoute(anchor.pathname)?.catch(() => undefined);
     };
     document.addEventListener("pointerover", prefetchLink, { passive: true });
+    document.addEventListener("pointerdown", prefetchLink, { passive: true });
     document.addEventListener("focusin", prefetchLink);
     // Topbar buttons navigate programmatically, without a corresponding <a> href.
     // Warm utility route chunks after the first paint, never protected data.
@@ -245,6 +262,7 @@ const AppRoutes = () => {
     return () => {
       window.clearTimeout(warmUtilityRoutes);
       document.removeEventListener("pointerover", prefetchLink);
+      document.removeEventListener("pointerdown", prefetchLink);
       document.removeEventListener("focusin", prefetchLink);
     };
   }, []);

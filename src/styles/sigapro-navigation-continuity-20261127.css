@@ -1,0 +1,34 @@
+/* Real frame continuity; no retained private DOM or fake page. */
+.sigapro-workspace-pending {position:relative; min-width:0; border-radius:14px; background:var(--sig-bg,#f5f7fb);}
+.sigapro-pending-line {height:2px; overflow:hidden; border-radius:2px; background:rgba(14,116,144,.13);}
+.sigapro-pending-line>span {display:block; width:36%; height:100%; background:#0e7490; transform:translateX(0); animation:sigapro-navigation-progress 1.4s ease-in-out infinite alternate;}
+@keyframes sigapro-navigation-progress {to{transform:translateX(178%);}}
+.sigapro-pending-status {display:flex; align-items:flex-start; gap:10px; padding:14px 16px; font-size:13px; line-height:1.5; color:#334155;}
+.sigapro-pending-dot {width:8px;height:8px;border-radius:50%;margin-top:6px;background:#0e7490;flex:none;}
+.sigapro-route-pending-status {min-width:0; position:relative; width:100%; color:#334155;}
+.sigapro-route-pending-copy {display:block; padding:10px 14px; font-size:12px; line-height:1.5;}
+[data-layout-mode="inverse-main"] :is(.sigapro-pending-status,.sigapro-route-pending-status) {color:#cbd5e1 !important;-webkit-text-fill-color:#cbd5e1 !important;}
+html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] #root>.sigapro-route-pending-status {padding-top:60px;background:linear-gradient(to bottom,var(--sig-initial-topbar,#0b3147) 0 60px,var(--sig-initial-bg,#f5f7fb) 60px);}
+html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] #root>.sigapro-route-pending-status .sigapro-route-pending-copy {display:none;}
+.sigapro-active-department {display:flex; align-items:flex-start; gap:9px; min-width:0; margin:12px 10px 0; padding:11px 10px; border-radius:12px; border:1px solid rgba(125,211,252,.35);background:rgba(125,211,252,.10);}
+.sigapro-department-dot {flex:none; height:8px;width:8px;margin-top:3px;background:#6ee7b7;border-radius:50%;box-shadow:0 0 0 3px rgba(110,231,183,.12);}
+html body #root .sigapro-active-department .sigapro-department-caption {display:block;font-size:10px;line-height:1.3;letter-spacing:.055em;text-transform:uppercase;font-weight:600;color:#bae6fd!important;-webkit-text-fill-color:#bae6fd!important;}
+html body #root .sigapro-active-department .sigapro-department-name {display:block;margin-top:4px;font-size:12px;line-height:1.4;font-weight:650;overflow-wrap:anywhere;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+[data-sidebar-surface="light"] .sigapro-active-department {background:#e8f2f9;border-color:#9cb9cc;}
+html body #root [data-sidebar-surface="light"] .sigapro-active-department :is(.sigapro-department-caption,.sigapro-department-name){color:#123e59!important;-webkit-text-fill-color:#123e59!important;}
+.sigapro-active-department-collapsed{justify-content:center;padding:12px 0;margin-inline:12px;}
+.sigapro-active-department-collapsed .sigapro-department-dot{margin-top:0;}
+html body #root [data-sidebar-surface="dark"] .sig-sidebar-panel .sig-sidebar-item[data-sidebar-active="true"] {background:#194b65!important;border-color:#78b7d4!important;color:#fff!important;box-shadow:inset 3px 0 0 #7dd3fc!important;}
+html body #root [data-sidebar-surface="dark"] .sig-sidebar-panel .sig-sidebar-item[data-sidebar-active="true"] :is(span,svg) {color:#fff!important;-webkit-text-fill-color:#fff!important;stroke:currentColor!important;}
+html body #root [data-sidebar-surface="dark"] .sig-sidebar-panel .sig-sidebar-item[data-sidebar-active="true"] .sig-sidebar-icon {background:#25617d!important;border-color:#5085a0!important;}
+html body #root [data-sidebar-surface="dark"] .sig-sidebar-panel .sig-sidebar-subitem[data-sidebar-active="true"] {background:#163e55!important;border-color:#527d96!important;box-shadow:none!important;color:#e0f2fe!important;-webkit-text-fill-color:#e0f2fe!important;}
+html body #root [data-sidebar-surface="dark"] .sig-sidebar-panel .sig-sidebar-subitem[data-sidebar-active="true"] :is(span,svg) {color:#e0f2fe!important;-webkit-text-fill-color:#e0f2fe!important;stroke:currentColor!important;}
+html body #root [data-sidebar-surface="dark"] .sig-sidebar-panel .sig-sidebar-subitem[data-sidebar-active="true"]>span[aria-hidden="true"]{background:#7dd3fc!important;}
+html body #root [data-sidebar-surface="light"] .sig-sidebar-panel .sig-sidebar-item[data-sidebar-active="true"]{background:#e8f2f9!important;border-color:#8bb4ce!important;color:#123e59!important;box-shadow:inset 3px 0 0 #0e7490!important;}
+html body #root [data-sidebar-surface="light"] .sig-sidebar-panel .sig-sidebar-item[data-sidebar-active="true"] :is(span,svg){color:#123e59!important;-webkit-text-fill-color:#123e59!important;}
+html body #root [data-sidebar-surface="light"] .sig-sidebar-panel .sig-sidebar-subitem[data-sidebar-active="true"]{background:#eaf4fa!important;border-color:#9cb9cc!important;color:#123e59!important;-webkit-text-fill-color:#123e59!important;box-shadow:none!important;}
+html body #root [data-sidebar-surface="light"] .sig-sidebar-panel .sig-sidebar-subitem[data-sidebar-active="true"] :is(span,svg){color:#123e59!important;-webkit-text-fill-color:#123e59!important;}
+html body #root .sig-sidebar-panel :is(.sig-sidebar-item,.sig-sidebar-subitem):focus-visible{outline:2px solid #38bdf8;outline-offset:2px;}
+.sigapro-active-department {flex-shrink:0;}
+@media(max-width:380px){.sigapro-active-department{margin-inline:8px;padding:10px 8px;}}
+@media(prefers-reduced-motion:reduce){.sigapro-pending-line>span{animation:none;width:100%;}}
