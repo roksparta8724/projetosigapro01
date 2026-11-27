@@ -15,8 +15,8 @@ export function MunicipalItiSandboxSetup({municipalityId}:{municipalityId:string
  const [status,setStatus]=useState<Status|null>(null),[clientId,setClientId]=useState(""),[clientSecret,setClientSecret]=useState(""),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[failed,setFailed]=useState(false);
  useEffect(()=>{let active=true;setStatus(null);setClientId("");setClientSecret("");setNotice("");setFailed(false);
   void request(municipalityId,"get").then(s=>{if(active)setStatus(s);}).catch(()=>{if(active){setFailed(true);setNotice("Não foi possível consultar o cadastro.");}});return()=>{active=false;};},[municipalityId]);
- const save=async()=>{if(busy||!status?.registeredCallback||!clientId.trim()||!clientSecret.trim())return;setBusy(true);setNotice("");setFailed(false);
- try{setStatus(await request(municipalityId,"save",{clientId:clientId.trim(),clientSecret,redirectUri:status.registeredCallback}));setClientSecret("");setClientId("");setNotice("Credenciais cadastradas. A conexão real ainda precisa ser homologada.");}
+ const save=async()=>{if(busy||!status||!clientId.trim()||!clientSecret.trim())return;setBusy(true);setNotice("");setFailed(false);
+ try{const saved=await request(municipalityId,"save",{clientId:clientId.trim(),clientSecret,redirectUri:status.registeredCallback||""});if(!saved.configured)throw Error("Cadastro não confirmado.");setStatus(saved);setClientSecret("");setClientId("");setNotice(saved.registeredCallback?"Credenciais cadastradas. A conexão real ainda precisa ser homologada.":"Credenciais guardadas com segurança. Aguardando o callback registrado e a homologação externa.");}
  catch(e){setFailed(true);setNotice(e instanceof Error?e.message:"Cadastro não confirmado.");}finally{setBusy(false);}};
  const field="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
  return <section className="space-y-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
@@ -25,9 +25,9 @@ export function MunicipalItiSandboxSetup({municipalityId}:{municipalityId:string
  <label className="block space-y-1 text-xs font-semibold">Client ID<input className={field} value={clientId} onChange={e=>setClientId(e.target.value)} autoComplete="off" maxLength={512}/></label>
  <label className="block space-y-1 text-xs font-semibold">Client Secret<input className={field} type="password" value={clientSecret} onChange={e=>setClientSecret(e.target.value)} autoComplete="new-password" maxLength={2048}/></label>
  <label className="block space-y-1 text-xs font-semibold">Callback registrado<input className={field} value={status?.registeredCallback||""} placeholder="Aguardando configuração do endereço oficial" readOnly/></label>
- {status&&!status.registeredCallback?<p role="status" className="text-xs text-slate-600 dark:text-slate-300">O endereço de retorno precisa ser configurado na infraestrutura de homologação antes do cadastro.</p>:null}
+ {status&&!status.registeredCallback?<p role="status" className="text-xs text-slate-600 dark:text-slate-300">Você já pode cadastrar as credenciais. O endereço de retorno será definido pela infraestrutura de homologação antes de iniciar assinaturas.</p>:null}
  {status?.registeredCallback&&new URL(status.registeredCallback).origin!==window.location.origin?<p role="status" className="break-words text-xs text-slate-600 dark:text-slate-300">As credenciais podem ser cadastradas aqui. Para assinar em homologação, abra o SIGAPRO no domínio do callback registrado acima.</p>:null}
- <Button type="button" disabled={busy||!status?.registeredCallback||!clientId.trim()||!clientSecret.trim()} onClick={()=>void save()}>{busy?"Salvando…":"Cadastrar credenciais"}</Button>
+ <Button type="button" disabled={busy||!status||!clientId.trim()||!clientSecret.trim()} onClick={()=>void save()}>{busy?"Salvando…":"Cadastrar credenciais"}</Button>
  {notice?<p role={failed?"alert":"status"} className="break-words text-xs text-slate-700 dark:text-slate-200">{notice}</p>:null}
  </section>;
 }
