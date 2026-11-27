@@ -1,3 +1,8 @@
+import {jsPDF} from "jspdf";
+import {X509Certificate} from "node:crypto";
+import {prepareFirstPermitCertificateRevision,prepareSecondPermitCertificateRevision} from "./certified-pdf-incremental-revision";
+import {embedUnverifiedPkcs7} from "./certified-pdf-byte-range";
+import {verifyArchivedTwoSignaturePermit} from "./certified-pdf-two-signature-verifier";
 import {beginIcpSandboxSession,bindIcpSandboxSession} from "./certified-icp-session-adapter";
 import {createItiSandboxAuthorization} from "./iti-signature-sandbox";
 import {completeIcpSandboxCandidate} from "./certified-icp-sandbox-worker";
@@ -199,6 +204,33 @@ describe("CMS independent crypto preflight with real ephemeral QA certificates",
    expect(events.filter(x=>x==="iti:cms")).toHaveLength(1);
    expect(await archiveIcpSandboxCandidate(candidate,env,client)).toEqual(archive);
   }finally{vi.unstubAllGlobals();vi.unstubAllEnvs();}
+ },30000);
+ it("rechecks two real CAdES signatures against exact archived PDF revisions and rejects alterations",()=>{
+  const p=new jsPDF({compress:true});p.text("SIGAPRO QA - DOCUMENTO FICTICIO",15,20);p.addPage();p.text("Condicoes de ensaio",15,20);
+  const original=Buffer.from(p.output("arraybuffer")),originalSha=sha(original);
+  run(["req","-new","-newkey","rsa:2048","-nodes","-subj","/CN=SIGAPRO QA secretary","-keyout","secretary.key","-out","secretary.csr"]);
+  writeFileSync(join(dir,"secretary.ext"),"[secretary]\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nsubjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid,issuer\nsubjectAltName=otherName:2.16.76.1.3.1;UTF8:010119901114447773500000000000000000000000000000000000\n");
+  run(["ca","-batch","-config","ca.cnf","-extfile","secretary.ext","-extensions","secretary","-in","secretary.csr","-out","secretary.pem","-notext"]);
+  run(["ca","-config","ca.cnf","-gencrl","-out","two.crl"]);
+  const signRevision=(prepared:{bytes:Buffer;range:PreparedSignatureRange;preparedPdfSha256:string;byteRangeSha256:string},name:string)=>{
+   const covered=Buffer.concat([prepared.bytes.subarray(0,prepared.range[1]),prepared.bytes.subarray(prepared.range[2])]);
+   writeFileSync(join(dir,"two-"+name+".bin"),covered);
+   run(["cms","-sign","-binary","-in","two-"+name+".bin","-signer",name+".pem","-inkey",name+".key","-outform","DER","-out","two-"+name+".der","-md","sha256","-cades"]);
+   const cms=readFileSync(join(dir,"two-"+name+".der"));
+   return {cms,...embedUnverifiedPkcs7(prepared.bytes,prepared.range,prepared.preparedPdfSha256,prepared.byteRangeSha256,cms)};
+  };
+  const first=prepareFirstPermitCertificateRevision({originalBytes:original,expectedOriginalSha256:originalSha,slot:"diretoria",capacityBytes:8192}),director=signRevision(first,"leaf");
+  const second=prepareSecondPermitCertificateRevision({originalBytes:original,expectedOriginalSha256:originalSha,directorSignedBytes:director.bytes,expectedDirectorSignedSha256:director.sha256,directorCmsDer:director.cms,directorCapacityBytes:8192,capacityBytes:8192}),secretary=signRevision(second,"secretary");
+  const signer=(name:string,cpf:string,cms:Buffer)=>({expectedProfileCpf:cpf,expectedProviderCertificatePem:read(name+".pem"),expectedCertificateSha256:sha(new X509Certificate(read(name+".pem")).raw),expectedCmsSha256:sha(cms),capacityBytes:8192});
+  const args={originalBytes:original,expectedOriginalSha256:originalSha,finalBytes:secretary.bytes,expectedFinalSha256:secretary.sha256,expectedDirectorRevisionSha256:director.sha256,director:signer("leaf","52998224725",director.cms),secretary:signer("secretary","11144477735",secretary.cms),trust:{mode:"icp_brasil" as const,environment:"sandbox" as const,rootsPem:root,rootsSha256:sha(root),intermediatesPem:"",crlsPem:read("two.crl")}};
+  const verified=verifyArchivedTwoSignaturePermit(args);
+  expect(verified).toMatchObject({bothCadesSignaturesVerified:true,originalBytesPreserved:true,pdfPolicyVerified:false,issuanceAuthorized:false,finalSha256:secretary.sha256});
+  expect(verified.directorCertificateSha256).not.toBe(verified.secretaryCertificateSha256);
+  const changed=Buffer.from(secretary.bytes);changed[second.range[1]+4]^=1;
+  expect(()=>verifyArchivedTwoSignaturePermit({...args,finalBytes:changed,expectedFinalSha256:sha(changed)})).toThrow();
+  const trailing=Buffer.concat([secretary.bytes,Buffer.from("\n%%EOF")]);
+  expect(()=>verifyArchivedTwoSignaturePermit({...args,finalBytes:trailing,expectedFinalSha256:sha(trailing)})).toThrow();
+  expect(()=>verifyArchivedTwoSignaturePermit({...args,secretary:{...args.secretary,expectedProfileCpf:args.director.expectedProfileCpf}})).toThrow();
  },30000);
  it("rejects a revoked leaf even when cryptographic signature still matches",()=>{
   run(["ca","-config","ca.cnf","-revoke","leaf.pem"]);
