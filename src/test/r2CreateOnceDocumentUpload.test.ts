@@ -22,5 +22,8 @@ describe("R2 and municipal S3 uploads: create-once process document keys", () =>
     expect(src).toContain('isCreateOnlyDocumentBucket(bucket)');
     expect(src).toContain('code: "DOCUMENT_ALREADY_EXISTS"');
     expect(src).toContain('code: "SIGNED_PDF_IMMUTABLE"');
+    expect(src).toContain("await assertStoredDocumentBytes(client,{");
+    expect(src).toContain("await assertStoredDocumentBytes(municipalTarget.client,{");
+    expect(src).not.toContain("new HeadObjectCommand(");
   });
 });
