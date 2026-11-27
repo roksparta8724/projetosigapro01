@@ -143,7 +143,14 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   if (pathname.startsWith("/prefeitura/organograma")) return import("@/pages/saas/MunicipalOrganizationPage");
   if (pathname.startsWith("/prefeitura/processos")) return import("@/pages/saas/MunicipalProcessRegistryPage");
   if (pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage");
+  if (/\/processos\/[^/]+\/documentos\/[^/]+\/visualizar$/.test(pathname)) return import("@/pages/saas/DocumentViewerPage");
+  if (/\/processos\/[^/]+\/documentos\/[^/]+\/analisar$/.test(pathname)) return import("@/pages/saas/DocumentAnalysisPage");
   if (pathname.startsWith("/processos/")) return import("@/pages/saas/ProcessDetailPage");
+  if (pathname.startsWith("/externo/controle")) return import("@/pages/saas/ExternalProcessControlPage");
+  if (pathname.startsWith("/externo/rascunhos")) return import("@/pages/saas/ExternalDraftsPage");
+  if (pathname.startsWith("/externo/pagamentos")) return import("@/pages/saas/ExternalPaymentsPage");
+  if (pathname.startsWith("/externo/historico")) return import("@/pages/saas/ExternalHistoryPage");
+  if (pathname.startsWith("/externo/mensagens")) return import("@/pages/saas/ExternalMessagesPage");
   if (pathname.startsWith("/externo")) return import("@/pages/saas/ExternalPortalPage");
   if (pathname.startsWith("/configuracoes")) return import("@/pages/saas/ConfiguracoesPage");
   if (pathname.startsWith("/perfil")) return import("@/pages/saas/PerfilPage");
@@ -232,6 +239,7 @@ const AppRoutes = () => {
       void preloadCurrentInternalRoute(anchor.pathname)?.catch(() => undefined);
     };
     document.addEventListener("pointerover", prefetchLink, { passive: true });
+    document.addEventListener("pointerdown", prefetchLink, { passive: true });
     document.addEventListener("focusin", prefetchLink);
     // Topbar buttons navigate programmatically, without a corresponding <a> href.
     // Warm utility route chunks after the first paint, never protected data.
@@ -245,6 +253,7 @@ const AppRoutes = () => {
     return () => {
       window.clearTimeout(warmUtilityRoutes);
       document.removeEventListener("pointerover", prefetchLink);
+      document.removeEventListener("pointerdown", prefetchLink);
       document.removeEventListener("focusin", prefetchLink);
     };
   }, []);

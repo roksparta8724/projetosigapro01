@@ -19,6 +19,7 @@ import "./styles/sigapro-mobile-legibility-20261121.css";
 import "./styles/sigapro-mobile-cards-premium-20261124.css";
 import "./styles/sigapro-adaptive-registries-20261124.css";
 import "./styles/sigapro-shared-surface-contrast-20261124.css";
+import "./styles/sigapro-navigation-continuity-20261127.css";
 
 // Vite emits this event if a lazy screen points at a chunk removed by a
 // newer deployment. Recover ONCE without exposing session data or showing

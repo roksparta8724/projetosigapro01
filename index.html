@@ -111,6 +111,7 @@
               effectiveThemeForBoot.primary.trim()
                 ? effectiveThemeForBoot.primary.trim()
                 : "#0b3147";
+            if (!/^#[0-9a-f]{6}$/i.test(initialTopbar)) initialTopbar = "#0b3147";
             document.documentElement.style.setProperty("--sig-initial-topbar", initialTopbar);
             document.documentElement.setAttribute("data-sigapro-cached-internal", "true");
           }
@@ -188,6 +189,11 @@
         min-height: 100dvh;
       }
 
+      /* Native F5 destroys the old DOM. Retain only the institutional
+         background, never a simulated menu or protected screenshot. */
+      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] #root:empty {
+        background: linear-gradient(to bottom,var(--sig-initial-topbar,#0b3147) 0 60px,var(--sig-initial-bg,#f5f7fb) 60px);
+      }
       /* Erro de inicialização somente após 15s: pequeno aviso, nunca uma tela substituta.
          No F5 normal não existe camada sobre o SIGAPRO. */
       #sigapro-preboot-recovery {

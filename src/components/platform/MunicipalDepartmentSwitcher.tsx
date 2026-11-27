@@ -38,7 +38,9 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
     }
     // No invented roles: only rows returned by the authenticated, scoped RPC.
     void listRemoteMunicipalStaffAssignments()
-      .then((all) => { if (alive) setRowState({profileId:session.id,municipalityId,rows:getMunicipalAssignmentForAccount(all,session.id,municipalityId)}); })
+      .then((all) => { if (alive) { const scoped=getMunicipalAssignmentForAccount(all,session.id,municipalityId);setRowState({profileId:session.id,municipalityId,rows:scoped});
+        // Warm authorized route code, never data or permissions.
+        const paths=[...new Set(scoped.map(landingFor))]; void Promise.allSettled(paths.map(preloadLoginLanding)); } })
       .catch(() => { if (alive) setRowState(null); });
     return () => { alive = false; };
   }, [session.id,session.role,session.department,session.accountStatus,municipalityId]);
@@ -77,14 +79,14 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
       };
       // These read-only requests are independent after the transactional switch.
       // The provider waits for confirmation BEFORE publishing the scoped store.
-      await refreshRemoteStore(null, assignment, confirmAssignment);
-      await routeReady;
+      await refreshRemoteStore(null, assignment, async()=>{ await Promise.all([confirmAssignment(),routeReady]); });
       if (!isCurrentMunicipalContextTransition(operation)) return;
       // Commit the confirmed store and navigation together, before reopening
       // operational content. No optimistic profile or success toast.
       const nextSession = {...session,role:activated.role,department:activated.departmentName,title:roleLabels[activated.role]};
       flushSync(() => {
         navigate(getSessionLandingPath(nextSession), { replace: true, state:{sigaproContextLanding:true} });
+        finishMunicipalContextTransition(operation);
       });
     } catch {
       if(isCurrentMunicipalContextTransition(operation)) {
@@ -99,7 +101,7 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
           if(current[0].id===assignment.id){
             await routeReady;
             if(!isCurrentMunicipalContextTransition(operation)) return;
-            flushSync(()=>navigate(getSessionLandingPath({...session,role:current[0].role,department:current[0].departmentName,title:roleLabels[current[0].role]}),{replace:true,state:{sigaproContextLanding:true}}));
+            flushSync(()=>{navigate(getSessionLandingPath({...session,role:current[0].role,department:current[0].departmentName,title:roleLabels[current[0].role]}),{replace:true,state:{sigaproContextLanding:true}});finishMunicipalContextTransition(operation);});
             return;
           }
         } catch {
@@ -140,7 +142,7 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
                 {roleLabels[item.role]}
               </span>
             </span>
-            {item.isCurrent ? <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-300" /> : null}
+            {item.isCurrent ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-emerald-500 dark:text-emerald-300"><CheckCircle2 className="h-4 w-4" aria-hidden="true"/> Ativo</span> : busyId===item.id ? <span className="shrink-0 text-[10px] font-medium">Abrindo…</span> : null}
           </DropdownMenuItem>
         ))}
       </div>
