@@ -22,9 +22,10 @@ describe("critical localhost x production parity", () => {
 
   it("allows public municipal legislation to fall back to SIGAPRO R2 without BYOS auth", () => {
     expect(storage).toContain("isPublicMunicipalLegislationObject");
-    expect(storage).toContain("publicLegislation && !readBearer(req)");
-    expect(storage).toContain("return null");
-    expect(storage).toContain("resolve_municipal_storage_secret_v1");
+    expect(storage).toContain("if(publicLegislation)return null;");
+    expect(storage).toContain("const config=await resolveMunicipalStorageSecret(req,municipalityId);");
+    expect(storage).toContain("municipal_storage_command_v2");
+    expect(storage).not.toContain("schema cache|does not exist|not found");
   });
 
   it("shows the real persisted permit stage instead of telling users to fill an existing permit again", () => {

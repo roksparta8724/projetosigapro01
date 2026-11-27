@@ -136,6 +136,7 @@ export function decryptStorageCredentials(ciphertext:string,scope:StorageScope){
  }catch{throw Error("Credencial não corresponde à Prefeitura ou ao endpoint cadastrado.");}
 }
 export async function municipalStorageCommand(req:ApiReq,municipalityId:string,action:"get"|"resolve"|"secret"|"save"|"mark"|"activate"|"use_sigapro",body:Record<string,unknown>={}){
+ if(!readBearer(req))throw Error("Autenticação necessária.");
  const id=municipalityId.toLowerCase();
  const payload=Buffer.from(JSON.stringify(body),"utf8").toString("base64");
  const epoch=String(Math.floor(Date.now()/1000));

@@ -26,7 +26,15 @@ describe("SIGAPRO QA — saúde pública sem divulgação de infraestrutura", ()
 
   it("não remove o controle de autorização dos endpoints de gestão de armazenamento", () => {
     expect(source).toContain('getMunicipalStorageSecretAdmin(req, municipalityId)');
-    expect(source).toContain('callDataApiRpc<T>(req, fn, body)');
+    const helper=readFileSync("server/municipal-storage.ts","utf8");
+    const sql=readFileSync("neon/migrations/20261127_municipal_storage_ready_v2.sql","utf8");
+    expect(source).toContain('municipalStorageCommand(req,municipalityId,"save"');
+    expect(helper).toContain('callDataApiRpc<MunicipalStorageConnection>(req,"municipal_storage_command_v2"');
+    expect(helper).toContain('if (!token)');
+    expect(sql).toContain("expected IS DISTINCT FROM _mac");
+    expect(sql).toContain("public.current_profile_id()");
+    expect(sql).toContain("Sem permissão para o armazenamento desta Prefeitura");
+    expect(sql).toContain("FROM PUBLIC,anonymous");
     expect(source).toContain('if (req.method !== "POST")');
   });
 });

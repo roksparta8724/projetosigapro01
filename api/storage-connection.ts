@@ -30,7 +30,8 @@ async function readJsonBody(req: Req) {
   if (req.body && typeof req.body === "object") return req.body as Record<string, unknown>;
   return new Promise<Record<string, unknown>>((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    let size=0;
+    req.on("data", (chunk) => {const bytes=Buffer.from(chunk);size+=bytes.length;if(size>16384){reject(Error("Configuração excede o limite."));return;}chunks.push(bytes);});
     req.on("end", () => {
       try {
         const raw = Buffer.concat(chunks).toString("utf8");
