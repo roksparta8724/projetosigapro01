@@ -11,8 +11,9 @@ export function PageContainer({
 }) {
   return (
     <div
+      data-content-flow="page"
       className={cn(
-        "sig-page-shell mx-auto flex w-full max-w-[1760px] flex-col gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:max-w-[1880px] xl:px-3 2xl:max-w-[1940px] 2xl:px-4",
+        "sig-page-shell mx-auto grid min-w-0 w-full max-w-full grid-cols-1 items-start gap-4 px-0.5 pb-6 sm:gap-5 sm:px-1.5 md:gap-6 md:px-2 lg:px-2.5 xl:px-3 2xl:px-4",
       className,
     )}
   >
@@ -43,13 +44,15 @@ export function PageHeader({
       data-ui="card"
       data-surface="adaptive-card"
       data-premium-surface="header"
+      data-premium-role-blue="header"
+      data-sigapro-operational-header="premium-v3"
       className={cn(
         "sig-page-header relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.06)] md:p-5",
         className,
       )}
     >
-      <div className="relative flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0 flex-1">
+      <div data-sigapro-header-layout="true" className="relative flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div data-sigapro-header-copy="true" className="min-w-0 flex-1">
           {breadcrumb ? <div className="mb-2.5">{breadcrumb}</div> : null}
           <div className="flex items-start gap-3">
             {Icon ? (
@@ -57,7 +60,7 @@ export function PageHeader({
                 <AppIcon icon={Icon} className="h-5 w-5" />
               </div>
             ) : null}
-            <div className="min-w-0 sig-text-wrap">
+            <div data-sigapro-header-text="true" className="min-w-0 flex-1 sig-text-wrap">
               {eyebrow ? <p className="sig-section-label">{eyebrow}</p> : null}
               <h1 className="sig-page-title mt-1 max-w-full text-balance" title={title}>
                 {title}
@@ -71,7 +74,7 @@ export function PageHeader({
           </div>
         </div>
         {actions ? (
-          <div className="sig-header-actions flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto xl:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+          <div data-sigapro-header-actions="true" className="sig-header-actions flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end">
             {actions}
           </div>
         ) : null}
@@ -90,7 +93,7 @@ export function StatsCards({
   return (
     <div
       className={cn(
-        "sig-stats-row grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr))] items-stretch gap-3.5 md:gap-4 auto-rows-fr [&>*]:h-full",
+        "sig-stats-row grid min-w-0 [grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr))] items-stretch gap-3.5 md:gap-4 auto-rows-fr [&>*]:h-full",
         className,
       )}
     >
@@ -123,8 +126,9 @@ export function SectionCard({
       data-ui="card"
       data-surface="adaptive-card"
       data-premium-surface="section"
+      data-content-flow="card"
       className={cn(
-        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.055)] transition-[transform,box-shadow,border-color] duration-200 md:p-5",
+        "sig-section-card flex min-w-0 flex-col overflow-hidden [overflow-wrap:anywhere] rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.055)] transition-[transform,box-shadow,border-color] duration-200 md:p-5",
         className,
       )}
     >
@@ -136,19 +140,19 @@ export function SectionCard({
                 <AppIcon icon={Icon} className="h-4.5 w-4.5" />
               </div>
             ) : null}
-            <div className="min-w-0 sig-text-wrap">
-              <h2 className="sig-section-title line-clamp-3 max-w-[42ch]" title={title}>{title}</h2>
-              {description ? <p className="sig-subtitle mt-1 line-clamp-3 max-w-[72ch]" title={description}>{description}</p> : null}
+            <div className="min-w-0 max-w-full flex-1 sig-text-wrap [overflow-wrap:anywhere]">
+              <h2 className="sig-section-title max-w-full break-words [overflow-wrap:anywhere]" title={title}>{title}</h2>
+              {description ? <p className="sig-subtitle mt-1 max-w-full break-words [overflow-wrap:anywhere]" title={description}>{description}</p> : null}
             </div>
           </div>
         </div>
         {actions ? (
-          <div className="sig-section-actions flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+          <div className="sig-section-actions flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end [&>*]:min-w-0 [&>*]:w-full sm:[&>*]:w-auto">
             {actions}
           </div>
         ) : null}
       </div>
-      <div className={cn("min-w-0 flex-1 pt-4", contentClassName)}>{children}</div>
+      <div className={cn("min-w-0 max-w-full pt-3 [overflow-wrap:anywhere]", contentClassName)}>{children}</div>
     </section>
   );
 }
@@ -162,8 +166,9 @@ export function MainGrid({
 }) {
   return (
     <div
+      data-content-flow="grid"
       className={cn(
-        "sig-main-grid grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)] [&>*:only-child]:col-span-full [&>*:only-child]:min-w-0 [&>*:only-child]:w-full",
+        "sig-main-grid grid min-w-0 max-w-full grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2.45fr)_minmax(280px,0.84fr)] xl:items-start min-[1680px]:grid-cols-[minmax(0,2.7fr)_minmax(340px,0.88fr)] [&>*:only-child]:col-span-full [&>*:only-child]:min-w-0 [&>*:only-child]:w-full",
         className,
       )}
     >
@@ -197,37 +202,56 @@ export function InternalSectionNav({
   value,
   onChange,
   className,
+  summaryFirst = false,
+  staticSelection = false,
+  disabled = false,
+  reselectValue,
 }: {
   items: Array<{ value: string; label: string; helper?: string }>;
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  summaryFirst?: boolean;
+  staticSelection?: boolean;
+  disabled?: boolean;
+  reselectValue?: string;
 }) {
-  const orderedItems = [
-    ...items.filter((item) => !/^(resumo|vis[aã]o geral)$/i.test(item.label.trim())),
-    ...items.filter((item) => /^(resumo|vis[aã]o geral)$/i.test(item.label.trim())),
-  ];
+  const summary = (item: { label: string }) => /^(resumo|vis[aã]o geral)$/i.test(item.label.trim());
+  const summaryItems = items.filter(summary);
+  const operationalItems = items.filter((item) => !summary(item));
+  // Only the Dashboard opts in to summary-first. Everywhere else the
+  // operational pages are the primary workflow and summary sits at the end.
+  const orderedItems = summaryFirst
+    ? [...summaryItems, ...operationalItems]
+    : [...operationalItems, ...summaryItems];
 
   return (
     <section
       data-premium-surface="navigation"
+      data-shared-nav-contract="v1"
+      data-summary-first={summaryFirst ? "true" : "false"}
+      data-summary-position={summaryFirst ? "first" : "last"}
       className={cn(
-        "sig-section-nav rounded-[20px] border border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-2 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-white/70 sm:rounded-[24px] sm:p-2.5",
+        "sig-section-nav rounded-[18px] border border-slate-300/90 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfe_100%)] p-1.5 shadow-[0_8px_20px_rgba(15,23,42,0.05)] sm:p-2",
         className,
       )}
   >
-      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] md:overflow-visible md:px-0 md:pb-0">
+      <div className="flex min-w-0 snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
         {orderedItems.map((item) => {
           const active = item.value === value;
           return (
             <button
               key={item.value}
               type="button"
-              onClick={() => onChange(item.value)}
+              disabled={disabled}
+              onClick={() => { if (!active || item.value === reselectValue) onChange(item.value); }}
               data-nav-active={active ? "true" : "false"}
               data-premium-nav-active={active ? "true" : "false"}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "sig-nav-item flex min-h-[68px] min-w-[210px] snap-start flex-col items-start justify-center rounded-[16px] border px-4 py-3 text-left transition duration-200 md:min-w-0 md:rounded-[18px]",
+                "sig-nav-item flex min-h-[52px] min-w-[145px] flex-1 snap-start flex-col items-start justify-center rounded-[12px] border px-3 py-2.5 text-left sm:min-w-[154px] xl:min-w-[160px]",
+                staticSelection ? "transition-none" : "transition-colors duration-150",
+                "disabled:cursor-not-allowed disabled:opacity-60",
                 active
                   ? "sig-nav-item-active !border-sky-300/30 !bg-[linear-gradient(135deg,#0f4a7a_0%,#2f6ea8_100%)] !text-white shadow-[0_12px_24px_rgba(15,23,42,0.24)]"
                   : "border-slate-200/80 bg-slate-50/92 text-slate-700 hover:border-slate-300 hover:bg-white",

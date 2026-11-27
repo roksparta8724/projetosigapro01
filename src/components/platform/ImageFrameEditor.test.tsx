@@ -25,6 +25,10 @@ describe("ImageFrameEditor image ratio", () => {
   it("does not render the photo using fake square dimensions before natural size is known", async () => {
     let pendingImage: { onload: null | (() => void); naturalWidth: number; naturalHeight: number; src: string } | null = null;
 
+    const captureImage = (image: { onload: null | (() => void); naturalWidth: number; naturalHeight: number; src: string }) => {
+      pendingImage = image;
+    };
+
     class ImageMock {
       onload: null | (() => void) = null;
       onerror: null | (() => void) = null;
@@ -32,7 +36,7 @@ describe("ImageFrameEditor image ratio", () => {
       naturalHeight = 1200;
       private _src = "";
       constructor() {
-        pendingImage = this;
+        captureImage(this);
       }
       set src(value: string) {
         this._src = value;

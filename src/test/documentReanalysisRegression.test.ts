@@ -14,6 +14,9 @@ describe("audited document reanalysis", () => {
     expect(page).toContain("Reabertura auditada");
     expect(page).toContain("Confirmar reabertura");
     expect(page).toContain("A aprovação anterior não será apagada");
+    expect(page).toContain('searchParams.get("reabrir") === "1"');
+    expect(page).toContain("!isSignedAnalysisArchiveDocument(document)");
+    expect(page).toContain("!canUseAnalysis || busy");
   });
 
   it("requires a reason and returns the document to pending without deleting history", () => {
@@ -27,5 +30,99 @@ describe("audited document reanalysis", () => {
   it("keeps the correction restricted to the Analysis technical workspace", () => {
     expect(migration).toContain("public.can_write_process_analysis(_process_id)");
     expect(migration).toContain("Somente a equipe da Análise Urbanística pode reabrir esta análise.");
+  });
+});
+
+describe("append-only document evaluations and official process reopening", () => {
+  it("associates the official audit with the exact document and preserves chronological history", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const backend = read("src/integrations/backend/platformImpl.ts");
+    const registry = read("src/pages/saas/MunicipalProcessRegistryPage.tsx");
+    const migration = read("neon/migrations/20261124_document_evaluation_history_and_process_reopen.sql");
+    expect(detail).toContain('data-document-evaluation-history="true"');
+    expect(detail).toContain("getDocumentReviewHistory(process, document.id)");
+    expect(backend).toContain("documentId:");
+    expect(migration).toContain("'[documento:'||_document_id::text||'] '");
+    expect(migration).toContain("Autor anterior:");
+    expect(migration).toContain("public.reopen_process(_process_id,btrim(_reason))");
+    expect(registry).toContain("canReopenProcessForReview(session, latest, effectiveScopeId)");
+    expect(registry).toContain("reopenRemoteProcessForReview");
+  });
+});
+
+describe("independent review without reopening the municipal process", () => {
+  it("keeps both actions and records supplemental decisions without modifying official rows", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const component = read("src/components/platform/IndividualDocumentReview.tsx");
+    const sql = read("neon/migrations/20261124_individual_document_review.sql");
+    expect(detail).toContain('data-process-reopen-action="true"');
+    expect(detail).toContain("IndividualDocumentReview");
+    expect(viewer).toContain("IndividualDocumentReview");
+    expect(component).toContain("Reabrir somente este documento");
+    expect(component).toContain("Confirmar aprovação");
+    expect(sql).toContain("public.can_write_process_analysis(_process_id)");
+    expect(sql).toContain("INSERT INTO public.process_audit_entries");
+    expect(sql).not.toMatch(/UPDATE public\.(processes|process_documents|payment_guides)/i);
+    expect(sql).toContain("Já existe uma reavaliação individual em andamento.");
+  });
+});
+
+describe("visible per-document reopen action", () => {
+  it("places the reopen control beside the document opening control", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const component = read("src/components/platform/IndividualDocumentReview.tsx");
+    const sql = read("neon/migrations/20261124_individual_document_review_team.sql");
+    expect(detail).toContain("canSupplementalReopen");
+    expect(detail).toContain("compact />");
+    expect(detail.indexOf("const showReopenDocument")).toBeLessThan(detail.indexOf("data-document-reopen-shortcut"));
+    expect(viewer).toContain("Reabrir documento na barra superior");
+    expect(component).toContain("Dialog open={formOpen}");
+    expect(sql).toContain("public.process_technical_release_verified_v1(_process_id)");
+    expect(sql).toContain("p.municipality_id=coalesce(_process.municipality_id,_process.tenant_id)");
+    expect(sql).not.toMatch(/UPDATE public\.(processes|process_documents|payment_guides)/i);
+  });
+});
+
+describe("server-authoritative document reanalysis authorization", () => {
+  it("uses a single process capability check rather than guessing the effective department", () => {
+    const hook = read("src/hooks/useDocumentReviewCapabilities.ts");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const sql = read("neon/migrations/20261124_document_review_capabilities.sql");
+    expect(detail).toContain("reviewCapabilities.allows(document.id)");
+    expect(viewer).toContain("reviewCapabilities.allows(document.id)");
+    expect(detail).toContain("reviewCapabilities.reason");
+    expect(hook).toContain("snapshot.key === key");
+    expect(sql).toContain("public.has_process_access(_process_id)");
+    expect(sql).toContain("public.process_technical_release_verified_v1(_process_id)");
+    expect(sql).toContain("p.municipality_id=coalesce(_process.municipality_id,_process.tenant_id)");
+  });
+});
+
+describe("document re-evaluation visual state", () => {
+  it("distinguishes an open re-evaluation from the preserved original approval", () => {
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const component = read("src/components/platform/IndividualDocumentReview.tsx");
+    expect(detail).toContain('isReevaluationOpen ? "reopened"');
+    expect(detail).toContain('label: "Em reavaliação"');
+    expect(detail).toContain("!bg-orange-50 dark:!border-orange-500/70 dark:!bg-orange-950/45");
+    expect(detail).toContain("Aprovação original preservada.");
+    expect(detail).toContain("Nova avaliação em andamento");
+    expect(component).toContain("!bg-orange-700 !text-white");
+  });
+});
+
+describe("reopened document semantic surface", () => {
+  it("overrides the shared layout surface in both themes, and distinguishes the reopen action", () => {
+    const css = read("src/styles/surface-polarity.css");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    expect(css).toContain('[data-document-state="reopened"][data-force-card-contrast="adaptive"]');
+    expect(css).toContain("linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%) !important");
+    expect(css).toContain("linear-gradient(135deg,#45230d 0%,#2c180e 100%) !important");
+    expect(css).toContain('button:is([data-document-reopen-shortcut="true"],[data-document-independent-reopen="true"]):not(:disabled)');
+    expect(css).toContain('background: #c2410c !important');
+    expect(detail).toContain('data-document-reopened-badge={isReevaluationOpen ? "true" : undefined}');
   });
 });

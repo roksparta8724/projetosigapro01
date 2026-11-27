@@ -1,0 +1,173 @@
+/*
+ * SIGAPRO | Landing: solicitar demonstração.
+ * Public homepage only. The header button was dark text on a dark navbar.
+ * The sales card was translucent on another dark surface. A unique CTA
+ * palette is enforced on desktop, mobile, hero, contact card and lead form.
+ * Neither operational cards nor authenticated role layouts are changed.
+ */
+
+/* Strong distinction from the white "Acessar sistema" button. */
+html body [data-landing-root="true"] [data-landing-demo-trigger="desktop"] {
+  border: 1px solid #8cd9ef !important;
+  background: #d9f4ff !important;
+  color: #103e5c !important;
+  -webkit-text-fill-color: #103e5c !important;
+  font-weight: 750 !important;
+  white-space: nowrap;
+  box-shadow: 0 5px 16px rgba(0,0,0,.1) !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-trigger="desktop"]:hover {
+  border-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #103e5c !important;
+  -webkit-text-fill-color: #103e5c !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-trigger="desktop"]:focus-visible {
+  outline: 3px solid #9feaff !important;
+  outline-offset: 3px !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-trigger="mobile"],
+html body [data-landing-root="true"] [data-landing-demo-trigger="hero"],
+html body [data-landing-root="true"] [data-landing-demo-trigger="card"] {
+  background: #104665 !important;
+  border-color: #104665 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-trigger="mobile"]:hover,
+html body [data-landing-root="true"] [data-landing-demo-trigger="hero"]:hover,
+html body [data-landing-root="true"] [data-landing-demo-trigger="card"]:hover {
+  background: #0b3652 !important;
+  border-color: #0b3652 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-trigger="mobile"] :is(span,svg),
+html body [data-landing-root="true"] [data-landing-demo-trigger="hero"] :is(span,svg),
+html body [data-landing-root="true"] [data-landing-demo-trigger="card"] :is(span,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor;
+}
+html body [data-landing-root="true"] [data-landing-demo-trigger="mobile"]:focus-visible,
+html body [data-landing-root="true"] [data-landing-demo-trigger="hero"]:focus-visible,
+html body [data-landing-root="true"] [data-landing-demo-trigger="card"]:focus-visible {
+  outline: 3px solid #8fcee7 !important;
+  outline-offset: 3px !important;
+}
+/* Light premium card on navy CTA band: readable ink, no dark-on-dark. */
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] {
+  position: relative;
+  color: #14354d !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f8fc 100%) !important;
+  border: 1px solid #c7dfec !important;
+  border-radius: 28px !important;
+  box-shadow: 0 24px 68px rgba(0,12,28,.2) !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-card-icon="true"] {
+  color: #145d84 !important;
+  background: #e1f1fa !important;
+  border-color: #bfdeec !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-card-eyebrow="true"] {
+  color: #226185 !important;
+  -webkit-text-fill-color: #226185 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  letter-spacing: .09em !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-card-title="true"] {
+  color: #14354d !important;
+  -webkit-text-fill-color: #14354d !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  line-height: 1.2 !important;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-card-description="true"] {
+  color: #49677d !important;
+  -webkit-text-fill-color: #49677d !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  letter-spacing: 0 !important;
+  word-spacing: normal !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-card-note="true"] p {
+  color: #557187 !important;
+  -webkit-text-fill-color: #557187 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-access="true"] {
+  background: #ffffff !important;
+  border: 1px solid #b7cedd !important;
+  color: #214a65 !important;
+  -webkit-text-fill-color: #214a65 !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-access="true"]:hover {
+  background: #eaf5fb !important;
+  color: #214a65 !important;
+  -webkit-text-fill-color: #214a65 !important;
+}
+html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-access="true"]:focus-visible {
+  outline: 3px solid #5eaad1 !important;
+  outline-offset: 2px !important;
+}
+
+/* Lead form is a Radix portal, outside the landing root. Anchor on its
+ * own data attribute. Do not change validation, endpoint or payload. */
+html body [data-landing-demo-modal="contact"] [data-landing-demo-contact-form="true"] label {
+  color: #243e53 !important;
+  -webkit-text-fill-color: #243e53 !important;
+  font-weight: 650 !important;
+  opacity: 1 !important;
+}
+html body [data-landing-demo-modal="contact"] [data-landing-demo-contact-form="true"] :is(input,textarea) {
+  background: #ffffff !important;
+  color: #182f43 !important;
+  -webkit-text-fill-color: #182f43 !important;
+  border: 1px solid #aec7d8 !important;
+  font-size: 14px;
+}
+html body [data-landing-demo-modal="contact"] [data-landing-demo-contact-form="true"] :is(input,textarea)::placeholder {
+  color: #596f82 !important;
+  opacity: 1 !important;
+}
+html body [data-landing-demo-modal="contact"] [data-landing-demo-contact-form="true"] :is(input,textarea):focus-visible {
+  outline: 2px solid #277aa8 !important;
+  outline-offset: 1px;
+  border-color: #277aa8 !important;
+}
+html body [data-landing-demo-modal="contact"] [data-landing-demo-submit="true"] {
+  background: #104665 !important;
+  border-color: #104665 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body [data-landing-demo-modal="contact"] [data-landing-demo-submit="true"]:hover {
+  background: #0b3652 !important;
+}
+html body [data-landing-demo-modal="contact"] [data-landing-demo-submit="true"] svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+html body [data-landing-demo-modal="contact"] [data-landing-demo-contact-aside="true"] {
+  color: #ffffff !important;
+  background: #102e49 !important;
+}
+@media (max-width: 640px) {
+  html body [data-landing-root="true"] [data-landing-demo-card="premium"] {
+    padding: 22px 18px !important;
+    border-radius: 22px !important;
+  }
+  html body [data-landing-root="true"] [data-landing-demo-card="premium"] [data-landing-demo-card-title="true"] {
+    font-size: 22px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html body [data-landing-root="true"] [data-landing-demo-trigger] {
+    transition: none !important;
+  }
+}

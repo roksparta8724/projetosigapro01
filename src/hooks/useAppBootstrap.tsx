@@ -1,3 +1,4 @@
+import { authEmailErrorMessage } from "@/lib/authEmailError";
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -410,6 +411,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     // que aumentavam sensivelmente o tempo de login em produção.
     const retryDelays = [0, 80, 180, 350];
     let lastProfileError: unknown = null;
+    let mismatchedSubject = false;
 
     for (const delayMs of retryDelays) {
       if (delayMs > 0) {
@@ -425,6 +427,12 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
       const ctx = contextResult.data as Record<string, unknown> | null;
       const profileId = String(ctx?.profile_id || "").trim();
       if (!profileId) continue;
+      // A previous Neon token may still be visible during a manual account switch.
+      // Never accept the profile or privileges of another authenticated subject.
+      if (String(ctx?.auth_subject || "").trim() !== userId) {
+        mismatchedSubject = true;
+        continue;
+      }
 
       return {
         userId: profileId,
@@ -444,6 +452,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
       };
     }
 
+    if (mismatchedSubject) throw new Error("A sessão anterior não corresponde à conta atual. Entre novamente para confirmar a identidade.");
     console.warn("[Bootstrap][Profile] Neon Auth sem profile ativo após tentativas de resolução", {
       userId,
       error: lastProfileError,
@@ -481,8 +490,9 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     });
   }
 
-  const memberships = (membershipResult.data ?? []).filter((item: any) => item.role_id);
-  const roleIds = Array.from(new Set(memberships.map((item: any) => item.role_id).filter(Boolean)));
+  type MembershipRow = { role_id?: string | null; tenant_id?: string | null; level_name?: string | null };
+  const memberships = ((membershipResult.data ?? []) as MembershipRow[]).filter((item) => Boolean(item.role_id));
+  const roleIds = Array.from(new Set(memberships.map((item) => item.role_id).filter((id): id is string => Boolean(id))));
   let roleCodeFromMembership: string | null = null;
   let municipalityIdFromMembership: string | null = null;
   let accessLevelFromMembership: 1 | 2 | 3 | null = null;
@@ -490,14 +500,14 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   if (roleIds.length > 0) {
     const rolesResult = await backendClient.from("roles").select("id, code").in("id", roleIds);
     if (!rolesResult.error) {
-      const rolesById = new Map((rolesResult.data ?? []).map((item: any) => [item.id, item.code]));
+      const rolesById = new Map<string, string>(((rolesResult.data ?? []) as Array<{ id: string; code: string }>).map((item) => [item.id, item.code]));
       const rankedMembership = memberships
-        .map((item: any) => ({
+        .map((item) => ({
           tenantId: item.tenant_id as string | null,
-          roleCode: rolesById.get(item.role_id) ?? null,
+          roleCode: rolesById.get(item.role_id || "") ?? null,
           levelName: item.level_name as string | null,
         }))
-        .sort((left: any, right: any) => {
+        .sort((left, right) => {
           const rank = (roleCode: string | null) => {
             const mapped = mapDbRoleCodeToAppRole(roleCode);
             if (mapped === "master_admin" || mapped === "master_ops" || mapped === "prefeitura_admin") return 4;
@@ -659,6 +669,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
   });
   const authEventRef = useRef<string | null>(null);
   const explicitSignOutRef = useRef(false);
+  const remoteSignOutRef = useRef<Promise<void> | null>(null);
   const needsInitialRevalidationRef = useRef(Boolean(isNeonBackend && cachedSnapshot?.authUserId));
 
   useEffect(() => {
@@ -719,7 +730,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         return;
       }
       const epoch = bootstrapEpochRef.current;
-      const canApply = () => active && epoch === bootstrapEpochRef.current && !manualSignInRef.current;
+      const canApply = () => active && epoch === bootstrapEpochRef.current && !manualSignInRef.current && !explicitSignOutRef.current;
       runningRef.current = true;
       if (!initializedRef.current) {
         setLoading(true);
@@ -737,7 +748,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           sessionUser || event === "SIGNED_OUT"
             ? null
             : await backendClient.auth.getUser();
-        let authUser = sessionUser ?? userResult?.data.user ?? null;
+        const authUser = sessionUser ?? userResult?.data.user ?? null;
         if (!canApply()) return;
 
         // O SupabaseAuthAdapter do Neon pode emitir SIGNED_OUT enquanto restaura
@@ -854,8 +865,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           nextProfile = await completePendingSignup(authUser, nextProfile, resolution);
         } catch (signupError) {
           console.error("[Bootstrap] Falha ao concluir cadastro confirmado", signupError);
-          setError(signupError instanceof Error ? signupError.message : "Falha ao vincular cadastro.");
+          if (canApply()) setError(signupError instanceof Error ? signupError.message : "Falha ao vincular cadastro.");
         }
+        if (!canApply()) return;
         const mappedRole = resolveAuthenticatedRole(nextProfile, authUser);
         if (!mappedRole) {
           throw new Error(
@@ -991,12 +1003,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             "[Bootstrap] Não foi possível revogar a sessão anterior ao iniciar nova sessão do navegador",
             restartSignOutError,
           );
-        } finally {
-          if (!active) return;
-          explicitSignOutRef.current = false;
-          requireFreshLoginAfterBrowserRestartRef.current = false;
-          void runBootstrap("SIGNED_OUT", null);
         }
+        if (!active) return;
+        explicitSignOutRef.current = false;
+        requireFreshLoginAfterBrowserRestartRef.current = false;
+        void runBootstrap("SIGNED_OUT", null);
       })();
     }
 
@@ -1029,6 +1040,8 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         if (!hasBackendEnv || !backendClient) return;
         if (refreshRef.current) return;
         refreshRef.current = true;
+        const epoch = bootstrapEpochRef.current;
+        const owner = lastAuthUserIdRef.current;
         try {
           if (scopeType === "platform") {
             setMunicipalityBundle(null);
@@ -1045,7 +1058,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
                     (import.meta.env.VITE_DEV_MUNICIPALITY_NAME as string | undefined) ||
                     "",
                 });
-          setMunicipalityBundle(next);
+          if (epoch === bootstrapEpochRef.current && owner === lastAuthUserIdRef.current && !explicitSignOutRef.current) setMunicipalityBundle(next);
         } finally {
           refreshRef.current = false;
         }
@@ -1054,7 +1067,22 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         if (!hasBackendEnv || !backendClient) {
           return { ok: false, message: "Serviço de autenticação indisponível." };
         }
+        // A remote logout must finish before a new login may replace its token.
+        // A timeout is NOT permission to start a concurrent authentication.
+        if (manualSignInRef.current) return { ok: false, message: "Já existe um acesso em andamento." };
+        if (remoteSignOutRef.current) {
+          try { await remoteSignOutRef.current; } catch { /* A fresh sign-in replaces a failed remote logout. */ }
+        }
+        if (manualSignInRef.current || explicitSignOutRef.current) return { ok: false, message: "O encerramento da sessão anterior ainda está em andamento." };
         const normalized = normalizeEmail(email);
+        // Reuse only the municipality already resolved for THIS hostname on
+        // the public login screen. A fresh auth profile and the backend
+        // has_tenant_access check still validate that it belongs to this user.
+        // This avoids redoing 3+ municipality/branding/settings reads on login.
+        const hostMunicipalityAtSignIn = resolution.mode === "tenant" &&
+          municipalityBundle?.municipality?.id
+          ? municipalityBundle
+          : null;
         const clearIdentity = () => {
           writeBootstrapSnapshot(null);
           clearPlatformSessionSnapshot();
@@ -1072,18 +1100,21 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           setAuthResolved(false);
         };
         manualSignInRef.current = true;
-        bootstrapEpochRef.current += 1;
+        const signInEpoch = ++bootstrapEpochRef.current;
+        const isCurrentSignIn = () => signInEpoch === bootstrapEpochRef.current && !explicitSignOutRef.current;
         setAuthChange(null);
         pendingBootstrapRef.current = null;
         setLoading(true);
         setError(null);
         setStage("bootstrapping_auth");
         try {
-          // O signInWithPassword substitui a sessão autenticada atual.
-          // Evitamos getSession + signOut antes de TODO login, que adicionava duas
-          // viagens de rede no caminho crítico. Em caso de erro de sessão, fazemos
-          // uma limpeza e uma única nova tentativa.
+          // Manual sign-in is an explicit identity boundary, unlike F5 or a department switch.
+          // End any previous Neon session before authenticating another account.
           clearIdentity();
+          if (isNeonBackend) {
+            try { await backendClient.auth.signOut(); } catch { /* Subject validation below remains mandatory. */ }
+          }
+          if (!isCurrentSignIn()) return { ok: false, message: "A autenticação foi interrompida." };
 
           let signInResult = await backendClient.auth.signInWithPassword({
             email: normalized,
@@ -1109,6 +1140,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             });
           }
 
+          if (!isCurrentSignIn()) return { ok: false, message: "A autenticação foi interrompida." };
           const { data, error: signInError } = signInResult;
           if (signInError || !data.user) {
             const rawMessage = signInError?.message || "Falha ao autenticar.";
@@ -1118,6 +1150,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             return { ok: false, message: translatedMessage };
           }
 
+          if (isNeonBackend && normalizeEmail(data.user.email) !== normalized) {
+            throw new Error("A autenticação retornou uma identidade diferente da conta informada.");
+          }
           let nextProfile = await loadProfileByUserId(data.user.id);
           nextProfile = await completePendingSignup(data.user, nextProfile, resolution);
           if (nextProfile?.accountStatus === "blocked" || nextProfile?.accountStatus === "inactive") {
@@ -1143,11 +1178,15 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
 
           if (nextScopeType !== "platform") {
             if (resolution.mode === "tenant") {
-              nextBundle = await loadCurrentMunicipalityBundle({
-                hostname: resolution.hostname,
-                subdomain: resolution.subdomain,
-                isLocalhost: resolution.isLocalhost,
-              });
+              // Only retain the warm municipal branding if it matches the
+              // CURRENT authenticated profile; never trust it for access.
+              nextBundle = hostMunicipalityAtSignIn?.municipality?.id === nextProfile?.municipalityId
+                ? hostMunicipalityAtSignIn
+                : await loadCurrentMunicipalityBundle({
+                    hostname: resolution.hostname,
+                    subdomain: resolution.subdomain,
+                    isLocalhost: resolution.isLocalhost,
+                  });
               if (!nextBundle?.municipality?.id) {
                 throw new Error("Prefeitura deste subdomínio não encontrada.");
               }
@@ -1158,7 +1197,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
               const municipalityId = nextProfile.municipalityId;
               void loadMunicipalityBundleById(municipalityId)
                 .then((bundle) => {
-                  if (bundle?.municipality?.id === municipalityId) {
+                  if (isCurrentSignIn() && lastAuthUserIdRef.current === data.user.id && bundle?.municipality?.id === municipalityId) {
                     setMunicipalityBundle(bundle);
                     lastStableRef.current = {
                       ...lastStableRef.current,
@@ -1172,6 +1211,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             }
           }
 
+          if (!isCurrentSignIn()) return { ok: false, message: "A autenticação foi interrompida." };
           setAuthUserId(data.user.id);
           setAuthEmail(resolvedEmail);
           setRole(mappedRole);
@@ -1204,6 +1244,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: true, role: mappedRole, municipalityId: nextProfile?.municipalityId ?? null };
         } catch (err) {
           const message = err instanceof Error ? err.message : "Falha ao autenticar.";
+          if (!isCurrentSignIn()) return { ok: false, message: "A autenticação foi interrompida." };
           try {
             if (isNeonBackend) {
               await backendClient.auth.signOut();
@@ -1213,15 +1254,19 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           } catch (signOutError) {
             console.warn("[Bootstrap] Não foi possível encerrar a sessão local após erro de login", signOutError);
           }
-          clearIdentity();
-          setError(message);
+          if (isCurrentSignIn()) {
+            clearIdentity();
+            setError(message);
+          }
           return { ok: false, message };
         } finally {
           manualSignInRef.current = false;
-          setAuthResolved(true);
-          setIsReady(true);
-          setStage("ready");
-          setLoading(false);
+          if (isCurrentSignIn()) {
+            setAuthResolved(true);
+            setIsReady(true);
+            setStage("ready");
+            setLoading(false);
+          }
         }
       },
       resetPassword: async (email) => {
@@ -1238,14 +1283,14 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             email: normalized,
             redirectTo: `${window.location.origin}/recuperar-senha`,
           });
-          if (resetError) return { ok: false, message: resetError.message || "Falha ao enviar o e-mail." };
+          if (resetError) return { ok: false, message: authEmailErrorMessage(resetError) };
           return { ok: true, message: "Se a conta existir, enviaremos as instruções por e-mail." };
         }
 
         const { error: resetError } = await backendClient.auth.resetPasswordForEmail(normalized, {
           redirectTo: `${window.location.origin}/recuperar-senha`,
         });
-        if (resetError) return { ok: false, message: resetError.message };
+        if (resetError) return { ok: false, message: authEmailErrorMessage(resetError) };
         return { ok: true, message: "E-mail enviado." };
       },
       updateEmail: async (email) => {
@@ -1262,7 +1307,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             newEmail: normalized,
             callbackURL: `${window.location.origin}/configuracoes`,
           });
-          if (updateError) return { ok: false, message: updateError.message || "Falha ao solicitar alteração de e-mail." };
+          if (updateError) return { ok: false, message: authEmailErrorMessage(updateError) };
           return { ok: true, message: "Confirme a alteração pelo e-mail enviado." };
         }
 
@@ -1317,6 +1362,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         return { ok: true, message: "Senha atualizada." };
       },
       signOut: async () => {
+        if (remoteSignOutRef.current) return remoteSignOutRef.current;
         explicitSignOutRef.current = true;
         authEventRef.current = "SIGNED_OUT";
         bootstrapEpochRef.current += 1;
@@ -1349,21 +1395,18 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setStage("ready");
         setLoading(false);
 
+        // Keep the lock until the actual remote operation settles. The public
+        // login page is already available; no delayed cleanup may touch a new account.
+        const remoteTask = Promise.resolve().then(async () => {
+          if (!hasBackendEnv || !backendClient) return;
+          const result = await backendClient.auth.signOut();
+          if (result?.error) throw new Error(result.error.message || "Falha ao revogar sessão anterior.");
+        });
+        remoteSignOutRef.current = remoteTask;
         try {
-          if (hasBackendEnv && backendClient) {
-            await Promise.race([
-              backendClient.auth.signOut(),
-              new Promise<void>((resolve) => {
-                setTimeout(() => {
-                  console.warn("[Logout] signOut timeout fallback");
-                  resolve();
-                }, 2500);
-              }),
-            ]);
-          }
+          await remoteTask;
         } finally {
-          // O estado local já foi concluído antes da rede. Aqui apenas liberamos
-          // novos eventos normais de autenticação.
+          remoteSignOutRef.current = null;
           explicitSignOutRef.current = false;
         }
       },

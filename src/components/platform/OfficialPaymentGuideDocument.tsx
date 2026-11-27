@@ -1,5 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import { renderToStaticMarkup } from "react-dom/server";
+import { QRCodeSVG } from "qrcode.react";
+import { isValidPixPayload } from "@/lib/pix";
+import { encodeBankBarcodeI25, normalizeOfficialBanking } from "@/lib/bankCodes";
 
 export interface PaymentGuideDebtRow {
   year: string;
@@ -83,74 +86,34 @@ function sumDebtRows(rows: PaymentGuideDebtRow[]) {
   }, 0);
 }
 
-function normalizeBarcode(code: string) {
-  return code.replace(/\s+/g, "").trim();
-}
-
-function formatDigitableLine(code: string) {
-  const raw = normalizeBarcode(code);
-  if (!raw) return "";
-  return raw.match(/.{1,5}/g)?.join(" ") ?? raw;
-}
-
-function buildBarcodeBars(code: string) {
-  const normalized = normalizeBarcode(code);
-  return normalized.split("").map((digit, index) => {
-    const width = Number(digit || 0) % 3 === 0 ? 3 : Number(digit || 0) % 2 === 0 ? 2 : 1;
-    return (
-      <span
-        key={`${digit}-${index}`}
-        style={{
-          display: "inline-block",
-          width: `${width}px`,
-          height: `${index % 4 === 0 ? 56 : 44}px`,
-          background: "#111827",
-          marginRight: "1px",
-          verticalAlign: "bottom",
-        }}
-      />
-    );
-  });
-}
-
-function hashSeed(value: string) {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
+function OfficialBankBarcode({ value }: { value: string }) {
+  const encoded = encodeBankBarcodeI25(value);
+  if (!encoded) return <span role="status" style={{ fontSize: "11px", color: "#475569" }}>Código bancário indisponível ou divergente. Consulte a Prefeitura.</span>;
+  return (
+    <svg viewBox={`0 0 ${encoded.totalWidth} 60`} width="100%" height="60"
+      preserveAspectRatio="none" role="img" aria-label="Código de barras bancário I25"
+      style={{ display: "block", background: "#fff" }}>
+      {encoded.bars.map((bar, index) => (
+        <rect key={index} x={bar.x} y="0" width={bar.width} height="60" fill="#000" />
+      ))}
+    </svg>
+  );
 }
 
 function OfficialPixMatrix({ value }: { value: string }) {
-  const size = 132;
-  const grid = 21;
-  const cell = size / grid;
-  const seed = hashSeed(value || "pix");
-
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="QRCode Pix">
-      <rect width={size} height={size} fill="#ffffff" />
-      {Array.from({ length: grid * grid }).map((_, index) => {
-        const row = Math.floor(index / grid);
-        const column = index % grid;
-        const reserved =
-          (row < 7 && column < 7) ||
-          (row < 7 && column >= grid - 7) ||
-          (row >= grid - 7 && column < 7);
-        const bit = ((seed >> ((row * grid + column) % 24)) & 1) === 1;
-        const alternate = ((row * 17 + column * 13 + seed) % 5) <= 1;
-        return reserved || bit || alternate ? (
-          <rect
-            key={`${row}-${column}`}
-            x={column * cell}
-            y={row * cell}
-            width={cell}
-            height={cell}
-            fill="#111827"
-          />
-        ) : null;
-      })}
-    </svg>
+  // Financial QR codes must encode an authentic, validated EMV PIX payload,
+  // never a decorative matrix derived from a hash or from a boleto line.
+  return isValidPixPayload(value) ? (
+    <QRCodeSVG value={value} size={132} level="M" marginSize={2} aria-label="QR Code PIX para pagamento" />
+  ) : (
+    <div role="status" style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      minHeight: "132px", width: "132px", padding: "8px",
+      background: "#f8fafc", color: "#475569", fontSize: "11px",
+      textAlign: "center", border: "1px solid #e2e8f0",
+    }}>
+      PIX indisponível nesta guia.
+    </div>
   );
 }
 
@@ -198,6 +161,7 @@ export function OfficialPaymentGuideDocument({
   data: OfficialPaymentGuideData;
   previewMode?: boolean;
 }) {
+  const banking = normalizeOfficialBanking(data.bank.barcodeValue, data.bank.digitableLine);
   const totalAmount = data.totals?.totalAmount ?? sumDebtRows(data.debtRows);
   const amountToPay = data.totals?.amountToPay ?? data.bank.chargedAmount ?? totalAmount;
   const discount = data.bank.discount ?? 0;
@@ -400,15 +364,15 @@ export function OfficialPaymentGuideDocument({
           <div style={{ border: "1px solid #9ca3af", padding: "10px 12px" }}>
             <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#4b5563", marginBottom: "6px" }}>Linha digitável</div>
             <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: "14px", fontWeight: 700, wordBreak: "break-all" }}>
-              {data.bank.digitableLine}
+              {banking.digitableLine || "Linha digitável indisponível ou divergente."}
             </div>
 
             <div style={{ marginTop: "12px", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#4b5563", marginBottom: "6px" }}>Código de barras</div>
             <div style={{ minHeight: "60px", border: "1px solid #9ca3af", padding: "8px", display: "flex", alignItems: "flex-end" }}>
-              {buildBarcodeBars(data.bank.barcodeValue)}
+              <OfficialBankBarcode value={banking.barcode} />
             </div>
             <div style={{ marginTop: "6px", fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: "11px", wordBreak: "break-all" }}>
-              {formatDigitableLine(data.bank.barcodeValue)}
+              {banking.barcode}
             </div>
           </div>
 
@@ -416,9 +380,9 @@ export function OfficialPaymentGuideDocument({
             <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#4b5563", textAlign: "center" }}>
               {data.bank.pixLabel || "PIX / QRCode"}
             </div>
-            <OfficialPixMatrix value={data.bank.pixPayload || data.bank.digitableLine} />
+            <OfficialPixMatrix value={data.bank.pixPayload || ""} />
             <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: "9px", textAlign: "center", wordBreak: "break-all" }}>
-              {data.bank.pixPayload || "Chave PIX não informada"}
+              {isValidPixPayload(data.bank.pixPayload) ? data.bank.pixPayload : "PIX não emitido para esta guia"}
             </div>
           </div>
         </div>

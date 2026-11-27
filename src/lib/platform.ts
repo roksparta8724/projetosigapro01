@@ -130,11 +130,54 @@ export function buildProcessRouteKey(
   return normalized || String(fallbackId || "").trim();
 }
 
+const PROCESS_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The compact base-36 encoding is a reversible URL identifier, NOT an
+ * authorization secret. Every process access remains enforced by backend RLS.
+ * It avoids exposing raw UUID formatting and preserves the municipal number.
+ */
+function processIdentityToken(id: string): string | null {
+  if (!PROCESS_UUID_PATTERN.test(id)) return null;
+  return BigInt("0x" + id.replace(/-/g, "")).toString(36).padStart(25, "0");
+}
+
+function processUuidFromToken(token: string): string | null {
+  if (!/^[0-9a-z]{25}$/i.test(token)) return null;
+  let value = 0n;
+  for (const char of token.toLowerCase()) {
+    value = value * 36n + BigInt(parseInt(char, 36));
+  }
+  if (value >= (1n << 128n)) return null;
+  const hex = value.toString(16).padStart(32, "0");
+  return [
+    hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16),
+    hex.slice(16, 20), hex.slice(20),
+  ].join("-");
+}
+
+/** Process numbers repeat in different municipalities: the URL must not. */
+export function buildProcessIdentityRouteKey(
+  process: Pick<ProcessRecord, "id" | "protocol">,
+) {
+  const normalized = buildProcessRouteKey(process.protocol, process.id);
+  const token = processIdentityToken(String(process.id || "").trim());
+  return normalized && token ? `${normalized}--${token}` : normalized;
+}
+
+/** Parse the immutable, formatted-UUID-free suffix. */
+export function parseProcessIdentityRouteKey(routeValue: string) {
+  const match = String(routeValue || "").match(/^(.+)--([0-9a-z]{25})$/i);
+  const id = match ? processUuidFromToken(match[2]) : null;
+  return match && id ? { protocolKey: match[1], id } : null;
+}
+
 export function buildProcessPath(
   process: Pick<ProcessRecord, "id" | "protocol">,
   tab?: string,
 ) {
-  const routeKey = buildProcessRouteKey(process.protocol, process.id);
+  const routeKey = buildProcessIdentityRouteKey(process);
   const search = tab ? `?aba=${encodeURIComponent(tab)}` : "";
   return `/processos/${encodeURIComponent(routeKey)}${search}`;
 }
@@ -155,14 +198,29 @@ export function resolveProcessRoute(
   const byId = getProcessById(decoded, processes);
   if (byId) return byId;
 
+  // New links are exact, even when two municipalities own identical numbers.
+  // Never match a process from another municipality on a guessed prefix.
+  const identityMatch = parseProcessIdentityRouteKey(decoded);
+  if (identityMatch) {
+    const { protocolKey: requestedNumber, id: requestedId } = identityMatch;
+    return processes.find((item) =>
+      String(item.id).toLowerCase() === requestedId.toLowerCase() &&
+      buildProcessRouteKey(item.protocol, item.id).toLocaleLowerCase("pt-BR") ===
+        requestedNumber.toLocaleLowerCase("pt-BR"),
+    );
+  }
+
+  // Historical number-only bookmarks work if unambiguous. In a Master view,
+  // a collision must fail closed rather than silently open another tenant.
   const normalized = decoded.toLocaleLowerCase("pt-BR");
-  return processes.find((item) => {
+  const matches = processes.filter((item) => {
     const protocol = String(item.protocol || "");
     return (
       protocol.toLocaleLowerCase("pt-BR") === normalized ||
       buildProcessRouteKey(protocol, item.id).toLocaleLowerCase("pt-BR") === normalized
     );
   });
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function formatProfessionalProcessType(type?: string | null) {
@@ -706,6 +764,8 @@ export interface AuditEntry {
   actor: string;
   /** Identificador auditável de quem executou a ação, sem comparação por nome. */
   actorProfileId?: string;
+  /** ID exato do documento, presente nas avaliações auditadas mais recentes. */
+  documentId?: string;
   visibleToExternal: boolean;
   at: string;
 }
@@ -1256,6 +1316,34 @@ export function getProcessPaymentGuides(process: ProcessRecord, settings?: Tenan
   ];
 }
 
+/**
+ * Portaria de entrada da Análise Urbanística: a guia inicial deve estar
+ * compensada, a triagem concluída e o processo oficializado.
+ * Atribuição antiga ou status preenchido por teste não substituem essas provas.
+ */
+export function isProcessReleasedToUrbanAnalysis(process: ProcessRecord): boolean {
+  if (process.isOfficial === false || process.triage?.status !== "concluido" || !process.payment) {
+    return false;
+  }
+
+  // A conclusão da triagem não significa que o Protocolo já despachou o caso.
+  // Evita filas técnicas prematuras em registros legados ou inconsistentes.
+  if ([
+    "rascunho",
+    "protocolo",
+    "triagem",
+    "guia_emitida",
+    "pagamento_pendente",
+    "pagamento_confirmado",
+  ].includes(process.status)) {
+    return false;
+  }
+
+  return getProcessPaymentGuides(process).some(
+    (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+  );
+}
+
 export function isProcessPaymentGuideSharedExternally(
   process: ProcessRecord,
   guide: PaymentGuideEntry,
@@ -1290,9 +1378,16 @@ export function getExternallyVisibleProcessPaymentGuides(
   );
 }
 
+const markerHexColor = (value: string) => /^#[0-9a-f]{6}$/i.test(value.trim())
+  ? value.trim().toLowerCase() : null;
+
 export function serializeMarker(label: string, color: string) {
   const paletteEntry = getMarkerPaletteEntry(color);
-  return `${label}::${paletteEntry.id}`;
+  const hex = markerHexColor(color);
+  // Palette ids remain backward-compatible. Non-palette hex values (including
+  // historical professional colors) are preserved rather than forced to blue.
+  const savedColor = hex && hex !== paletteEntry.value.toLowerCase() ? hex : paletteEntry.id;
+  return `${label}::${savedColor}`;
 }
 
 export function parseMarker(tag: string) {
@@ -1300,10 +1395,11 @@ export function parseMarker(tag: string) {
     ? tag.split("::")
     : [tag, getDefaultMarkerPaletteEntry().id];
   const paletteEntry = getMarkerPaletteEntry(rawColor);
+  const exactHex = markerHexColor(rawColor);
   return {
     label,
-    color: paletteEntry.value,
-    colorId: paletteEntry.id,
+    color: exactHex ?? paletteEntry.value,
+    colorId: exactHex && exactHex !== paletteEntry.value.toLowerCase() ? exactHex : paletteEntry.id,
     palette: paletteEntry,
   };
 }
@@ -2090,10 +2186,13 @@ export const processTypeCatalog = [
   "Aprovação de Projeto de Condomínio",
 ];
 
+// The universal pre-protocol baseline has four compulsory technical records:
+ // architectural project, descriptive memorial, ART/RRT and title deed.
+ // Additional municipal obligations must be explicitly configured per city.
 const checklistPadraoProjeto = [
-  { id: "base-1", label: "RG ou CNH do proprietario", required: true },
-  { id: "base-2", label: "CPF do proprietario", required: true },
-  { id: "base-3", label: "IPTU", required: true },
+  { id: "base-1", label: "RG ou CNH do proprietario", required: false },
+  { id: "base-2", label: "CPF do proprietario", required: false },
+  { id: "base-3", label: "IPTU", required: false },
   { id: "base-4", label: "Matricula do imovel", required: true },
   { id: "base-5", label: "Projeto arquitetonico", required: true },
   { id: "base-6", label: "Memorial descritivo", required: true },
@@ -2134,9 +2233,9 @@ export const checklistTemplates: ChecklistTemplate[] = [
     tenantId: null,
     processType: "Aprovação de projeto residencial",
     items: [
-      { id: "res-1", label: "RG ou CNH do proprietario", required: true },
-      { id: "res-2", label: "CPF do proprietario", required: true },
-      { id: "res-3", label: "IPTU", required: true },
+      { id: "res-1", label: "RG ou CNH do proprietario", required: false },
+      { id: "res-2", label: "CPF do proprietario", required: false },
+      { id: "res-3", label: "IPTU", required: false },
       { id: "res-4", label: "Matricula do imovel", required: true },
       { id: "res-5", label: "Projeto arquitetonico", required: true },
       { id: "res-6", label: "Memorial descritivo", required: true },
@@ -2625,17 +2724,26 @@ function normalizeDepartmentAccessLabel(value: string | null | undefined) {
 function resolveDepartmentAccessBucket(value: string | null | undefined) {
   const normalized = normalizeDepartmentAccessLabel(value);
   if (!normalized) return "";
+  if (/finance|financa|fazenda|tesour|tribut|arrecad/.test(normalized)) return "financeiro";
   if (/protocolo|protocol|triagem|recepcao|administracao|administrativo|expediente|atendimento/.test(normalized)) return "protocolos";
-  if (/finance|financa|fazenda|tribut|arrecad/.test(normalized)) return "financeiro";
   if (/analise|urbanismo|urbanistic|obra|engenharia|planejamento|licenciamento|aprovacao|fiscal|fiscalizacao|postura|topografia|cadista/.test(normalized)) return "analise";
   return normalized;
 }
 
+/** TI is a support scope, not a synonym for protocolo/atendimento geral. */
+export function isMunicipalTiDepartmentLabel(value:string|null|undefined){
+  // A hierarchy-qualified label may contain the municipal parent before TI.
+  return String(value??"").split(/\s*\/\s*|\s*>\s*/).some(part=>{
+    const name=normalizeDepartmentAccessLabel(part).trim();
+    return /^(?:ti(?: (?:sis|inf|ace|seg|sd))?(?: |$)|tecnologia da informacao$|sistemas e suporte$|infraestrutura e redes$|seguranca da informacao$|administracao de usuarios e permissoes$|gestao de usuarios e permissoes$|central de atendimento tecnico$)/.test(name);
+  });
+}
 export type MunicipalOperationalArea = "protocolos" | "analise" | "financeiro";
 
 export function resolveSessionOperationalArea(
   session: Pick<SessionUser, "role" | "department" | "title">,
 ): MunicipalOperationalArea | "" {
+  if(isMunicipalTiDepartmentLabel(session.department))return "";
   const explicitDepartment = resolveDepartmentAccessBucket(session.department || "");
   if (
     explicitDepartment === "protocolos" ||
@@ -2644,6 +2752,12 @@ export function resolveSessionOperationalArea(
   ) {
     return explicitDepartment;
   }
+
+  // A current operational role is authoritative when a custom department
+  // name has no recognized area; an old title cannot select another module.
+  if (session.role === "setor_intersetorial") return "protocolos";
+  if (session.role === "analista" || session.role === "fiscal") return "analise";
+  if (session.role === "financeiro") return "financeiro";
 
   const titleDepartment = resolveDepartmentAccessBucket(session.title || "");
   if (
@@ -2656,9 +2770,6 @@ export function resolveSessionOperationalArea(
 
   // Compatibilidade com contas internas antigas ainda sem department_id.
   // O papel canônico é usado somente quando não existe um departamento explícito.
-  if (session.role === "setor_intersetorial") return "protocolos";
-  if (session.role === "analista") return "analise";
-  if (session.role === "financeiro" || session.role === "fiscal") return "financeiro";
   return "";
 }
 
@@ -2669,7 +2780,7 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
     case "admin_master":
       return "/master";
     case "prefeitura_admin":
-      return "/prefeitura";
+      return "/prefeitura/ti";
     case "prefeitura_supervisor":
       return "/prefeitura/analise";
     case "analista":
@@ -2691,6 +2802,16 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
     default:
       return "/dashboard";
   }
+}
+
+export function getSessionLandingPath(session: SessionUser) {
+  if(session.role!=="prefeitura_admin"&&isInternalRole(session.role)&&isMunicipalTiDepartmentLabel(session.department))return "/prefeitura/ti";
+  if (isInternalRole(session.role) && session.role !== "prefeitura_admin") {
+    const area = resolveSessionOperationalArea(session);
+    const required = area === "protocolos" ? "manage_protocols" : area === "analise" ? "review_processes" : area === "financeiro" ? "manage_financial" : null;
+    return area && required && can(session, required) ? "/prefeitura/" + area : "/dashboard";
+  }
+  return getRoleLandingPath(session.role);
 }
 
 export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOperationalArea) {
@@ -2883,13 +3004,9 @@ export function canViewMunicipalProcessDocument(
     const actorScope = getOperationalScopeId(session);
     if (!actorScope || !matchesOperationalScope(actorScope, process)) return false;
   }
-  if (!canTrackProcess(session, process, scopeId)) return false;
-  if (canAccessProcess(session, process, scopeId)) return true;
-  if (!isInternalRole(session.role)) return false;
-  // A lotacao no organograma precisa identificar a area de Analise/Urbanismo.
-  if (resolveSessionOperationalArea(session) !== "analise") return false;
-  return session.role === "analista" || session.role === "prefeitura_supervisor" ||
-    /diretor|diretora|secretari[oa]/i.test(session.title || "");
+  // Consultation is independent of assignment and current operational queue.
+  // The signed URL still requires the authenticated document row and server ACL.
+  return canTrackProcess(session, process, scopeId);
 }
 
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
@@ -3008,6 +3125,7 @@ export function canSuperviseProcessAnalysis(
   process: ProcessRecord,
 ) {
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (!isAnalysisSupervisor(session)) return false;
 
@@ -3027,10 +3145,13 @@ export function canEditProcessAnalysis(
     return false;
   }
 
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
+
   if (session.role === "prefeitura_admin") return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
 
-  const sessionScopeId = scopeId || getOperationalScopeId(session);
+  const sessionScopeId = getOperationalScopeId(session);
+  if (scopeId && scopeId !== sessionScopeId) return false;
   if (!sessionScopeId || !matchesOperationalScope(sessionScopeId, process)) {
     return false;
   }
@@ -3039,29 +3160,10 @@ export function canEditProcessAnalysis(
     canAccessMunicipalArea(session, "analise") &&
     isProcessOwnedBySessionDepartment(session, process);
 
-  const normalizeIdentity = (value: string | null | undefined) =>
-    String(value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLocaleLowerCase("pt-BR");
-
-  const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
-  const assignedName = normalizeIdentity(process.analysis?.assignedTo);
-  const sessionName = normalizeIdentity(session.name);
-  const isAssignedAnalyst =
-    session.role === "analista" &&
-    (
-      (assignedProfileId && assignedProfileId === session.id) ||
-      (!assignedProfileId && assignedName && sessionName && assignedName === sessionName)
-    );
-
-  // A análise tem um responsável técnico por vez. Outro Analista pode acompanhar,
-  // mas não pode editar documentos, checklist, exigências ou despachos até que a
-  // Diretoria faça a redistribuição formal. A troca de responsável revoga o
-  // direito anterior e concede o mesmo direito ao novo Analista imediatamente.
+  // The assigned analyst remains the reference for workload and signatures.
+  // Every authorized analyst in this municipality's current Analysis area may collaborate.
   if (session.role === "analista") {
-    return worksInAnalysis && isAssignedAnalyst;
+    return worksInAnalysis;
   }
 
   if (session.role === "prefeitura_supervisor") {
@@ -3069,6 +3171,46 @@ export function canEditProcessAnalysis(
   }
 
   return false;
+}
+
+export function canReopenProcessForReview(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
+  if (session.accountStatus !== "active" || !["deferido", "indeferido", "arquivado"].includes(process.status)) return false;
+  if (!["analista", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role)) return false;
+  const ownScope = getOperationalScopeId(session);
+  if (session.role !== "master_admin" && session.role !== "master_ops") {
+    if (!ownScope || (scopeId && scopeId !== ownScope) || !matchesOperationalScope(ownScope, process) ||
+        !canAccessMunicipalArea(session, "analise")) return false;
+  }
+  return canEditAssignedAnalysisArtifact(session, process, scopeId);
+}
+
+export function getDocumentReviewHistory(process: ProcessRecord, documentId: string) {
+  // Backend already sorts newest first; reverse for a chronological evaluation history.
+  // Never infer a document association from ambiguous historical audit text.
+  return (process.auditTrail || []).filter(entry => entry.category === "documento" &&
+    entry.documentId === documentId &&
+    ["Documento aprovado", "Documento rejeitado", "Análise documental reaberta",
+      "Reavaliação individual aberta", "Reavaliação individual aprovada", "Reavaliação individual com ressalvas"].includes(entry.title)).slice().reverse();
+}
+
+export function getIndividualDocumentReview(process: ProcessRecord, documentId: string) {
+  return getDocumentReviewHistory(process, documentId).filter(entry => entry.title.startsWith("Reavaliação individual ")).at(-1);
+}
+
+export function canReviewDocumentIndividually(session: SessionUser, process: ProcessRecord, document: ProcessDocument, scopeId?: string | null) {
+  if (session.accountStatus !== "active" || !document.uploaded || !document.filePath ||
+      !["aprovado", "rejeitado"].includes(document.reviewStatus || "")) return false;
+  if (!["analista", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role)) return false;
+  const ownScope = getOperationalScopeId(session);
+  if (session.role !== "master_admin" && session.role !== "master_ops") {
+    if (!ownScope || (scopeId && ownScope !== scopeId) || !matchesOperationalScope(ownScope, process) ||
+        !canAccessMunicipalArea(session, "analise")) return false;
+  }
+  const pending = getIndividualDocumentReview(process, document.id)?.title === "Reavaliação individual aberta";
+  if (!pending && canAnalyzeProcessDocument(session, process, scopeId) &&
+      !["deferido", "indeferido", "arquivado"].includes(process.status)) return false;
+  // Supplemental opinions do not change official decisions or signature ownership.
+  return isProcessReleasedToUrbanAnalysis(process);
 }
 
 export function canAnalyzeProcessDocument(
@@ -3094,11 +3236,13 @@ export function canEditAssignedAnalysisArtifact(
     return false;
   }
 
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
+
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (session.role !== "analista" && session.role !== "prefeitura_supervisor") return false;
 
-  const effectiveScopeId = scopeId || getOperationalScopeId(session);
-  if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, process)) {
+  const effectiveScopeId = getOperationalScopeId(session);
+  if (!effectiveScopeId || (scopeId && scopeId !== effectiveScopeId) || !matchesOperationalScope(effectiveScopeId, process)) {
     return false;
   }
 
@@ -3185,7 +3329,7 @@ export function getOwnerMessagesForLink(
       item.projectId === link.projectId &&
       item.ownerUserId === link.ownerUserId &&
       item.professionalUserId === link.professionalUserId,
-  );
+  ).sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? "") || a.id.localeCompare(b.id));
 }
 
 export function getMasterMetrics(records: ProcessRecord[] = processRecords, items: Tenant[] = tenants) {
@@ -3343,7 +3487,16 @@ export function buildProcessDocuments(
       .replace(/[\u0300-\u036f]/g, "")
       .trim()
       .toLowerCase();
-  const uploadedByLabel = new Map(uploadedDocuments.map((document) => [normalizeLabel(document.label), document]));
+  // Use the highest document version per category. Earlier versions stay in
+  // the database history rather than replacing the current PDF on screen.
+  const uploadedByLabel = new Map<string, ProcessDocument>();
+  for (const document of uploadedDocuments) {
+    const key = normalizeLabel(document.label);
+    const previous = uploadedByLabel.get(key);
+    if (!previous || Number(document.version || 0) > Number(previous.version || 0)) {
+      uploadedByLabel.set(key, document);
+    }
+  }
 
   const fromTemplate = (template?.items ?? []).map((item) => {
     const existing = uploadedByLabel.get(normalizeLabel(item.label));
@@ -3362,7 +3515,7 @@ export function buildProcessDocuments(
     );
   });
 
-  const extras = uploadedDocuments.filter(
+  const extras = [...uploadedByLabel.values()].filter(
     (document) => !fromTemplate.some((item) => normalizeLabel(item.label) === normalizeLabel(document.label)),
   );
 

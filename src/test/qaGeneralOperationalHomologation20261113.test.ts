@@ -1,0 +1,48 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+
+const source = (path: string) => readFileSync(path, "utf8");
+
+describe("SIGAPRO operational launch quality — 13 Nov 2026", () => {
+  it("keeps Dashboard exclusively executive, without duplicating municipal process control", () => {
+    const page = source("src/pages/saas/DashboardHomePage.tsx");
+    expect(page).not.toContain("renderMunicipalWorkQueue");
+    expect(page).not.toContain("<CompactProcessRegistry");
+    expect(page).toContain('data-dashboard-hero="compact-v6"');
+    expect(page).toContain('navigate(isMaster ? "/dashboard/processos" : "/prefeitura/processos")');
+  });
+
+  it("provides controlled SEI-like selection and personal-only bulk actions", () => {
+    const registry = source("src/components/platform/CompactProcessRegistry.tsx");
+    const page = source("src/pages/saas/MunicipalProcessRegistryPage.tsx");
+    expect(registry).toContain("onToggleSelection");
+    expect(registry).toContain('type="checkbox"');
+    expect(page).toContain('data-sei-personal-archive-controls="true"');
+    expect(source("src/components/platform/ProcessWorkspaceHeader.tsx")).toContain('data-sigapro-process-bulk-actions="true"');
+    expect(page).toContain("Arquivar da minha lista");
+    expect(page).toContain("sem alterar tramitação ou status oficial");
+  });
+
+  it("does not label a missing bank credential as live settlement", () => {
+    const payment = source("src/components/platform/MunicipalPaymentSettings.tsx");
+    expect(payment).toContain('data-municipal-bank-missing="true"');
+    expect(payment).toContain("Nenhuma conexão de provedor foi encontrada");
+    expect(payment).toContain("não significa conciliação automática");
+  });
+
+  it("keeps the authenticated municipal scope authoritative and distinguishes linked users from staff", () => {
+    const page = source("src/pages/saas/TenantAdminPage.tsx");
+    expect(page).toContain("session.municipalityId ?? session.tenantId ?? municipality?.id");
+    expect(page).toContain('data-municipal-users-sync={platformDataError || municipalRegistry.error ? "error" : "pending"}');
+    expect(page).toContain('data-municipal-users-summary="compact-v6"');
+    expect(page).toContain("Equipe interna");
+    expect(page).toContain("Vínculos municipais");
+  });
+
+  it("prefetches internal routes on navigation intent", () => {
+    const app = source("src/App.tsx");
+    expect(app).toContain('document.addEventListener("pointerover", prefetchLink');
+    expect(app).toContain('document.addEventListener("focusin", prefetchLink)');
+    expect(app).toContain("warmUtilityRoutes");
+  });
+});

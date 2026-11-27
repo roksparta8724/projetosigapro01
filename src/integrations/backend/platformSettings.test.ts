@@ -6,11 +6,21 @@ import { saveRemoteInstitutionSettings, upsertRemoteInstitution } from "@/integr
 const municipalityId = "49dac0b6-6352-4744-9aab-9ff91c59d970";
 const db = vi.hoisted(() => ({
   calls: [] as Array<{ table: string; method: string; payload: Record<string, unknown>; options?: Record<string, unknown> }>,
+  neon: false,
+  rpcCalls: [] as Array<{ method: string; args: Record<string, unknown> }>,
   municipalityRow: { id: "49dac0b6-6352-4744-9aab-9ff91c59d970" } as { id: string } | null,
 }));
 
+vi.mock("@/integrations/backend/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/integrations/backend/config")>()),
+  get isNeonBackend() { return db.neon; },
+}));
 vi.mock("@/integrations/backend/databaseClient", () => ({
   databaseClient: {
+    rpc: async (method: string, args: Record<string, unknown>) => {
+      db.rpcCalls.push({ method, args });
+      return { data: method === "upsert_municipality_master" ? { id: municipalityId } : { municipality_id: municipalityId }, error: null };
+    },
     from: (table: string) => ({
       update: (payload: Record<string, unknown>) => {
         db.calls.push({ table, method: "update", payload });
@@ -35,6 +45,8 @@ vi.mock("@/integrations/backend/databaseClient", () => ({
 describe("municipal settings persistence", () => {
   beforeEach(() => {
     db.calls.length = 0;
+    db.rpcCalls.length = 0;
+    db.neon = false;
     db.municipalityRow = { id: municipalityId };
   });
 
@@ -178,5 +190,24 @@ describe("municipal settings persistence", () => {
       resumoUsoSolo: "Regras de ocupacao",
       leisComplementares: "Normas municipais",
     });
+  });
+});
+
+describe("Neon municipal settings RPC contract", () => {
+  beforeEach(() => { db.neon = true; db.calls.length = 0; db.rpcCalls.length = 0; db.municipalityRow = { id: municipalityId }; });
+  it("uses the scoped configuration RPC and never directly writes protected settings tables", async () => {
+    await saveRemoteInstitutionSettings({ tenantId: municipalityId, logoScale: 2 } as TenantSettings, {
+      skipMunicipalityUpdate: true, skipMunicipalityBranding: true,
+    });
+    expect(db.calls).toEqual([]);
+    expect(db.rpcCalls).toEqual([{ method: "save_municipality_configuration", args: {
+      _municipality_id: municipalityId, _settings: expect.objectContaining({ general_settings: expect.objectContaining({ logo_scale: 2 }) }), _branding: {},
+    }}]);
+  });
+  it("uses the master RPC for the institution and returns its confirmed id", async () => {
+    const result = await upsertRemoteInstitution({ institutionId: municipalityId, name: "Prefeitura de teste", city: "Teste", state: "SP", status: "ativo", subdomain: "teste", cnpj: "", primaryColor: "#123456", accentColor: "#abcdef", secretariat: "" });
+    expect(result).toEqual({ id: municipalityId });
+    expect(db.calls).toEqual([]);
+    expect(db.rpcCalls).toEqual([{ method: "upsert_municipality_master", args: expect.objectContaining({ _id: municipalityId, _name: "Prefeitura de teste" }) }]);
   });
 });

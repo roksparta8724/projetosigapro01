@@ -1,9 +1,18 @@
+import { municipalUnitSaveError } from "@/lib/municipalUnitName";
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
+import { collectCompleteScopedRows } from "@/lib/completeScopedRows";
+import {parseAuthorityDesignations,parseMunicipalIdentityBadges,parseMunicipalAuthorityCapabilities} from "@/lib/municipalAuthorityDesignations";
+import {parseMunicipalStaffStoreBatch,type MunicipalStaffStoreBatch} from "@/lib/municipalStaffStoreBatch";
+import { isSwitchableMunicipalStaffRole, parseMunicipalStaffAssignments, type MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
+import { parseVerifiedMunicipalUserRegistry, reconcileVerifiedMunicipalUsers } from "@/lib/municipalUserRegistry";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
 import {
   buildProcessDocuments,
+  buildProcessRouteKey,
+  parseProcessIdentityRouteKey,
   isOccupancyPermitProcessType,
   serializeMarker,
   type ClientPlanAssignment,
@@ -25,6 +34,9 @@ import {
 
 const PROFILE_ASSET_REF_PREFIX = "r2:";
 
+// Data API rows span independently versioned municipal schemas. Normalize each
+// public field at the read boundary; a dynamic value is necessary here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DatabaseRow = Record<string, any>;
 
 async function resolveStoredProfileAvatar(value: string | null | undefined) {
@@ -353,47 +365,16 @@ function resolveDepartmentBackedRole(
   department: string | null | undefined,
 ): SessionUser["role"] {
   const storedRole = normalizeStoredRole(role);
+  // Neon already authorizes the role in the canonical profile/membership.
+  // Never promote, demote or reinterpret it using a display label.
+  if (isNeonBackend) return storedRole;
   const normalizedDepartment = (department ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-
-  // Perfis externos nunca podem ser convertidos em funcionário municipal
-  // apenas porque o vínculo técnico possui um rótulo de departamento como
-  // "Profissional Externo" ou "Portal externo". A identidade externa é estável.
-  if (
-    storedRole === "profissional_externo" ||
-    storedRole === "property_owner" ||
-    storedRole === "proprietario_consulta"
-  ) {
-    return storedRole;
-  }
-
-  if (!normalizedDepartment) return storedRole;
-
-  // Para contas realmente internas, o departamento define a área operacional;
-  // o cargo/função permanece apenas descritivo.
-  if (
-    storedRole === "master_admin" ||
-    storedRole === "master_ops" ||
-    storedRole === "prefeitura_admin" ||
-    storedRole === "prefeitura_supervisor"
-  ) {
-    return storedRole;
-  }
-
-  if (/(urbanismo|obras|engenharia|planejamento|licenciamento|aprovacao)/.test(normalizedDepartment)) {
-    return "analista";
-  }
-  if (/(finance|financa|fazenda|tesour|arrecad|tribut)/.test(normalizedDepartment)) {
-    return "financeiro";
-  }
-  if (/(fiscaliz|postura)/.test(normalizedDepartment)) {
-    return "fiscal";
-  }
-
-  return "setor_intersetorial";
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  if (!normalizedDepartment || !["analista","financeiro","fiscal","setor_intersetorial"].includes(storedRole)) return storedRole;
+  if (/(finance|financa|fazenda|tesour|arrecad|tribut)/.test(normalizedDepartment)) return "financeiro";
+  if (/(fiscaliz|fiscal|postura)/.test(normalizedDepartment)) return "fiscal";
+  if (/(analise|urbanis|obras|engenharia|planejamento|licenciamento|aprovacao|topografia)/.test(normalizedDepartment)) return "analista";
+  return storedRole;
 }
 
 function storedAccessLevel(levelName: string | null | undefined, role: SessionUser["role"]): 1 | 2 | 3 {
@@ -406,16 +387,28 @@ function municipalityResultData(value: unknown): DatabaseRow[] {
   return Array.isArray(value) ? (value as DatabaseRow[]) : [];
 }
 
+// The Neon Data API enforces row limits. Read a deterministic range of the
+// same RLS-authorized query; stop on inconsistent or failed continuation.
+type ScopedQuery = {
+  order: (column: string, options: { ascending: boolean }) => {
+    range: (from: number, to: number) => PromiseLike<{ data: DatabaseRow[] | null; error: unknown }>;
+  };
+};
+function loadCompleteScopedRows(query: () => ScopedQuery) {
+  return collectCompleteScopedRows<DatabaseRow>((offset, pageSize) =>
+    query().order("id", { ascending: false }).range(offset, offset + pageSize - 1));
+}
+
 async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
   if (!db) {
     throw new Error("Banco oficial indisponível.");
   }
 
-  const activeResult = await db
+  const activeResult = await loadCompleteScopedRows(() => db
     .from("processes")
     .select("*")
     .is("archived_at", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }));
 
   if (!focusProcessRouteKey) {
     return activeResult;
@@ -432,11 +425,14 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
     return activeResult;
   }
 
-  const uuid = normalizeUuid(routeKey);
+  // The visible route includes the municipality-local number and the UUID.
+  // Resolve by UUID first; the legacy number-only query remains for old links.
+  const identityKey = parseProcessIdentityRouteKey(routeKey);
+  const uuid = normalizeUuid(identityKey?.id ?? routeKey);
   const focusQuery = db.from("processes").select("*");
   const focusResult = uuid
     ? await focusQuery.eq("id", uuid).limit(1)
-    : await focusQuery.eq("protocol_number", routeKey).limit(1);
+    : await focusQuery.eq("protocol_number", routeKey).limit(2);
 
   if (activeResult.error) return activeResult;
   if (focusResult.error) return focusResult;
@@ -446,6 +442,11 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
   for (const item of focusResult.data ?? []) {
     const id = String(item.id ?? "");
     if (!id || seen.has(id)) continue;
+    if (identityKey && (
+      id.toLowerCase() !== identityKey.id.toLowerCase() ||
+      buildProcessRouteKey(String(item.protocol_number ?? ""), id).toLocaleLowerCase("pt-BR") !==
+        identityKey.protocolKey.toLocaleLowerCase("pt-BR")
+    )) continue;
     seen.add(id);
     merged.unshift(item as DatabaseRow);
   }
@@ -453,10 +454,62 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
   return { data: merged, error: null };
 }
 
-export async function loadRemotePlatformStore(focusProcessRouteKey?: string | null) {
+/**
+ * Neon Data API / PostgREST can cap a SELECT at 1,000 rows. Without a
+ * continuation the Master sees only the first 1,000 prefectures when the
+ * client base grows. Read subsequent authorized pages without changing RLS.
+ * Other departments typically receive fewer than the page size, so there
+ * are no extra requests for normal municipal sessions.
+ */
+async function completeMunicipalityCatalog(firstResponse: {
+  data?: DatabaseRow[] | null;
+  error?: { message?: string } | null;
+}): Promise<DatabaseRow[]> {
+  if (firstResponse.error) throw new Error(firstResponse.error.message || "Não foi possível consultar o diretório municipal.");
+  const first = Array.isArray(firstResponse.data) ? firstResponse.data : [];
+  const pageSize = 1000;
+  if (first.length < pageSize) return first;
+  if (!db) throw new Error("Banco indisponível para continuar a carteira municipal.");
+  const collected = [...first];
+  const seen = new Set(first.map((row) => String(row.id ?? "")).filter(Boolean));
+  for (let offset = pageSize; offset < 200000; offset += pageSize) {
+    const { data, error } = await db.from("municipalities").select("*")
+      .order("created_at", { ascending: false }).order("id", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw new Error(error.message || "A leitura de uma página da carteira falhou.");
+    const next = Array.isArray(data) ? data as DatabaseRow[] : [];
+    let uniqueCount = 0;
+    for (const row of next) {
+      const id = String(row.id ?? "");
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
+      collected.push(row);
+      uniqueCount += 1;
+    }
+    if (next.length < pageSize) return collected;
+    // Fail explicitly on an adapter ignoring range(), rather than silently
+    // looping over the same 1,000 municipalities forever.
+    if (uniqueCount === 0) throw new Error("A paginação municipal não avançou. Atualize o Data API do SIGAPRO.");
+  }
+  throw new Error("A carteira excedeu a capacidade segura da leitura em páginas. Use busca paginada do servidor.");
+}
+
+export async function loadRemotePlatformStore(focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment) {
   if (!db) {
     throw new Error("Banco oficial indisponível.");
   }
+
+  // Batch exclusively for an authorized switch. Normal paginated queries
+  // remain the fallback. Never reuse previous department data.
+  let switchBatch:MunicipalStaffStoreBatch|null=null;
+  if(isNeonBackend && expectedAssignment && !focusProcessRouteKey){
+    try{
+      const result=await db.rpc("municipal_staff_store_batch_v1",{_assignment_id:expectedAssignment.id});
+      if(!result.error)switchBatch=parseMunicipalStaffStoreBatch(result.data,expectedAssignment);
+    }catch{ /* fall back to original scoped reads */ }
+  }
+  const readSwitchRows=(key:keyof MunicipalStaffStoreBatch,load:()=>PromiseLike<unknown>)=>
+    switchBatch ? Promise.resolve({data:switchBatch[key],error:null}) : load();
 
   const [
     tenantsResult,
@@ -472,7 +525,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     processesResult,
     constructionPermitsResult,
     propertiesResult,
-    guidesResult,
+    initialGuidesResult,
     partiesResult,
     privatePartyDataResult,
     documentsResult,
@@ -489,6 +542,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     plansResult,
     planAssignmentsResult,
     lastAccessResult,
+    municipalRegistryResult,
     dispatchAuthorsResult,
     eventAuthorsResult,
   ] = (await Promise.all([
@@ -501,49 +555,54 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
       : db.from("tenant_settings").select("*"),
-    db.from("municipalities").select("*").order("created_at", { ascending: false }),
-    db.from("municipality_branding").select("*"),
-    db.from("municipality_settings").select("*"),
-    db.from("profiles").select("*"),
-    db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null),
-    db.from("roles").select("*"),
-    db.from("departments").select("*"),
-    loadProcessRowsForStore(focusProcessRouteKey),
+    readSwitchRows("municipalities",()=>db.from("municipalities").select("*").order("created_at", { ascending: false }).order("id", { ascending: false })),
+    readSwitchRows("municipality_branding",()=>loadCompleteScopedRows(() => db.from("municipality_branding").select("*"))),
+    readSwitchRows("municipality_settings",()=>loadCompleteScopedRows(() => db.from("municipality_settings").select("*"))),
+    readSwitchRows("profiles",()=>loadCompleteScopedRows(() => db.from("profiles").select("*"))),
+    readSwitchRows("tenant_memberships",()=>loadCompleteScopedRows(() => db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null))),
+    readSwitchRows("roles",()=>db.from("roles").select("*")),
+    readSwitchRows("departments",()=>db.from("departments").select("*")),
+    readSwitchRows("processes",()=>loadProcessRowsForStore(focusProcessRouteKey)),
     // A tabela interna do Alvará é RPC-only no Neon. Não faça SELECT
     // direto no bootstrap global, porque o papel authenticated não possui
     // permissão por desenho de segurança.
     Promise.resolve({ data: [], error: null }),
-    db.from("properties").select("*"),
+    readSwitchRows("properties",()=>loadCompleteScopedRows(() => db.from("properties").select("*"))),
     isNeonBackend
-      ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
-      : db.from("payment_guides").select("*").order("created_at", { ascending: false }),
-    db.from("process_parties").select("*"),
+      ? readSwitchRows("payment_guides",()=>loadCompleteScopedRows(() => db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })))
+      : loadCompleteScopedRows(() => db.from("payment_guides").select("*").order("created_at", { ascending: false })),
+    readSwitchRows("process_parties",()=>loadCompleteScopedRows(() => db.from("process_parties").select("*"))),
     isNeonBackend
       ? db.rpc("list_visible_process_party_private_data_v1")
       : Promise.resolve({ data: [], error: null }),
-    db.from("process_documents").select("*").order("created_at", { ascending: false }),
-    db.from("process_requirements").select("*").order("created_at", { ascending: false }),
-    db.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
-    db.from("process_reopen_history").select("*").order("created_at", { ascending: false }),
-    db.from("process_movements").select("*").order("created_at", { ascending: false }),
-    db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }),
-    db.from("process_messages").select("*").order("created_at", { ascending: false }),
-    db.from("process_markers").select("*").order("created_at", { ascending: false }),
-    db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }),
-    db.from("project_owner_links").select("*").order("linked_at", { ascending: false }),
-    db.from("owner_professional_messages").select("*").order("created_at", { ascending: false }),
-    db.from("plans").select("*"),
-    db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
+    readSwitchRows("process_documents",()=>loadCompleteScopedRows(() => db.from("process_documents").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_requirements",()=>loadCompleteScopedRows(() => db.from("process_requirements").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_audit_entries",()=>loadCompleteScopedRows(() => db.from("process_audit_entries").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_reopen_history",()=>loadCompleteScopedRows(() => db.from("process_reopen_history").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_movements",()=>loadCompleteScopedRows(() => db.from("process_movements").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("interdepartmental_dispatches",()=>loadCompleteScopedRows(() => db.from("interdepartmental_dispatches").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_messages",()=>loadCompleteScopedRows(() => db.from("process_messages").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("process_markers",()=>loadCompleteScopedRows(() => db.from("process_markers").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("project_owner_requests",()=>loadCompleteScopedRows(() => db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }))),
+    readSwitchRows("project_owner_links",()=>loadCompleteScopedRows(() => db.from("project_owner_links").select("*").order("linked_at", { ascending: false }))),
+    readSwitchRows("owner_professional_messages",()=>loadCompleteScopedRows(() => db.from("owner_professional_messages").select("*").order("created_at", { ascending: false }))),
+    readSwitchRows("plans",()=>db.from("plans").select("*")),
+    readSwitchRows("client_plan_assignments",()=>loadCompleteScopedRows(() => db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }))),
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
       : Promise.resolve({ data: [], error: null }),
+    // Independent, scoped read path: a partial profiles/memberships SELECT must
+    // never silently erase the municipality administrator\u0027s staff registry.
+    isNeonBackend
+      ? db.rpc("list_municipal_user_registry_v1")
+      : Promise.resolve({ data: null, error: null }),
     isNeonBackend
       ? db.rpc("list_visible_dispatch_authors_v1")
       : Promise.resolve({ data: [], error: null }),
     isNeonBackend
       ? db.rpc("list_visible_process_event_authors_v1")
       : Promise.resolve({ data: [], error: null }),
-  ])) as any[];
+  ])) as DatabaseRow[];
 
   if (profilesResult.error) {
     console.warn("SIGAPRO: falha ao carregar profiles.", profilesResult.error);
@@ -558,13 +617,13 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // Processos são o núcleo operacional. Se o SELECT REST falhar ou voltar vazio
   // por uma inconsistência transitória de schema/cache, consulta a RPC canônica
   // escopada pelo mesmo has_process_access usado nas políticas do banco.
-  let processRows = [...(processesResult.data ?? [])] as any[];
+  let processRows = [...(processesResult.data ?? [])] as DatabaseRow[];
   let processLoadError: unknown = processesResult.error ?? null;
 
   if (isNeonBackend && (processLoadError || processRows.length === 0)) {
     const fallback = await db.rpc("list_visible_processes_v1");
     if (!fallback.error) {
-      processRows = [...(fallback.data ?? [])] as any[];
+      processRows = [...(fallback.data ?? [])] as DatabaseRow[];
       processLoadError = null;
     } else if (processLoadError) {
       console.error("[SIGAPRO][Processos] SELECT e fallback RPC falharam.", {
@@ -577,9 +636,28 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     }
   }
 
+  // Operational process visibility depends on the SAME authorized payment
+  // guide snapshot as triage/technical review. Previously a guide API failure
+  // was logged as non-critical and silently mapped paid records to "pendente",
+  // removing valid processes from the analysis queue.
+  let guidesResult = initialGuidesResult;
+  if (isNeonBackend && guidesResult.error && processRows.length > 0) {
+    const retryGuides = await loadCompleteScopedRows(() => db
+      .from("payment_guides")
+      .select("*")
+      .not("process_id", "is", null)
+      .order("created_at", { ascending: false }));
+    if (!retryGuides.error) guidesResult = retryGuides;
+  }
+  if (processRows.length > 0 && guidesResult.error) {
+    console.error("[SIGAPRO][Sincronismo] Guias oficiais indisponíveis; estado operacional não confirmado.");
+    throw new Error("Não foi possível sincronizar as guias oficiais vinculadas aos processos. Tente atualizar novamente.");
+  }
+
   const nonCriticalErrors = [
     profilesResult.error,
     membershipsResult.error,
+    municipalRegistryResult.error,
     tolerateLegacyMissing(tenantsResult.error, "public.tenants"),
     tolerateLegacyMissing(brandingResult.error, "public.tenant_branding"),
     tolerateLegacyMissing(settingsResult.error, "public.tenant_settings"),
@@ -627,14 +705,28 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // SECURITY DEFINER, que valida o acesso de cada processo antes de retornar
   // o registro. Assim uma restricao de infraestrutura do Alvara nao derruba
   // todo o store oficial nem faz o fluxo visual regredir.
-  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
+  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as DatabaseRow[];
   if (isNeonBackend) {
     const visibleProcessIds = processRows
       .filter((process) => Boolean(process.officialized_at))
       .map((process) => String(process.id ?? "").trim())
       .filter(Boolean);
 
-    for (let index = 0; index < visibleProcessIds.length; index += 8) {
+    // One bounded RPC per 100 IDs, not an HTTP request per process.
+    // Old deployments retain the original per-process RPC fallback.
+    let batchAvailable = true;
+    for (let index = 0; index < visibleProcessIds.length; index += 100) {
+      const { data, error } = await db.rpc("list_visible_construction_permits_v1", {
+        _process_ids: visibleProcessIds.slice(index, index + 100),
+      });
+      if (error || !Array.isArray(data)) {
+        batchAvailable = false;
+        constructionPermitRows.length = 0;
+        break;
+      }
+      constructionPermitRows.push(...data);
+    }
+    if (!batchAvailable) for (let index = 0; index < visibleProcessIds.length; index += 8) {
       const batch = visibleProcessIds.slice(index, index + 8);
       const permits = await Promise.all(
         batch.map(async (processId) => {
@@ -650,7 +742,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             return null;
           }
 
-          const payload = (data ?? {}) as { permit?: any | null };
+          const payload = (data ?? {}) as { permit?: DatabaseRow | null };
           return payload.permit ?? null;
         }),
       );
@@ -660,7 +752,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   }
 
   const tenantRows = municipalityResultData(tenantsResult.data);
-  const municipalityRows = municipalityResultData(municipalitiesResult.data);
+  const municipalityRows = await completeMunicipalityCatalog(municipalitiesResult);
   const brandingRows = municipalityResultData(brandingResult.data);
   const settingsRows = municipalityResultData(settingsResult.data);
   const municipalityBrandingRows = municipalityResultData(municipalityBrandingResult.data);
@@ -1003,6 +1095,20 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     };
   });
 
+  // Avoid O(municipalities × profiles × processes) on the Master bootstrap.
+  // Precompute the totals once; each Prefecture lookup becomes O(1).
+  const profileCountByMunicipality = new Map<string, number>();
+  for (const profile of profilesResult.data ?? []) {
+    if (profile.deleted_at || !profile.municipality_id) continue;
+    const key = String(profile.municipality_id);
+    profileCountByMunicipality.set(key, (profileCountByMunicipality.get(key) ?? 0) + 1);
+  }
+  const processCountByMunicipality = new Map<string, number>();
+  for (const process of processRows) {
+    const key = String(process.municipality_id ?? process.tenant_id ?? "");
+    if (key) processCountByMunicipality.set(key, (processCountByMunicipality.get(key) ?? 0) + 1);
+  }
+
   const mappedTenantsFromMunicipalities: Tenant[] = municipalityRows.map((municipality) => {
     const branding = brandingByMunicipality.get(municipality.id);
     const settings = settingsByMunicipality.get(municipality.id);
@@ -1012,10 +1118,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         : {};
     const municipalityName = resolveMunicipalityName(municipality);
     const municipalityCity = resolveMunicipalityCity(municipality, general);
-    const municipalityProfiles = (profilesResult.data ?? []).filter((item) => item.municipality_id === municipality.id && !item.deleted_at);
-    const municipalityProcesses = processRows.filter(
-      (item) => (item.municipality_id ?? item.tenant_id) === municipality.id,
-    );
+    const municipalityUserCount = profileCountByMunicipality.get(String(municipality.id)) ?? 0;
+    const municipalityProcessCount = processCountByMunicipality.get(String(municipality.id)) ?? 0;
     const activeModules =
       Array.isArray(general.legacy_modules_enabled)
         ? general.legacy_modules_enabled
@@ -1043,8 +1147,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           planAssignments.some((assignment) => assignment.municipalityId === municipality.id && assignment.planId === plan.id),
         )?.name ?? "Plano institucional",
       activeModules,
-      users: municipalityProfiles.length,
-      processes: municipalityProcesses.length,
+      users: municipalityUserCount,
+      processes: municipalityProcessCount,
       revenue: typeof general.monthly_fee === "number" ? general.monthly_fee : 0,
       subdomain: municipality.subdomain ?? municipality.slug ?? "",
       theme: {
@@ -1280,10 +1384,10 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       profile?.id ??
       membership.user_id;
     const departmentName =
-      membership.department ||
       (profile?.department_id ? departmentById.get(profile.department_id)?.name : "") ||
-      "";
-    const roleCode = resolveDepartmentBackedRole(role?.code ?? profile?.role, departmentName);
+      membership.department || "";
+    const roleCode = resolveDepartmentBackedRole(
+      isNeonBackend && profile?.role ? profile.role : role?.code ?? profile?.role, departmentName);
     const accountStatus =
       profile?.account_status === "blocked" || membership.account_status === "blocked" || membership.blocked_at
         ? "blocked"
@@ -1367,7 +1471,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     }
   }
 
-  const sessionUsers: SessionUser[] = Array.from(dedupedMembershipUsers.values());
+  let sessionUsers: SessionUser[] = Array.from(dedupedMembershipUsers.values());
 
     const linkedUserIds = new Set(sessionUsers.map((user) => user.id));
   for (const profile of profilesResult.data ?? []) {
@@ -1403,6 +1507,30 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       blockReason: profile.block_reason ?? null,
       deletedAt: null,
     });
+  }
+
+  // Server verifies the caller\u0027s municipal admin role and limits every
+  // returned row to their one municipality. This is read-only display data,
+  // never an authorization source for permitting routes or writes.
+  if (isNeonBackend && !municipalRegistryResult.error && municipalRegistryResult.data) {
+    try {
+      const verified = parseVerifiedMunicipalUserRegistry(municipalRegistryResult.data);
+      sessionUsers = reconcileVerifiedMunicipalUsers(sessionUsers, verified);
+      if (verified) {
+        for (const user of verified.users) {
+          if (userProfiles.some((profile) => profile.userId === user.id)) continue;
+          userProfiles.push({
+            userId: user.id, fullName: user.name, email: user.email,
+            phone: "", cpfCnpj: "", rg: "", birthDate: "", professionalType: "",
+            registrationNumber: "", companyName: "", addressLine: "", addressNumber: "",
+            addressComplement: "", neighborhood: "", city: "", state: "", zipCode: "",
+            avatarUrl: "", avatarStorageRef: "", bio: "",
+          });
+        }
+      }
+    } catch (registryError) {
+      console.warn("[SIGAPRO][CadastroMunicipal] Resposta protegida rejeitada.", registryError);
+    }
   }
 
   const processes: ProcessRecord[] = processRows.map((process) => {
@@ -1447,13 +1575,19 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     const creatorProfile =
       (process.created_by_profile_id ? profileById.get(process.created_by_profile_id) : undefined) ??
       (process.created_by ? profileByUser.get(process.created_by) : undefined);
+    // A municipal clerk is not an external architect. Internal creators were
+    // previously copied into all professional IDs/emails and therefore every
+    // clerk-created record looked like an online external application.
+    const creatorIsExternalProfessional = [
+      "profissional_externo", "professional_external", "professional", "profissional",
+    ].includes(String(creatorProfile?.role ?? "").trim().toLowerCase());
     const ownerProfile =
       owner?.profile_id ? profileById.get(owner.profile_id) : undefined;
     const externalLeadProfile =
       (externalLead?.profile_id ? profileById.get(externalLead.profile_id) : undefined) ??
       (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined) ??
       (
-        process.created_by_profile_id
+        creatorIsExternalProfessional && process.created_by_profile_id
           ? profileById.get(process.created_by_profile_id)
           : undefined
       );
@@ -1469,10 +1603,11 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       officializedAt: process.officialized_at ?? undefined,
       title: process.title,
       type: process.process_type,
-      status:
-        constructionPermit?.status === "signed"
-          ? "deferido"
-          : process.status,
+      // The process status is owned by the official workflow. A separately
+      // signed construction permit is evidence of a signed artifact, NOT
+      // authorization to silently rewrite a process still in technical review.
+      // Keep the permit's state in processControl.checkpoint instead.
+      status: process.status,
       ownerName: ownerProfile?.full_name ?? owner?.display_name ?? "Nao informado",
       ownerDocument:
         ownerPrivate?.document_number ??
@@ -1483,22 +1618,24 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       ownerEmail: ownerPrivate?.email ?? "",
       technicalLead:
         externalLeadProfile?.full_name ??
-        creatorProfile?.full_name ??
         externalLead?.display_name ??
+        (creatorIsExternalProfessional ? creatorProfile?.full_name : undefined) ??
         "Nao informado",
       ownerProfileId: owner?.profile_id ?? undefined,
       technicalProfileId:
         externalLead?.profile_id ??
-        process.created_by_profile_id ??
-        undefined,
+        (creatorIsExternalProfessional ? process.created_by_profile_id : undefined),
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       createdByProfileId: process.created_by_profile_id ?? undefined,
       createdByUserId: process.created_by ?? creatorProfile?.user_id ?? undefined,
       createdByEmail: creatorProfile?.email ?? undefined,
       createdByRole: creatorProfile?.role ?? undefined,
-      professionalProfileId: externalLead?.profile_id ?? process.created_by_profile_id ?? undefined,
-      professionalUserId: externalLead?.user_id ?? process.created_by ?? creatorProfile?.user_id ?? undefined,
-      professionalEmail: externalLeadProfile?.email ?? creatorProfile?.email ?? undefined,
+      professionalProfileId: externalLead?.profile_id ??
+        (creatorIsExternalProfessional ? process.created_by_profile_id : undefined),
+      professionalUserId: externalLead?.user_id ??
+        (creatorIsExternalProfessional ? (process.created_by ?? creatorProfile?.user_id) : undefined),
+      professionalEmail: externalLeadProfile?.email ??
+        (creatorIsExternalProfessional ? creatorProfile?.email : undefined),
       tags: markers.map((marker) =>
         serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
       ),
@@ -1561,7 +1698,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           id: document.id,
           label: document.title,
           required: Boolean(document.is_required),
-          uploaded: true,
+          uploaded: hasPersistedProcessDocumentFile(document),
           signed: false,
           reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
           // Identidade humana para exibicao; profile ID preservado separadamente para auditoria.
@@ -1576,6 +1713,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
           fileName: document.file_name ?? undefined,
           filePath: document.file_path ?? undefined,
+          fileHash: document.file_hash ?? undefined,
           mimeType: document.mime_type ?? undefined,
           sizeLabel: document.size_label ?? undefined,
           fileSizeBytes: document.file_size_bytes == null ? undefined : Number(document.file_size_bytes),
@@ -1615,7 +1753,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         id: entry.id,
         category: entry.category,
         title: entry.title,
-        detail: entry.detail,
+        detail: String(entry.detail || "").replace(/^\[documento:[0-9a-f-]{36}\]\s*/i, ""),
+        documentId: /^\[documento:([0-9a-f-]{36})\]/i.exec(String(entry.detail || ""))?.[1],
         actorProfileId: entry.actor_profile_id ?? undefined,
         actor:
           scopedEventAuthorById.get(`audit:${entry.id}`)?.actor_name ||
@@ -1900,7 +2039,7 @@ export async function createRemoteOwnerRequestByProtocol(input: {
 
   if (error) throw error;
 
-  const payload = data as Record<string, any> | null;
+  const payload = data as DatabaseRow | null;
   const row = payload?.request ?? null;
   const processRow = payload?.process ?? null;
   if (!row?.id) {
@@ -1952,7 +2091,7 @@ export async function respondRemoteOwnerRequest(input: {
     });
     if (error) throw error;
 
-    const payload = data as Record<string, any> | null;
+    const payload = data as DatabaseRow | null;
     const row = payload?.request ?? null;
     const linkRow = payload?.link ?? null;
     if (!row?.id) throw new Error("Falha ao atualizar solicitação de responsável.");
@@ -2000,7 +2139,7 @@ export async function respondRemoteOwnerRequest(input: {
   const requestRow = Array.isArray(requestData) ? requestData[0] : null;
   if (!requestRow) throw new Error("Falha ao atualizar solicitacao de responsavel.");
 
-  let linkData: Record<string, any> | null = null;
+  let linkData: DatabaseRow | null = null;
 
   if (input.status === "approved") {
     const { data, error } = await db
@@ -2062,7 +2201,7 @@ export async function setRemoteOwnerChatEnabled(input: {
     });
     if (error) throw error;
 
-    const row = data as Record<string, any> | null;
+    const row = data as DatabaseRow | null;
     if (!row?.id) throw new Error("Falha ao atualizar chat do responsável.");
 
     return {
@@ -2099,6 +2238,88 @@ export async function setRemoteOwnerChatEnabled(input: {
   };
 }
 
+/** Read-only, participant-scoped inbox. Neon RLS is the primary authorization. */
+export async function listRemoteOwnerAccessInbox(): Promise<{
+  requests: OwnerProjectRequest[];
+  links: OwnerProjectLink[];
+}> {
+  if (!db) throw new Error("Banco indisponível para consultar acompanhamentos.");
+  const [requestsResult, linksResult] = await Promise.all([
+    db.from("project_owner_requests").select("*").order("requested_at", { ascending: false }).limit(150),
+    db.from("project_owner_links").select("*").order("linked_at", { ascending: false }).limit(150),
+  ]);
+  if (requestsResult.error) throw new Error(requestsResult.error.message || "Falha ao consultar solicitações.");
+  if (linksResult.error) throw new Error(linksResult.error.message || "Falha ao consultar proprietários vinculados.");
+  return {
+    requests: (requestsResult.data ?? []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+      professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+      status: row.status ?? "pending",
+      requestedAt: row.requested_at ?? new Date().toISOString(),
+      respondedAt: row.responded_at ?? null,
+      respondedBy: (isNeonBackend ? row.responded_by_profile_id : null) ?? row.responded_by ?? null,
+      notes: row.notes ?? undefined,
+    })) as OwnerProjectRequest[],
+    links: (linksResult.data ?? []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+      professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+      chatEnabled: row.chat_enabled ?? false,
+      linkedAt: row.linked_at ?? new Date().toISOString(),
+      linkedBy: (isNeonBackend ? row.linked_by_profile_id : null) ?? row.linked_by ?? "",
+    })) as OwnerProjectLink[],
+  };
+}
+
+/** Load only the selected private chat, rather than reloading all processes.
+ * Verifies RLS-visible link and its canonical participants before returning messages.
+ */
+export async function listRemoteOwnerConversationMessages(
+  link: OwnerProjectLink,
+): Promise<OwnerProfessionalMessage[]> {
+  if (!db) throw new Error("Banco indisponível para atualizar a conversa.");
+  const { data: linked, error: linkError } = await db
+    .from("project_owner_links").select("*").eq("id", link.id).maybeSingle();
+  if (linkError) throw new Error(linkError.message || "Não foi possível validar a conversa.");
+  const storedOwner = (isNeonBackend ? linked?.owner_profile_id : null) ?? linked?.owner_user_id;
+  const storedProfessional = (isNeonBackend ? linked?.professional_profile_id : null) ?? linked?.professional_user_id;
+  if (!linked || linked.project_id !== link.projectId ||
+      storedOwner !== link.ownerUserId || storedProfessional !== link.professionalUserId) {
+    throw new Error("Conversa não encontrada ou sem permissão para este usuário.");
+  }
+
+  const query = db.from("owner_professional_messages").select("*")
+    .eq("project_id", link.projectId)
+    .eq(isNeonBackend ? "owner_profile_id" : "owner_user_id", link.ownerUserId)
+    .eq(isNeonBackend ? "professional_profile_id" : "professional_user_id", link.professionalUserId)
+    .order("created_at", { ascending: false })
+    .limit(250);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message || "Falha ao consultar mensagens da conversa.");
+  return ((data ?? []).map((row) => ({
+    id: row.id,
+    projectId: row.project_id,
+    ownerUserId: (isNeonBackend ? row.owner_profile_id : null) ?? row.owner_user_id,
+    professionalUserId: (isNeonBackend ? row.professional_profile_id : null) ?? row.professional_user_id,
+    senderUserId: (isNeonBackend ? row.sender_profile_id : null) ?? row.sender_user_id,
+    message: row.message,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    readAt: row.read_at ?? null,
+    isSystemMessage: row.is_system_message ?? false,
+  })) as OwnerProfessionalMessage[]).reverse();
+}
+
+export async function markRemoteOwnerConversationRead(linkId: string): Promise<number> {
+  if (!db) throw new Error("Banco indisponível para confirmar leitura.");
+  if (!isNeonBackend) return 0; // Supabase legada não tem a RPC de leitura.
+  const { data, error } = await db.rpc("mark_owner_conversation_read", { _link_id: linkId });
+  if (error) throw new Error(error.message || "Não foi possível confirmar leitura.");
+  return Number(data || 0);
+}
+
 export async function createRemoteOwnerMessage(input: {
   linkId?: string;
   projectId: string;
@@ -2122,7 +2343,7 @@ export async function createRemoteOwnerMessage(input: {
     });
     if (error) throw error;
 
-    const row = data as Record<string, any> | null;
+    const row = data as DatabaseRow | null;
     if (!row?.id) throw new Error("Falha ao criar mensagem de responsável.");
 
     return {
@@ -2279,8 +2500,8 @@ export async function getRemoteExternalPreprotocolDraft(
     throw new Error(formatDatabaseError(error));
   }
 
-  const row = (data ?? {}) as Record<string, any>;
-  const guide = (row.guide ?? {}) as Record<string, any>;
+  const row = (data ?? {}) as DatabaseRow;
+  const guide = (row.guide ?? {}) as DatabaseRow;
 
   return {
     processId: String(row.process_id ?? ""),
@@ -2423,6 +2644,18 @@ async function callProcessRpc<T = Record<string, unknown>>(
   const { data, error } = await db.rpc(fn, args);
   if (error) throw new Error(formatDatabaseError(error));
   return data as T;
+}
+
+export async function upgradeRemoteQa04ArchitecturalPlanV2(
+  processId: string, filePath: string, fileName: string, fileSizeBytes: number, fileHash: string,
+): Promise<{ ok: boolean; already_upgraded?: boolean; document_id: string; version: number }> {
+  return callProcessRpc("upgrade_qa04_architectural_plan_v2", {
+    _process_id: processId,
+    _file_path: filePath,
+    _file_name: fileName,
+    _file_size_bytes: fileSizeBytes,
+    _file_hash: fileHash,
+  });
 }
 
 export async function appendRemoteProcessDocuments(
@@ -2601,6 +2834,18 @@ export async function sendRemoteProcessMessage(input: {
   });
 }
 
+export async function loadRemoteDocumentReviewCapabilities(processId: string) {
+  return callProcessRpc<{ document_ids: string[]; reason: string }>("document_individual_review_capabilities_v1", { _process_id: processId });
+}
+
+export async function recordRemoteIndividualDocumentReview(documentId: string, action: "reabrir" | "aprovar" | "ressalvas", reason: string) {
+  return callProcessRpc("record_individual_document_review_v1", { _document_id: documentId, _action: action, _reason: reason });
+}
+
+export async function reopenRemoteProcessForReview(processId: string, reason: string) {
+  return callProcessRpc("reopen_process_for_review_v1", { _process_id: processId, _reason: reason });
+}
+
 export async function reopenRemoteProcess(processId: string, reason: string) {
   return callProcessRpc("reopen_process", {
     _process_id: processId,
@@ -2637,6 +2882,13 @@ export async function setRemoteProcessTriage(input: {
     _process_id: input.processId,
     _triage_status: input.status,
     _notes: input.notes || null,
+  });
+}
+
+export async function reconcileRemoteProcessTriage(processId: string, reason: string) {
+  return callProcessRpc("reconcile_unreleased_process_triage_v1", {
+    _process_id: processId,
+    _reason: reason,
   });
 }
 
@@ -3471,7 +3723,7 @@ export async function upsertRemoteMunicipalDepartment(input: {
     _sort_order: input.sortOrder ?? 100,
     _is_active: input.isActive ?? true,
   });
-  if (error) throw new Error(error.message || "Não foi possível salvar a unidade do organograma.");
+  if (error) throw new Error(municipalUnitSaveError(error.message));
   return mapMunicipalDepartment((data ?? {}) as Record<string, unknown>);
 }
 
@@ -3492,6 +3744,78 @@ export async function assignRemoteProfileDepartment(input: {
     municipality_id: string;
     department_id: string | null;
     department_name: string | null;
+  };
+}
+
+
+export type MunicipalStaffAssignmentRecord = {
+  id: string;
+  municipalityId: string;
+  profileId: string;
+  departmentId: string;
+  departmentName: string;
+  departmentCode: string;
+  role: "analista" | "financeiro" | "fiscal" | "setor_intersetorial";
+  isCurrent: boolean;
+  isActive: boolean;
+};
+
+/** Read-only authoritative registry for the authenticated municipal administrator. */
+export async function listRemoteMunicipalUserRegistry() {
+  if (!db || !isNeonBackend) {
+    throw new Error("Cadastro oficial municipal indisponível neste ambiente.");
+  }
+  const { data, error } = await db.rpc("list_municipal_user_registry_v1");
+  if (error) throw error;
+  return parseVerifiedMunicipalUserRegistry(data);
+}
+
+export async function listRemoteMunicipalStaffAssignments(profileId?: string | null) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("list_municipal_staff_assignments_v1", {
+    _profile_id: profileId ?? null,
+  });
+  if (error) throw new Error(error.message || "Não foi possível carregar as lotações autorizadas.");
+  return parseMunicipalStaffAssignments(data);
+}
+
+export async function setRemoteMunicipalStaffDepartment(input: {
+  municipalityId: string;
+  profileId: string;
+  departmentId: string;
+  enabled: boolean;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("set_municipal_staff_department_v1", {
+    _municipality_id: input.municipalityId,
+    _profile_id: input.profileId,
+    _department_id: input.departmentId,
+    _enabled: input.enabled,
+  });
+  if (error) throw new Error(error.message || "Não foi possível salvar o vínculo com a unidade.");
+  if (!data || data.ok !== true || String(data.profileId) !== input.profileId ||
+      String(data.municipalityId) !== input.municipalityId) {
+    throw new Error("O banco não confirmou a alteração da lotação.");
+  }
+  return data as { ok: true; profileId: string; municipalityId: string };
+}
+
+export async function activateRemoteMunicipalStaffAssignment(assignmentId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("activate_municipal_staff_assignment_v1", {
+    _assignment_id: assignmentId,
+  });
+  if (error) throw new Error(error.message || "A troca de departamento foi negada pelo banco.");
+  if (!data || data.ok !== true ||
+      !isSwitchableMunicipalStaffRole(String(data.role || ""))) {
+    throw new Error("O banco não confirmou o novo contexto operacional.");
+  }
+  return {
+    profileId: String(data.profileId),
+    municipalityId: String(data.municipalityId),
+    departmentId: String(data.departmentId),
+    departmentName: String(data.departmentName),
+    role: data.role as MunicipalStaffAssignmentRecord["role"],
   };
 }
 
@@ -3662,6 +3986,70 @@ async function createDetachedNeonEmailAccount(input: {
   if (/already|exists|registered|email.*taken|user.*exist/i.test(message)) return;
 
   throw new Error(message);
+}
+
+/** All TI actions are authorized against the canonical municipal identity in Neon. */
+export async function municipalItCommand<T=unknown>(municipalityId:string,action:string,payload:Record<string,unknown>={}):Promise<T>{
+ if(!db||!isNeonBackend)throw Error("Departamento de TI exige o banco Neon.");
+ const {data,error}=await db.rpc("municipal_it_command_v1",{_municipality_id:municipalityId,_action:action,_payload:payload});
+ if(error)throw Error(error.message||"Operação TI não autorizada.");
+ if(!data||typeof data!=="object")throw Error("O banco não confirmou a operação TI.");
+ return data as T;
+}
+export async function provisionMunicipalItStaff(input:{municipalityId:string;requestId:string;temporaryPassword:string}){
+ const provision=()=>municipalItCommand<{ready:boolean;reason?:string;email?:string;name?:string;profileId?:string}>(input.municipalityId,"provision",{requestId:input.requestId});
+ let saved=await provision();
+ if(!saved.ready&&saved.reason==="auth_missing"){
+  if(!saved.email||!saved.name)throw Error("Identidade do memorando não confirmada.");
+  if(!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(input.temporaryPassword))throw Error("Senha provisória: mínimo de oito caracteres, maiúscula, minúscula, número e símbolo.");
+  await createDetachedNeonEmailAccount({email:saved.email,name:saved.name,password:input.temporaryPassword});
+  for(const delay of [0,150,350,800]){if(delay)await new Promise(resolve=>setTimeout(resolve,delay));saved=await provision();if(saved.ready)break;}
+ }
+ if(!saved.ready||!saved.profileId)throw Error("O Neon não confirmou a criação da conta e lotação. Retome o mesmo memorando.");
+ return saved;
+}
+
+/** Onboard a platform operator only after canonical Master authorization in Neon.
+ * sign-up/email uses credentials:omit, so the current Master login is untouched.
+ */
+export async function createRemotePlatformStaffAccount(input: {
+  email: string;
+  fullName: string;
+  temporaryPassword: string;
+}): Promise<{ profileId: string; email: string }> {
+  if (!db || !isNeonBackend) throw new Error("Cadastro de funcionários SIGAPRO exige Neon Auth.");
+  const email = input.email.trim().toLowerCase();
+  const fullName = input.fullName.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("E-mail institucional inválido.");
+  if (fullName.length < 3 || fullName.length > 120) throw new Error("Informe o nome completo do funcionário.");
+  if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(input.temporaryPassword)) {
+    throw new Error("A senha exige oito caracteres, maiúscula, minúscula, número e símbolo.");
+  }
+
+  const provision = async () => {
+    const { data, error } = await db.rpc("provision_platform_staff_account", {
+      _email: email, _full_name: fullName,
+    });
+    if (error) throw new Error(error.message || "Não foi possível autorizar a conta na plataforma.");
+    return data as { ready?: boolean; reason?: string; profile_id?: string; email?: string } | null;
+  };
+
+  // Master authorization is checked in the database BEFORE any detached signup.
+  let saved = await provision();
+  if (!saved?.ready && saved?.reason === "auth_missing") {
+    await createDetachedNeonEmailAccount({
+      email, name: fullName, password: input.temporaryPassword,
+    });
+    for (const delayMs of [0, 150, 350, 800]) {
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+      saved = await provision();
+      if (saved?.ready) break;
+    }
+  }
+  if (!saved?.ready || !saved.profile_id) {
+    throw new Error("O Neon Auth não confirmou o vínculo do funcionário. Confira a conta antes de repetir.");
+  }
+  return { profileId: saved.profile_id, email: saved.email || email };
 }
 
 export async function manageRemoteUserAccess(input: {
@@ -3846,6 +4234,28 @@ export async function upsertRemoteInstitution(input: {
 
   const tenantId = normalizeUuid(input.institutionId ?? input.tenantId) ?? crypto.randomUUID();
   const municipalitySlug = buildMunicipalitySlug(input.subdomain || input.city || input.name);
+
+  // Neon usa a RPC master com authorization server-side. UPSERT direto em
+  // municipalities exige INSERT que nao e concedido ao usuario autenticado.
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("upsert_municipality_master", {
+      _id: normalizeUuid(input.institutionId ?? input.tenantId),
+      _name: normalizedName,
+      _city: normalizedCity,
+      _state: normalizedState,
+      _slug: municipalitySlug,
+      _subdomain: normalizedSubdomain,
+      _status: normalizeMunicipalityStatus(input.status),
+      _secretariat_name: input.secretariat.trim() || null,
+      _primary_color: input.primaryColor,
+      _accent_color: input.accentColor,
+      _cnpj: input.cnpj || null,
+    });
+    if (error) throw new Error(formatDatabaseError(error));
+    const savedId = normalizeUuid(String(data?.id ?? ""));
+    if (!savedId) throw new Error("O banco nao confirmou o identificador da Prefeitura salva.");
+    return { id: savedId };
+  }
 
   const municipalityPayload: Record<string, unknown> = {
     id: tenantId,
@@ -4177,6 +4587,36 @@ export async function saveRemoteInstitutionSettings(
     throw new Error(formatDatabaseError(municipalityUpdateResult.error));
   }
 
+  // A RPC protege o escopo por Prefeitura e atualiza as configuracoes
+  // existentes sem exigir INSERT/UPDATE direto nas tabelas protegidas.
+  // O merge de general_settings preserva chaves que outros modulos salvaram.
+  if (isNeonBackend) {
+    const { municipality_id: _settingsId, ...settingsChanges } = municipalitySettingsPayload;
+    const { municipality_id: _brandingId, updated_at: _brandingUpdatedAt, ...brandingChanges } = municipalityBrandingPayload;
+    const { data, error } = await withTimeout(
+      db.rpc("save_municipality_configuration", {
+        _municipality_id: remoteTenantId,
+        _settings: options?.skipMunicipalitySettings ? {} : settingsChanges,
+        _branding: options?.skipMunicipalityBranding ? {} : brandingChanges,
+      }),
+      "save_municipality_configuration",
+      12000,
+    ) as {
+      data?: { municipality_id?: string } | null;
+      error?: { message?: string; details?: string; hint?: string; code?: string } | null;
+    };
+    if (error) throw new Error(formatDatabaseError(error));
+    if (String(data?.municipality_id ?? "") !== remoteTenantId) {
+      throw new Error("O banco nao confirmou a atualizacao institucional desta Prefeitura.");
+    }
+    if (!options?.skipMunicipalityBranding && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sigapro-branding-updated", {
+        detail: { municipalityId: remoteTenantId },
+      }));
+    }
+    return;
+  }
+
   const municipalitySettingsResult = options?.skipMunicipalitySettings
     ? { error: null }
     : await withTimeout(
@@ -4489,6 +4929,15 @@ export async function upsertRemotePlan(plan: PlanItem) {
     updated_at: new Date().toISOString(),
   };
 
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("upsert_plan_master", { _payload: payload });
+    if (error) throw new Error(formatDatabaseError(error));
+    if (String(data?.id ?? "") !== plan.id) {
+      throw new Error("O banco nao confirmou a atualizacao do plano comercial.");
+    }
+    return plan;
+  }
+
   const { error } = await upsertWithColumnRetry("plans", payload, "id");
 
   if (error) {
@@ -4519,6 +4968,21 @@ export async function saveRemoteClientPlanAssignment(assignment: ClientPlanAssig
     is_custom: assignment.isCustom,
     updated_at: new Date().toISOString(),
   };
+
+  // O contrato tem UNIQUE(municipality_id), e o banco reserva a
+  // escrita a RPC master. Ela preserva o ID existente no ON CONFLICT e
+  // revalida os limites contratados antes de confirmar a alteracao.
+  if (isNeonBackend) {
+    const { data, error } = await db.rpc("save_client_plan_assignment_master", {
+      _payload: payload,
+    });
+    if (error) throw new Error(formatDatabaseError(error));
+    if (String(data?.municipality_id ?? "") !== assignment.municipalityId ||
+        String(data?.plan_id ?? "") !== assignment.planId) {
+      throw new Error("O banco nao confirmou o novo vinculo contratual da Prefeitura.");
+    }
+    return { ...assignment, id: String(data.id) };
+  }
 
   const { error } = await upsertWithColumnRetry("client_plan_assignments", payload, "id");
 
@@ -4698,3 +5162,45 @@ export async function loadPublicPlansCatalog() {
   })) as PlanItem[];
 }
 
+
+export async function listRemoteMunicipalAuthorityDesignations(municipalityId:string,profileId:string){
+ if(!db||!isNeonBackend)throw new Error("Cadastro institucional indisponível.");
+ const {data,error}=await db.rpc("list_municipal_authority_designations_v1",{_municipality_id:municipalityId,_profile_id:profileId});
+ if(error)throw new Error(error.message||"Falha ao consultar designações.");
+ return parseAuthorityDesignations(data,municipalityId,profileId);
+}
+export async function setRemoteMunicipalAuthorityDesignation(municipalityId:string,profileId:string,departmentId:string,enabled:boolean){
+ if(!db||!isNeonBackend)throw new Error("Cadastro institucional indisponível.");
+ const {data,error}=await db.rpc("set_municipal_authority_designation_v1",{_municipality_id:municipalityId,_profile_id:profileId,_department_id:departmentId,_enabled:enabled});
+ if(error)throw new Error(error.message||"Falha ao salvar designação.");
+ return parseAuthorityDesignations(data,municipalityId,profileId);
+}
+
+export async function setRemoteMunicipalAuthorityPreferences(municipalityId:string,profileId:string,designationId:string,makePrimary:boolean|null,urbanismAuthorized:boolean|null){
+ if(!db||!isNeonBackend)throw Error("Cadastro institucional indisponível.");
+ const {data,error}=await db.rpc("set_municipal_authority_preferences_v1",{_municipality_id:municipalityId,_profile_id:profileId,_designation_id:designationId,_make_primary:makePrimary,_urbanism_authorized:urbanismAuthorized});
+ if(error)throw Error(error.message||"Falha ao definir competência institucional.");
+ return parseAuthorityDesignations(data,municipalityId,profileId);
+}
+export async function listRemoteMunicipalIdentityBadges(municipalityId:string,profileIds:readonly string[]){
+ if(!db||!isNeonBackend||!profileIds.length)return [];
+ if(profileIds.length>100)throw Error("Consulta de identificação excedeu a página autorizada.");
+ const {data,error}=await db.rpc("list_municipal_identity_badges_v1",{_municipality_id:municipalityId,_profile_ids:[...profileIds]});
+ if(error)throw Error(error.message||"Identificação institucional indisponível.");
+ return parseMunicipalIdentityBadges(data,municipalityId,profileIds);
+}
+export async function getRemoteMunicipalAuthorityCapabilities(processId:string){
+ if(!db||!isNeonBackend)throw Error("Competência institucional indisponível.");
+ const {data,error}=await db.rpc("get_current_municipal_authority_capabilities_v1",{_process_id:processId});
+ if(error)throw Error(error.message||"Competência institucional indisponível.");
+ return parseMunicipalAuthorityCapabilities(data);
+}
+
+export async function setRemoteMunicipalStaffIdentityPrimary(municipalityId:string,profileId:string,departmentId:string|null){
+ if(!db||!isNeonBackend)throw Error("Identificação institucional indisponível.");
+ const {data,error}=await db.rpc("set_municipal_staff_identity_primary_v1",{_municipality_id:municipalityId,_profile_id:profileId,_department_id:departmentId});
+ if(error)throw Error(error.message||"Falha ao fixar a unidade de identificação.");
+ return parseMunicipalIdentityBadges(data,municipalityId,[profileId]);
+}
+
+export async function municipalTiWorkspace<T=unknown>(municipalityId:string,action:string,payload:Record<string,unknown>={}):Promise<T>{if(!db||!isNeonBackend)throw Error("Gestão TI exige o Neon.");const {data,error}=await db.rpc("municipal_ti_workspace_v1",{m:municipalityId,a:action,payload});if(error)throw Error(error.message||"Operação não autorizada.");if(!data||typeof data!=="object")throw Error("Operação não confirmada.");return data as T;}

@@ -73,27 +73,29 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     authResolved,
     loading: authLoading,
   } = useAuthGateway();
-  const { sessionUsers } = usePlatformData();
+  const { sessionUsers, storeIdentityConfirmed, remoteSyncedForCurrentUser } = usePlatformData();
   const cachedSessionRef = useRef<SessionUser | null>(readCachedSession());
   const [sessionVersion, setSessionVersion] = useState(0);
   const businessUserId = authenticatedProfileId || authenticatedUserId;
+  const currentBusinessUserRef=useRef(businessUserId);
+  currentBusinessUserRef.current=businessUserId;
   const canonicalSessionUser = useMemo(
-    () =>
-      sessionUsers.find((item) => item.id === businessUserId) ??
-      sessionUsers.find(
-        (item) =>
-          Boolean(authenticatedEmail) &&
-          item.email?.trim().toLowerCase() === authenticatedEmail?.trim().toLowerCase(),
-      ) ??
-      null,
-    [authenticatedEmail, businessUserId, sessionUsers],
+    () => {
+      if (!storeIdentityConfirmed || !businessUserId) return null;
+      return sessionUsers.find((item) => item.id === businessUserId) ?? null;
+    },
+    [businessUserId, sessionUsers, storeIdentityConfirmed],
   );
 
   const session = useMemo<SessionUser>(() => {
     const cachedSession = cachedSessionRef.current;
-    const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved);
+    // Only a still-present cache of this exact profile may bridge a Neon
+    // hydration gap. Explicit logout removes this marker synchronously.
+    // PermissionRoute independently requires authenticated identity.
+    const canUseCachedSession = !businessUserId && (isNeonBackend || !authResolved) &&
+      Boolean(cachedSession && readCachedSession()?.id === cachedSession.id);
 
-    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId || canonicalSessionUser?.id === businessUserId)) {
+    if (cachedSession && (canUseCachedSession || cachedSession.id === businessUserId)) {
       const safeRole = normalizeRole(
         canonicalSessionUser?.role ??
         (businessUserId ? authenticatedRole : cachedSession.role),
@@ -118,15 +120,14 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
           canonicalSessionUser?.municipalityId ??
           canonicalSessionUser?.tenantId ??
           (businessUserId ? authenticatedMunicipalityId : cachedSession.municipalityId ?? null),
-        title:
-          canonicalSessionUser?.title ||
-          cachedSession.title ||
-          roleLabels[safeRole] ||
-          "Usuário",
-        department:
-          canonicalSessionUser?.department ||
-          cachedSession.department ||
-          "",
+        // Empty fields from the confirmed current account are authoritative:
+        // do not resurrect a previous department when a user is reassigned.
+        title: canonicalSessionUser
+          ? canonicalSessionUser.title || roleLabels[safeRole] || "Usuário"
+          : remoteSyncedForCurrentUser ? roleLabels[safeRole] || "Usuário" : cachedSession.title || roleLabels[safeRole] || "Usuário",
+        department: canonicalSessionUser
+          ? canonicalSessionUser.department || ""
+          : remoteSyncedForCurrentUser ? "" : cachedSession.department || "",
         email: authenticatedEmail || canonicalSessionUser?.email || cachedSession.email || "",
       };
     }
@@ -172,12 +173,12 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
       blockReason: canonicalSessionUser?.blockReason ?? null,
       deletedAt: canonicalSessionUser?.deletedAt ?? null,
     };
-  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, authenticatedProfileId, businessUserId, canonicalSessionUser, sessionVersion]);
+  }, [authLoading, authResolved, authenticatedAccessLevel, authenticatedEmail, authenticatedMunicipalityId, authenticatedRole, authenticatedUserId, authenticatedProfileId, businessUserId, canonicalSessionUser, remoteSyncedForCurrentUser, sessionVersion]);
 
   useEffect(() => {
     const handleSessionUpdated = (event: Event) => {
       const detail = (event as CustomEvent<SessionUser>).detail;
-      if (!detail?.id || detail.id === "unknown") return;
+      if (!detail?.id || detail.id === "unknown" || detail.id !== currentBusinessUserRef.current) return;
       cachedSessionRef.current = detail;
       setSessionVersion((current) => current + 1);
     };
@@ -198,7 +199,7 @@ export function PlatformSessionProvider({ children }: { children: React.ReactNod
     if (authResolved && !businessUserId) {
       // No Neon, eventos transitórios de auth não podem apagar a sessão visual já estável.
       // O logout confirmado remove a chave pelo AppBootstrap; aí sim limpamos o contexto.
-      if (isNeonBackend && readCachedSession()) return;
+      if (isNeonBackend && cachedSessionRef.current && readCachedSession()?.id === cachedSessionRef.current.id) return;
       if (!cachedSessionRef.current) {
         writeCachedSession(null);
         return;

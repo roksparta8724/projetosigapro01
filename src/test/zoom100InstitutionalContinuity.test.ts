@@ -23,7 +23,8 @@ describe("SIGAPRO: escala integral", () => {
     expect(footer).toContain('data-sig-footer-grid="true"');
     expect(footer).toContain("whitespace-normal break-words");
     expect(analyst).toContain('data-analysis-distribution-grid="true"');
-    expect(analyst).toContain('data-analysis-queue-guide="true"');
+    expect(analyst).toContain('data-analysis-process-panel="true"');
+    expect(analyst).toContain('data-analysis-team-disclosure="true"');
     expect(css).toContain("SIGAPRO 100 PERCENT RESPONSIVE PREMIUM V1");
   });
 });

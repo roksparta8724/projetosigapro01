@@ -1,5 +1,6 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { assertStoredDocumentBytes } from "./document-storage-integrity.js";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
+import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export type ApiReq = import("http").IncomingMessage & { method?: string; body?: unknown };
 
@@ -33,6 +34,22 @@ export function getDataApiUrl() {
   if (process.env.VERCEL_ENV === "production") {
     return VALIDATED_NEON_DATA_API_URL;
   }
+  if (process.env.VERCEL_ENV === "preview") {
+    // Isolated QA must fail closed rather than silently target production.
+    const frontendData = readEnv("VITE_NEON_DATA_API_URL");
+    const backendData = readEnv("R2_AUTH_DATA_API_URL");
+    const auth = readEnv("VITE_NEON_AUTH_URL");
+    const authHost = neonBranchHost(auth, "neonauth");
+    const dataHost = neonBranchHost(frontendData, "apirest");
+    const serverHost = neonBranchHost(backendData, "apirest");
+    const productionHost = neonBranchHost(VALIDATED_NEON_DATA_API_URL, "apirest");
+    if (readEnv("VITE_SIGAPRO_NEON_ISOLATED") !== "true" ||
+        !authHost || authHost === productionHost ||
+        authHost !== dataHost || authHost !== serverHost) {
+      throw new Error("Ambiente de homologação inválido: Neon Auth e Data API devem apontar para a mesma branch QA, nunca produção.");
+    }
+    return backendData.replace(/\/+$/, "");
+  }
   // Vite localhost signs in with the official Neon Auth by default.
   // Do NOT honor an arbitrary Data API override independently: that creates
   // "jwk not found" by sending a production JWT to a QA branch (or vice versa).
@@ -43,14 +60,15 @@ export function getDataApiUrl() {
     const authHost = neonBranchHost(localAuth, "neonauth");
     const dataHost = neonBranchHost(localData, "apirest");
     if (isolatedRequested) {
-      if (!authHost || authHost !== dataHost) {
+      if (!authHost || authHost !== dataHost ||
+          dataHost === neonBranchHost(VALIDATED_NEON_DATA_API_URL, "apirest")) {
         throw new Error("Homologação Neon local inválida: informe Auth e Data API HTTPS da MESMA branch.");
       }
       return localData.replace(/\/+$/, "");
     }
     return VALIDATED_NEON_DATA_API_URL;
   }
-  // Production / preview retain their explicitly configured data source.
+  // Development and other explicit environments may override the validated URL.
   return (
     readEnv("R2_AUTH_DATA_API_URL") ||
     readEnv("VITE_NEON_DATA_API_URL") ||
@@ -88,59 +106,44 @@ export async function callDataApiRpc<T = unknown>(
   }
 }
 
-function encryptionKey() {
-  const secret = readEnv("MUNICIPAL_STORAGE_MASTER_KEY");
-  if (!secret) {
-    throw new Error(
-      "A chave mestre MUNICIPAL_STORAGE_MASTER_KEY ainda não foi configurada no ambiente seguro do SIGAPRO.",
-    );
-  }
-  return createHash("sha256").update(secret, "utf8").digest();
+/** Domain-separated keys from the existing server-only 256-bit attestation
+ * root. Separate storage MAC/encryption domains; never use a browser token
+ * as a secret. Root rotation requires controlled re-encryption. */
+function storageDomainKey(domain:string){
+ const root=readEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET");
+ if(!/^[a-f0-9]{64}$/.test(root))throw Error("Comprovação segura de armazenamento indisponível.");
+ return createHmac("sha256",Buffer.from(root,"hex")).update(domain,"utf8").digest();
 }
-
-export function encryptStorageCredentials(input: { accessKeyId: string; secretAccessKey: string }) {
-  if (!input.accessKeyId.trim() || !input.secretAccessKey.trim()) {
-    throw new Error("Informe Access Key e Secret Key do armazenamento municipal.");
-  }
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
-  const plain = Buffer.from(JSON.stringify({
-    accessKeyId: input.accessKeyId.trim(),
-    secretAccessKey: input.secretAccessKey.trim(),
-  }), "utf8");
-  const encrypted = Buffer.concat([cipher.update(plain), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return [
-    "v1",
-    iv.toString("base64url"),
-    tag.toString("base64url"),
-    encrypted.toString("base64url"),
-  ].join(".");
+type StorageScope={municipalityId:string;endpoint:string};
+function aad(scope:StorageScope){return Buffer.from("sigapro-storage-credentials-v2\n"+scope.municipalityId.toLowerCase()+"\n"+normalizeStorageEndpoint(scope.endpoint),"utf8");}
+export function encryptStorageCredentials(input:{accessKeyId:string;secretAccessKey:string},scope:StorageScope){
+ if(!input.accessKeyId.trim()||!input.secretAccessKey.trim()||input.accessKeyId.length>256||input.secretAccessKey.length>512)throw Error("Informe Access Key e Secret Key válidas.");
+ const iv=randomBytes(12);
+ const cipher=createCipheriv("aes-256-gcm",storageDomainKey("sigapro-storage-encryption-v2"),iv);
+ cipher.setAAD(aad(scope));
+ const encrypted=Buffer.concat([cipher.update(JSON.stringify({accessKeyId:input.accessKeyId.trim(),secretAccessKey:input.secretAccessKey.trim()}),"utf8"),cipher.final()]);
+ return ["v2",iv.toString("base64url"),cipher.getAuthTag().toString("base64url"),encrypted.toString("base64url")].join(".");
 }
-
-export function decryptStorageCredentials(ciphertext: string) {
-  const [version, ivRaw, tagRaw, encryptedRaw] = String(ciphertext || "").split(".");
-  if (version !== "v1" || !ivRaw || !tagRaw || !encryptedRaw) {
-    throw new Error("Credencial municipal armazenada em formato inválido.");
-  }
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    encryptionKey(),
-    Buffer.from(ivRaw, "base64url"),
-  );
-  decipher.setAuthTag(Buffer.from(tagRaw, "base64url"));
-  const plain = Buffer.concat([
-    decipher.update(Buffer.from(encryptedRaw, "base64url")),
-    decipher.final(),
-  ]).toString("utf8");
-  const parsed = JSON.parse(plain) as { accessKeyId?: string; secretAccessKey?: string };
-  if (!parsed.accessKeyId || !parsed.secretAccessKey) {
-    throw new Error("Credencial municipal incompleta.");
-  }
-  return {
-    accessKeyId: parsed.accessKeyId,
-    secretAccessKey: parsed.secretAccessKey,
-  };
+export function decryptStorageCredentials(ciphertext:string,scope:StorageScope){
+ const [version,iv,tag,encrypted,...rest]=ciphertext.split(".");
+ if(version!=="v2"||!iv||!tag||!encrypted||rest.length||Buffer.from(iv,"base64url").length!==12||Buffer.from(tag,"base64url").length!==16)throw Error("Credencial municipal armazenada em formato inválido.");
+ try{
+  const decipher=createDecipheriv("aes-256-gcm",storageDomainKey("sigapro-storage-encryption-v2"),Buffer.from(iv,"base64url"));
+  decipher.setAAD(aad(scope));decipher.setAuthTag(Buffer.from(tag,"base64url"));
+  const result=JSON.parse(Buffer.concat([decipher.update(Buffer.from(encrypted,"base64url")),decipher.final()]).toString("utf8"));
+  if(typeof result.accessKeyId!=="string"||!result.accessKeyId||typeof result.secretAccessKey!=="string"||!result.secretAccessKey)throw Error("invalid");
+  return {accessKeyId:result.accessKeyId as string,secretAccessKey:result.secretAccessKey as string};
+ }catch{throw Error("Credencial não corresponde à Prefeitura ou ao endpoint cadastrado.");}
+}
+export async function municipalStorageCommand(req:ApiReq,municipalityId:string,action:"get"|"resolve"|"secret"|"save"|"mark"|"activate"|"use_sigapro",body:Record<string,unknown>={}){
+ if(!readBearer(req))throw Error("Autenticação necessária.");
+ const id=municipalityId.toLowerCase();
+ const payload=Buffer.from(JSON.stringify(body),"utf8").toString("base64");
+ const epoch=String(Math.floor(Date.now()/1000));
+ const mac=createHmac("sha256",storageDomainKey("sigapro-storage-domain-v2")).update(["sigapro-storage-command-v2",id,action,payload,epoch].join("\n"),"utf8").digest("hex");
+ const result=await callDataApiRpc<MunicipalStorageConnection>(req,"municipal_storage_command_v2",{_municipality_id:id,_action:action,_payload:payload,_epoch:epoch,_mac:mac});
+ if(!result.ok||!result.payload||result.payload.municipality_id!==id)throw Error(result.error||"Configuração de armazenamento não confirmada pelo banco.");
+ return result.payload;
 }
 
 export function credentialFingerprint(accessKeyId: string) {
@@ -151,18 +154,15 @@ export function credentialFingerprint(accessKeyId: string) {
   return `AK…${suffix} · ${digest}`;
 }
 
-export function normalizeStorageEndpoint(value: string) {
-  const raw = value.trim();
-  if (!raw) throw new Error("Informe o endpoint do armazenamento.");
-  const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-  const url = new URL(candidate);
-  if (
-    url.protocol !== "https:" &&
-    !(readEnv("MUNICIPAL_STORAGE_ALLOW_HTTP").toLowerCase() === "true")
-  ) {
-    throw new Error("O armazenamento municipal deve usar HTTPS.");
-  }
-  return `${url.protocol}//${url.host}${url.pathname.replace(/\/+$/, "")}`;
+export function normalizeStorageEndpoint(value:string){
+ const raw=value.trim();
+ if(!raw)throw Error("Informe o endpoint do armazenamento.");
+ const url=new URL(/^https:\/\//i.test(raw)?raw:"https://"+raw);
+ // Fixed DNS suffix and service hostname; no custom addresses, IPs,
+ // URL credentials, paths or redirects. Initial supported providers: R2/AWS.
+ if(url.protocol!=="https:"||url.username||url.password||url.port||url.search||url.hash||url.pathname!=="/"||
+   !/^([a-f0-9]{32}\.r2\.cloudflarestorage\.com|s3([.-][a-z0-9-]+)?\.amazonaws\.com)$/.test(url.hostname))throw Error("Informe o endpoint HTTPS oficial do Cloudflare R2 ou AWS S3.");
+ return url.origin;
 }
 
 export type MunicipalStorageConnection = {
@@ -181,48 +181,17 @@ export type MunicipalStorageConnection = {
   last_test_status?: string | null;
   last_test_message?: string | null;
   updated_at?: string | null;
+  config_revision?: string;
 };
 
-export async function getMunicipalStorageConnection(req: ApiReq, municipalityId: string) {
-  const result = await callDataApiRpc<MunicipalStorageConnection>(
-    req,
-    "get_municipal_storage_connection_v1",
-    { _municipality_id: municipalityId },
-  );
-  if (!result.ok) {
-    throw new Error(result.error || "Não foi possível carregar a configuração de armazenamento.");
-  }
-  return result.payload || {};
-}
-
-export async function getMunicipalStorageSecretAdmin(req: ApiReq, municipalityId: string) {
-  const result = await callDataApiRpc<MunicipalStorageConnection>(
-    req,
-    "get_municipal_storage_secret_admin_v1",
-    { _municipality_id: municipalityId },
-  );
-  if (!result.ok) {
-    throw new Error(result.error || "Não foi possível carregar a credencial municipal para teste.");
-  }
-  return result.payload || {};
-}
-
-export async function resolveMunicipalStorageSecret(req: ApiReq, municipalityId: string) {
-  const result = await callDataApiRpc<MunicipalStorageConnection>(
-    req,
-    "resolve_municipal_storage_secret_v1",
-    { _municipality_id: municipalityId },
-  );
-  if (!result.ok) {
-    throw new Error(result.error || "Não foi possível resolver o armazenamento municipal.");
-  }
-  return result.payload || {};
-}
+export function getMunicipalStorageConnection(req:ApiReq,municipalityId:string){return municipalStorageCommand(req,municipalityId,"get");}
+export function getMunicipalStorageSecretAdmin(req:ApiReq,municipalityId:string){return municipalStorageCommand(req,municipalityId,"secret");}
+export function resolveMunicipalStorageSecret(req:ApiReq,municipalityId:string){return municipalStorageCommand(req,municipalityId,"resolve");}
 
 export function buildMunicipalS3Client(config: MunicipalStorageConnection) {
   const endpoint = normalizeStorageEndpoint(String(config.endpoint_url || ""));
   const region = String(config.region || "us-east-1").trim() || "us-east-1";
-  const credentials = decryptStorageCredentials(String(config.credentials_ciphertext || ""));
+  const credentials = decryptStorageCredentials(String(config.credentials_ciphertext || ""),{municipalityId:String(config.municipality_id||""),endpoint});
   return new S3Client({
     endpoint,
     region,
@@ -237,30 +206,27 @@ export function applyMunicipalBasePath(basePath: string | undefined, objectKey: 
   return prefix ? `${prefix}/${logical}` : logical;
 }
 
-export async function testMunicipalStorageConnection(config: MunicipalStorageConnection) {
-  const client = buildMunicipalS3Client(config);
-  const bucket = String(config.bucket_documents || "").trim();
-  if (!bucket) throw new Error("Bucket de documentos não configurado.");
-
-  const testKey = applyMunicipalBasePath(
-    config.base_path,
-    `.sigapro/connection-tests/${randomUUID()}.txt`,
-  );
-
-  await client.send(new PutObjectCommand({
-    Bucket: bucket,
-    Key: testKey,
-    Body: Buffer.from("SIGAPRO storage connection test", "utf8"),
-    ContentType: "text/plain",
-  }));
-
-  try {
-    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: testKey }));
-  } catch {
-    // O teste principal é a gravação. A limpeza pode depender de permissão separada.
-  }
-
-  return { ok: true, message: "Conexão validada com gravação no armazenamento da Prefeitura." };
+export async function testMunicipalStorageConnection(config:MunicipalStorageConnection,client=buildMunicipalS3Client(config)){
+ const bucket=String(config.bucket_documents||"").trim();
+ if(!bucket||!config.municipality_id)throw Error("Bucket municipal não configurado.");
+ const testKey=applyMunicipalBasePath(config.base_path,".sigapro/connection-tests/"+randomUUID()+".txt");
+ const bytes=Buffer.from("SIGAPRO synthetic storage test "+randomUUID(),"utf8");
+ const hash=createHash("sha256").update(bytes).digest("hex");
+ await client.send(new PutObjectCommand({Bucket:bucket,Key:testKey,Body:bytes,ContentType:"text/plain",IfNoneMatch:"*"}));
+ try{
+  await assertStoredDocumentBytes(client,{bucket,objectKey:testKey,expectedSha256:hash,expectedBytes:bytes.length,contentType:"text/plain",maxBytes:1024});
+ }finally{
+  // Failure to clean up means the connection has NOT passed.
+  await client.send(new DeleteObjectCommand({Bucket:bucket,Key:testKey}));
+ }
+ try{await client.send(new HeadObjectCommand({Bucket:bucket,Key:testKey}));}
+ catch(error){
+  const e=error as {name?:string;$metadata?:{httpStatusCode?:number}};
+  if(e.$metadata?.httpStatusCode===404||e.name==="NotFound"||e.name==="NoSuchKey")
+   return {ok:true,message:"Gravação, leitura, integridade e remoção verificadas."};
+  throw Error("Não foi possível comprovar a remoção do arquivo de teste.");
+ }
+ throw Error("Arquivo de teste não foi removido.");
 }
 
 function isPublicMunicipalLegislationObject(objectKey: string) {
@@ -281,33 +247,10 @@ export async function resolveMunicipalDocumentTarget(
 
   const publicLegislation = isPublicMunicipalLegislationObject(logicalObjectKey);
 
-  // O acervo legal municipal é público. Se a sessão do navegador ainda não
-  // disponibilizou o Bearer para a função, não bloqueamos a leitura tentando
-  // resolver um BYOS que nem existe nesta Prefeitura; seguimos para o R2
-  // institucional do SIGAPRO. Documentos de processos continuam exigindo a
-  // resolução autenticada normal.
-  if (publicLegislation && !readBearer(req)) {
-    return null;
-  }
-
-  let config: MunicipalStorageConnection;
-  try {
-    config = await resolveMunicipalStorageSecret(req, municipalityId);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error || "");
-    // Compatibilidade durante o rollout: antes da migration BYOS existir,
-    // o comportamento histórico permanece no R2 do SIGAPRO.
-    if (
-      /resolve_municipal_storage_secret_v1|schema cache|does not exist|not found/i.test(message) ||
-      (publicLegislation &&
-        /autentica[cç][aã]o necess[aá]ria|jwt|token|servi[cç]o de configura[cç][aã]o indispon[ií]vel/i.test(
-          message,
-        ))
-    ) {
-      return null;
-    }
-    throw error;
-  }
+  // Public legislation stays in the institutional R2 even for BYOS.
+  // Never silently fall back after a failed configured repository lookup.
+  if(publicLegislation)return null;
+  const config=await resolveMunicipalStorageSecret(req,municipalityId);
   if (config.provider !== "s3_compatible" || config.status !== "active") return null;
   if (!config.credentials_ciphertext || !config.bucket_documents || !config.endpoint_url) {
     throw new Error("O armazenamento próprio da Prefeitura está ativo, mas incompleto.");

@@ -1,8 +1,13 @@
+import {exactProviderCents,isProviderId} from "./bank-provider-contract.js";
+import {readBankJson} from "./bank-json-response.js";
+import { isPersistedGuideSettled } from "./guide-settlement.js";
 import { createHash } from "node:crypto";
 import type { ApiReq } from "./municipal-storage.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
-import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
+import { assertBankChargeAttestationReady, assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
+import { buildProductionBoletoPayer, assertProductionBankIssueAllowed } from "./mercadopago-payer.js";
+import {assertIsolatedQaBankRuntime} from "./qa-hosted-bank-guard.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -87,13 +92,14 @@ export async function checkMercadoPagoConnection(
   try {
     const response = await fetch("https://api.mercadopago.com/v1/payment_methods", {
       method: "GET",
+      redirect:"error",cache:"no-store",signal:AbortSignal.timeout(10000),
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
     });
 
-    const payload = await response.json().catch(() => null);
+    const payload = await readBankJson(response).catch(() => null);
 
     if (!response.ok) {
       const message =
@@ -176,6 +182,7 @@ export type MercadoPagoGuideBoletoInput = {
   amount: number;
   dueDate?: string;
   description?: string;
+  payer?: unknown;
 };
 
 export type MercadoPagoGuideBoletoResult = {
@@ -246,6 +253,20 @@ function extractMercadoPagoGuideResult(
       ? (payment.payment_method as Record<string, unknown>)
       : {};
 
+  const expectedCents=exactProviderCents(amountText);
+  const validOrder=isProviderId(source.id)&&source.external_reference===externalReference&&
+    expectedCents!==null&&exactProviderCents(source.total_amount)===expectedCents&&
+    Array.isArray(transactions.payments)&&payments.length<=1;
+  // A processing order may legitimately have no payment yet. Once a payment
+  // appears, its identity, exact amount and method must be confirmed.
+  const validPayment=payments.length===0
+    ? source.status==="processing"
+    : isProviderId(payment.id)&&exactProviderCents(payment.amount)===expectedCents&&
+      paymentMethod.id==="boleto"&&paymentMethod.type==="ticket";
+  if(!validOrder||!validPayment){
+    return {ok:false,environment,errorCode:"PROVIDER_ORDER_CONTRACT_MISMATCH",
+      error:"O retorno bancário não confirmou a referência, o valor ou a modalidade da guia original."};
+  }
   const status = String(source.status || payment.status || "");
   const statusDetail = String(source.status_detail || payment.status_detail || "");
   const paid =
@@ -267,10 +288,10 @@ function extractMercadoPagoGuideResult(
     environment,
     orderId: String(source.id || ""),
     paymentId: String(payment.id || ""),
-    externalReference: String(source.external_reference || externalReference),
+    externalReference: String(source.external_reference),
     status,
     statusDetail,
-    amount: String(source.total_amount || payment.amount || amountText),
+    amount: String(source.total_amount),
     ticketUrl: String(paymentMethod.ticket_url || ""),
     barcodeContent: banking.barcode,
     digitableLine: banking.digitableLine,
@@ -302,13 +323,14 @@ async function refetchMercadoPagoOrder(
     `https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`,
     {
       method: "GET",
+      redirect:"error",cache:"no-store",signal:AbortSignal.timeout(10000),
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
     },
   );
-  const payload = await response.json().catch(() => null);
+  const payload = await readBankJson(response).catch(() => null);
   if (!response.ok) return null;
   return extractMercadoPagoGuideResult(
     payload,
@@ -363,7 +385,12 @@ export async function getMercadoPagoGuideBoletoStatus(
 ): Promise<MercadoPagoGuideBoletoResult> {
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
-    if (stored.status === "compensada") return storedGuideCharge(stored);
+    if (stored.collection_mode_snapshot === "municipal_system" ||
+      (stored.payment_provider && stored.payment_provider !== "mercado_pago") ||
+      (stored.bank_reference && !stored.payment_provider)) {
+      throw new Error("Cobrança bancária sem provedor SIGAPRO confirmado: consulta bloqueada.");
+    }
+    if (isPersistedGuideSettled(stored)) return storedGuideCharge(stored);
     if (!stored.bank_reference || stored.bank_reference !== input.orderId) {
       throw new Error("Cobrança não vinculada à guia original.");
     }
@@ -381,17 +408,23 @@ export async function getMercadoPagoGuideBoletoStatus(
   if (!input.orderId) {
     return { ok: false, environment, error: "Order do Mercado Pago não informado." };
   }
-  const amountText = Number(input.amount || 0).toFixed(2);
+  if(exactProviderCents(input.amount)===null)return {ok:false,environment,error:"Valor original da guia inválido."};
+  const amountText = Number(input.amount).toFixed(2);
   const result = await refetchMercadoPagoOrder(
     input.orderId,
     token,
     environment,
-    normalizeGuideCode(input.guideCode),
+    stored ? stored.guide_number : normalizeGuideCode(input.guideCode),
     amountText,
   );
   if (!result) {
     return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
   }
+  if (!result.ok) return result;
+  if (result.orderId !== input.orderId || (stored?.bank_payment_id && result.paymentId !== stored.bank_payment_id)) {
+    return { ...result, ok: false, error: "Ordem bancária retornada não corresponde à guia original." };
+  }
+  if (!result.ok) return result;
   return stored && req ? persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 }
 /**
@@ -405,12 +438,8 @@ export async function createMercadoPagoGuideBoleto(
   options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideBoletoResult> {
   if (options?.isolatedSandboxOnly) {
-    if (
-      !req ||
-      process.env.SIGAPRO_LOCAL_QA_LAUNCH !== "true" ||
-      process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
-      process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
-    ) throw new Error("Boleto de teste disponível apenas no localhost:8081 isolado.");
+    if(!req)throw new Error("Emissão QA exige sessão autenticada.");
+    assertIsolatedQaBankRuntime();
     const sandboxConnection = await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId);
     if (sandboxConnection.environment !== "test") {
       throw new Error("Conta de produção bloqueada: utilize exclusivamente as credenciais de homologação do Mercado Pago.");
@@ -418,7 +447,12 @@ export async function createMercadoPagoGuideBoleto(
   }
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
-    if (stored.status === "compensada" || (stored.barcode && stored.digitable_line)) {
+    if (stored.collection_mode_snapshot === "municipal_system" ||
+      (stored.payment_provider && stored.payment_provider !== "mercado_pago") ||
+      (stored.bank_reference && !stored.payment_provider)) {
+      throw new Error("Guia vinculada à arrecadação municipal ou sem provedor bancário confirmado.");
+    }
+    if (isPersistedGuideSettled(stored) || (stored.barcode && stored.digitable_line)) {
       return storedGuideCharge(stored);
     }
     if (stored.bank_reference) {
@@ -427,8 +461,15 @@ export async function createMercadoPagoGuideBoleto(
         orderId: stored.bank_reference, amount: Number(stored.amount),
       }, req, options);
     }
+    // The signed Neon bank-charge RPC refuses a guide whose original document
+    // was frozen before binding a bank order. Do not create a provider order
+    // that could never be persisted (or paid off through the webhook).
+    if (stored.document_snapshot != null || stored.original_pdf_key) {
+      throw new Error("Guia com documento original já congelado sem cobrança bancária vinculada. Não será criada uma ordem órfã; encaminhe para conferência financeira.");
+    }
     input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount), dueDate: stored.due_date };
     await assertGuideProviderWriteAccess(req!, stored, options?.isolatedSandboxOnly);
+    if (!options?.isolatedSandboxOnly) assertBankChargeAttestationReady();
   }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
@@ -441,7 +482,7 @@ export async function createMercadoPagoGuideBoleto(
     throw new Error("Somente guia pré-existente do Neon isolado e credencial de TESTE podem emitir boleto de homologação.");
   }
   const token = resolved.token;
-  const guideCode = normalizeGuideCode(input.guideCode);
+  const guideCode = stored ? stored.guide_number : normalizeGuideCode(input.guideCode);
   const amount = Number(input.amount);
 
   if (!token) {
@@ -463,7 +504,7 @@ export async function createMercadoPagoGuideBoleto(
     };
   }
 
-  if (!Number.isFinite(amount) || amount <= 0) {
+  if (exactProviderCents(input.amount)===null) {
     return {
       ok: false,
       environment,
@@ -484,37 +525,25 @@ export async function createMercadoPagoGuideBoleto(
       type: "ticket",
     },
   };
-  // No sandbox do Mercado Pago usamos apenas dados de comprador de teste.
-  // Em produção, a integração deverá usar os dados reais do contribuinte.
-  const payer =
-    environment === "test"
-      ? {
-          email: "test@testuser.com",
-          first_name: "John",
-          last_name: "Doe",
-          identification: {
-            type: "CPF",
-            number: "99999999999",
-          },
-          address: {
-            street_name: "Av. das Nacoes Unidas",
-            street_number: "3003",
-            zip_code: "06233903",
-            neighborhood: "Bonfim",
-            state: "SP",
-            city: "Osasco",
-          },
-        }
-      : undefined;
-
-  if (environment !== "test") {
-    return {
-      ok: false,
-      environment,
-      error:
-        "A cobrança real ainda está bloqueada. Primeiro valide o fluxo completo no ambiente de teste.",
-    };
+  // Never submit a fictional buyer to a production bank order. Live payer
+  // identification comes from the persisted municipal guide. Only address
+  // and email are filled explicitly by the user in the real checkout form.
+  if (environment === "production") {
+    assertProductionBankIssueAllowed(stored || undefined);
+    assertBankChargeAttestationReady();
   }
+  const payer = environment === "test"
+    ? {
+        email: "test@testuser.com",
+        first_name: "John",
+        last_name: "Doe",
+        identification: {type:"CPF",number:"99999999999"},
+        address: {
+          street_name:"Av. das Nacoes Unidas",street_number:"3003",
+          zip_code:"06233903",neighborhood:"Bonfim",state:"SP",city:"Osasco",
+        },
+      }
+    : buildProductionBoletoPayer(stored!,input.payer);
 
   const body: Record<string, unknown> = {
     type: "online",
@@ -524,6 +553,7 @@ export async function createMercadoPagoGuideBoleto(
     description:
       String(input.description || `SIGAPRO - ${guideCode}`).slice(0, 120),
     payer,
+    ...(environment==="production" ? {config:{location:{state_id:"BR-"+payer.address.state}}} : {}),
     transactions: {
       payments: [payment],
     },
@@ -533,6 +563,7 @@ export async function createMercadoPagoGuideBoleto(
   try {
     const response = await fetch("https://api.mercadopago.com/v1/orders", {
       method: "POST",
+      redirect:"error",cache:"no-store",signal:AbortSignal.timeout(15000),
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -542,7 +573,7 @@ export async function createMercadoPagoGuideBoleto(
       body: JSON.stringify(body),
     });
 
-    const payload = await response.json().catch(() => null);
+    const payload = await readBankJson(response).catch(() => null);
     const source =
       payload && typeof payload === "object"
         ? (payload as Record<string, unknown>)
@@ -572,6 +603,9 @@ export async function createMercadoPagoGuideBoleto(
 
     // Persist even an incomplete response: a retry must query this order,
     // never issue another charge because the bank has not supplied the bars yet.
+    if (!result.ok || !result.orderId) {
+      return { ...result, ok:false, errorCode:"PROVIDER_ACCEPTED_UNVERIFIED_ORDER" };
+    }
     let persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 
     if (!hasCompleteGuideBankingData(result) && result.orderId) {
@@ -582,7 +616,7 @@ export async function createMercadoPagoGuideBoleto(
         externalReference,
         amountText,
       );
-      if (refreshed) {
+      if (refreshed?.ok && refreshed.orderId === result.orderId) {
         result = refreshed;
         persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
       }

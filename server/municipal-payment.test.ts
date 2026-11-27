@@ -61,6 +61,11 @@ describe("municipal payment isolation — fail closed", () => {
       .rejects.toThrow("não pertence à Prefeitura");
   });
 
+  it("rejects an active encrypted credential without an explicit municipality",async()=>{
+    rpcMock.mockResolvedValue({ok:true,payload:{provider:"mercado_pago",status:"active",environment:"test",credentials_ciphertext:encryptPaymentAccessToken("TENANT_TOKEN")}});
+    await expect(resolveMercadoPagoMunicipalAccessToken(req,tenant)).rejects.toThrow("não pertence à Prefeitura");
+  });
+
   it("uses ONLY the active, encrypted credential of the correct municipality", async () => {
     rpcMock.mockResolvedValue({
       ok: true,

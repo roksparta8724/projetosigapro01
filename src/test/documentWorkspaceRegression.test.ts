@@ -28,8 +28,10 @@ describe("document workspace continuity", () => {
     expect(html).toContain('var isFullDocumentRoute =');
     expect(html).toContain('initialBackground = isFullDocumentRoute ? "#2b3037"');
     expect(html).not.toContain('data-sigapro-document-preboot="true"');
-    expect(permission).toContain('data-document-route-preboot="silent"');
-    expect(permission).toContain('className="min-h-screen bg-[#2b3037]"');
+    expect(permission).toContain('surface="document"');
+    expect(permission).toContain('title="Preparando o documento oficial"');
+    expect(permission).not.toContain('data-document-route-preboot="silent"');
+    expect(html).toContain('html[data-sigapro-document-route="true"] #sigapro-preboot-recovery');
     expect(permission).not.toContain("<DocumentWorkspaceBoot");
   });
 
@@ -74,7 +76,7 @@ describe("direct PDF workspace opening", () => {
 
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
-    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
+    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
     expect(analysis).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(viewer).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(analysis).toContain('data-document-loading-surface="silent"');
@@ -146,18 +148,26 @@ describe("annotation draft and professional handoff", () => {
     expect(analysis).toContain('"rejeitado"');
   });
 
-  it("opens the document in exactly one dedicated browser tab", () => {
+  it("opens each document in its own browser tab without replacing the process or previous PDFs", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(viewer).not.toContain('target="_blank"');
     expect(viewer).not.toContain("Abrir original");
     expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
-    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
+    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("openedTab.opener = null");
     expect(detail).toContain("openedTab.focus()");
+    expect(detail).not.toContain("documentWorkspaceWindowRef");
+    expect(detail).not.toContain("openedTab.location.replace");
+    expect(detail).not.toContain("Open consultation in the current tab");
+    expect(detail).toContain("O navegador bloqueou a nova guia");
+    expect(detail).toContain('data-document-reopen-shortcut="true"');
+    expect(detail).toContain("!isSignedAnalysisArchiveDocument(selectedDocument)");
+    expect(detail).not.toContain("Aprova??o");
+    expect(detail).not.toContain("dispon?vel");
   });
 });
 
@@ -183,12 +193,15 @@ describe("analyst PDF markup entry", () => {
     const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
-    expect(viewer).toContain("replaceAnalystViewerWithAnalysis");
+    expect(viewer).toContain("openAnalysisWorkspace");
     expect(viewer).toContain("analisar?ferramenta=highlight");
     expect(detail).toContain("openDocumentWorkspace");
     expect(detail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
-    expect(detail).toContain('const query = shouldAnalyze ? "?ferramenta=highlight" : ""');
-    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
+    expect(detail).toContain("const query = shouldAnalyze");
+    expect(detail).toContain('"?ferramenta=highlight"');
+    expect(detail).toContain('"?ferramenta=navigate&painel=ia"');
+    expect(detail).toContain("const route = shouldAnalyze");
+    expect(detail).toContain('window.open(workspaceUrl, "_blank")');
   });
 
   it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {
@@ -250,5 +263,28 @@ describe("precise PDF annotation interaction", () => {
     expect(analysis).toContain('data-analysis-inspector="true"');
     expect(analysis).toContain("grid-cols-[72px_minmax(0,1fr)_420px]");
     expect(css).toContain("DOCUMENT ANALYSIS INSPECTOR: HARD OVERFLOW CONTRACT");
+  });
+});
+
+describe("permanent municipal records with renewable private access", () => {
+  it("renews authorization in both document workspaces without weakening the server limit", () => {
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
+    const editor = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const access = read("src/lib/documentWorkspaceAccess.ts");
+    const server = read("server/r2-object-key-validation.ts");
+    for (const page of [viewer, editor]) {
+      expect(page).toContain("return maintainAuthorizedDocumentAccess");
+      expect(page).toContain("expiresIn: PRIVATE_DOCUMENT_ACCESS_SECONDS");
+      expect(page).toContain("Tentar abrir novamente");
+      expect(page).toContain('setAccessUrl("")');
+    }
+    expect(access).toContain("PRIVATE_DOCUMENT_ACCESS_SECONDS = 900");
+    expect(access).toContain("PRIVATE_DOCUMENT_RENEW_AFTER_MS = 12 * 60_000");
+    expect(access).toContain('removeEventListener("visibilitychange", resume)');
+    expect(server).toContain("privateDocument ? 900 : 3600");
+    expect(viewer).toContain("Visualização segura");
+    expect(viewer).not.toContain("acesso temporário assinado");
+    expect(viewer).toContain('data-document-viewer-reopen="true"');
+    expect(viewer).toContain("IndividualDocumentReview");
   });
 });

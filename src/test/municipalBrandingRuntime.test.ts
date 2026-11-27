@@ -97,7 +97,8 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain('bucket === "institutional-branding"');
     expect(settings).toContain("getMunicipalityLogoOpenUrl(uploaded.path)");
     expect(settings).not.toContain("domínio público dos ativos institucionais não está configurado");
-    expect(settings).toContain("Brasão oficial salvo com sucesso no cadastro desta Prefeitura");
+    expect(settings).toContain("Identidade visual salva com sucesso, sem alterar os documentos jurídicos.");
+    expect(settings).toContain('handleSaveInstitutionalAssets("branding")');
   });
 
   it("never flashes the SIGAPRO platform logo inside a municipal logo frame during F5", () => {

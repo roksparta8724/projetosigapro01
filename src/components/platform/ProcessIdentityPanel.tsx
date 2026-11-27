@@ -1,3 +1,4 @@
+import "./ProcessIdentityPanel.css";
 import { AlertTriangle, Building2, ClipboardCheck, Contact, FileBadge2, MapPinned, UserRound } from "lucide-react";
 import type { ProcessRecord, UserProfile } from "@/lib/platform";
 import { getProcessRegistrationIssues, validateBrazilianTaxId } from "@/lib/processIdentityValidation";
