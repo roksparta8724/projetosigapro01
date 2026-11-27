@@ -47,3 +47,11 @@ it("appends the secretary signature without changing the earlier director signat
  expect(()=>prepareSecondPermitCertificateRevision({...input,directorSignedBytes:altered,expectedDirectorSignedSha256:sha(altered)})).toThrow();
  expect(()=>prepareSecondPermitCertificateRevision({...input,directorCmsDer:Buffer.alloc(33,0x30)})).toThrow();
 });
+
+it("refuses an executable OpenAction while allowing jsPDF's inert initial page view",()=>{
+ const original=fixture(),text=original.toString("latin1");
+ expect(text).toContain("/OpenAction");
+ const modified=Buffer.from(text.replace("/FitH null","/JS  null"),"latin1");
+ expect(modified.length).toBe(original.length);
+ expect(()=>prepareFirstPermitCertificateRevision({originalBytes:modified,expectedOriginalSha256:sha(modified),slot:"diretoria"})).toThrow("PDF_UNSUPPORTED_INCREMENTAL_SOURCE");
+});

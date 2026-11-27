@@ -39,7 +39,13 @@ function readOriginal(source:Buffer):Xref{
 function dictionary(source:string,x:Xref,n:number){
  const offset=x.entries.get(n);if(offset===undefined)return fail();
  const body=new RegExp("^"+n+" 0 obj\\s*(<<[\\s\\S]*?>>)\\s*endobj\\b").exec(source.slice(offset,Math.min(offset+65536,x.offset)))?.[1];
- if(!body||/\bstream\b/.test(body)||/\/(?:Encrypt|JavaScript|JS|OpenAction|AA|Launch|RichMedia|XFA|Perms)\b/.test(body))return fail();
+ if(!body||/\bstream\b/.test(body))return fail();
+ // jsPDF emits a direct, inert page-view destination in its Catalog.
+ // Preserve only this narrowly recognized navigation form. Never accept
+ // action dictionaries, named destinations or arbitrary OpenAction objects.
+ const navigation=/\/OpenAction\s*\[\s*(\d+)\s+0\s+R\s*\/(?:FitH\s+null|Fit|XYZ\s+null\s+null\s+null)\s*\]/g;
+ const normalized=body.replace(navigation,(_match,pageRef:string)=>x.entries.has(Number(pageRef))?"":" /OpenAction ");
+ if(/\/(?:Encrypt|JavaScript|JS|OpenAction|AA|Launch|RichMedia|XFA|Perms)\b/.test(normalized))return fail();
  return body;
 }
 function appendDict(body:string,extra:string){return body.slice(0,-2)+" "+extra+" >>";}
