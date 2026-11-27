@@ -146,12 +146,18 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   if (/\/processos\/[^/]+\/documentos\/[^/]+\/visualizar$/.test(pathname)) return import("@/pages/saas/DocumentViewerPage");
   if (/\/processos\/[^/]+\/documentos\/[^/]+\/analisar$/.test(pathname)) return import("@/pages/saas/DocumentAnalysisPage");
   if (pathname.startsWith("/processos/")) return import("@/pages/saas/ProcessDetailPage");
+  if (pathname === "/externo/controle/em-andamento" || pathname === "/externo/controle/rascunhos") return import("@/pages/saas/ExternalDraftsPage");
   if (pathname.startsWith("/externo/controle")) return import("@/pages/saas/ExternalProcessControlPage");
-  if (pathname.startsWith("/externo/rascunhos")) return import("@/pages/saas/ExternalDraftsPage");
+  if (pathname === "/externo/protocolar" || pathname === "/externo/habite-se") return import("@/pages/saas/ProtocolarProjetoPage");
   if (pathname.startsWith("/externo/pagamentos")) return import("@/pages/saas/ExternalPaymentsPage");
   if (pathname.startsWith("/externo/historico")) return import("@/pages/saas/ExternalHistoryPage");
   if (pathname.startsWith("/externo/mensagens")) return import("@/pages/saas/ExternalMessagesPage");
   if (pathname.startsWith("/externo")) return import("@/pages/saas/ExternalPortalPage");
+  if (pathname === "/proprietario") return import("@/pages/saas/OwnerPortalPage");
+  if (pathname === "/assistente-ia") return import("@/pages/saas/AiAssistantPage");
+  if (pathname === "/legislacao/zoneamento") return import("@/pages/saas/ZoningPage");
+  if (pathname === "/legislacao") return import("@/pages/saas/LegislationPage");
+  if (pathname === "/cadastro-gestao/legislacao" || pathname === "/legislacao/gestao") return import("@/pages/saas/ConfiguracoesPage");
   if (pathname.startsWith("/configuracoes")) return import("@/pages/saas/ConfiguracoesPage");
   if (pathname.startsWith("/perfil")) return import("@/pages/saas/PerfilPage");
   if (pathname.startsWith("/notificacoes")) return import("@/pages/saas/NotificationsPage");
@@ -170,7 +176,7 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
  */
 function isWorkspaceBootPath(pathname: string): boolean {
   if (/\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname)) return false;
-  return /^\/(dashboard(?:\/|$)|prefeitura(?:\/|$)|master(?:\/|$)|processos(?:\/|$)|externo(?:\/|$)|proprietario(?:\/|$)|perfil(?:\/|$)|configuracoes(?:\/|$)|notificacoes(?:\/|$)|historico(?:\/|$)|buscar(?:\/|$)|legislacoes(?:\/|$)|zoneamento(?:\/|$))/.test(pathname);
+  return /^\/(dashboard(?:\/|$)|prefeitura(?:\/|$)|master(?:\/|$)|processos(?:\/|$)|externo(?:\/|$)|proprietario(?:\/|$)|perfil(?:\/|$)|configuracoes(?:\/|$)|notificacoes(?:\/|$)|historico(?:\/|$)|buscar(?:\/|$)|legislacoes(?:\/|$)|zoneamento(?:\/|$)|legislacao(?:\/|$)|cadastro-gestao(?:\/|$)|assistente-ia(?:\/|$))/.test(pathname);
 }
 
 if (typeof window !== "undefined") {
@@ -182,7 +188,7 @@ if (typeof window !== "undefined") {
     void import("@/components/platform/PortalFrame").catch(() => undefined);
     void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);
   } else {
-    void preloadCurrentPublicRoute(initialPath)?.catch(() => undefined);
+    void (preloadCurrentPublicRoute(initialPath) ?? preloadCurrentInternalRoute(initialPath))?.catch(() => undefined);
   }
 }
 

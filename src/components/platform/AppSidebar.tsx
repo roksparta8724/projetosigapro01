@@ -373,14 +373,19 @@ export function AppSidebar({
       node.scrollTop = nextScrollTop;
       pendingScrollRestoreRef.current = null;
     }
-    if (!pendingNearestRevealRef.current || !activeItemNodeRef.current) return;
+    if (!pendingNearestRevealRef.current) return;
+    // Desktop and mobile both exist in the DOM. Resolve the selected element
+    // from the visible scroll container, never from the hidden duplicate.
+    const selected = node.querySelector<HTMLElement>('[aria-current="page"]') ?? node.querySelector<HTMLElement>('[data-sidebar-active="true"]');
+    if (!selected) return;
     pendingNearestRevealRef.current = false;
-    const activeRect = activeItemNodeRef.current.getBoundingClientRect();
+    const activeRect = selected.getBoundingClientRect();
     const containerRect = node.getBoundingClientRect();
     const isAbove = activeRect.top < containerRect.top;
     const isBelow = activeRect.bottom > containerRect.bottom;
     if (isAbove || isBelow) {
-      activeItemNodeRef.current.scrollIntoView({ block: "nearest", inline: "nearest" });
+      // Move only the sidebar, not the main document or institutional chrome.
+      node.scrollTop += isAbove ? activeRect.top-containerRect.top : activeRect.bottom-containerRect.bottom;
     }
   }, [activeScrollContainerRef]);
 
@@ -464,7 +469,7 @@ export function AppSidebar({
           <SidebarInner
             pathname={pathname}
             groups={groups}
-          activeDepartment={activeDepartment}
+            activeDepartment={activeDepartment}
             expanded
             darkSurface={darkSurface}
             onNavigate={handleNavigate}
