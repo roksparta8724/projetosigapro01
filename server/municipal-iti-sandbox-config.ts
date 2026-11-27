@@ -1,5 +1,5 @@
 import {createCipheriv,createDecipheriv,createHmac,randomBytes} from "node:crypto";
-import {callDataApiRpc,readBearer,readEnv,type ApiReq} from "./municipal-storage.js";
+import {callDataApiRpc,readBearer,type ApiReq} from "./municipal-storage.js";
 import {currentQaPreview} from "./qa-runtime-scope.js";
 import {archiveConfig} from "./certified-icp-candidate-archive.js";
 import type {ItiSandboxConfig} from "./iti-signature-sandbox.js";
@@ -42,14 +42,23 @@ async function command(req:ApiReq,city:string,action:"get"|"save"|"resolve",body
  if(!result.ok||!result.payload||typeof result.payload.configured!=="boolean")throw Error("ITI_CONFIGURATION_NOT_CONFIRMED");
  return result.payload;
 }
+/** The registered callback belongs to the deployment configuration, not to a
+ * transient preview hostname or a value supplied by the browser. */
+export function registeredItiCallback(env:Env=process.env):string|null{
+ try{
+  const raw=env.SIGAPRO_QA_ICP_REDIRECT_URI||"",url=new URL(raw);
+  if(url.protocol!=="https:"||url.pathname!=="/api/certified-icp-sandbox"||url.username||url.password||url.port||url.search||url.hash||url.href!==raw)return null;
+  return url.href;
+ }catch{return null;}
+}
 export function publicItiConfigStatus(row:ConfigRow,env:Env=process.env){
  let archiveReady=false;try{archiveConfig(env);archiveReady=true;}catch{/* not configured */}
- return {configured:row.configured,updatedAt:row.updatedAt||null,environment:"sandbox",archiveConfigured:archiveReady,trustConfigured:Boolean(env.SIGAPRO_QA_ICP_ROOTS_PEM&&env.SIGAPRO_QA_ICP_ROOTS_SHA256&&env.SIGAPRO_QA_ICP_CRLS_PEM),runtimeEnabled:env.SIGAPRO_QA_ICP_HTTP_ENABLED==="true",issuanceAuthorized:false};
+ return {configured:row.configured,updatedAt:row.updatedAt||null,environment:"sandbox",registeredCallback:registeredItiCallback(env),archiveConfigured:archiveReady,trustConfigured:Boolean(env.SIGAPRO_QA_ICP_ROOTS_PEM&&env.SIGAPRO_QA_ICP_ROOTS_SHA256&&env.SIGAPRO_QA_ICP_CRLS_PEM),runtimeEnabled:env.SIGAPRO_QA_ICP_HTTP_ENABLED==="true",issuanceAuthorized:false};
 }
 export async function getItiConfigStatus(req:ApiReq,city:string){return publicItiConfigStatus(await command(req,city,"get",{}));}
 export async function saveItiConfig(req:ApiReq,config:ItiSandboxConfig){
  // exact registered callback remains an infrastructure-level restriction
- if(config.redirectUri!==readEnv("SIGAPRO_QA_ICP_REDIRECT_URI"))throw Error("ITI_REDIRECT_NOT_REGISTERED");
+ if(config.redirectUri!==registeredItiCallback())throw Error("ITI_REDIRECT_NOT_REGISTERED");
  const row=await command(req,config.municipalityId,"save",{ciphertext:encryptItiCredentials(config)});
  if(!row.configured)throw Error("ITI_CONFIGURATION_NOT_CONFIRMED");
  return publicItiConfigStatus(row);
