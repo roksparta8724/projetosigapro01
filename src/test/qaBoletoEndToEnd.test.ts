@@ -63,7 +63,7 @@ beforeEach(() => {
         financial_institution: "Banco de testes",
       },
     }] },
-  }), {status:201})));
+  }), {status:201,headers:{"Content-Type":"application/json"}})));
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
