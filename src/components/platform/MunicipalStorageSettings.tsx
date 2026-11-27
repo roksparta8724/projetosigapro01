@@ -147,7 +147,7 @@ export function MunicipalStorageSettings({
       setConnection(next);
       setForm((current) => ({ ...current, accessKeyId: "", secretAccessKey: "" }));
       setMessage(
-        "Conexão salva. Os documentos continuam no SIGAPRO Nuvem até o teste e a ativação do armazenamento municipal.",
+        "Conexão salva. O repositório permanece inalterado até a validação e ativação.",
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao salvar a conexão.");
@@ -258,7 +258,7 @@ export function MunicipalStorageSettings({
               <ShieldCheck className="h-5 w-5 text-slate-700" />
               <p className="mt-3 text-sm font-semibold text-slate-900">Credenciais protegidas</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                As chaves não são devolvidas ao navegador e ficam cifradas no backend.
+                As chaves ficam cifradas e vinculadas à Prefeitura e ao endpoint. O servidor não as devolve ao navegador.
               </p>
             </div>
           </div>
@@ -308,7 +308,7 @@ export function MunicipalStorageSettings({
               Conectar armazenamento S3 compatível
             </h3>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
-              Conecte o armazenamento da Prefeitura por meio do padrão S3 compatível. A conexão pode ser preparada e testada antes da ativação, sem mover documentos existentes.
+              Configure Cloudflare R2 ou AWS S3. A ativação é permitida antes do primeiro processo. Para um município com acervo existente, a troca depende de migração verificada dos arquivos. As legislações públicas permanecem no repositório institucional.
             </p>
           </div>
           <KeyRound className="h-5 w-5 text-slate-400" />
@@ -320,7 +320,7 @@ export function MunicipalStorageSettings({
             <Input
               value={form.endpointUrl}
               onChange={(event) => setForm((current) => ({ ...current, endpointUrl: event.target.value }))}
-              placeholder="https://storage.prefeitura.gov.br"
+              placeholder="https://<conta>.r2.cloudflarestorage.com"
             />
           </div>
           <div className="space-y-2">
