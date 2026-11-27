@@ -35,3 +35,25 @@ export function normalizeOfficialBanking(barcode?: string | null, line?: string 
   }
   return { barcode: expected, digitableLine };
 }
+
+/** Encode the bank's existing 44 digits as Interleaved 2 of 5, with quiet zones.
+ * This is only a rendering operation: it does not create a bank charge. */
+export function encodeBankBarcodeI25(value: string) {
+  if (!/^\d{44}$/.test(value)) return null;
+  const patterns = ["nnwwn", "wnnnw", "nwnnw", "wwnnn", "nnwnw",
+    "wnwnn", "nwwnn", "nnnww", "wnnwn", "nwnwn"];
+  const quiet = 10;
+  let x = quiet;
+  const bars: { x: number; width: number }[] = [];
+  const bar = (width: number) => { bars.push({ x, width }); x += width; };
+  const space = (width: number) => { x += width; };
+  const unit = (token: string) => token === "w" ? 3 : 1;
+  bar(1); space(1); bar(1); space(1);
+  for (let i = 0; i < value.length; i += 2) {
+    const black = patterns[Number(value[i])];
+    const white = patterns[Number(value[i + 1])];
+    for (let j = 0; j < 5; j++) { bar(unit(black[j])); space(unit(white[j])); }
+  }
+  bar(3); space(1); bar(1);
+  return { bars, totalWidth: x + quiet };
+}

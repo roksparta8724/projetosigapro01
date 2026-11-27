@@ -14,6 +14,11 @@ import {
   testMercadoPagoToken,
 } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
+import handleQaMpWebhook from "../server/mp-qa-webhook.js";
+import {assertIsolatedQaBankRuntime} from "../server/qa-hosted-bank-guard.js";
+import {qaMercadoPagoPix} from "../server/qa-mercadopago-pix.js";
+import { assertMunicipalCredentialSave, assertMunicipalCredentialActivation } from "../server/municipal-payment-credential-validation.js";
+import { assertProductionMunicipalSetupRuntime, assertProductionMunicipalActivationRuntime, municipalPaymentSetupProof } from "../server/municipal-payment-setup-proof.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
@@ -69,6 +74,50 @@ export default async function handler(req: Req, res: Res) {
   const requestUrl = new URL(req.url || "/api/mercadopago", "https://sigapro.local");
   const action = requestUrl.searchParams.get("action") || "health";
 
+  // Reuse the existing Mercado Pago serverless function: the Vercel Hobby
+  // project has a 12-function limit. The QA callback retains its own
+  // fail-closed Preview/branch/role/HMAC gate in the isolated handler.
+  if (action === "qa-webhook") {
+    return handleQaMpWebhook(req, res);
+  }
+
+  if (action === "qa-pix") {
+    if(req.method!=="POST")return json(res,405,{ok:false,sandboxOnly:true,error:"Método não permitido."});
+    try{
+      assertIsolatedQaBankRuntime();
+      const body=await readJsonBody(req);
+      if(body.action!=="get"&&body.action!=="issue")
+        return json(res,400,{ok:false,sandboxOnly:true,error:"Ação PIX QA inválida."});
+      const result=await qaMercadoPagoPix(req,{
+        municipalityId:String(body.municipalityId||""),
+        guideCode:String(body.guideCode||""),
+        action:body.action,
+      });
+      return json(res,result.ok?200:422,result);
+    }catch(error){
+      return json(res,403,{ok:false,sandboxOnly:true,
+        error:error instanceof Error?error.message:"PIX de homologação não autorizado."});
+    }
+  }
+
+  if (action === "qa-boleto") {
+    if (req.method!=="POST") return json(res,405,{ok:false,sandboxOnly:true,error:"Método não permitido."});
+    try {
+      assertIsolatedQaBankRuntime();
+      const body=await readJsonBody(req);
+      const result=await createMercadoPagoGuideBoleto({
+        municipalityId:body.municipalityId?String(body.municipalityId):undefined,
+        guideCode:String(body.guideCode||""),
+        amount:Number(body.amount||0),
+        description:"SIGAPRO — boleto de HOMOLOGAÇÃO, NÃO PAGAR",
+      },req,{isolatedSandboxOnly:true});
+      return json(res,result.ok?200:422,{...result,sandboxOnly:true});
+    }catch(error){
+      return json(res,403,{ok:false,sandboxOnly:true,
+        error:error instanceof Error?error.message:"Emissão de boleto QA não autorizada."});
+    }
+  }
+
   if (action === "health") {
     if (req.method !== "GET") {
       json(res, 405, { ok: false, error: "Método não permitido." });
@@ -100,22 +149,9 @@ export default async function handler(req: Req, res: Res) {
         req,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
-
+      // The provider helper has already validated and persisted this charge
+      // through the municipality-scoped signed v2 RPC. A second legacy v1
+      // write is unscoped, lacks bank attestation, and is forbidden in Neon.
       json(res, result.ok ? 200 : 400, result);
     } catch (error) {
       json(res, 400, {
@@ -143,7 +179,9 @@ export default async function handler(req: Req, res: Res) {
           "get_municipal_payment_connection_v1",
           { _municipality_id: municipalityId },
         );
-        json(res, 200, connection || {});
+        let productionRuntimeReady=false;
+        try { assertProductionMunicipalActivationRuntime(); productionRuntimeReady=true; } catch { /* readiness only; no credentials exposed */ }
+        json(res, 200, {...(connection || {}),productionRuntimeReady});
         return;
       }
 
@@ -152,13 +190,16 @@ export default async function handler(req: Req, res: Res) {
         const environment = String(body.environment || "test").trim();
         const accessToken = String(body.accessToken || "").trim();
         const webhookSecret = String(body.webhookSecret || "").trim();
-
-        if (!["mercado_pago", "bank_direct", "manual"].includes(provider)) {
-          throw new Error("Provedor de pagamento inválido.");
-        }
-        if (!["test", "production"].includes(environment)) {
-          throw new Error("Ambiente de pagamento inválido.");
-        }
+        if ((body.accessToken != null && typeof body.accessToken !== "string") ||
+            (body.webhookSecret != null && typeof body.webhookSecret !== "string"))
+          throw new Error("Credenciais inválidas: informe texto nos campos protegidos.");
+        // Read the scoped public status first; no secret is returned to the browser.
+        const saved = await rpcOrThrow<MunicipalPaymentConnection>(
+          req, "get_municipal_payment_connection_v1",
+          { _municipality_id: municipalityId },
+        );
+        assertMunicipalCredentialSave({provider,environment,accessToken,webhookSecret},saved);
+        if(environment==="production" && provider==="mercado_pago") assertProductionMunicipalSetupRuntime();
 
         let accessCiphertext: string | null = null;
         let accessFingerprint: string | null = null;
@@ -200,55 +241,51 @@ export default async function handler(req: Req, res: Res) {
           throw new Error("Salve o Access Token da Prefeitura antes de testar.");
         }
 
+        if(secretConfig.environment==="production") assertProductionMunicipalSetupRuntime();
+        let result: Awaited<ReturnType<typeof testMercadoPagoToken>>;
         try {
-          const result = await testMercadoPagoToken(
-            decryptPaymentAccessToken(secretConfig.credentials_ciphertext),
-          );
-          const connection = await rpcOrThrow<MunicipalPaymentConnection>(
-            req,
-            "mark_municipal_payment_test_v1",
-            {
-              _municipality_id: municipalityId,
-              _ok: true,
-              _message: `Conexão Mercado Pago validada. Boleto: ${result.boletoAvailable ? "sim" : "não"} · PIX: ${result.pixAvailable ? "sim" : "não"}.`,
-            },
-          );
-          json(res, 200, {
-            ...(connection || {}),
-            testOk: true,
-            boletoAvailable: result.boletoAvailable,
-            pixAvailable: result.pixAvailable,
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Falha no teste do provedor.";
-          await rpcOrThrow<MunicipalPaymentConnection>(
-            req,
-            "mark_municipal_payment_test_v1",
-            {
-              _municipality_id: municipalityId,
-              _ok: false,
-              _message: message,
-            },
-          ).catch(() => null);
-          json(res, 400, { error: message, testOk: false });
+          result = await testMercadoPagoToken(decryptPaymentAccessToken(secretConfig.credentials_ciphertext));
+        } catch {
+          await rpcOrThrow<MunicipalPaymentConnection>(req,"mark_municipal_payment_test_v2",
+            municipalPaymentSetupProof(secretConfig,municipalityId,"test",false,false,false)).catch(()=>null);
+          json(res,422,{error:"O provedor não confirmou a credencial ou os meios de pagamento. Confira a conta e tente novamente.",testOk:false});
+          return;
         }
+        // Persist only the response for the exact encrypted credentials that were tested.
+        // Concurrent edits fail closed; a late response never validates a replacement token.
+        const connection = await rpcOrThrow<MunicipalPaymentConnection>(req,"mark_municipal_payment_test_v2",
+          municipalPaymentSetupProof(secretConfig,municipalityId,"test",true,result.boletoAvailable,result.pixAvailable));
+        if(connection?.municipality_id!==municipalityId || connection.last_test_status!=="ok")
+          throw new Error("O banco não confirmou o teste da configuração atual.");
+        json(res,200,{...connection,testOk:true,boletoAvailable:result.boletoAvailable,pixAvailable:result.pixAvailable});
         return;
       }
 
       if (subaction === "activate") {
-        const connection = await rpcOrThrow<MunicipalPaymentConnection>(
-          req,
-          "activate_municipal_payment_connection_v1",
+        const prior = await rpcOrThrow<MunicipalPaymentConnection>(
+          req, "get_municipal_payment_connection_v1",
           { _municipality_id: municipalityId },
         );
-        json(res, 200, connection || {});
+        assertMunicipalCredentialActivation(prior);
+        let connection: MunicipalPaymentConnection | null;
+        if(prior?.provider==="mercado_pago" && prior.environment==="production"){
+          assertProductionMunicipalActivationRuntime();
+          const exact=await getMunicipalPaymentSecretAdmin(req,municipalityId);
+          connection=await rpcOrThrow<MunicipalPaymentConnection>(req,"activate_municipal_payment_connection_v2",
+            municipalPaymentSetupProof(exact,municipalityId,"activate",true,false,false));
+        }else{
+          connection=await rpcOrThrow<MunicipalPaymentConnection>(req,"activate_municipal_payment_connection_v1",{_municipality_id:municipalityId});
+        }
+        if(connection?.municipality_id!==municipalityId || connection.status!=="active")
+          throw new Error("O banco não confirmou a ativação da Prefeitura.");
+        json(res,200,connection);
         return;
       }
 
       json(res, 400, { error: "Ação de pagamento inválida." });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Falha ao configurar pagamentos.";
-      console.error("[SIGAPRO][MunicipalPayment] configuração", { error: message });
+      console.warn("[SIGAPRO][MunicipalPayment] configuração não confirmada");
       json(res, 400, { error: message });
     }
     return;
@@ -270,26 +307,16 @@ export default async function handler(req: Req, res: Res) {
           amount: Number(body.amount || 0),
           dueDate: body.dueDate ? String(body.dueDate) : undefined,
           description: body.description ? String(body.description) : undefined,
+          // Treated as untrusted until the backend binds CPF/CNPJ and name
+          // to the canonical Neon guide, then validates email + address.
+          payer: body.payer,
         },
         req,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
-
+      // The provider helper has already validated and persisted this charge
+      // through the municipality-scoped signed v2 RPC. A second legacy v1
+      // write is unscoped, lacks bank attestation, and is forbidden in Neon.
       json(res, result.ok ? 201 : 400, result);
     } catch (error) {
       json(res, 400, {

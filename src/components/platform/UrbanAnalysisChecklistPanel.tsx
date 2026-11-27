@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { readOfficialAnalysisSheet, writeOfficialAnalysisSheet } from "@/integrations/backend/analysisSheetClient";
+import { isSignedAnalysisArchiveDocument, signedAnalysisArchiveLabel } from "@/lib/signedAnalysisArchive";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -552,7 +553,6 @@ export function UrbanAnalysisChecklistPanel({
     void readOfficialAnalysisSheet(process.id)
       .then((sheet) => {
         if (!active) return;
-        setOfficialRevision(sheet.revision);
         if (sheet.found && sheet.payload) {
           if (!checklistPayloadMatchesProcess(sheet.payload, process.id, municipalityId)) {
             throw new Error("A ficha retornada não corresponde a este processo e município.");
@@ -569,6 +569,8 @@ export function UrbanAnalysisChecklistPanel({
             return restored;
           });
         }
+        // Unlock official actions only after the response belongs to this municipality.
+        setOfficialRevision(sheet.revision);
       })
       .catch((error) => {
         if (!active) return;
@@ -777,6 +779,8 @@ export function UrbanAnalysisChecklistPanel({
 
   const canSignTechnical =
     !readOnly &&
+    !officialSheetLoading &&
+    officialRevision !== null &&
     ["master_admin", "master_ops", "analista", "analyst"].includes(session.role);
   const isDirectorProfile =
     /diretor|diretora|director/i.test(session.role || "") ||
@@ -799,6 +803,8 @@ export function UrbanAnalysisChecklistPanel({
     directorRequest.request?.status === "pending";
   const canRequestDirector =
     !readOnly &&
+    !officialSheetLoading &&
+    officialRevision !== null &&
     technicalOfficial &&
     ["master_admin", "master_ops", "analista", "analyst"].includes(session.role);
   const isFullySigned = technicalOfficial && directorOfficial;
@@ -874,6 +880,12 @@ export function UrbanAnalysisChecklistPanel({
   const openSignatureConfirmation = (
     kind: "technical" | "director",
   ) => {
+    // Browser drafts must never be signed as official while the authoritative
+    // municipal sheet cannot be verified in the database.
+    if (officialSheetLoading || officialRevision === null) {
+      setNotice("A ficha oficial ainda não foi carregada e validada no banco. Assinatura bloqueada até confirmar a leitura.");
+      return;
+    }
     if (kind === "technical") {
       if (!canSignTechnical) {
         setNotice("Este perfil não possui atribuição para assinar a análise técnica.");
@@ -912,6 +924,12 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const confirmElectronicSignature = async () => {
+    // Recheck at click time: process/municipality might have changed since
+    // the confirmation modal was opened.
+    if (officialSheetLoading || officialRevision === null) {
+      setSignatureError({ message: "Leitura oficial indisponível. Não é permitido assinar um rascunho local." });
+      return;
+    }
     if (!signatureDialog || !signaturePassword) {
       setSignatureError({ message: "Informe sua senha de acesso." });
       return;
@@ -927,6 +945,18 @@ export function UrbanAnalysisChecklistPanel({
     setSignatureError(null);
 
     try {
+      // The signed evidence must exactly match the latest persisted municipal
+      // sheet, not just whatever remains in this browser's draft state.
+      const confirmedSheet = await readOfficialAnalysisSheet(process.id);
+      if (!confirmedSheet.found || !confirmedSheet.payload ||
+          confirmedSheet.revision !== officialRevision ||
+          !checklistPayloadMatchesProcess(confirmedSheet.payload, process.id, municipalityId) ||
+          stableSignatureStringify(confirmedSheet.payload) !== stableSignatureStringify(payload)) {
+        throw new ArtifactSignatureError(
+          "A ficha atual não corresponde à revisão salva no banco. Salve a análise, confirme a revisão e tente assinar novamente.",
+          { stage: "verification", code: "OFFICIAL_SHEET_NOT_SAVED" },
+        );
+      }
       try {
         await signProcessArtifactWithPassword({
           processId: process.id,
@@ -2080,17 +2110,27 @@ export function UrbanAnalysisChecklistPanel({
         if (!verified.block || !verifiedTechnical ||
             stableSignatureStringify(verified.block.payload ?? {}) !==
               stableSignatureStringify(buildChecklistSignaturePayload(state, process, municipalityId)) ||
-            (directorOfficial && !verifiedDirector)) {
+            (directorOfficial && !verifiedDirector) ||
+            !verified.block.verification_code ||
+            !verified.block.artifact_hash) {
           throw new Error("PDF nao corresponde a versao assinada no banco. Anexo nao realizado.");
         }
         const signedStage = verifiedDirector ? "diretoria" : "analista";
         const signedVersion = Math.max(1, Number(verified.block.artifact_version) || 1);
-        const sigCode = String(verified.block.verification_code || verified.block.artifact_hash || "assinatura")
-          .replace(/[^a-zA-Z0-9_-]/g, "").slice(0,48);
+        const verifiedCode = verified.block.verification_code.trim();
+        const sigCode = verifiedCode.replace(/[^a-zA-Z0-9_-]/g, "").slice(0,48);
+        if (!sigCode) throw new Error("Código de assinatura bancado pelo servidor inválido. PDF não arquivado.");
         const safeProtocol = formatOfficialProcessNumber(process.protocol)
           .replace(/[^a-zA-Z0-9_-]/g, "-");
         const officialName = "Ficha-Tecnica-Assinada-" + safeProtocol + "-v" + signedVersion + "-" + signedStage + "-" + sigCode + ".pdf";
         const alreadyRecorded = process.documents.some((entry) => entry.fileName === officialName);
+        if (alreadyRecorded && !process.documents.some((entry) =>
+          entry.fileName === officialName &&
+          isSignedAnalysisArchiveDocument(entry) &&
+          Boolean(entry.fileHash?.trim())
+        )) {
+          throw new Error("Registro anterior do PDF assinado está incompleto. Arquivamento não confirmado.");
+        }
         if (!alreadyRecorded) {
           // O armazenamento municipal gera o caminho isolado pelo ID da prefeitura.
           const officialFile = new File([pdfBlob], officialName, { type: "application/pdf" });
@@ -2106,7 +2146,7 @@ export function UrbanAnalysisChecklistPanel({
           const objectKey = storedFile.path;
           await appendProcessDocuments(process.id, [{
             id: "signed-checklist-" + sigCode + "-" + signedStage,
-            label: signedStage === "diretoria" ? "Ficha Técnica - assinada pelo Analista e Diretoria" : "Ficha Técnica - assinada pelo Analista",
+            label: signedAnalysisArchiveLabel(signedVersion, verifiedCode),
             required: false,
             uploaded: true,
             signed: true,

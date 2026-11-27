@@ -26,7 +26,8 @@ describe("SIGAPRO continuidade premium por subdominio", () => {
 
     expect(portal).toContain('data-sig-footer-grid="true"');
     expect(portal).toContain('whitespace-normal break-words');
-    expect(analyst).toContain('data-analysis-queue-guide="true"');
+    expect(analyst).toContain('data-analysis-process-panel="true"');
+    expect(analyst).toContain('data-analysis-team-disclosure="true"');
     expect(analyst).not.toContain('Atualizar agora');
     expect(css).toContain('SIGAPRO TENANT CONTRAST + FOOTER V3');
   });

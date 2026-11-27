@@ -1,0 +1,66 @@
+name: SIGAPRO - Patch Critico Better Auth (QA)
+on:
+  push:
+    branches:
+      - workbench/sigapro-consolidacao-p3-no-deploy-20261029
+    paths:
+      - .github/workflows/sigapro-better-auth-security.yml
+permissions:
+  contents: write
+jobs:
+  patch-critical:
+    if: github.ref == 'refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Patch Better Auth 1.7.6 in one tested candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The Neon SDK currently pins vulnerable better-auth 1.7.6.
+          # Use the patched 1.7.x version only on the isolated QA branch.
+          npm pkg set 'overrides.better-auth=1.7.14'
+          npm install --package-lock-only --legacy-peer-deps --no-fund --no-audit
+          npm ci --legacy-peer-deps --no-fund --no-audit
+          npm run typecheck
+          npm test
+          npm run build
+          npm audit --omit=dev --json > "$RUNNER_TEMP/runtime-security.json" || true
+          npm audit --json > "$RUNNER_TEMP/all-security.json" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const base=process.env.RUNNER_TEMP+'/';
+          const all=JSON.parse(fs.readFileSync(base+'all-security.json','utf8'));
+          const runtime=JSON.parse(fs.readFileSync(base+'runtime-security.json','utf8'));
+          const stats={runtime:runtime.metadata?.vulnerabilities||{},complete:all.metadata?.vulnerabilities||{}};
+          const important=Object.entries(all.vulnerabilities||{})
+           .filter(([,v])=>v.severity==='high'||v.severity==='critical')
+           .map(([name,v])=>({name,severity:v.severity,fixAvailable:v.fixAvailable}));
+          console.log('SIGAPRO_CRITICAL_PATCH_AUDIT '+JSON.stringify(stats));
+          console.log('SIGAPRO_CRITICAL_PATCH_REMAINING '+JSON.stringify(important));
+          fs.mkdirSync('docs',{recursive:true});
+          fs.writeFileSync('docs/SIGAPRO_DEPENDENCY_SECURITY_REMEDIATION.md',[
+            '# SIGAPRO - Security patch validation',
+            '',
+            'Neon SDK, Vitest, Vite and Better Auth override validated in isolated QA.',
+            'Full CI tests and production build passed in this job.',
+            'Audit runtime: '+JSON.stringify(stats.runtime),
+            'Audit all: '+JSON.stringify(stats.complete),
+            '',
+            'High/critical advisories remaining:',
+            ...important.map(v=>'- '+JSON.stringify(v)),
+            '',
+            'Release NOT authorized until any remaining critical risk is evaluated,',
+            'and authenticated multi-tenant, signatures and real bank workflows are verified.',
+          ].join('\n'));
+          NODE
+          git config user.name "sigapro-security-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json docs/SIGAPRO_DEPENDENCY_SECURITY_REMEDIATION.md
+          git commit -m "security(deps): patch Better Auth critical advisory [skip ci]"
+          git push origin HEAD:refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029

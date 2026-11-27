@@ -46,7 +46,7 @@ type PremiumIconComponent = ComponentType<PremiumIconProps>;
 
 function createFilledIcon(Icon: ComponentType<IconProps>): PremiumIconComponent {
   return function FilledIcon({ className, ...props }) {
-    return <Icon weight="fill" className={className} {...props} />;
+    return <Icon weight="fill" className={className} {...props} data-sigapro-icon-paint="filled" />;
   };
 }
 

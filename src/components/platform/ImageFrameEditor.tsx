@@ -507,12 +507,13 @@ export function ImageFrameEditor({
             style={
               shape === "circle"
                 ? {
+                    touchAction: "none",
                     width: "min(360px, 100%)",
                     height: "auto",
                     aspectRatio: "1 / 1",
                     flex: "0 0 auto",
                   }
-                : undefined
+                : { touchAction: "none" }
             }
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}

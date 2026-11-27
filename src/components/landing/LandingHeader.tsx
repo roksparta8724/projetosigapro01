@@ -78,11 +78,14 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
 
           <div className="hidden items-center gap-3 xl:flex">
             <Button
+              type="button"
               variant="outline"
-              className="h-12 rounded-full border-white/15 bg-white/8 px-5.5 text-sm font-semibold text-white hover:bg-white/14"
+              data-landing-demo-trigger="desktop"
+              aria-haspopup="dialog"
+              className="h-12 rounded-full border-[#8cd9ef] bg-[#d9f4ff] px-5.5 text-sm font-bold text-[#103e5c] shadow-[0_5px_16px_rgba(0,0,0,0.1)] hover:border-white hover:bg-white hover:text-[#103e5c] focus-visible:ring-2 focus-visible:ring-[#9feaff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#17344f]"
               onClick={onOpenDemo}
             >
-              Solicitar demonstracao
+              Solicitar demonstração
             </Button>
             <Button asChild data-landing-header-access="true" className="h-12 rounded-full bg-white px-5.5 text-sm font-semibold text-slate-950 hover:bg-slate-100">
               <Link to="/acesso">Acessar sistema</Link>
@@ -125,13 +128,15 @@ export function LandingHeader({ navItems, onOpenDemo }: LandingHeaderProps) {
               <div className="mt-8 space-y-3">
                 <Button
                   type="button"
-                  className="h-12 w-full rounded-full bg-slate-950 text-sm font-semibold hover:bg-slate-900"
+                  data-landing-demo-trigger="mobile"
+                  aria-haspopup="dialog"
+                  className="h-12 w-full rounded-full bg-[#0d5275] text-sm font-bold !text-white hover:bg-[#123f60] focus-visible:ring-2 focus-visible:ring-sky-400"
                   onClick={() => {
                     setOpen(false);
                     onOpenDemo();
                   }}
                 >
-                  Solicitar demonstracao
+                  Solicitar demonstração
                 </Button>
                 <Button
                   asChild

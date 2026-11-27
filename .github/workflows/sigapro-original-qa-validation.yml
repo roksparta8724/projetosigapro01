@@ -1,0 +1,86 @@
+name: SIGAPRO - Validacao da Homologacao Original
+on:
+  push:
+    branches:
+      - fix/homologacao-geral-sei-dashboard-bank-20261113
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa-original:
+    name: TypeScript, logo, contratos e equipe SIGAPRO
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Tests for the requested corrections
+        run: >
+          npx vitest run
+          src/lib/municipalLogoFraming.test.ts
+          src/components/platform/InstitutionalLogo.test.tsx
+          src/test/masterContractAndMunicipalZoom20261123.test.ts
+          src/test/masterTrustedMunicipalPlanWrites20261123.test.ts
+          src/test/masterMunicipalityPremiumPlans20261123.test.ts
+          src/test/masterCommercialPlanSynchronization20261124.test.ts
+          src/test/planEntitlements.test.ts
+          src/test/planEnforcementRegression.test.ts
+          src/test/masterNewMunicipalityIsolation.test.ts
+          src/test/masterCreateEditAndContrast20261124.test.ts
+          src/test/masterInstitutionalGovernance20261119.test.ts
+          src/test/masterPlansPremiumContrast.test.ts
+          src/test/mobileCardsPremium20261124.test.ts
+          src/test/mobileRegistryAndProcessActions20261124.test.tsx
+          src/test/masterScalableInstitutionDirectory20261124.test.tsx
+          src/pages/saas/ExternalProcessControlPage.test.tsx
+          src/components/platform/CompactPortfolioRegistry.test.tsx
+          src/components/platform/CompactProcessRegistry.test.tsx
+          src/test/mobileLegibilityAcrossDepartments20261121.test.ts
+          src/test/layoutIntegrityRegression.test.ts
+          src/test/premiumCardHierarchy20261117.test.tsx
+          src/test/processCardGeometryRegression.test.ts
+          src/test/triageCardTextContainment.test.ts
+          src/test/financeSharedPremium20261118.test.tsx
+          src/test/platformStaffProvisionMasterOnly20261123.test.ts
+          src/test/footerZoomPixSharing.test.ts
+          src/test/municipalBrandingFramePersistence.test.ts
+          src/test/municipalBrandingRuntime.test.ts
+          src/test/ownerProfessionalConversation20261123.test.ts
+          src/test/ownerPortalPrivateInteraction.test.tsx
+          src/test/ownerInvitationInitiation20261123.test.ts
+          src/test/documentWorkspaceRegression.test.ts
+          src/test/documentReanalysisRegression.test.ts
+          src/test/assignedAnalystDocumentAccess.test.ts
+          src/test/appReleaseFreshness.test.ts
+          src/test/accountTransitionIsolation20261124.test.ts
+          src/hooks/usePlatformSession.test.tsx
+          src/test/formalAnalysisDocumentsAndAuditV2.test.ts
+          src/test/loginFastAccessGateQa.test.ts
+          src/test/architecturalPremiumReaderControlsQa.test.ts
+          src/test/masterPermissionBootstrapGuard20261119.test.ts
+          src/test/officialAnalysisReadAndSignatureLocalRegression.test.ts
+          src/test/analystDocumentAssignmentGateQa.test.ts
+          src/integrations/backend/platformSettings.test.ts
+          src/test/municipalPaymentSetupProof.test.ts
+          src/lib/municipalPaymentReadiness.test.ts
+          src/lib/bankCodes.test.ts
+          src/test/officialPaymentGuideBarcodeRegression.test.tsx
+          src/test/habiteSeCompletionRealRpcRegression.test.ts
+          src/test/architecturalPdfPreflightQa.test.ts
+          src/test/municipalCollectionApi.test.ts
+          src/test/municipalCollectionConfiguration.test.ts
+          server/architectural-document-guard.test.ts
+          src/test/architecturalPdfAiExtraction.test.ts
+      - name: Production-equivalent build for preview
+        run: npm run build

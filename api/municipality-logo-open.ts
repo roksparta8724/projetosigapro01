@@ -1,3 +1,4 @@
+import { resolveR2Endpoint } from "../server/r2-runtime.js";
 /**
  * Municipal logo opener.
  *
@@ -18,32 +19,6 @@ type Res = import("http").ServerResponse;
 function readEnv(key: string) {
   const raw = process.env[key];
   return raw ? String(raw).replace(/^['"]|['"]$/g, "").trim() : "";
-}
-
-function resolveR2Endpoint() {
-  // Keep parity with upload/legislation access: the configured endpoint is the
-  // first authority because it may point to a different R2 account than an old
-  // R2_ACCOUNT_ID.
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const parsed = new URL(
-        /^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`,
-      );
-      return `${parsed.protocol}//${parsed.host}`;
-    } catch {
-      return rawEndpoint.replace(/\/+$/, "");
-    }
-  }
-
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  return accountId && !/^sua_?account_?id$/i.test(accountId)
-    ? `https://${accountId}.r2.cloudflarestorage.com`
-    : "";
 }
 
 function isMunicipalBrandingObject(objectKey: string) {

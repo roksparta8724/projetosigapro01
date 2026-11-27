@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { cn } from "@/lib/utils";
+import "@/styles/sigapro-landing-demo-premium.css";
 
 const navItems = [
   { id: "como-funciona", label: "Como funciona" },
@@ -334,10 +335,12 @@ export function LandingPage() {
                       <Button
                         type="button"
                         size="lg"
-                        className="h-13 rounded-full bg-slate-950 px-8 text-[15px] font-semibold shadow-[0_16px_34px_rgba(15,23,42,0.14)] hover:bg-slate-900"
+                        data-landing-demo-trigger="hero"
+                        aria-haspopup="dialog"
+                        className="h-13 rounded-full bg-[#114e70] px-8 text-[15px] font-bold !text-white shadow-[0_16px_34px_rgba(15,55,80,0.18)] hover:bg-[#0a3956]"
                         onClick={() => setDemoModalOpen(true)}
                       >
-                        Solicitar demonstracao
+                        Solicitar demonstração
                         <ArrowRight className="h-[18px] w-[18px]" />
                       </Button>
                       <Button
@@ -1127,45 +1130,56 @@ export function LandingPage() {
             </LandingReveal>
 
             <LandingReveal delay={0.06}>
-              <div className="rounded-[34px] border border-white/12 bg-white/[0.07] p-7 shadow-[0_30px_90px_rgba(0,0,0,0.22)] backdrop-blur">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-100/90">Solicitar demonstracao</p>
-                <h3 className="mt-3 max-w-[18ch] text-2xl font-semibold text-white">
-                  Agende uma demonstração orientada ao seu fluxo municipal.
-                </h3>
-                <p className="mt-4 text-sm leading-7 text-slate-100/90">
-                  Conheça os módulos, valide o fluxo de trabalho e veja como o SIGAPRO pode ser configurado para a sua Prefeitura.
+              <article
+                data-landing-demo-card="premium"
+                className="relative min-w-0 overflow-hidden rounded-[28px] border border-[#c7dfec] bg-[linear-gradient(135deg,#ffffff_0%,#f1f8fc_100%)] p-6 shadow-[0_24px_68px_rgba(0,12,28,0.2)] sm:p-7 lg:p-8"
+                aria-labelledby="landing-demo-card-title"
+              >
+                <div className="flex min-w-0 items-start gap-3.5">
+                  <span data-landing-demo-card-icon="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] border border-[#bfdeec] bg-[#e1f1fa] text-[#145d84]">
+                    <MessageSquareMore className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p data-landing-demo-card-eyebrow="true" className="text-[11px] font-extrabold uppercase tracking-[0.09em] text-[#226185]">Conheça o SIGAPRO</p>
+                    <h3 id="landing-demo-card-title" data-landing-demo-card-title="true" className="mt-2 text-balance text-[23px] font-bold leading-[1.2] tracking-[-0.03em] text-[#14354d] sm:text-[26px]">
+                      Solicite uma demonstração para sua Prefeitura
+                    </h3>
+                  </div>
+                </div>
+                <p data-landing-demo-card-description="true" className="mt-4 text-[14px] leading-7 text-[#49677d]">
+                  Conheça o protocolo, a análise técnica e a gestão municipal em uma apresentação orientada ao fluxo da sua equipe.
                 </p>
 
-                <div className="mt-8 space-y-3">
+                <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
                   <Button
                     type="button"
                     size="lg"
-                    data-landing-cta-white="true"
-                    className="h-12 w-full rounded-full bg-white px-6 text-sm font-semibold text-slate-950 hover:bg-slate-100"
+                    data-landing-demo-trigger="card"
+                    aria-haspopup="dialog"
+                    className="h-12 flex-1 rounded-xl border border-[#104665] bg-[#104665] px-5 text-sm font-bold !text-white shadow-[0_8px_20px_rgba(13,70,101,0.17)] hover:bg-[#0b3652]"
                     onClick={() => setDemoModalOpen(true)}
                   >
-                    Solicitar demonstracao
+                    Solicitar demonstração
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                   <Button
                     asChild
                     size="lg"
                     variant="outline"
-                    className="h-12 w-full rounded-full border-white/15 bg-white/5 px-6 text-sm font-semibold text-white hover:bg-white/10"
+                    data-landing-demo-access="true"
+                    className="h-12 flex-1 rounded-xl border-[#b7cedd] bg-white px-5 text-sm font-semibold text-[#214a65] hover:bg-[#eaf5fb]"
                   >
                     <Link to="/acesso">Acessar sistema</Link>
                   </Button>
                 </div>
 
-                <div className="mt-8 rounded-[24px] border border-white/14 bg-white/[0.06] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-50">Contato institucional</p>
-                  <div className="mt-4 space-y-2 text-sm leading-7">
-                    <p className="text-slate-50/95">Apresentação para Prefeituras, diretorias técnicas, protocolo e operação urbana.</p>
-                    <p className="text-slate-50/95">Demonstração orientada aos módulos que sua equipe realmente utilizará.</p>
-                    <p className="text-slate-100/90">Fluxo recomendado: demonstração, validação de escopo, configuração institucional e implantação.</p>
-                  </div>
+                <div data-landing-demo-card-note="true" className="mt-5 flex min-w-0 items-start gap-2.5 border-t border-[#d9e6ee] pt-4">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#287c9c]" aria-hidden="true" />
+                  <p className="text-[12px] leading-5 text-[#557187]">
+                    Apresentação institucional orientada aos módulos da Prefeitura. A demonstração é ilustrativa e não cria processos ou pagamentos oficiais.
+                  </p>
                 </div>
-              </div>
+              </article>
             </LandingReveal>
           </div>
         </section>

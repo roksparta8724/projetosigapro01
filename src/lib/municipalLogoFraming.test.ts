@@ -1,37 +1,24 @@
 import { describe, expect, it } from "vitest";
-import {
-  fitMunicipalLogoFrame, fullMunicipalLogoFrame,
-  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_EDITOR_SIZE, MUNICIPAL_LOGO_MAX_ZOOM,
-} from "./municipalLogoFraming";
-
-describe("no-crop municipal logo framing", () => {
-  it.each([1.51, 2.3, 5, 100])(
-    "recovers complete logo from legacy %sx zoom without deleting the saved image",
-    (legacyScale) => {
-      expect(fitMunicipalLogoFrame({
-        scale: legacyScale, offsetX: 420, offsetY: -420,
-      })).toEqual({ scale: 1.5, offsetX: 0, offsetY: 0 });
-    },
-  );
-
-  it("clamps invalid and non-finite geometry without introducing NaN", () => {
-    expect(fitMunicipalLogoFrame({ scale: Number.POSITIVE_INFINITY, offsetX: NaN, offsetY: NaN }))
-      .toEqual({ scale: 1.5, offsetX: 0, offsetY: 0 });
+import { fitMunicipalLogoFrame, fullMunicipalLogoFrame, MUNICIPAL_LOGO_FULL_FIT_ZOOM, MUNICIPAL_LOGO_MAX_ZOOM, MUNICIPAL_FOOTER_LOGO_MAX_ZOOM } from "./municipalLogoFraming";
+describe("municipal logo repositioning", () => {
+  it("retains the full original at 1.50x", () => {
+    expect(MUNICIPAL_LOGO_FULL_FIT_ZOOM).toBe(1.5);
+    expect(fullMunicipalLogoFrame()).toEqual({scale:1.5,offsetX:0,offsetY:0});
   });
-
-  it("allows alignment only within the blank margins of the complete crest", () => {
-    const frame = fitMunicipalLogoFrame({ scale: 1.1, offsetX: 50, offsetY: -50 });
-    const availableMargin = MUNICIPAL_LOGO_EDITOR_SIZE * (1 - 1.1 * MUNICIPAL_LOGO_BASE_RATIO) / 2;
-    expect(frame.scale).toBe(1.1);
-    expect(frame.offsetX).toBeCloseTo(availableMargin);
-    expect(frame.offsetY).toBeCloseTo(-availableMargin);
-    expect(frame.offsetX + (MUNICIPAL_LOGO_EDITOR_SIZE * MUNICIPAL_LOGO_BASE_RATIO * frame.scale) / 2)
-      .toBeLessThanOrEqual(MUNICIPAL_LOGO_EDITOR_SIZE / 2);
+  it("can save a smaller frame, then save 4.25x with the intended pan", () => {
+    const a=fitMunicipalLogoFrame({scale:1.1,offsetX:0,offsetY:0});
+    const b=fitMunicipalLogoFrame({...a,scale:4.25,offsetX:74,offsetY:-83});
+    expect(b).toEqual({scale:4.25,offsetX:74,offsetY:-83});
+    expect(fitMunicipalLogoFrame(b)).toEqual(b);
   });
-
-  it("uses the same full-image zoom and centered offsets for header and footer", () => {
-    expect(fullMunicipalLogoFrame()).toEqual({
-      scale: MUNICIPAL_LOGO_MAX_ZOOM, offsetX: 0, offsetY: 0,
-    });
+  it("supports deliberate cropping independently to 5x", () => {
+    expect(MUNICIPAL_LOGO_MAX_ZOOM).toBe(5);
+    expect(MUNICIPAL_FOOTER_LOGO_MAX_ZOOM).toBe(5);
+    expect(fitMunicipalLogoFrame({scale:99}, "header").scale).toBe(5);
+    expect(fitMunicipalLogoFrame({scale:99}, "footer").scale).toBe(5);
+  });
+  it("sanitizes nonfinite numbers",()=>{
+    expect(fitMunicipalLogoFrame({scale:Infinity,offsetX:NaN,offsetY:NaN}))
+      .toEqual({scale:1.5,offsetX:0,offsetY:0});
   });
 });

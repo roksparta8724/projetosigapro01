@@ -3,10 +3,15 @@ import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAc
 import { useRef } from "react";
 import { ArrowLeft, Bell, Building2, Calculator, CheckCircle2, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, RefreshCw, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { canEditUrbanLegislationManagement } from "@/lib/urbanLegislationAccess";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
+import { MunicipalCertificateReadiness } from "@/components/platform/MunicipalCertificateReadiness";
+import { MunicipalUrbanRulesSettings } from "@/components/platform/MunicipalUrbanRulesSettings";
+import { UrbanLegislationRegistryPanel } from "@/components/platform/UrbanLegislationRegistryPanel";
+import { UrbanLegislationContinuityPanel } from "@/components/platform/UrbanLegislationContinuityPanel";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -48,10 +53,14 @@ import {
 import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
   fitMunicipalLogoFrame, fullMunicipalLogoFrame,
-  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_MAX_ZOOM,
+  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_FULL_FIT_ZOOM, MUNICIPAL_LOGO_MAX_ZOOM, MUNICIPAL_FOOTER_LOGO_MAX_ZOOM,
 } from "@/lib/municipalLogoFraming";
 import { getLegislationOpenUrl, getStableMunicipalLegislationReference, getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import {
+  assertUrbanLegislationWriteAccess, saveMunicipalLegacyLegalAssets,
+  type MunicipalLegacyLegalAssetChange,
+} from "@/integrations/backend/urbanLegislationRegistryClient";
 import {
   getMasterInstitutionBranding,
   loadMasterBranding,
@@ -202,7 +211,7 @@ type MercadoPagoHealth = {
   error?: string;
 };
 
-export function ConfiguracoesPage() {
+export function ConfiguracoesPage({ legislationWorkspace = false }: { legislationWorkspace?: boolean } = {}) {
   const navigate = useNavigate();
   const { session } = usePlatformSession();
   const tenantContext = useTenant();
@@ -233,10 +242,13 @@ export function ConfiguracoesPage() {
   const { headerBranding, footerBranding } = useInstitutionBranding(selectedTenantId || scopeId || session.tenantId);
   const userProfile = getUserProfile(session.id, authenticatedEmail ?? session.email);
   const canManageTenantSettings = can(session, "manage_tenant_branding");
+  const canManageLegislation = canEditUrbanLegislationManagement(session.role) &&
+    Boolean(session.tenantId && selectedTenantId === session.tenantId);
   const isMasterRole =
     bootstrap.scopeType === "platform" ||
     session.role === "master_admin" ||
     session.role === "master_ops";
+  const isPlatformContractAdmin = session.role === "master_admin";
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
   const platformBrandingLoadedRef = useRef(false);
@@ -720,9 +732,10 @@ export function ConfiguracoesPage() {
     | "account"
     | "advanced"
     | "storage"
+    | "certificates"
     | "platform"
   >(() => {
-    if (typeof window === "undefined") return "overview";
+    if (typeof window === "undefined") return "branding";
     const requested = new URLSearchParams(window.location.search).get("secao");
     const allowed = new Set([
       "overview",
@@ -735,6 +748,7 @@ export function ConfiguracoesPage() {
       "account",
       "advanced",
       "storage",
+      "certificates",
       "platform",
     ]);
     return allowed.has(String(requested || ""))
@@ -749,8 +763,9 @@ export function ConfiguracoesPage() {
           | "account"
           | "advanced"
           | "storage"
+          | "certificates"
           | "platform")
-      : "overview";
+      : "branding";
   });
   // A arrecadação tem uma única tela administrativa. URLs antigas de
   // Configurações > Arrecadação redirecionam para o novo ponto de entrada.
@@ -936,15 +951,15 @@ export function ConfiguracoesPage() {
     });
   }, [draftLogoFiles]);
   const [draftHeaderLogoConfig, setDraftHeaderLogoConfig] = useState(() => fitMunicipalLogoFrame({
-    scale: settings?.headerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+    scale: settings?.headerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   }));
   const [draftFooterLogoConfig, setDraftFooterLogoConfig] = useState(() => fitMunicipalLogoFrame({
-    scale: settings?.footerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+    scale: settings?.footerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
     offsetX: settings?.footerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.footerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
-  }));
+  }, "footer"));
   const [headerLogoStatus, setHeaderLogoStatus] = useState("");
   const [footerLogoStatus, setFooterLogoStatus] = useState("");
   const [logoSaving, setLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
@@ -984,6 +999,7 @@ export function ConfiguracoesPage() {
   const [brasaoFiles, setBrasaoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.brasaoUrl ?? "", "brasao"));
   const [bandeiraFiles, setBandeiraFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.bandeiraUrl ?? "", "bandeira"));
   const [heroFiles, setHeroFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.imagemHeroUrl ?? "", "imagem institucional"));
+  const stagedLegalUploadsRef = useRef(new Map<File, UploadedFileItem>());
   const [planoDiretorFiles, setPlanoDiretorFiles] = useState<UploadedFileItem[]>(() =>
     storedInstitutionalDocument(
       settings?.planoDiretorArquivoUrl,
@@ -1149,7 +1165,7 @@ export function ConfiguracoesPage() {
     });
 
     const nextHeaderConfig = fitMunicipalLogoFrame({
-      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
       offsetX: nextSettings?.headerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.headerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     });
@@ -1161,10 +1177,10 @@ export function ConfiguracoesPage() {
     );
 
     const nextFooterConfig = fitMunicipalLogoFrame({
-      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
       offsetX: nextSettings?.footerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
-    });
+    }, "footer");
     setDraftFooterLogoConfig((current) =>
       current.scale === nextFooterConfig.scale &&
       current.offsetX === nextFooterConfig.offsetX &&
@@ -1831,8 +1847,8 @@ export function ConfiguracoesPage() {
       name: tenantForm.name,
       city: tenantForm.city,
       state: tenantForm.state,
-      status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
-      plan: tenantForm.plan,
+      status: (isPlatformContractAdmin ? tenantForm.status : (tenant?.status ?? tenantForm.status)) as "ativo" | "implantacao" | "suspenso",
+      plan: isPlatformContractAdmin ? tenantForm.plan : (tenant?.plan ?? tenantForm.plan),
       subdomain: normalizedSubdomain,
       primaryColor: tenantForm.primaryColor,
       accentColor: tenantForm.accentColor,
@@ -1914,7 +1930,7 @@ export function ConfiguracoesPage() {
             name: tenantForm.name,
             city: tenantForm.city,
             state: tenantForm.state,
-            status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
+            status: (isPlatformContractAdmin ? tenantForm.status : (tenant?.status ?? tenantForm.status)) as "ativo" | "implantacao" | "suspenso",
             subdomain: normalizedSubdomain,
             cnpj: settingsForm.cnpj || "",
             primaryColor: tenantForm.primaryColor,
@@ -1935,8 +1951,8 @@ export function ConfiguracoesPage() {
             name: tenantForm.name,
             city: tenantForm.city,
             state: tenantForm.state,
-            status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
-            plan: tenantForm.plan,
+            status: (isPlatformContractAdmin ? tenantForm.status : (tenant?.status ?? tenantForm.status)) as "ativo" | "implantacao" | "suspenso",
+            plan: isPlatformContractAdmin ? tenantForm.plan : (tenant?.plan ?? tenantForm.plan),
             subdomain: normalizedSubdomain,
             primaryColor: tenantForm.primaryColor,
             accentColor: tenantForm.accentColor,
@@ -2044,6 +2060,7 @@ export function ConfiguracoesPage() {
 
       const draftConfig = fitMunicipalLogoFrame(
         variant === "footer" ? draftFooterLogoConfig : draftHeaderLogoConfig,
+        variant,
       );
       const activeBranding =
         variant === "footer" ? footerBranding : headerBranding;
@@ -2130,7 +2147,7 @@ export function ConfiguracoesPage() {
       const existingObjectKey = variant === "header"
         ? settingsWithVariants.headerLogoObjectKey
         : settingsWithVariants.footerLogoObjectKey;
-      persistedVariantUrl = existingObjectKey || variantLogoUrl.startsWith("blob:") || variantLogoUrl.startsWith("data:")
+      persistedVariantUrl = (existingObjectKey || variantLogoUrl.startsWith("blob:") || variantLogoUrl.startsWith("data:"))
         ? ""
         : variantLogoUrl;
     }
@@ -2377,15 +2394,15 @@ export function ConfiguracoesPage() {
         logoOffsetY: nextSettings.logoOffsetY ?? 0,
       }));
       setDraftHeaderLogoConfig(fitMunicipalLogoFrame({
-        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
         offsetX: nextSettings.headerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.headerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       }));
       setDraftFooterLogoConfig(fitMunicipalLogoFrame({
-        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
+        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_FULL_FIT_ZOOM,
         offsetX: nextSettings.footerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.footerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
-      }));
+      }, "footer"));
 
       if (variant === "footer") {
         setFooterLogoStatus(
@@ -2434,6 +2451,12 @@ export function ConfiguracoesPage() {
     if (!item?.file) {
       return files;
     }
+    // Reuse already uploaded (but not yet database-committed) files on retry.
+    // A failed second PDF must not create another object for the first PDF.
+    const staged = bucket === "process-documents" ? stagedLegalUploadsRef.current.get(item.file) : undefined;
+    if (staged?.storagePath?.startsWith("municipalities/" + savedTenantId + "/")) {
+      return [staged];
+    }
 
     const mimeType = item.file.type || item.mimeType || "application/octet-stream";
     const isAllowed = mimeType === "application/pdf" || mimeType.startsWith("image/");
@@ -2441,8 +2464,11 @@ export function ConfiguracoesPage() {
       throw new Error(`O arquivo "${item.fileName}" precisa ser PDF ou imagem.`);
     }
 
-    if (item.file.size > 30 * 1024 * 1024) {
-      throw new Error(`O arquivo "${item.fileName}" excede o limite de 30 MB.`);
+    const isLegalPdf = bucket === "process-documents" && /\b(?:application\/pdf)\b/i.test(mimeType) &&
+      /^legislation\//.test(folder);
+    const maxFileSize = isLegalPdf ? 100 * 1024 * 1024 : 30 * 1024 * 1024;
+    if (item.file.size > maxFileSize) {
+      throw new Error(`O arquivo "${item.fileName}" excede o limite de ${isLegalPdf ? "100" : "30"} MB.`);
     }
 
     const uploaded = await uploadFileToStorage({
@@ -2453,36 +2479,31 @@ export function ConfiguracoesPage() {
       folder,
     });
 
-    const previewBucket =
-      bucket === "process-documents"
-        ? "process-documents"
-        : "institutional-branding";
-
     // Branding municipal não depende de domínio público nem de URL assinada
     // temporária. A rota estável lê o objeto privado do R2 pelo object key.
     const previewUrl =
       uploaded.publicUrl ||
       (bucket === "institutional-branding"
         ? getMunicipalityLogoOpenUrl(uploaded.path)
-        : await getSignedUrlForObjectStrict({
-            bucket: previewBucket,
-            objectKey: uploaded.path,
-            expiresIn: 21600,
-          }));
+        : getLegislationOpenUrl(`r2:${uploaded.path}`));
 
-    return [
-      {
-        ...item,
-        previewUrl,
-        persistentRef: uploaded.publicUrl || `r2:${uploaded.path}`,
-        storagePath: uploaded.path,
-        file: undefined,
-        fileSizeBytes: item.fileSizeBytes ?? item.file.size,
-      },
-    ];
+    const savedItem: UploadedFileItem = {
+      ...item,
+      previewUrl,
+      persistentRef: bucket === "process-documents"
+        ? `r2:${uploaded.path}`
+        : uploaded.publicUrl || `r2:${uploaded.path}`,
+      storagePath: uploaded.path,
+      file: undefined,
+      fileSizeBytes: item.fileSizeBytes ?? item.file.size,
+    };
+    if (bucket === "process-documents") {
+      stagedLegalUploadsRef.current.set(item.file, savedItem);
+    }
+    return [savedItem];
   };
 
-  const handleSaveInstitutionalAssets = async () => {
+  const handleSaveInstitutionalAssets = async (kind: "branding" | "legislation") => {
     if (institutionalAssetsSaving) return;
 
     setInstitutionalAssetsSaving(true);
@@ -2496,59 +2517,45 @@ export function ConfiguracoesPage() {
       if (!savedTenantId) {
         throw new Error("Selecione uma Prefeitura válida antes de salvar os arquivos institucionais.");
       }
+      if (kind === "legislation") {
+        if (!canManageLegislation || savedTenantId !== session.tenantId) {
+          throw new Error("Somente o administrador desta Prefeitura pode cadastrar sua legislação.");
+        }
+        if (!hasBackendEnv) {
+          throw new Error("O banco de homologação não está conectado. Não é possível publicar leis apenas no navegador.");
+        }
+        // Preflight before the first PDF: a missing/mismatched DB migration
+        // must never leave a misleading partially uploaded legal batch.
+        await assertUrbanLegislationWriteAccess(savedTenantId);
+      }
 
-      const nextBrasaoFiles = await uploadInstitutionalAssetList(
-        brasaoFiles,
-        "branding/brasao",
-        savedTenantId,
-      );
-      setBrasaoFiles(nextBrasaoFiles);
+      const nextBrasaoFiles = kind === "branding" ? await uploadInstitutionalAssetList(
+        brasaoFiles, "branding/brasao", savedTenantId,
+      ) : brasaoFiles;
 
-      const nextBandeiraFiles = await uploadInstitutionalAssetList(
-        bandeiraFiles,
-        "branding/bandeira",
-        savedTenantId,
-      );
-      setBandeiraFiles(nextBandeiraFiles);
+      const nextBandeiraFiles = kind === "branding" ? await uploadInstitutionalAssetList(
+        bandeiraFiles, "branding/bandeira", savedTenantId,
+      ) : bandeiraFiles;
 
-      const nextHeroFiles = await uploadInstitutionalAssetList(
-        heroFiles,
-        "branding/portal",
-        savedTenantId,
-      );
-      setHeroFiles(nextHeroFiles);
+      const nextHeroFiles = kind === "branding" ? await uploadInstitutionalAssetList(
+        heroFiles, "branding/portal", savedTenantId,
+      ) : heroFiles;
 
-      const nextPlanoDiretorFiles = await uploadInstitutionalAssetList(
-        planoDiretorFiles,
-        "legislation/plano-diretor",
-        savedTenantId,
-        "process-documents",
-      );
-      setPlanoDiretorFiles(nextPlanoDiretorFiles);
+      const nextPlanoDiretorFiles = kind === "legislation" ? await uploadInstitutionalAssetList(
+        planoDiretorFiles, "legislation/plano-diretor", savedTenantId, "process-documents",
+      ) : planoDiretorFiles;
 
-      const nextUsoSoloFiles = await uploadInstitutionalAssetList(
-        usoSoloFiles,
-        "legislation/uso-solo",
-        savedTenantId,
-        "process-documents",
-      );
-      setUsoSoloFiles(nextUsoSoloFiles);
+      const nextUsoSoloFiles = kind === "legislation" ? await uploadInstitutionalAssetList(
+        usoSoloFiles, "legislation/uso-solo", savedTenantId, "process-documents",
+      ) : usoSoloFiles;
 
-      const nextZoneamentoFiles = await uploadInstitutionalAssetList(
-        zoneamentoFiles,
-        "legislation/zoneamento",
-        savedTenantId,
-        "process-documents",
-      );
-      setZoneamentoFiles(nextZoneamentoFiles);
+      const nextZoneamentoFiles = kind === "legislation" ? await uploadInstitutionalAssetList(
+        zoneamentoFiles, "legislation/zoneamento", savedTenantId, "process-documents",
+      ) : zoneamentoFiles;
 
-      const nextLeisFiles = await uploadInstitutionalAssetList(
-        leisFiles,
-        "legislation/leis-complementares",
-        savedTenantId,
-        "process-documents",
-      );
-      setLeisFiles(nextLeisFiles);
+      const nextLeisFiles = kind === "legislation" ? await uploadInstitutionalAssetList(
+        leisFiles, "legislation/leis-complementares", savedTenantId, "process-documents",
+      ) : leisFiles;
 
       const baseSettings =
         buildTenantSettingsFromMunicipality(
@@ -2565,30 +2572,62 @@ export function ConfiguracoesPage() {
       const nextSettings: TenantSettings = {
         ...baseSettings,
         tenantId: savedTenantId,
-        brasaoUrl:
-          nextBrasaoFiles[0]?.persistentRef ??
-          (nextBrasaoFiles[0]?.storagePath && nextBrasaoFiles[0].storagePath !== "remote"
-            ? `r2:${nextBrasaoFiles[0].storagePath}`
-            : nextBrasaoFiles[0]?.previewUrl) ??
-          "",
-        bandeiraUrl: nextBandeiraFiles[0]?.persistentRef ?? nextBandeiraFiles[0]?.previewUrl ?? "",
-        imagemHeroUrl: nextHeroFiles[0]?.persistentRef ?? nextHeroFiles[0]?.previewUrl ?? "",
-        planoDiretorArquivoNome: nextPlanoDiretorFiles[0]?.fileName ?? "",
-        planoDiretorArquivoUrl: nextPlanoDiretorFiles[0]?.persistentRef ?? nextPlanoDiretorFiles[0]?.previewUrl ?? "",
-        usoSoloArquivoNome: nextUsoSoloFiles[0]?.fileName ?? "",
-        usoSoloArquivoUrl: nextUsoSoloFiles[0]?.persistentRef ?? nextUsoSoloFiles[0]?.previewUrl ?? "",
-        zoneamentoArquivoNome: nextZoneamentoFiles[0]?.fileName ?? "",
-        zoneamentoArquivoUrl: nextZoneamentoFiles[0]?.persistentRef ?? nextZoneamentoFiles[0]?.previewUrl ?? "",
-        leisArquivoNome: nextLeisFiles[0]?.fileName ?? "",
-        leisArquivoUrl: nextLeisFiles[0]?.persistentRef ?? nextLeisFiles[0]?.previewUrl ?? "",
+        ...(kind === "branding" ? {
+          brasaoUrl: nextBrasaoFiles[0]?.persistentRef ??
+            (nextBrasaoFiles[0]?.storagePath && nextBrasaoFiles[0].storagePath !== "remote"
+              ? `r2:${nextBrasaoFiles[0].storagePath}` : nextBrasaoFiles[0]?.previewUrl) ?? "",
+          bandeiraUrl: nextBandeiraFiles[0]?.persistentRef ?? nextBandeiraFiles[0]?.previewUrl ?? "",
+          imagemHeroUrl: nextHeroFiles[0]?.persistentRef ?? nextHeroFiles[0]?.previewUrl ?? "",
+        } : {}),
+        ...(kind === "legislation" ? {
+          planoDiretorArquivoNome: nextPlanoDiretorFiles[0]?.fileName ?? "",
+          planoDiretorArquivoUrl: nextPlanoDiretorFiles[0]?.persistentRef ?? nextPlanoDiretorFiles[0]?.previewUrl ?? "",
+          usoSoloArquivoNome: nextUsoSoloFiles[0]?.fileName ?? "",
+          usoSoloArquivoUrl: nextUsoSoloFiles[0]?.persistentRef ?? nextUsoSoloFiles[0]?.previewUrl ?? "",
+          zoneamentoArquivoNome: nextZoneamentoFiles[0]?.fileName ?? "",
+          zoneamentoArquivoUrl: nextZoneamentoFiles[0]?.persistentRef ?? nextZoneamentoFiles[0]?.previewUrl ?? "",
+          leisArquivoNome: nextLeisFiles[0]?.fileName ?? "",
+          leisArquivoUrl: nextLeisFiles[0]?.persistentRef ?? nextLeisFiles[0]?.previewUrl ?? "",
+        } : {}),
       };
+
+      // Legal attachments update ONLY their own JSONB keys, transactionally,
+      // and are audited by Neon. Never resave the entire municipal configuration
+      // (banking, fee rules, institution fields) from a potentially stale snapshot.
+      const legalChanges: MunicipalLegacyLegalAssetChange[] = kind === "legislation"
+        ? ([
+            { slot: "plano_diretor" as const, selected: planoDiretorFiles,
+              uploaded: nextPlanoDiretorFiles, oldName: baseSettings.planoDiretorArquivoNome,
+              oldRef: baseSettings.planoDiretorArquivoUrl },
+            { slot: "uso_solo" as const, selected: usoSoloFiles,
+              uploaded: nextUsoSoloFiles, oldName: baseSettings.usoSoloArquivoNome,
+              oldRef: baseSettings.usoSoloArquivoUrl },
+            { slot: "zoneamento" as const, selected: zoneamentoFiles,
+              uploaded: nextZoneamentoFiles, oldName: baseSettings.zoneamentoArquivoNome,
+              oldRef: baseSettings.zoneamentoArquivoUrl },
+            { slot: "leis_complementares" as const, selected: leisFiles,
+              uploaded: nextLeisFiles, oldName: baseSettings.leisArquivoNome,
+              oldRef: baseSettings.leisArquivoUrl },
+          ]).filter(({ selected, oldName, oldRef }) =>
+            Boolean(selected[0]?.file) ||
+            (selected.length === 0 && Boolean(oldName || oldRef)),
+          ).map(({ slot, uploaded }) => ({
+            slot, fileName: uploaded[0]?.fileName || "",
+            fileRef: uploaded[0]?.persistentRef || "",
+          }))
+        : [];
+      if (kind === "legislation" && legalChanges.length === 0) {
+        setInstitutionalAssetsStatus("Nenhuma alteração selecionada. Os documentos oficiais existentes continuam preservados.");
+        return;
+      }
 
       if (hasBackendEnv) {
         await withTimeout(
-          saveRemoteInstitutionSettings(nextSettings, {
-            skipMunicipalityUpdate: true,
-            skipMunicipalityBranding: false,
-          }),
+          kind === "legislation"
+            ? saveMunicipalLegacyLegalAssets(savedTenantId, legalChanges, crypto.randomUUID()).then(() => undefined)
+            : saveRemoteInstitutionSettings(nextSettings, {
+                skipMunicipalityUpdate: true,
+              }),
           "Tempo limite ao salvar os arquivos institucionais no banco oficial.",
         );
       }
@@ -2599,6 +2638,9 @@ export function ConfiguracoesPage() {
         await bootstrap.refreshMunicipalityBundle(savedTenantId);
       }
 
+      if (kind === "legislation") {
+        stagedLegalUploadsRef.current.clear();
+      }
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("sigapro-municipality-settings-updated", {
@@ -2616,15 +2658,16 @@ export function ConfiguracoesPage() {
       setLeisFiles(nextLeisFiles);
 
       setInstitutionalAssetsStatus(
-        nextBrasaoFiles[0]
-          ? "Brasão oficial salvo com sucesso no cadastro desta Prefeitura. Os demais arquivos institucionais também foram vinculados às áreas correspondentes."
-          : "Arquivos institucionais salvos com sucesso. Plano Diretor, Uso e Ocupação do Solo, Zoneamento e Leis Complementares estão vinculados ao módulo Legislação.",
-      );
+        kind === "branding"
+          ? "Identidade visual salva com sucesso, sem alterar os documentos jurídicos."
+          : "Documentos legais salvos com sucesso, sem alterar os logos da Prefeitura.",
+      );;
     } catch (error) {
       setInstitutionalAssetsStatus(
-        error instanceof Error
+        (error instanceof Error
           ? error.message
-          : "Não foi possível salvar os arquivos institucionais.",
+          : "Não foi possível salvar os arquivos institucionais.") +
+          (kind === "legislation" ? " Confira no acervo antes de reenviar: uma tentativa interrompida não confirma o vínculo do documento no banco." : ""),
       );
     } finally {
       setInstitutionalAssetsSaving(false);
@@ -2783,8 +2826,8 @@ export function ConfiguracoesPage() {
           name: tenantForm.name,
           city: tenantForm.city,
           state: tenantForm.state,
-          status: tenantForm.status as "ativo" | "implantacao" | "suspenso",
-          plan: tenantForm.plan,
+          status: (isPlatformContractAdmin ? tenantForm.status : (tenant?.status ?? tenantForm.status)) as "ativo" | "implantacao" | "suspenso",
+          plan: isPlatformContractAdmin ? tenantForm.plan : (tenant?.plan ?? tenantForm.plan),
           subdomain: normalizedSubdomain,
           primaryColor: tenantForm.primaryColor,
           accentColor: tenantForm.accentColor,
@@ -3224,6 +3267,210 @@ export function ConfiguracoesPage() {
                 icon: ShieldPlus,
               };
 
+  const legalArchiveWorkspace = (
+    <div className="min-w-0 space-y-5" data-legal-management-workspace="true">
+      {selectedTenantId ? (
+        <UrbanLegislationContinuityPanel
+          municipalityId={selectedTenantId}
+          legacyFiles={[
+            ...planoDiretorFiles.map((file) => ({ label: "Plano Diretor", name: file.fileName, stored: Boolean(file.persistentRef || file.storagePath) })),
+            ...usoSoloFiles.map((file) => ({ label: "Uso e ocupação", name: file.fileName, stored: Boolean(file.persistentRef || file.storagePath) })),
+            ...zoneamentoFiles.map((file) => ({ label: "Zoneamento", name: file.fileName, stored: Boolean(file.persistentRef || file.storagePath) })),
+            ...leisFiles.map((file) => ({ label: "Leis complementares (legado)", name: file.fileName, stored: Boolean(file.persistentRef || file.storagePath) })),
+          ].filter((file) => file.stored && file.name).map(({ label, name }) => ({ label, name }))}
+        />
+      ) : null}
+      {selectedTenantId ? (
+        <UrbanLegislationRegistryPanel municipalityId={selectedTenantId} />
+      ) : null}
+      <div id="sigapro-legal-archive-upload" data-legal-archive="true"
+        className="scroll-mt-24 min-w-0 overflow-hidden rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] dark:border-slate-700 dark:bg-slate-900 md:p-5">
+                <div className="mb-4 flex flex-col gap-3 border-b border-sky-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <ScrollText className="h-4 w-4 text-sky-700" />
+                      <p className="text-sm font-bold text-slate-950 dark:text-white">Arquivos institucionais existentes (legado)</p>
+                    </div>
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-200">
+                      Estes quatro campos mantêm os PDFs institucionais já utilizados pela Prefeitura e alimentam
+                      as consultas antigas do módulo Legislação. Cada campo armazena somente um PDF,
+                      inclusive o campo legado de Leis Complementares. Um PDF só com os quadros não substitui a lei que os instituiu:
+                      cadastre a LC 379/2009 e cada Quadro oficial como documentos vinculados no acervo individual,
+                      com suas alterações e vigência conferidas. Para acrescentar quantas leis,
+                      decretos e anexos forem necessários, use o cadastro individual destacado acima.
+                      Os arquivos anteriores não são excluídos do armazenamento por este formulário; o vínculo exibido
+                      no cadastro legado é atualizado. Para histórico auditável de versões, use o acervo individual.
+                      Minutas e propostas não são normas vigentes.
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">
+                    Legislação
+                  </span>
+                </div>
+
+                <p data-legal-upload-permission="true"
+                  className="mb-4 min-w-0 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-semibold leading-5 text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-slate-100">
+                  {canManageLegislation
+                    ? "Admin da Prefeitura: cadastre os PDFs oficiais do seu município. Para novas leis, decretos e alterações, use o acervo individual acima e preserve as versões históricas."
+                    : "Somente consulta: o cadastro e a atualização da legislação são responsabilidade do administrador da própria Prefeitura."}
+                </p>
+                <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
+                  <FileDropZone
+                    title="Plano Diretor"
+                    description="PDF oficial do Plano Diretor municipal."
+                    accept="application/pdf,.pdf"
+                    multiple={false}
+                    allowPreview
+                    previewInitiallyCollapsed
+                    appearance="legal"
+                    busy={institutionalAssetsSaving}
+                    disabled={!canManageLegislation}
+                    readOnly={!canManageLegislation}
+                    savedLabel="Salvo no armazenamento oficial"
+                    files={planoDiretorFiles}
+                    onFilesSelected={setPlanoDiretorFiles}
+                  />
+                  <FileDropZone
+                    title="Lei de Uso e Ocupação do Solo"
+                    description="PDF oficial da lei de uso, ocupação e parâmetros urbanísticos."
+                    accept="application/pdf,.pdf"
+                    multiple={false}
+                    allowPreview
+                    previewInitiallyCollapsed
+                    appearance="legal"
+                    busy={institutionalAssetsSaving}
+                    disabled={!canManageLegislation}
+                    readOnly={!canManageLegislation}
+                    savedLabel="Salvo no armazenamento oficial"
+                    files={usoSoloFiles}
+                    onFilesSelected={setUsoSoloFiles}
+                  />
+                  <FileDropZone
+                    title="Zoneamento"
+                    description="PDF oficial e específico do zoneamento municipal, separado da Lei de Uso e Ocupação do Solo."
+                    accept="application/pdf,.pdf"
+                    multiple={false}
+                    allowPreview
+                    previewInitiallyCollapsed
+                    appearance="legal"
+                    busy={institutionalAssetsSaving}
+                    disabled={!canManageLegislation}
+                    readOnly={!canManageLegislation}
+                    savedLabel="Salvo no armazenamento oficial"
+                    files={zoneamentoFiles}
+                    onFilesSelected={setZoneamentoFiles}
+                  />
+                  <FileDropZone
+                    title="Leis complementares — arquivo único legado"
+                    description="Compatibilidade com o cadastro antigo (1 PDF). Cadastre novas leis, decretos e anexos separadamente no acervo individual acima."
+                    accept="application/pdf,.pdf"
+                    multiple={false}
+                    allowPreview
+                    previewInitiallyCollapsed
+                    appearance="legal"
+                    busy={institutionalAssetsSaving}
+                    disabled={!canManageLegislation}
+                    readOnly={!canManageLegislation}
+                    savedLabel="Salvo no armazenamento oficial"
+                    files={leisFiles}
+                    onFilesSelected={setLeisFiles}
+                  />
+                </div>
+
+                <div className="mt-5 flex flex-col gap-3 rounded-[22px] border border-sky-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-950 dark:text-white">Salvar documentos jurídicos</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                      {canManageLegislation
+                        ? "O SIGAPRO envia os arquivos ao armazenamento oficial e grava os vínculos no banco da Prefeitura. Salve somente arquivos escolhidos nesta sessão; os PDFs existentes são preservados."
+                        : "Somente consulta. O administrador da Prefeitura cadastra os documentos; o Master acompanha o acervo."}
+                    </p>
+                    {institutionalAssetsStatus ? (
+                      <p
+                        role="status"
+                        className={`mt-2 text-xs font-semibold leading-5 ${
+                          institutionalAssetsStatus.toLocaleLowerCase("pt-BR").includes("sucesso")
+                            ? "text-emerald-700"
+                            : "text-rose-700"
+                        }`}
+                      >
+                        {institutionalAssetsStatus}
+                      </p>
+                    ) : null}
+                  </div>
+                  {canManageLegislation ? (
+                    <Button
+                      type="button"
+                      className="sig-force-dark-action h-11 shrink-0 rounded-2xl bg-slate-950 px-5 !text-white hover:bg-slate-900"
+                      onClick={() => void handleSaveInstitutionalAssets("legislation")}
+                      disabled={institutionalAssetsSaving}
+                    >
+                      {institutionalAssetsSaving ? "Salvando arquivos..." : "Salvar arquivos oficiais"}
+                    </Button>
+                  ) : (
+                    <span className="min-w-0 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-900 dark:border-sky-700 dark:bg-slate-800 dark:text-white">
+                      Consulta autorizada — edição pela Prefeitura
+                    </span>
+                  )}
+                </div>
+              </div>
+              {selectedTenantId ? (
+                <MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageLegislation}
+                      documentFiles={{
+                        usoSolo: settings?.usoSoloArquivoNome || "",
+                        zoneamento: settings?.zoneamentoArquivoNome || "",
+                        planoDiretor: settings?.planoDiretorArquivoNome || "",
+                        leisComplementares: settings?.leisArquivoNome || "",
+                      }} documentRef={settings?.usoSoloArquivoUrl || ""} />
+              ) : null}
+    </div>
+  );
+
+  if (legislationWorkspace) {
+    return (
+      <PortalFrame eyebrow="Cadastro e Gestão" title="Gestão de leis e parâmetros">
+        <PageShell className="min-w-0">
+          <section aria-label="Gerenciar o acervo legal da Prefeitura" data-urban-legislation-dedicated-page="true"
+            className="min-w-0 space-y-4">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:px-5">
+              <p className="min-w-0 break-words text-xs font-semibold leading-5 text-slate-600 dark:text-slate-200">
+                Acervo legal oficial <span aria-hidden="true" className="px-1 text-slate-400">•</span>
+                PDFs, histórico, versões e parâmetros urbanísticos
+              </p>
+              <Button type="button" variant="outline"
+                className="min-h-10 max-w-full shrink-0 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                onClick={() => navigate("/configuracoes")}>
+                Voltar ao Cadastro e Gestão
+              </Button>
+            </div>
+            {isMasterRole && !session.tenantId ? (
+              <div className="min-w-0 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                <div className="min-w-0 max-w-xl">
+                  <Label className="text-slate-800 dark:text-slate-100">Prefeitura a consultar</Label>
+                  <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+                    <SelectTrigger className="mt-1 min-h-11 min-w-0 rounded-xl border-slate-300 bg-white text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white">
+                      <SelectValue placeholder="Selecione uma Prefeitura" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableInstitutions.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : null}
+            {selectedTenantId ? legalArchiveWorkspace : (
+              <div role="status" className="min-w-0 rounded-[18px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                Selecione uma Prefeitura para conferir a legislação.
+              </div>
+            )}
+          </section>
+        </PageShell>
+      </PortalFrame>
+    );
+  }
+
   return (
     <PortalFrame eyebrow="Configurações institucionais" title="Branding, dados institucionais e preferências">
       <PageShell>
@@ -3251,11 +3498,15 @@ export function ConfiguracoesPage() {
           { value: "account", label: "Preferências", helper: "Conta e alertas" },
           { value: "advanced", label: "Parâmetros avançados", helper: "Regras e base local" },
           { value: "storage", label: "Dados e armazenamento", helper: "Nuvem ou servidor da Prefeitura" },
+          ...(session.role === "prefeitura_admin" && canManageTenantSettings ? [{ value: "certificates", label: "Assinaturas digitais", helper: "GOV.BR e ICP-Brasil" }] : []),
         ]}
         value={activeSettingsView}
         onChange={(value) => setActiveSettingsView(value as typeof activeSettingsView)}
       />
       {activeSettingsView === "overview" ? overviewSection : null}
+      {activeSettingsView === "certificates" && session.role === "prefeitura_admin" && canManageTenantSettings ? (
+        <MunicipalCertificateReadiness municipalityId={String(selectedTenantId || scopeId || session.tenantId || "")} municipalityName={tenantForm.name || municipality?.name || ""} />
+      ) : null}
       {canManageTenantSettings && activeSettingsView === "storage" ? (
         <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
           <PageMainContent className="w-full">
@@ -3417,25 +3668,36 @@ export function ConfiguracoesPage() {
                 <Label>Estado</Label>
                 <Input value={tenantForm.state} onChange={(event) => setTenantField("state", event.target.value)} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" data-contract-status-role={isPlatformContractAdmin ? "master" : "read-only"}>
                 <Label>Status do contrato</Label>
-                <Select value={tenantForm.status} onValueChange={(value) => setTenantField("status", value)}>
-                  <SelectTrigger className="h-12 rounded-2xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativo">Ativo</SelectItem>
-                    <SelectItem value="implantacao">Implantação</SelectItem>
-                    <SelectItem value="suspenso">Suspenso</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isPlatformContractAdmin ? (
+                  <Select value={tenantForm.status} onValueChange={(value) => setTenantField("status", value)}>
+                    <SelectTrigger className="h-12 rounded-2xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ativo">Ativo</SelectItem>
+                      <SelectItem value="implantacao">Implantação</SelectItem>
+                      <SelectItem value="suspenso">Suspenso</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <>
+                    <div role="status" aria-label="Status do contrato somente leitura"
+                      className="flex h-12 items-center rounded-2xl border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-700">
+                      {tenantForm.status === "ativo" ? "Ativo" : tenantForm.status === "suspenso" ? "Suspenso" : "Implantação"}
+                    </div>
+                    <p className="text-xs text-slate-500">Alteração exclusiva do Administrador Geral da plataforma.</p>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Plano comercial</Label>
-                <Input value={tenantForm.plan} onChange={(event) => setTenantField("plan", event.target.value)} />
+                <Input value={tenantForm.plan} readOnly={!isPlatformContractAdmin}
+                  aria-readonly={!isPlatformContractAdmin}
+                  className={!isPlatformContractAdmin ? "cursor-not-allowed bg-slate-100 text-slate-700" : undefined}
+                  onChange={(event) => { if (isPlatformContractAdmin) setTenantField("plan", event.target.value); }} />
               </div>
               <div className="space-y-2">
                 <Label>Link do cliente</Label>
@@ -3560,13 +3822,13 @@ export function ConfiguracoesPage() {
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={(next) => setDraftHeaderLogoConfig(fitMunicipalLogoFrame(next))}
                       label="Ajuste do logo do cabeçalho"
-                      hint="O brasão permanece inteiro. O máximo de 1,50x corresponde ao encaixe completo mostrado no cabeçalho."
+                      hint="O encaixe completo é 1,50x. Amplie até 5,00x e arraste para ajustar posição e recorte, sem deformar a imagem. Confira a prévia real antes de confirmar."
                       fitMode="contain"
                       containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
-                      keepWholeImageVisible
+                      keepWholeImageVisible={draftHeaderLogoConfig.scale <= MUNICIPAL_LOGO_FULL_FIT_ZOOM}
                       minScale={1}
                       maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
-                      zoomStep={0.1}
+                      zoomStep={0.05}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-header"
                       viewportClassName="!h-[188px] !w-[188px]"
@@ -3712,15 +3974,15 @@ export function ConfiguracoesPage() {
                       scale={draftFooterLogoConfig.scale}
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
-                      onChange={(next) => setDraftFooterLogoConfig(fitMunicipalLogoFrame(next))}
+                      onChange={(next) => setDraftFooterLogoConfig(fitMunicipalLogoFrame(next, "footer"))}
                       label="Ajuste do logo do rodapé"
-                      hint="O brasão permanece inteiro. O máximo de 1,50x corresponde ao encaixe completo mostrado no rodapé."
+                      hint="O encaixe inteiro é 1,50x; é possível ampliar até 5,00x e reposicionar por arraste com proporção preservada."
                       fitMode="contain"
                       containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
-                      keepWholeImageVisible
+                      keepWholeImageVisible={draftFooterLogoConfig.scale <= MUNICIPAL_LOGO_FULL_FIT_ZOOM}
                       minScale={1}
-                      maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
-                      zoomStep={0.1}
+                      maxScale={MUNICIPAL_FOOTER_LOGO_MAX_ZOOM}
+                      zoomStep={0.05}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
                       viewportClassName="!h-[188px] !w-[188px]"
@@ -3776,8 +4038,9 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                   <FileDropZone
+                    stacked
                     title="Brasão oficial"
                     description="Imagem usada em documentos, cabeçalhos e áreas institucionais."
                     accept="image/*"
@@ -3789,6 +4052,7 @@ export function ConfiguracoesPage() {
                     onFilesSelected={setBrasaoFiles}
                   />
                   <FileDropZone
+                    stacked
                     title="Bandeira municipal"
                     description="Imagem complementar da identidade visual da Prefeitura."
                     accept="image/*"
@@ -3800,6 +4064,7 @@ export function ConfiguracoesPage() {
                     onFilesSelected={setBandeiraFiles}
                   />
                   <FileDropZone
+                    stacked
                     title="Imagem do portal"
                     description="Imagem institucional utilizada no portal e nas áreas de apresentação."
                     accept="image/*"
@@ -3813,95 +4078,25 @@ export function ConfiguracoesPage() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] md:p-5">
-                <div className="mb-4 flex flex-col gap-3 border-b border-sky-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <ScrollText className="h-4 w-4 text-sky-700" />
-                      <p className="text-sm font-bold text-slate-950">Acervo legal municipal</p>
-                    </div>
-                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-                      Estes arquivos alimentam diretamente o módulo Legislação. Priorize PDF oficial já publicado pela Prefeitura.
-                    </p>
-                  </div>
-                  <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">
-                    Legislação
-                  </span>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-                  <FileDropZone
-                    title="Plano Diretor"
-                    description="PDF oficial do Plano Diretor municipal."
-                    accept="application/pdf,.pdf"
-                    multiple={false}
-                    allowPreview
-                    busy={institutionalAssetsSaving}
-                    savedLabel="Salvo no armazenamento oficial"
-                    files={planoDiretorFiles}
-                    onFilesSelected={setPlanoDiretorFiles}
-                  />
-                  <FileDropZone
-                    title="Lei de Uso e Ocupação do Solo"
-                    description="PDF oficial da lei de uso, ocupação e parâmetros urbanísticos."
-                    accept="application/pdf,.pdf"
-                    multiple={false}
-                    allowPreview
-                    busy={institutionalAssetsSaving}
-                    savedLabel="Salvo no armazenamento oficial"
-                    files={usoSoloFiles}
-                    onFilesSelected={setUsoSoloFiles}
-                  />
-                  <FileDropZone
-                    title="Zoneamento"
-                    description="PDF oficial e específico do zoneamento municipal, separado da Lei de Uso e Ocupação do Solo."
-                    accept="application/pdf,.pdf"
-                    multiple={false}
-                    allowPreview
-                    busy={institutionalAssetsSaving}
-                    savedLabel="Salvo no armazenamento oficial"
-                    files={zoneamentoFiles}
-                    onFilesSelected={setZoneamentoFiles}
-                  />
-                  <FileDropZone
-                    title="Leis complementares"
-                    description="PDF com leis, decretos e normas complementares vinculadas ao licenciamento."
-                    accept="application/pdf,.pdf"
-                    multiple={false}
-                    allowPreview
-                    busy={institutionalAssetsSaving}
-                    savedLabel="Salvo no armazenamento oficial"
-                    files={leisFiles}
-                    onFilesSelected={setLeisFiles}
-                  />
-                </div>
-
-                <div className="mt-5 flex flex-col gap-3 rounded-[22px] border border-sky-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-950">Salvar identidade e legislação</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      O SIGAPRO envia os arquivos ao armazenamento oficial e grava os vínculos no banco da Prefeitura. Depois disso, os PDFs aparecem automaticamente em Legislação.
+              <div className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 md:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-bold text-slate-950">Salvar os arquivos da identidade visual</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      Brasão, bandeira e imagem institucional ficam nesta área. Leis e parâmetros têm
+                      um espaço próprio e não serão modificados ao salvar a identidade visual.
                     </p>
                     {institutionalAssetsStatus ? (
-                      <p
-                        role="status"
-                        className={`mt-2 text-xs font-semibold leading-5 ${
-                          institutionalAssetsStatus.toLocaleLowerCase("pt-BR").includes("sucesso")
-                            ? "text-emerald-700"
-                            : "text-rose-700"
-                        }`}
-                      >
+                      <p role="status" className="mt-2 break-words text-xs font-semibold text-slate-700">
                         {institutionalAssetsStatus}
                       </p>
                     ) : null}
                   </div>
-                  <Button
-                    type="button"
-                    className="sig-force-dark-action h-11 shrink-0 rounded-2xl bg-slate-950 px-5 !text-white hover:bg-slate-900"
-                    onClick={() => void handleSaveInstitutionalAssets()}
+                  <Button type="button"
+                    className="sig-force-dark-action min-h-11 rounded-xl bg-slate-950 !text-white"
                     disabled={institutionalAssetsSaving}
-                  >
-                    {institutionalAssetsSaving ? "Salvando arquivos..." : "Salvar arquivos oficiais"}
+                    onClick={() => void handleSaveInstitutionalAssets("branding")}>
+                    {institutionalAssetsSaving ? "Salvando..." : "Salvar identidade visual"}
                   </Button>
                 </div>
               </div>
@@ -4110,7 +4305,7 @@ export function ConfiguracoesPage() {
         ) : null}
 
         {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "collection" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="w-full">
-        <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3" actions={<Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>}>
+        <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} className="sig-institutional-config-panel" headerClassName="gap-2 pb-3">
             <form className="space-y-4" onSubmit={handleSubmit}>
               {activeSettingsView === "institutional" ? (
                 <>
@@ -4413,12 +4608,12 @@ export function ConfiguracoesPage() {
                       </div>
                       <p className="mt-2 text-sm font-semibold text-slate-900">
                         {mercadoPagoChecking
-                          ? "Verificando Mercado Pago..."
+                          ? "Verificando integração de pagamentos..."
                           : mercadoPagoHealth?.ok
-                            ? "Mercado Pago conectado"
+                            ? "SIGAPRO Pagamentos conectado"
                             : mercadoPagoHealth?.configured
-                              ? "Mercado Pago com erro"
-                              : "Mercado Pago não conectado"}
+                              ? "SIGAPRO Pagamentos com erro"
+                              : "SIGAPRO Pagamentos não configurado"}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-slate-600">
                         {mercadoPagoHealth?.ok
@@ -4451,7 +4646,7 @@ export function ConfiguracoesPage() {
                         {mercadoPagoChecking
                           ? "Consultando meios de pagamento..."
                           : mercadoPagoHealth?.ok && mercadoPagoHealth.boletoAvailable
-                            ? "Boleto disponível no Mercado Pago"
+                            ? "Boleto disponível no SIGAPRO Pagamentos"
                             : mercadoPagoHealth?.ok
                               ? "Boleto não retornado nesta credencial"
                               : "Aguardando conexão com o provedor"}
@@ -4459,9 +4654,9 @@ export function ConfiguracoesPage() {
                       <p className="mt-1 text-xs leading-5 text-slate-600">
                         {mercadoPagoHealth?.ok
                           ? mercadoPagoHealth.boletoAvailable
-                            ? "Ao abrir uma guia sem dados bancários, o SIGAPRO solicita a cobrança ao Mercado Pago e incorpora a linha digitável e o código de barras na própria DAM."
+                            ? "Ao abrir uma guia sem dados bancários, o SIGAPRO solicita a cobrança pelo provedor habilitado e incorpora a linha digitável e o código de barras na própria DAM."
                             : `PIX: ${mercadoPagoHealth.pixAvailable ? "disponível" : "não retornado"} · Boleto: não retornado`
-                          : "O código de barras será usado somente quando vier da cobrança oficial do Mercado Pago."}
+                          : "O código de barras será utilizado somente quando fornecido pela cobrança oficial do provedor contratado."}
                       </p>
                     </div>
                   </div>
@@ -4617,7 +4812,7 @@ export function ConfiguracoesPage() {
 
                   {mercadoPagoHealth?.ok && settingsForm.paymentProvider === "mercado_pago" ? (
                     <div className="rounded-[18px] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-sky-900">
-                      <strong>Mercado Pago conectado em ambiente {mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"}.</strong>{" "}
+                      <strong>SIGAPRO Pagamentos conectado em ambiente {mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"}.</strong>{" "}
                       Para o teste via Mercado Pago, os campos de banco/convênio abaixo não são obrigatórios; eles ficam disponíveis para uma futura integração bancária direta.
                     </div>
                   ) : null}

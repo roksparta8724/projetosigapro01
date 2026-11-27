@@ -18,6 +18,7 @@ import {
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatCpf, isValidCpf, normalizeCpf } from "@/lib/cpf";
 import { clearPendingSignup, writePendingSignup } from "@/lib/pendingSignup";
+import { normalizeInvitedProtocol, rememberOwnerInvitation } from "@/lib/ownerInvitation";
 import {
   getInstitutionClientSlug,
   isInstitutionPubliclyAvailable,
@@ -52,6 +53,13 @@ export function CriarContaPage() {
   const [searchParams] = useSearchParams();
 
   const tenantSlug = searchParams.get("tenant");
+  const invitedProtocol = searchParams.get("perfil") === "proprietario"
+    ? normalizeInvitedProtocol(searchParams.get("protocolo")) : "";
+  const invitedTenantSlug = tenantSlug || tenant.subdomain || "";
+  const isInvitedOwner = Boolean(invitedProtocol && invitedTenantSlug);
+  useEffect(() => {
+    if (isInvitedOwner) rememberOwnerInvitation(invitedTenantSlug, invitedProtocol);
+  }, [isInvitedOwner, invitedProtocol, invitedTenantSlug]);
 
   const availableInstitutions = useMemo(() => {
     if (tenant.mode === "tenant" && tenant.municipalityId) {
@@ -118,7 +126,7 @@ export function CriarContaPage() {
 
   const [form, setForm] = useState({
     tenantId: tenant.municipalityId || tenantFromLink || availableInstitutions[0]?.id || "",
-    role: "profissional_externo" as UserRole,
+    role: (isInvitedOwner ? "property_owner" : "profissional_externo") as UserRole,
     fullName: "",
     email: "",
     phone: "",
@@ -340,8 +348,13 @@ export function CriarContaPage() {
       bio: form.bio,
     });
 
+    const accessParams = new URLSearchParams();
+    if (tenantSlug || (isInvitedOwner && invitedTenantSlug)) accessParams.set("tenant", invitedTenantSlug);
+    if (isInvitedOwner) accessParams.set("protocolo", invitedProtocol);
     const emailRedirectTo =
-      typeof window !== "undefined" ? `${window.location.origin}/acesso` : undefined;
+      typeof window !== "undefined"
+        ? `${window.location.origin}/acesso${accessParams.toString() ? "?" + accessParams.toString() : ""}`
+        : undefined;
     const { data, error: signUpError } = await backendClient.auth.signUp({
           email: normalizedEmail,
           password: form.password,
@@ -428,7 +441,9 @@ export function CriarContaPage() {
           );
 
           const accessRedirect =
-            tenant.mode === "tenant" ? "/acesso" : `/acesso?tenant=${tenantSlug || ""}`;
+            tenant.mode === "tenant"
+              ? `/acesso${isInvitedOwner ? "?protocolo=" + encodeURIComponent(invitedProtocol) : ""}`
+              : `/acesso${accessParams.toString() ? "?" + accessParams.toString() : ""}`;
 
           setTimeout(() => navigate(accessRedirect), 1200);
         } catch (registrationError) {
@@ -541,6 +556,7 @@ export function CriarContaPage() {
                   <div className="space-y-2">
                     <Label>Tipo de acesso</Label>
                     <Select
+                      disabled={isInvitedOwner}
                       value={form.role}
                       onValueChange={(value: UserRole) => setForm((current) => ({
                         ...current,
@@ -561,6 +577,13 @@ export function CriarContaPage() {
                     <p className="text-xs leading-5 text-slate-500">
                       O proprietário acompanha o processo, mas não atua tecnicamente nem fala direto com a Prefeitura.
                     </p>
+                    {isInvitedOwner ? (
+                      <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">
+                        Convite do profissional recebido. Protocolo: <strong>{invitedProtocol}</strong>.
+                        Após entrar, seu número estará preenchido para validar o acompanhamento.
+                        A conversa só será aberta após confirmação do documento e aprovação do profissional.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -800,6 +823,15 @@ export function CriarContaPage() {
                 </Button>
               </form>
 
+              {isInvitedOwner ? (
+                <div className="mt-4 text-center text-sm text-slate-700">
+                  Já possui conta de proprietário?{" "}
+                  <Link className="font-semibold text-sky-800 underline"
+                    to={`/acesso?tenant=${encodeURIComponent(invitedTenantSlug)}&protocolo=${encodeURIComponent(invitedProtocol)}`}>
+                    Entrar e validar o protocolo
+                  </Link>
+                </div>
+              ) : null}
               <div className="mt-6 grid gap-4 md:grid-cols-2 lg:hidden">
                 <div className="rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.96)_0%,rgba(241,245,249,0.92)_100%)] p-4 text-sm text-slate-600">
                   <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-900">

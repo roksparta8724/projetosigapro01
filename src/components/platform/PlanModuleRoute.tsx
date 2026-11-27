@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import type { PlanModuleName } from "@/lib/planEntitlements";
-import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 
 export function PlanModuleRoute({
   module,
@@ -13,17 +13,15 @@ export function PlanModuleRoute({
 }) {
   const entitlements = usePlanEntitlements();
 
-  if (entitlements.isResolving) {
-    // F5: se a mesma conta e a mesma rota possuem continuidade válida,
-    // manter a própria tela real montada. Nunca substituir o conteúdo por
-    // uma página intermediária de "validação".
-    if (hasValidRefreshContinuity()) {
-      return <>{children}</>;
-    }
-
-    // Cold start/troca de conta: falha fechada sem desenhar uma tela falsa.
-    // A PermissionRoute já segura a identidade até a sessão real ser resolvida.
-    return null;
+  if (entitlements.isResolving || (!entitlements.isMaster && !entitlements.canUseModule(module) && !entitlements.isDenialConfirmed)) {
+    // Missing or stale contract data is not a confirmed refusal. Never bypass
+    // this gate using a client-side refresh marker, including on account changes.
+    return (
+      <SecureRoutePending
+        title="Conferindo o módulo contratado"
+        detail="O SIGAPRO está verificando a autorização do plano desta Prefeitura antes de abrir a ferramenta."
+      />
+    );
   }
 
   if (entitlements.isMaster || entitlements.canUseModule(module)) {

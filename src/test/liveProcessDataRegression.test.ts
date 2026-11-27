@@ -37,10 +37,10 @@ describe("live process identity and operational freshness", () => {
     expect(liveRefresh).toContain("document.visibilityState");
     expect(liveRefresh).toContain('window.addEventListener("focus"');
     expect(liveRefresh).toContain('document.addEventListener("visibilitychange"');
-    expect(processDetail).toContain("useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 })");
-    expect(documentAnalysis).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 })");
-    expect(financeDesk).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 })");
-    expect(registry).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000, refreshOnMount: false })");
+    expect(processDetail).toContain("useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 30000, refreshOnMount: false })");
+    expect(documentAnalysis).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 30000, refreshOnMount: false })");
+    expect(financeDesk).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 20000, refreshOnMount: false })");
+    expect(registry).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 30000, refreshOnMount: false })");
   });
 
   it("does not replace unchanged remote-store references during heartbeat refreshes", () => {
@@ -54,7 +54,7 @@ describe("live process identity and operational freshness", () => {
     // This desk keeps its own silent refresh loop and does not repaint the
     // whole desk merely to update a live-sync timestamp.
     expect(analystDesk).toContain("const refreshAnalysisDesk = useCallback(async () =>");
-    expect(analystDesk).toContain("const timer = window.setInterval(sync, 5000)");
+    expect(analystDesk).toContain("const timer = window.setInterval(sync, 30000)");
     expect(analystDesk).toContain('document.visibilityState !== "visible"');
   });
 

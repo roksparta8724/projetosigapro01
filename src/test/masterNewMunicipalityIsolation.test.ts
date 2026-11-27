@@ -7,10 +7,14 @@ const source = readFileSync(resolve(process.cwd(), "src/pages/saas/MasterAdminPa
 describe("new municipality isolation", () => {
   it("keeps a new municipality draft isolated from an existing selected client", () => {
     expect(source).toContain("isCreatingNewInstitution");
-    expect(source).toContain("if (isCreatingNewInstitution) return;");
-    expect(source).toContain("setIsCreatingNewInstitution(true)");
-    expect(source).toContain("setSelectedTenantId(\"\")");
-    expect(source).toContain("setForm(emptyTenantForm)");
+    // The URL is the authoritative mode; creation never hydrates selected-tenant values.
+    expect(source).toContain('resolveMasterFormMode(location.search) === "novo"');
+    expect(source).toContain('if (isCreatingNewInstitution || workspaceView !== "cadastro") return;');
+    expect(source).toContain('masterWorkspaceSearch(location.search, "cadastro", selectedTenantId, "novo")');
+    expect(source).toContain("setForm({ ...emptyTenantForm })");
+    expect(source).toContain('get("secao")');
+    expect(source).not.toContain("setIsCreatingNewInstitution(");
+    expect(source).not.toContain('setSelectedTenantId("")');
     expect(source).toContain("institutionId: isCreatingNewInstitution ? undefined");
   });
 

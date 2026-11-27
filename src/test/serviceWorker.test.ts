@@ -21,7 +21,7 @@ function loadWorker() {
   runInNewContext(readFileSync(resolve(process.cwd(), "public/sigapro-sw.js"), "utf8"), {
     self,
     caches: {
-      keys: async () => ["sigapro-enterprise-v1:app", "sigapro-enterprise-v2:assets", "sigapro-enterprise-v3:assets", "sigapro-enterprise-v4:assets", "sigapro-enterprise-v5:assets", "sigapro-enterprise-v5:avatars"],
+      keys: async () => ["sigapro-enterprise-v1:app", "sigapro-enterprise-v2:assets", "sigapro-enterprise-v3:assets", "sigapro-enterprise-v4:assets", "sigapro-enterprise-v5:assets", "sigapro-enterprise-v5:avatars", "sigapro-enterprise-v7:assets", "sigapro-enterprise-v8:assets", "sigapro-enterprise-v9:assets"],
       delete: deleteCache,
       open: openCache,
     },
@@ -33,7 +33,7 @@ function loadWorker() {
 }
 
 describe("service worker do SIGAPRO", () => {
-  it("busca HTML de navegacao na rede sem reutilizar o app shell antigo", async () => {
+  it("usa cache apenas da versão pública validada; sem cache ainda consulta a rede", async () => {
     const worker = loadWorker();
     let response: Promise<unknown> | undefined;
     worker.listeners.get("fetch")?.({
@@ -46,7 +46,8 @@ describe("service worker do SIGAPRO", () => {
     } as FetchEvent & WorkerEvent);
 
     expect(await response).toBe("fresh-html");
-    expect(worker.fetch).toHaveBeenCalledWith(expect.objectContaining({ mode: "navigate" }), { cache: "no-store" });
+    expect(worker.fetch).toHaveBeenCalledWith(expect.objectContaining({ mode: "navigate" }), { cache: "no-store", credentials: "same-origin" });
+    // Invalid or unverified responses must not trigger CacheStorage on the critical navigation path.
     expect(worker.openCache).not.toHaveBeenCalled();
   });
 
@@ -62,5 +63,9 @@ describe("service worker do SIGAPRO", () => {
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v4:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v5:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v5:avatars");
+    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v7:assets");
+    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v8:assets");
+    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v9:assets");
+    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v10:assets");
   });
 });

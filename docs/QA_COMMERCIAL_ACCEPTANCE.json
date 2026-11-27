@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "environment": "qa",
+  "checks": [
+    {
+      "id": "tenant_isolation",
+      "status": "pending"
+    },
+    {
+      "id": "ai_real_plan",
+      "status": "pending"
+    },
+    {
+      "id": "pdf_original",
+      "status": "pending"
+    },
+    {
+      "id": "bank_settlement",
+      "status": "pending"
+    },
+    {
+      "id": "bank_worker_privileges",
+      "status": "pending"
+    },
+    {
+      "id": "neon_r2_recovery",
+      "status": "pending"
+    },
+    {
+      "id": "master_dashboard",
+      "status": "pending"
+    },
+    {
+      "id": "city_dashboard",
+      "status": "pending"
+    },
+    {
+      "id": "analyst_dashboard",
+      "status": "pending"
+    },
+    {
+      "id": "external_dashboard",
+      "status": "pending"
+    }
+  ]
+}

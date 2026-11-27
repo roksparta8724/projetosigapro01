@@ -869,6 +869,96 @@ function getStyles() {
       border-top: 1px dashed #91a4b7;
     }
 
+    /* Shared row grid prevents independent left/right borders from drifting.
+       Header and receipt use the exact same right-side label track (26mm).
+       A long name/guide reference expands the ENTIRE paired row in print. */
+    .dam-receipt-body {
+      display: block;
+      flex: 0 0 auto;
+      min-width: 0;
+      background: #ffffff;
+    }
+
+    .dam-receipt-body-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 58mm;
+      min-height: 7.6mm;
+      border-bottom: 1px solid #000000;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      box-sizing: border-box;
+    }
+
+    .dam-receipt-body-left,
+    .dam-receipt-body-right {
+      display: grid;
+      align-items: stretch;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .dam-receipt-body-left {
+      grid-template-columns: 28mm minmax(0, 1fr);
+      border-right: 1px solid #000000;
+    }
+
+    .dam-receipt-body-right {
+      grid-template-columns: 26mm minmax(0, 1fr);
+    }
+
+    .dam-receipt-body-row .dam-receipt-row-label,
+    .dam-receipt-body-row .dam-receipt-row-value {
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      min-height: 7.6mm;
+      padding: 1.1mm 1.3mm;
+    }
+
+    .dam-receipt-body-row .dam-receipt-row-label {
+      border-right: 1px solid #000000;
+      font-size: 6.4px;
+      font-weight: 700;
+      line-height: 1.12;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .dam-receipt-body-row .dam-receipt-row-value {
+      font-size: 7.2px;
+      line-height: 1.16;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
+
+    .dam-receipt-body-right .dam-receipt-row-value {
+      font-weight: 700;
+      white-space: normal;
+    }
+
+    .dam-receipt-note-full { width: 100%; min-width: 0; background: #fbfcfe; }
+    .dam-receipt-note-full .dam-note { padding: 2mm 2.5mm; font-size: 6.7px; line-height: 1.2; overflow-wrap: anywhere; }
+    .dam-receipt-extras {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 58mm;
+      min-width: 0;
+    }
+
+    .dam-receipt-extras-left {
+      border-right: 1px solid #000000;
+      min-width: 0;
+    }
+
+    .dam-receipt-extras-right {
+      min-width: 0;
+    }
+
+    .dam-receipt-extras-left .dam-note,
+    .dam-receipt-extras-left .dam-auth {
+      overflow-wrap: anywhere;
+    }
+
     .dam-receipt-header {
       display: grid;
       /* Retoma a altura COMPACTA de 19mm. Somente o brasão cresce dentro do
@@ -944,7 +1034,7 @@ function getStyles() {
     }
 
     .dam-receipt-right .dam-receipt-row {
-      grid-template-columns: 22mm minmax(0, 1fr);
+      grid-template-columns: 26mm minmax(0, 1fr);
       height: 9.5mm;
       min-height: 9.5mm;
       box-sizing: border-box;
@@ -966,11 +1056,11 @@ function getStyles() {
       font-size: 6.5px;
       line-height: 1;
       font-weight: 800;
-      white-space: nowrap;
+      white-space: normal;
       overflow: hidden;
-      text-overflow: ellipsis;
+      text-overflow: clip;
       word-break: normal;
-      overflow-wrap: normal;
+      overflow-wrap: anywhere;
       display: flex;
       align-items: center;
       justify-content: flex-start;
@@ -978,18 +1068,6 @@ function getStyles() {
       color: #111827;
     }
 
-    .dam-receipt-body {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 58mm;
-      flex: 0 0 auto;
-      min-height: 42mm;
-      background: #ffffff;
-    }
-
-    .dam-receipt-left {
-      border-right: 1px solid #000000;
-      min-width: 0;
-    }
 
     .dam-receipt-row {
       display: grid;
@@ -1784,7 +1862,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-total-row">
-              <div className="dam-total-label">{nonPayable ? "VALOR REFERENCIAL — NÃO PAGAR" : guia.bankEnvironment === "test" ? "VALOR DO BOLETO DE TESTE — NÃO PAGAR" : "VALOR TOTAL A PAGAR"}</div>
+              <div className="dam-total-label">{nonPayable ? "VALOR REFERENCIAL — NÃO PAGAR" : guia.bankEnvironment === "test" ? (sandboxPixPayload ? "VALOR DO PIX DE TESTE — NÃO PAGAR" : "VALOR DO BOLETO DE TESTE — NÃO PAGAR") : "VALOR TOTAL A PAGAR"}</div>
               <div className="dam-total-value">{formatCurrency(totalDocumento)}</div>
             </div>
 
@@ -1801,7 +1879,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               {nonPayable
                 ? "** SOMENTE PRÉVIA DE TESTE — SEM BOLETO REGISTRADO — NÃO PAGAR **"
                 : guia.bankEnvironment === "test"
-                  ? "** BOLETO EMITIDO NO AMBIENTE DE TESTES — NÃO PAGAR — SEM VALIDADE DE ARRECADAÇÃO OFICIAL **"
+                  ? (sandboxPixPayload ? "** PIX EMITIDO NO AMBIENTE DE TESTES — NÃO PAGAR — SEM VALIDADE DE ARRECADAÇÃO OFICIAL **" : "** BOLETO EMITIDO NO AMBIENTE DE TESTES — NÃO PAGAR — SEM VALIDADE DE ARRECADAÇÃO OFICIAL **")
                 : guia.paymentProvider === "mercado_pago"
                   ? "** VALIDAÇÃO ELETRÔNICA PELO PROVEDOR DE PAGAMENTO ** ** NÃO RECEBER APÓS O VENCIMENTO **"
                   : "** VÁLIDO SOMENTE COM AUTENTICAÇÃO / BAIXA OFICIAL ** ** NÃO RECEBER APÓS O VENCIMENTO **"}
@@ -1870,20 +1948,27 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               </div>
             </div>
 
-            <div className="dam-receipt-body">
-              <div className="dam-receipt-left">
-                <ReceiptRow
-                  label="Nº do Cadastro"
-                  value={contribuinte.numeroCadastro}
-                />
-                <ReceiptRow label="CNPJ/CPF" value={contribuinte.cpfCnpj} />
-                <ReceiptRow
-                  label="Data Emissão"
-                  value={formatDateBR(guia.dataDocumento)}
-                />
-                <ReceiptRow label="Pagador" value={contribuinte.nome} />
-                <ReceiptRow label="Endereço" value={contribuinte.endereco} />
-
+            <div className="dam-receipt-body" data-dam-receipt-aligned-grid="true">
+              {([
+                ["Nº do Cadastro", contribuinte.numeroCadastro, "Valor Doc.", formatCurrency(totalDocumento)],
+                ["CNPJ/CPF", contribuinte.cpfCnpj, "(-) Descontos", formatCurrency(descontos)],
+                ["Data Emissão", formatDateBR(guia.dataDocumento), "(+) Acresc.", formatCurrency(outrosAcrescimos)],
+                ["Pagador", contribuinte.nome, "(+) Juros", formatCurrency(totalJuros)],
+                ["Endereço", contribuinte.endereco, "(+) Multa", formatCurrency(totalMulta)],
+                ["Natureza", guideMeta.shortLabel, "(=) Valor", formatCurrency(valorCobrado)],
+              ] as [string, string | undefined, string, string][]).map(([leftLabel,leftValue,rightLabel,rightValue]) => (
+                <div key={leftLabel} className="dam-receipt-body-row">
+                  <div className="dam-receipt-body-left">
+                    <div className="dam-receipt-row-label">{leftLabel}</div>
+                    <div className="dam-receipt-row-value">{leftValue || <span>Não informado</span>}</div>
+                  </div>
+                  <div className="dam-receipt-body-right">
+                    <div className="dam-receipt-row-label">{rightLabel}</div>
+                    <div className="dam-receipt-row-value">{rightValue}</div>
+                  </div>
+                </div>
+              ))}
+              <div className="dam-receipt-note-full">
                 <div className="dam-note">
                   {guia.bankAgency || guia.bankAccount || guia.bankBeneficiary ? (
                     <div data-dam-municipal-bank="true" style={{ marginBottom: 3, fontSize: "6px", lineHeight: 1.35, overflowWrap: "anywhere" }}>
@@ -1898,7 +1983,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   ) : null}
                   <div>
                     {nonPayable
-                      ? `Provedor selecionado para homologação: ${guia.bankName || "não informado"}. Nenhuma cobrança bancária emitida; não efetuar pagamento.`
+                      ? "PRÉVIA ADMINISTRATIVA SEM COBRANÇA. Nenhuma integração bancária foi acionada; não efetuar pagamento."
                       : guia.bankName
                         ? `Provedor de cobrança: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
                         : "Pagamento pelos canais oficiais indicados pela Prefeitura. Não receber após o vencimento."}
@@ -1911,13 +1996,15 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     </div>
                   ) : null}
                 </div>
-
+              </div>
+              <div className="dam-receipt-extras">
+                <div className="dam-receipt-extras-left">
                 <div className="dam-auth">
                   <div className="dam-auth-label">
                     {nonPayable ? "Emissão bancária" : guia.paymentProvider === "mercado_pago" ? "Validação eletrônica" : "Autenticação / baixa"}
                   </div>
                   <div className="dam-auth-value">
-                    {guia.paymentProvider === "mercado_pago" ? (
+                    {nonPayable ? bankAuth.title : guia.paymentProvider === "mercado_pago" ? (
                       <>
                         {bankAuth.title}
                         {guia.bankPaymentId ? <> • Payment {guia.bankPaymentId}</> : null}
@@ -1927,34 +2014,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     )}
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <ReceiptRow
-                  label="Valor Doc."
-                  value={formatCurrency(totalDocumento)}
-                />
-                <ReceiptRow
-                  label="(-) Descontos"
-                  value={formatCurrency(descontos)}
-                />
-                <ReceiptRow
-                  label="(+) Acresc."
-                  value={formatCurrency(outrosAcrescimos)}
-                />
-                <ReceiptRow
-                  label="(+) Juros"
-                  value={formatCurrency(totalJuros)}
-                />
-                <ReceiptRow
-                  label="(+) Multa"
-                  value={formatCurrency(totalMulta)}
-                />
-                <ReceiptRow
-                  label="(=) Valor"
-                  value={formatCurrency(valorCobrado)}
-                />
-
+                </div>
+                <div className="dam-receipt-extras-right">
                 {sandboxPixPayload ? (
                   <div className="dam-qr-wrap dam-qr-sandbox" data-dam-pix="sandbox">
                     <div className="dam-qrcode-label">PIX — MERCADO PAGO (TESTE)</div>
@@ -1999,6 +2060,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                       : " Utilize a linha digitável ou o código de barras acima."}
                   </div>
                 ) : null}
+                </div>
               </div>
             </div>
 
@@ -2050,7 +2112,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     : "Guia vinculada ao processo administrativo e ao provedor oficial de cobrança."}
                 </div>
                 <div className="dam-final-box">
-                  <div><strong>Provedor:</strong> {guia.bankName || "Arrecadação municipal"}</div>
+                  <div><strong>Emissão:</strong> {nonPayable ? "Simulação documental, sem integração bancária" : guia.bankName || "Arrecadação municipal"}</div>
                   <div><strong>Situação:</strong> {bankAuth.title}</div>
                   {guia.bankReference ? <div><strong>Order:</strong> {guia.bankReference}</div> : null}
                   {guia.bankPaymentId ? <div><strong>Payment:</strong> {guia.bankPaymentId}</div> : null}
