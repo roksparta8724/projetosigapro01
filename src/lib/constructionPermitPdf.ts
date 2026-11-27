@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { applyPermitRenderMetadata, markUnsignedCertificateDraft, type CertifiedDraftRenderOptions } from "./certifiedPermitRenderOptions";
 import { appendPermitContinuations, permitSummaryLines, type PermitContinuation } from "./permitPdfContinuation";
 import { createQrCodeDataUrl } from "@/lib/qrCode";
 import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
@@ -20,6 +21,7 @@ export type ConstructionPermitPdfInput = {
   directorate?: string;
   technicalProfile?: UserProfile;
   manualSignature?: boolean;
+  certifiedDraft?: CertifiedDraftRenderOptions;
 };
 
 type PdfColor = readonly [number, number, number];
@@ -72,7 +74,7 @@ function buildPermitDocumentTitle(workType?: string | null) {
 function formatDate(value?: string | null) {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR");
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR", {timeZone:"America/Sao_Paulo"});
 }
 
 function compactHash(hash?: string | null) {
@@ -374,8 +376,10 @@ export async function buildConstructionPermitPdfBlob({
   directorate,
   technicalProfile,
   manualSignature = false,
+  certifiedDraft,
 }: ConstructionPermitPdfInput) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  if (certifiedDraft) applyPermitRenderMetadata(pdf, certifiedDraft);
   const form = permit.formData;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -387,7 +391,7 @@ export async function buildConstructionPermitPdfBlob({
   const logoUrl =
     municipalityLogoUrl ||
     (isCampoLimpo ? CAMPO_LIMPO_BRASAO_FALLBACK : "");
-  const logoDataUrl =
+  const logoDataUrl = certifiedDraft ? certifiedDraft.logoDataUrl ?? null :
     (await loadImageDataUrl(logoUrl)) ||
     (isCampoLimpo ? await loadImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK) : null);
 
@@ -418,11 +422,11 @@ export async function buildConstructionPermitPdfBlob({
     (isCampoLimpo ? "(11) 4038-8300" : "");
 
   const directorOfficial = Boolean(
-    permit.directorSignature?.official &&
+    !certifiedDraft && permit.directorSignature?.official &&
     permit.directorSignature?.verificationCode,
   );
   const secretaryOfficial = Boolean(
-    permit.secretarySignature?.official &&
+    !certifiedDraft && permit.secretarySignature?.official &&
     permit.secretarySignature?.verificationCode,
   );
   const permitDocumentTitle = buildPermitDocumentTitle(
@@ -458,9 +462,10 @@ export async function buildConstructionPermitPdfBlob({
   };
 
   const formatLongDate = (value?: string | null) => {
-    const date = value ? new Date(value) : new Date();
+    const date = value ? new Date(value) : certifiedDraft ? new Date(certifiedDraft.createdAt) : new Date();
     if (Number.isNaN(date.getTime())) return valueOrFallback(value, "—");
     return date.toLocaleDateString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -1050,7 +1055,7 @@ export async function buildConstructionPermitPdfBlob({
   );
   y += 6;
 
-  const showManualDirectorLine = manualSignature && !directorOfficial;
+  const showManualDirectorLine = !certifiedDraft && manualSignature && !directorOfficial;
   const hasSecretary = secretaryOfficial;
   const publicVerificationUrl = directorOfficial
     ? buildPublicSignatureVerificationUrl(permit.directorSignature?.verificationCode)
@@ -1073,7 +1078,7 @@ export async function buildConstructionPermitPdfBlob({
       y,
       half,
       "Diretoria responsável",
-      permit.directorSignature,
+      certifiedDraft ? undefined : permit.directorSignature,
       showManualDirectorLine,
       verificationQrDataUrl,
     );
@@ -1094,7 +1099,7 @@ export async function buildConstructionPermitPdfBlob({
       y,
       contentWidth,
       "Diretoria responsável",
-      permit.directorSignature,
+      certifiedDraft ? undefined : permit.directorSignature,
       showManualDirectorLine,
       verificationQrDataUrl,
     );
@@ -1151,6 +1156,7 @@ export async function buildConstructionPermitPdfBlob({
 
   const continuations: PermitContinuation[] = conditionSummary.overflow ? [{title:"Observações e condições — texto integral",body:conditions.join("\n\n")}] : [];
   appendPermitContinuations(pdf,{municipality:officialMunicipalityName,permitNumber:permit.permitNumber,protocol:process.protocol,documentTitle:permitDocumentTitle,sections:continuations});
+  if (certifiedDraft) markUnsignedCertificateDraft(pdf);
   return pdf.output("blob");
 }
 

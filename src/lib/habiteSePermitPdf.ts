@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { applyPermitRenderMetadata, markUnsignedCertificateDraft, type CertifiedDraftRenderOptions } from "./certifiedPermitRenderOptions";
 import { appendPermitContinuations, permitSummaryLines, type PermitContinuation } from "./permitPdfContinuation";
 import { createQrCodeDataUrl } from "@/lib/qrCode";
 import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
@@ -27,6 +28,7 @@ export type HabiteSePermitPdfInput = {
   secretarySignature?: HabiteSePermitPdfSignature | null;
   verificationCode?: string | null;
   evidenceHash?: string | null;
+  certifiedDraft?: CertifiedDraftRenderOptions;
 };
 
 type PdfColor = readonly [number, number, number];
@@ -288,8 +290,10 @@ export async function buildHabiteSePermitPdfBlob({
   secretarySignature,
   verificationCode,
   evidenceHash,
+  certifiedDraft,
 }: HabiteSePermitPdfInput) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  if (certifiedDraft) applyPermitRenderMetadata(pdf, certifiedDraft);
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 10;
@@ -301,7 +305,7 @@ export async function buildHabiteSePermitPdfBlob({
   const logoUrl =
     municipalityLogoUrl ||
     (isCampoLimpo ? CAMPO_LIMPO_BRASAO_FALLBACK : "");
-  const logoDataUrl =
+  const logoDataUrl = certifiedDraft ? certifiedDraft.logoDataUrl ?? null :
     (await loadImageDataUrl(logoUrl)) ||
     (isCampoLimpo ? await loadImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK) : null);
 
@@ -329,7 +333,8 @@ export async function buildHabiteSePermitPdfBlob({
     municipalityPhone ||
     (isCampoLimpo ? "(11) 4038-8300" : "");
 
-  const emitted = permit.status === "emitido" && Boolean(directorSignature?.signedAt);
+  if (certifiedDraft) { directorSignature = null; secretarySignature = null; verificationCode = null; evidenceHash = null; }
+  const emitted = !certifiedDraft && permit.status === "emitido" && Boolean(directorSignature?.signedAt);
   const waitingDirector = permit.status === "aguardando_diretor";
   const statusLabel = emitted
     ? "EMITIDO"
@@ -592,6 +597,7 @@ export async function buildHabiteSePermitPdfBlob({
   // A propriedade só é usada para manter o título no Blob/navegador consistente.
   void fileTitle;
   appendPermitContinuations(pdf,{municipality:officialMunicipalityName,permitNumber:permit.permitNumber,protocol:process.protocol,documentTitle:"Alvará de Habite-se",sections:continuations});
+  if (certifiedDraft) markUnsignedCertificateDraft(pdf);
   return pdf.output("blob");
 }
 
