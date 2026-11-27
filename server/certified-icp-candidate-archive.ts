@@ -54,3 +54,13 @@ export async function completeAndArchiveIcpSandboxCandidate(deps:IcpSandboxWorke
  const candidate=await completeIcpSandboxCandidate(deps,input);
  return archiveIcpSandboxCandidate(candidate,env);
 }
+
+/** Read back a previously recorded candidate; no PUT or new provider call. */
+export async function verifyRecordedIcpArchive(proof:{objectKey:string;sha256:string;fileSizeBytes:number},env:Env=process.env,clientOverride?:S3Client){
+ const config=archiveConfig(env);
+ if(!hex.test(proof.sha256)||!proof.objectKey.startsWith("sandbox-only/certified-candidates/")||
+   !proof.objectKey.endsWith("/"+proof.sha256+".pdf")||!Number.isSafeInteger(proof.fileSizeBytes)||proof.fileSizeBytes<64||proof.fileSizeBytes>MAX)throw Error("ITI_ARCHIVE_MANIFEST_NOT_CONFIRMED");
+ const client=clientOverride??new S3Client({region:"auto",endpoint:config.endpoint,credentials:config.credentials,maxAttempts:2});
+ try{return await assertStoredDocumentBytes(client,{bucket:config.bucket,objectKey:proof.objectKey,expectedSha256:proof.sha256,expectedBytes:proof.fileSizeBytes,contentType:"application/pdf",maxBytes:MAX,requirePdf:true});}
+ finally{if(!clientOverride)client.destroy();}
+}
