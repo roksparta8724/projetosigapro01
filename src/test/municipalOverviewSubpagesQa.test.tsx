@@ -53,8 +53,9 @@ describe("SIGAPRO QA — Visão Geral da Prefeitura com subpáginas reais", () =
 
     const page = readFileSync("src/pages/saas/TenantAdminPage.tsx", "utf8");
     expect(page).toContain("isNestedOverview");
-    expect(page).toContain('setWorkspaceView("visao-geral")');
-    expect(page).toContain("persistInUrl={!isNestedOverview}");
+    expect(page).toContain('municipalAdminSection(location.pathname,location.search)');
+    expect(page).toContain('persistInUrl={false}');
+    expect(page).toContain('navigate(target.to,{preventScrollReset:true})');
     expect(page).toContain("MunicipalOverviewSubnav active={overviewSubpage}");
     expect(page).toContain('overviewSubpage === "processos"');
     expect(page).toContain('overviewSubpage === "pendencias"');
