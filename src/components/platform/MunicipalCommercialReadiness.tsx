@@ -95,7 +95,7 @@ export function MunicipalCommercialReadiness({municipalityId}:{
       detail:signed?"Constam registros anteriores de analista e diretoria; não substituem nova assinatura do piloto.":"Exercite assinatura do analista e da diretoria no mesmo processo piloto."},
   ];
   return <section data-commercial-readiness="true"
-    className="rounded-[24px] border border-slate-200 bg-white p-4 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 sm:p-5">
+    className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950 dark:text-slate-100">
@@ -107,7 +107,7 @@ export function MunicipalCommercialReadiness({municipalityId}:{
         </p>
       </div>
       <button type="button" onClick={()=>void check()} disabled={pending}
-        className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-center sm:w-auto text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
         <RefreshCw className={`h-4 w-4 ${pending?"animate-spin":""}`}/>
         Atualizar comprovações
       </button>
@@ -120,7 +120,7 @@ export function MunicipalCommercialReadiness({municipalityId}:{
         className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
         Liberação comercial não certificada — requer prova bancária, legal, documental e funcional.
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
         {milestones.map(item=><div key={item.label}
           className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
           <div className="flex items-start gap-2">
