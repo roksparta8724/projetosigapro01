@@ -153,3 +153,70 @@ export function verifySandboxDetachedCms(input: {
     };
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
+
+/** DOC-ICP-04, subjectAltName otherName 2.16.76.1.3.1 (natural person).
+ * No CN, email, textual OpenSSL output, corporate responsible-person CPF,
+ * or fallback guess is accepted. The expected CPF must come from the
+ * server-authorized municipal signer profile. This does not cover gov.br
+ * advanced certificates with a different identity profile. */
+function normalizeCpf(value:string){
+  if(!/^(?:\d{11}|\d{3}\.\d{3}\.\d{3}-\d{2})$/.test(value))throw Error("CMS_CPF_INVALID");
+  const cpf=value.replace(/\D/g,"");
+  if(/^(\d)\1{10}$/.test(cpf))throw Error("CMS_CPF_INVALID");
+  for(const length of [9,10]){
+    let sum=0;for(let i=0;i<length;i++)sum+=Number(cpf[i])*(length+1-i);
+    const check=(sum*10)%11;
+    if((check===10?0:check)!==Number(cpf[length]))throw Error("CMS_CPF_INVALID");
+  }
+  return cpf;
+}
+export function assertIcpPersonCertificateIdentity(certificatePem:string,expectedProfileCpf:string){
+  const expected=normalizeCpf(expectedProfileCpf);
+  const cert=pemCertificates(certificatePem,1)[0];
+  if(cert.ca)throw Error("CMS_SIGNER_CERTIFICATE_INVALID");
+  const top=readTlv(cert.raw,0);
+  if(top.next!==cert.raw.length)throw Error("CMS_CERT_IDENTITY_INVALID");
+  const certificate=children(top.item,48);
+  if(certificate.length!==3)throw Error("CMS_CERT_IDENTITY_INVALID");
+  const tbs=children(certificate[0],48);
+  const extensionBlocks=tbs.filter(t=>t.tag===163);
+  if(extensionBlocks.length!==1)throw Error("CMS_CERT_IDENTITY_MISSING");
+  const wrapper=children(extensionBlocks[0],163);
+  if(wrapper.length!==1)throw Error("CMS_CERT_IDENTITY_INVALID");
+  const sans=children(wrapper[0],48).map(t=>children(t,48)).filter(t=>oid(t[0],"551d11"));
+  if(sans.length!==1)throw Error("CMS_CERT_IDENTITY_MISSING");
+  const san=sans[0], octets=san.at(-1);
+  if(!octets||octets.tag!==4||![2,3].includes(san.length)||(san.length===3&&san[1].tag!==1))throw Error("CMS_CERT_IDENTITY_INVALID");
+  const decoded=readTlv(octets.value,0);
+  if(decoded.next!==octets.value.length)throw Error("CMS_CERT_IDENTITY_INVALID");
+  const identities:string[]=[];
+  for(const name of children(decoded.item,48)){
+    if(name.tag!==160)continue;
+    const other=children(name,160);
+    // 2.16.76.1.3.3 and .4 belong to legal entities; never substitute these.
+    if(oid(other[0],"6050010303")||oid(other[0],"6050010304"))throw Error("CMS_CERT_PERSON_TYPE_INVALID");
+    if(!oid(other[0],"6050010301"))continue;
+    if(other.length!==2)throw Error("CMS_CERT_IDENTITY_INVALID");
+    const value=children(other[1],160);
+    if(value.length!==1||![4,12,19,22].includes(value[0].tag))throw Error("CMS_CERT_IDENTITY_INVALID");
+    const encoded=value[0].value;
+    if(encoded.length<19||encoded.length>128||encoded.some(b=>b<32||b>126))throw Error("CMS_CERT_IDENTITY_INVALID");
+    const text=encoded.toString("ascii");
+    if(!/^\d{19}/.test(text))throw Error("CMS_CERT_IDENTITY_INVALID");
+    identities.push(normalizeCpf(text.slice(8,19)));
+  }
+  if(identities.length!==1)throw Error("CMS_CERT_IDENTITY_MISSING_OR_AMBIGUOUS");
+  if(identities[0]!==expected)throw Error("CMS_CERT_IDENTITY_MISMATCH");
+  // No CPF or other personal attribute is returned or logged.
+  return {certificateSha256:sha(cert.raw),identityVerified:true as const};
+}
+/** Compose cryptographic and natural-person identity preflight for the
+ * qualified sandbox route. A verified CPF is not PAdES validation or
+ * authorization to issue; official trust and policy still apply. */
+export function verifySandboxIcpPersonCms(input:Parameters<typeof verifySandboxDetachedCms>[0]&{expectedProfileCpf:string}){
+  if(input.mode!=="icp_brasil")throw Error("CMS_CERT_IDENTITY_PROFILE_UNSUPPORTED");
+  const preflight=verifySandboxDetachedCms(input);
+  const identity=assertIcpPersonCertificateIdentity(input.expectedProviderCertificatePem,input.expectedProfileCpf);
+  if(identity.certificateSha256!==preflight.certificateSha256)throw Error("CMS_SIGNER_OR_CONTENT_MISMATCH");
+  return {...preflight,...identity};
+}

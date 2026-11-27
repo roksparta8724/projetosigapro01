@@ -45,3 +45,6 @@ A tentativa de criar cópia temporária da QA também foi recusada por limite de
 
 ## 27/11 — cobrança assinada e teste de integração sem escrita
 A rotina v2 não registrava provider_charge_saved_at, embora o conciliador exigisse essa prova. Corrigidas as quatro rotinas de autorização/persistência, com estado pendente obrigatório, rechecagem sob lock, timestamp preservado em retry e proteção server-side. Ensaio na QA com HMAC existente, sem revelar chave nem chamar banco: guia cancelada recusada, cobrança sintética assinada gravada com timestamp, repetição sem alterar timestamp, rollback confirmado. O build anterior está READY e aprovou Quality Gate e migrações; busca real do DAM retornou EXACT_SHA_SOURCE_NOT_FOUND. Nova prova isolada usa somente GET do provedor bancário e uma inferência sobre PDF artificial, sem escrever no R2 nem emitir cobrança. Leitura local do fixture independente do PDF histórico.
+
+## Evidência da preview fae54b1 (27/11)
+Quality Gate e migrações aprovados, Vercel READY. Consulta real sandbox do banco confirmou boleto (PASS_BOLETO_GET); PIX não comprovado. Leitura nativa do projeto fictício gerado confirmou três medidas; visual externo NOT_VERIFIED_CONFIG. Não há nova escrita de R2. Novo código ICP: pré-validação de CPF pessoa física em DER, combinada com CMS e CRL, sem ativar emissão e sem pressupor equivalência GOV.BR.

@@ -4,7 +4,7 @@ import { mkdtempSync,readFileSync,writeFileSync,mkdirSync,rmSync } from "node:fs
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll,beforeAll,describe,expect,it } from "vitest";
-import { verifySandboxDetachedCms,assertDetachedSha256Cms,type CmsTrustBundle } from "./certified-cms-preflight";
+import { verifySandboxDetachedCms,assertDetachedSha256Cms,assertIcpPersonCertificateIdentity,verifySandboxIcpPersonCms,type CmsTrustBundle } from "./certified-cms-preflight";
 const sha=(v:string|Uint8Array)=>createHash("sha256").update(v).digest("hex");
 let dir:string, root:string, leaf:string, crl:string, signature:Buffer, attached:Buffer, sha1:Buffer;
 const content=Buffer.from("SIGAPRO QA detached signature bytes");
@@ -36,6 +36,7 @@ basicConstraints=critical,CA:FALSE
 keyUsage=critical,digitalSignature
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid,issuer
+subjectAltName=otherName:2.16.76.1.3.1;UTF8:010119905299822472500000000000000000000000000000000000
 `);
  run(["req","-x509","-newkey","rsa:2048","-nodes","-days","2","-subj","/CN=SIGAPRO QA root","-addext","basicConstraints=critical,CA:TRUE","-addext","keyUsage=critical,keyCertSign,cRLSign","-keyout","ca.key","-out","ca.pem"]);
  run(["req","-new","-newkey","rsa:2048","-nodes","-subj","/CN=SIGAPRO QA signer","-keyout","leaf.key","-out","leaf.csr"]);
@@ -77,6 +78,25 @@ describe("CMS independent crypto preflight with real ephemeral QA certificates",
   expect(()=>verifySandboxDetachedCms({...v,trust:{...v.trust,rootsSha256:"0".repeat(64)}})).toThrow("CMS_TRUST_INVALID");
   expect(()=>verifySandboxDetachedCms({...v,trust:{...v.trust,crlsPem:""}})).toThrow("CMS_TRUST_INVALID");
   expect(()=>verifySandboxDetachedCms({...v,mode:"icp_brasil"})).toThrow("CMS_TRUST_INVALID");
+ });
+ it("validates ICP natural-person CPF from real certificate DER, not its common name",()=>{
+  const expected=assertIcpPersonCertificateIdentity(leaf,"529.982.247-25");
+  expect(expected.identityVerified).toBe(true);
+  expect(Object.keys(expected).sort()).toEqual(["certificateSha256","identityVerified"]);
+  expect(()=>assertIcpPersonCertificateIdentity(leaf,"111.444.777-35")).toThrow("CMS_CERT_IDENTITY_MISMATCH");
+  expect(()=>assertIcpPersonCertificateIdentity(leaf,"00000000000")).toThrow("CMS_CPF_INVALID");
+  const v=input();
+  const result=verifySandboxIcpPersonCms({...v,mode:"icp_brasil",trust:{...v.trust,mode:"icp_brasil"},expectedProfileCpf:"52998224725"});
+  expect(result.identityVerified).toBe(true);
+  expect(result.pdfPolicyVerified).toBe(false);
+  expect(result.issuanceAuthorized).toBe(false);
+  expect(()=>verifySandboxIcpPersonCms({...v,expectedProfileCpf:"52998224725"})).toThrow("CMS_CERT_IDENTITY_PROFILE_UNSUPPORTED");
+ });
+ it("rejects common-name-only and corporate certificate identity",()=>{
+  for(const [name,extension] of [["cn-only",null],["corporate","subjectAltName=otherName:2.16.76.1.3.4;UTF8:010119905299822472500000000000000000000000000000000000"]]){
+    run(["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj","/CN=52998224725","-addext","basicConstraints=critical,CA:FALSE",...(extension?["-addext",extension]:[]),"-keyout",name+".key","-out",name+".pem"]);
+    expect(()=>assertIcpPersonCertificateIdentity(read(name+".pem"),"52998224725")).toThrow(/CMS_CERT_(IDENTITY|PERSON_TYPE)/);
+  }
  });
  it("rejects a revoked leaf even when cryptographic signature still matches",()=>{
   run(["ca","-config","ca.cnf","-revoke","leaf.pem"]);
