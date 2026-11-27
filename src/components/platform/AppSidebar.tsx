@@ -150,6 +150,7 @@ function SidebarInner({
                           title={!expanded ? item.label : undefined}
                           aria-expanded={isExpanded}
                           data-sidebar-active={parentActive ? "true" : "false"}
+                          data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
                           data-sidebar-collapsed={expanded ? "false" : "true"}
                           className={itemClassName}
                         >
@@ -216,6 +217,7 @@ function SidebarInner({
                           title={!expanded ? item.label : undefined}
                           aria-current={parentActive ? "page" : undefined}
                           data-sidebar-active={parentActive ? "true" : "false"}
+                          data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
                           data-sidebar-collapsed={expanded ? "false" : "true"}
                           className={itemClassName}
                         >
@@ -281,6 +283,7 @@ function SidebarInner({
                                   onClick={onNavigate}
                                   aria-current={childActive ? "page" : undefined}
                                   data-sidebar-active={childActive ? "true" : "false"}
+                                  data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
                                   className={cn(
                                     "sig-sidebar-subitem group relative flex w-full min-h-[40px] items-center gap-3 rounded-[14px] px-3.5 py-2.5 text-[13px] font-medium transition-all",
                                     childActive
