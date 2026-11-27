@@ -210,7 +210,7 @@ export function PermissionRoute({
   const isContextLanding=location.state?.sigaproContextLanding===true;
   // During login/switch do not authorize a generic role while its active lotação is still resolving.
   if(!isActuallyBlocked&&isMunicipalEmployee&&(isContextLanding||isLegacyOperationalPath||location.pathname.startsWith("/prefeitura/ti"))&&(!storeIdentityConfirmed||permissionDataPending))return pendingAccess();
-  if(!isActuallyBlocked&&activeTiDepartment&&isLegacyOperationalPath)return <Navigate to="/prefeitura/ti" replace/>;
+  if(!isActuallyBlocked&&activeTiDepartment&&!/^\/(?:prefeitura\/ti(?:\/|$)|perfil(?:\/|$)|notificacoes(?:\/|$))/.test(location.pathname))return <Navigate to="/prefeitura/ti" replace/>;
   if(!isActuallyBlocked&&isMunicipalEmployee&&isContextLanding&&storeIdentityConfirmed&&!permissionDataPending){
     const target=getSessionLandingPath(session);
     if(target!==location.pathname)return <Navigate to={target} replace/>;

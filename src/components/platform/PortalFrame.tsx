@@ -943,7 +943,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
   });
   const institutionDisplayName = municipalityName || activeInstitution?.name || "SIGAPRO";
   const showMunicipalOrganogramShortcut =
-    isInternalRole(session.role) || location.pathname.startsWith("/prefeitura/");
+    !activeTiDepartment && (isInternalRole(session.role) || location.pathname.startsWith("/prefeitura/"));
 
   const departmentOwnershipKey =
     location.pathname.startsWith("/prefeitura/financeiro")
