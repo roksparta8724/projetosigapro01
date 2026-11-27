@@ -7,7 +7,9 @@ describe("Sandbox HTTP document binding",()=>{
  it("generates deterministic nonofficial PDF bytes and binds the persisted snapshot",()=>{
   const a=createSandboxEvidencePdf(selection,"b".repeat(64),"c".repeat(43));
   const b=createSandboxEvidencePdf(selection,"b".repeat(64),"c".repeat(43));
-  expect(a.bytes).toEqual(b.bytes);expect(a.bytes.toString()).toContain("SEM VALIDADE DE ALVARA");
+  expect(a.bytes).toEqual(b.bytes);expect(a.bytes.toString()).toContain("/ETSI.CAdES.detached");expect(a.bytes.toString()).toContain("/Prev ");
+  const legacy=createSandboxEvidencePdf(selection,"b".repeat(64),"c".repeat(43),"legacy");
+  expect(legacy.bytes.toString()).toContain("/adbe.pkcs7.detached");expect(legacy.preparedPdfSha256).not.toBe(a.preparedPdfSha256);expect(a.bytes.toString()).toContain("SEM VALIDADE DE ALVARA");
   expect(inspectPreparedPdfSignature(a.bytes,a.range,a.preparedPdfSha256).byteRangeSha256).toBe(a.byteRangeSha256);
   expect(createSandboxEvidencePdf(selection,"d".repeat(64),"c".repeat(43)).preparedPdfSha256).not.toBe(a.preparedPdfSha256);
  });

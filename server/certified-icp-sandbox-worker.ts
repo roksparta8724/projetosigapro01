@@ -12,7 +12,7 @@ export type IcpSandboxWorkerDependencies = {
  // atomic in Neon and recheck the exact municipality, actor and snapshot.
  consumeSession(input:{state:string;municipalityId:string;profileId:string;preparedPdfSha256:string;byteRangeSha256:string}):Promise<Session>;
  reauthorizeSigner(session:Session):Promise<{profileId:string;municipalityId:string;cpf:string}>;
- readPreparedPdf(session:Session):Promise<{bytes:Uint8Array;range:PreparedSignatureRange}>;
+ readPreparedPdf(session:Session):Promise<{bytes:Uint8Array;range:PreparedSignatureRange;requireCades?:boolean}>;
  readMunicipalSandboxConfig(municipalityId:string):Promise<ItiSandboxConfig>;
  readTrustBundle():Promise<CmsTrustBundle>;
 };
@@ -50,7 +50,7 @@ export async function completeIcpSandboxCandidate(deps:IcpSandboxWorkerDependenc
  const identity=assertIcpPersonCertificateIdentity(certificate,actor.cpf);
  const cms=await requestItiSandboxPkcs7(token,inspected.digest);
  const covered=Buffer.concat([Buffer.from(prepared.bytes.subarray(0,prepared.range[1])),Buffer.from(prepared.bytes.subarray(prepared.range[2]))]);
- const evidence=verifySandboxIcpPersonCms({mode:"icp_brasil",coveredBytes:covered,expectedByteRangeSha256:session.byteRangeSha256,cmsDer:cms,expectedProviderCertificatePem:certificate,trust,expectedProfileCpf:actor.cpf});
+ const evidence=verifySandboxIcpPersonCms({mode:"icp_brasil",coveredBytes:covered,expectedByteRangeSha256:session.byteRangeSha256,cmsDer:cms,expectedProviderCertificatePem:certificate,trust,expectedProfileCpf:actor.cpf,requireCades:prepared.requireCades===true});
  if(identity.certificateSha256!==evidence.certificateSha256)throw Error("ITI_CERTIFICATE_BINDING_MISMATCH");
  const candidate=embedUnverifiedPkcs7(prepared.bytes,prepared.range,session.preparedPdfSha256,session.byteRangeSha256,cms);
  const finalProof=assertEmbeddedCmsBytes({preparedBytes:prepared.bytes,signedBytes:candidate.bytes,range:prepared.range,preparedSha256:session.preparedPdfSha256,byteRangeSha256:session.byteRangeSha256,cmsDer:cms});

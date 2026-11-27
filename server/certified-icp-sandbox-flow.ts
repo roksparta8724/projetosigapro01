@@ -5,11 +5,12 @@ import {createItiSandboxAuthorization,type ItiSandboxConfig} from "./iti-signatu
 import {prepareIcpSandboxSnapshot,beginIcpSandboxSession,bindIcpSandboxSession,recordIcpSandboxArchive,readIcpSandboxArchive} from "./certified-icp-session-adapter.js";
 import {archiveConfig,completeAndArchiveIcpSandboxCandidate,verifyRecordedIcpArchive} from "./certified-icp-candidate-archive.js";
 import {inspectPreparedPdfSignature,type PreparedSignatureRange} from "./certified-pdf-byte-range.js";
+import {prepareFirstPermitCertificateRevision} from "./certified-pdf-incremental-revision.js";
 import type {CmsTrustBundle} from "./certified-cms-preflight.js";
 import {readBearer,type ApiReq} from "./municipal-storage.js";
 type Env=Record<string,string|undefined>;
 type Selection=Parameters<typeof prepareIcpSandboxSnapshot>[1];
-type Ticket=Selection&{configRevision?:string;callbackSha256?:string;state:string;snapshotSha256:string;preparedPdfSha256:string;byteRangeSha256:string;expiresAt:number};
+type Ticket=Selection&{pdfFormat?:"incremental-cades-v2";configRevision?:string;callbackSha256?:string;state:string;snapshotSha256:string;preparedPdfSha256:string;byteRangeSha256:string;expiresAt:number};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const hash=/^[a-f0-9]{64}$/;
 const sha=(b:Uint8Array|string)=>createHash("sha256").update(b).digest("hex");
@@ -17,12 +18,22 @@ function validSelection(x:Selection){
  return [x.municipalityId,x.profileId,x.processId,x.requestId].every(v=>uuid.test(v))&&
  ["construction_permit","habite_se_permit"].includes(x.artifactType)&&["diretoria","secretaria"].includes(x.signerSlot);
 }
-export function createSandboxEvidencePdf(selection:Selection,snapshot:string,state:string){
+export function createSandboxEvidencePdf(selection:Selection,snapshot:string,state:string,format:"legacy"|"incremental-cades-v2"="incremental-cades-v2"){
  if(!validSelection(selection)||!hash.test(snapshot)||!/^[A-Za-z0-9_-]{43}$/.test(state))throw Error("ITI_SNAPSHOT_INVALID");
  // This is deliberately a NON-OFFICIAL evidence PDF, not the municipality's permit.
  // Deterministic bytes bind the authorized snapshot and one-use session.
  const lines=["SIGAPRO - HOMOLOGACAO ICP-BRASIL","SEM VALIDADE DE ALVARA - NAO EMITIDO","Municipio: "+selection.municipalityId,"Processo: "+selection.processId,"Solicitacao: "+selection.requestId,"Tipo: "+selection.artifactType,"Funcao: "+selection.signerSlot,"SHA-256 da versao autorizada:",snapshot,"Vinculo da sessao: "+sha(state)];
  const stream="BT /F1 12 Tf 50 790 Td 20 TL\n"+lines.map((line,i)=>(i?"T* ":"")+"("+line+") Tj").join("\n")+"\nET\n";
+ if(format==="incremental-cades-v2"){
+  const objects=["<< /Type /Catalog /Pages 2 0 R >>","<< /Type /Pages /Kids [3 0 R] /Count 1 >>","<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>","<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>","<< /Length "+stream.length+" >>\nstream\n"+stream+"endstream"];
+  let raw="%PDF-1.7\n";const offsets:number[]=[];
+  objects.forEach((o,i)=>{offsets.push(raw.length);raw+=(i+1)+" 0 obj\n"+o+"\nendobj\n";});
+  const xref=raw.length;
+  raw+="xref\n0 6\n0000000000 65535 f \n"+offsets.map(n=>String(n).padStart(10,"0")+" 00000 n \n").join("")+"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF\n";
+  const original=Buffer.from(raw,"ascii");
+  const prepared=prepareFirstPermitCertificateRevision({originalBytes:original,expectedOriginalSha256:sha(original),slot:selection.signerSlot});
+  return {bytes:prepared.bytes,range:prepared.range,preparedPdfSha256:prepared.preparedPdfSha256,byteRangeSha256:prepared.byteRangeSha256};
+ }
  const objects=[
  "<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [4 0 R] /SigFlags 3 >> >>",
  "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -56,7 +67,7 @@ export function openSandboxTicket(value:string,env:Env,now=Date.now()):Ticket{
  const [encoded,mac]=value.split(".");
  if(!timingSafeEqual(Buffer.from(mac,"hex"),Buffer.from(ticketMac(encoded,env),"hex")))throw Error("ITI_TICKET_INVALID");
  const t=JSON.parse(Buffer.from(encoded,"base64url").toString("utf8")) as Ticket;
- if(!validSelection(t)||![t.snapshotSha256,t.preparedPdfSha256,t.byteRangeSha256].every(v=>hash.test(v))||!/^[A-Za-z0-9_-]{43}$/.test(t.state)||!Number.isSafeInteger(t.expiresAt)||t.expiresAt<=now||t.expiresAt>now+300000)throw Error("ITI_TICKET_EXPIRED_OR_INVALID");
+ if(!validSelection(t)||(t.pdfFormat!==undefined&&t.pdfFormat!=="incremental-cades-v2")||![t.snapshotSha256,t.preparedPdfSha256,t.byteRangeSha256].every(v=>hash.test(v))||!/^[A-Za-z0-9_-]{43}$/.test(t.state)||!Number.isSafeInteger(t.expiresAt)||t.expiresAt<=now||t.expiresAt>now+300000)throw Error("ITI_TICKET_EXPIRED_OR_INVALID");
  return t;
 }
 export function sandboxConfig(municipalityId:string,env:Env,municipalConfig?:ItiSandboxConfig){
@@ -77,7 +88,7 @@ export async function startSandboxFlow(req:ApiReq,selection:Selection,env:Env=pr
  const authorization=createItiSandboxAuthorization(config,"icp_brasil");
  const snapshotSha256=await prepareIcpSandboxSnapshot(req,selection);
  const doc=createSandboxEvidencePdf(selection,snapshotSha256,authorization.state);
- const ticket:Ticket={...selection,configRevision:resolved.revision,callbackSha256:sha(config.redirectUri),state:authorization.state,snapshotSha256,preparedPdfSha256:doc.preparedPdfSha256,byteRangeSha256:doc.byteRangeSha256,expiresAt:authorization.expiresAt};
+ const ticket:Ticket={...selection,pdfFormat:"incremental-cades-v2",configRevision:resolved.revision,callbackSha256:sha(config.redirectUri),state:authorization.state,snapshotSha256,preparedPdfSha256:doc.preparedPdfSha256,byteRangeSha256:doc.byteRangeSha256,expiresAt:authorization.expiresAt};
  await beginIcpSandboxSession(req,{...selection,state:ticket.state,nonce:authorization.nonce,snapshotSha256,preparedPdfSha256:ticket.preparedPdfSha256,byteRangeSha256:ticket.byteRangeSha256});
  return {authorizationUrl:authorization.url,ticket:sealSandboxTicket(ticket,env),state:ticket.state,expiresAt:ticket.expiresAt,environment:"sandbox",issuanceAuthorized:false};
 }
@@ -89,10 +100,10 @@ export async function finishSandboxFlow(req:ApiReq,input:{ticket:string;state:st
  if(!t.configRevision||resolved.revision!==t.configRevision)throw Error("ITI_CONFIGURATION_CHANGED");
  const {config,trust}=sandboxConfig(t.municipalityId,env,resolved.config);
  if(t.callbackSha256!==sha(config.redirectUri))throw Error("ITI_CONFIGURATION_CHANGED");
- const doc=createSandboxEvidencePdf(t,t.snapshotSha256,t.state);
+ const doc=createSandboxEvidencePdf(t,t.snapshotSha256,t.state,t.pdfFormat??"legacy");
  if(doc.preparedPdfSha256!==t.preparedPdfSha256||doc.byteRangeSha256!==t.byteRangeSha256)throw Error("ITI_DOCUMENT_BINDING_MISMATCH");
  const binding={state:t.state,municipalityId:t.municipalityId,profileId:t.profileId,preparedPdfSha256:t.preparedPdfSha256,byteRangeSha256:t.byteRangeSha256};
- const archived=await completeAndArchiveIcpSandboxCandidate({...bindIcpSandboxSession(req,binding),readPreparedPdf:async()=>({bytes:doc.bytes,range:doc.range}),readMunicipalSandboxConfig:async()=>config,readTrustBundle:async()=>trust},{...binding,code:input.code},env);
+ const archived=await completeAndArchiveIcpSandboxCandidate({...bindIcpSandboxSession(req,binding),readPreparedPdf:async()=>({bytes:doc.bytes,range:doc.range,requireCades:t.pdfFormat==="incremental-cades-v2"}),readMunicipalSandboxConfig:async()=>config,readTrustBundle:async()=>trust},{...binding,code:input.code},env);
  return recordIcpSandboxArchive(req,binding,archived);
 }
 

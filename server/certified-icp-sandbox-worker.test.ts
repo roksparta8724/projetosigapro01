@@ -53,3 +53,9 @@ describe("ICP sandbox callback candidate orchestration",()=>{
   await expect(completeIcpSandboxCandidate(d,request)).rejects.toThrow("revoked authority");
  });
 });
+
+it("requires CAdES verification when the trusted prepared document selects incremental CAdES",async()=>{
+ const d=deps();
+ await completeIcpSandboxCandidate({...d,readPreparedPdf:async()=>({bytes:pdf,range,requireCades:true})},request);
+ expect(verifySandboxIcpPersonCms).toHaveBeenCalledWith(expect.objectContaining({requireCades:true}));
+});
