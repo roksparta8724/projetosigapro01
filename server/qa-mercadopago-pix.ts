@@ -1,3 +1,5 @@
+import {readBankJson} from "./bank-json-response.js";
+import {exactProviderCents,isProviderId} from "./bank-provider-contract.js";
 /**
  * SIGAPRO isolated QA ONLY: independent Mercado Pago PIX sandbox order for
  * a DAM previously issued as a test boleto. No production charges or R2 writes.
@@ -150,6 +152,7 @@ export async function qaMercadoPagoPix(
   if(resolved.environment!=="test" || !resolved.token) {
     throw new Error("Somente credenciais Mercado Pago de TESTE são aceitas.");
   }
+  if(exactProviderCents(guide.amount)===null)throw Error("Valor original da guia PIX inválido.");
   const amount=Number(guide.amount).toFixed(2);
   if(stored && (stored.amount!==amount || stored.municipalityId!==input.municipalityId ||
       stored.guideCode!==input.guideCode)) throw new Error("O PIX QA não corresponde à guia original.");
@@ -158,7 +161,7 @@ export async function qaMercadoPagoPix(
   type MercadoPagoQaOrder = {
     id?: string; message?: string; error?: string; external_reference?: string;
     total_amount?: string | number; status?: string;
-    transactions?: { payments?: Array<{ id?: string; status?: string; payment_method?: {
+    transactions?: { payments?: Array<{ id?: string; status?: string; amount?: string|number; payment_method?: {
       id?: string; type?: string; qr_code?: string;
     } }> };
   };
@@ -170,9 +173,9 @@ export async function qaMercadoPagoPix(
     // Recover an already-created order, never create a second one.
     const res=await fetch("https://api.mercadopago.com/v1/orders/"+encodeURIComponent(stored.orderId),{
       method:"GET",headers:{Authorization:"Bearer "+resolved.token,Accept:"application/json"},
-      signal:AbortSignal.timeout(12000),
+      signal:AbortSignal.timeout(12000),redirect:"error",cache:"no-store",
     });
-    order=res.ok ? await res.json().catch(()=>null) : null;
+    order=res.ok ? await readBankJson(res).catch(()=>null) as MercadoPagoQaOrder|null : null;
     if(!order) throw new Error("A consulta da order PIX pendente falhou. A mesma order será consultada novamente, sem duplicação.");
   }else{
     // An existing pending record may mean the provider accepted a POST whose
@@ -194,7 +197,7 @@ export async function qaMercadoPagoPix(
     }
     const res=await fetch("https://api.mercadopago.com/v1/orders",{
       method:"POST",
-      signal:AbortSignal.timeout(12000),
+      signal:AbortSignal.timeout(12000),redirect:"error",cache:"no-store",
       headers:{
         Authorization:"Bearer "+resolved.token,Accept:"application/json",
         "Content-Type":"application/json",
@@ -211,7 +214,7 @@ export async function qaMercadoPagoPix(
         transactions:{payments:[{amount,payment_method:{id:"pix",type:"bank_transfer"}}]},
       }),
     });
-    order=await res.json().catch(()=>null);
+    order=await readBankJson(res).catch(()=>null) as MercadoPagoQaOrder|null;
     if(!res.ok){
       // Never delete a pending reservation: retrying with the same key
       // avoids creating a second charge after an uncertain provider response.
@@ -220,8 +223,9 @@ export async function qaMercadoPagoPix(
         ". A próxima tentativa reutilizará a mesma chave de idempotência.");
     }
   }
-  if(!order || typeof order.id!=="string" || order.external_reference!==externalReference ||
-      Number(order.total_amount)!==Number(amount)) {
+  if(!order || !isProviderId(order.id) || order.external_reference!==externalReference ||
+      (stored?.orderId&&order.id!==stored.orderId) || exactProviderCents(order.total_amount)!==exactProviderCents(amount) ||
+      !Array.isArray(order.transactions?.payments)||order.transactions.payments.length>1) {
     throw new Error("Order PIX de teste não corresponde à guia. Nova emissão bloqueada para evitar duplicação.");
   }
   const payment=order.transactions?.payments?.[0];
@@ -234,7 +238,8 @@ export async function qaMercadoPagoPix(
     else await writeFile(path,JSON.stringify(stored),{mode:0o600});
     return response(stored);
   }
-  if(payment.payment_method?.id!=="pix" || payment.payment_method?.type!=="bank_transfer"){
+  if(!isProviderId(payment.id)||exactProviderCents(payment.amount)!==exactProviderCents(amount)||
+      (stored?.paymentId&&payment.id!==stored.paymentId)||payment.payment_method?.id!=="pix" || payment.payment_method?.type!=="bank_transfer"){
     throw new Error("O provedor não retornou uma transação PIX de homologação.");
   }
   const qr=String(payment.payment_method.qr_code||"");

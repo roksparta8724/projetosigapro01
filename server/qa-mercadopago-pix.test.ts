@@ -41,10 +41,10 @@ beforeEach(()=>{
   mocks.token.mockResolvedValue({environment:"test",token:"APP_USR_SANDBOX_ONLY"});
   vi.stubGlobal("fetch",vi.fn().mockImplementation(async ()=>new Response(JSON.stringify({
     id:"ORDER_QA_PIX_001",external_reference:guideCode,total_amount:"35.24",status:"action_required",
-    transactions:{payments:[{id:"PAY_QA_001",status:"action_required",payment_method:{
+    transactions:{payments:[{id:"PAY_QA_001",status:"action_required",amount:"35.24",payment_method:{
       id:"pix",type:"bank_transfer",qr_code:qr,
     }}]},
-  }),{status:201})));
+  }),{status:201,headers:{"Content-Type":"application/json"}})));
 });
 afterEach(()=>{
   rmSync(root,{recursive:true,force:true});vi.unstubAllEnvs();vi.unstubAllGlobals();
@@ -102,9 +102,9 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
         total_amount:"35.24",
         transactions:{payments:[{
           id:"PAY_RETRY",status:"action_required",
-          payment_method:{id:"pix",type:"bank_transfer",qr_code:qr},
+          amount:"35.24",payment_method:{id:"pix",type:"bank_transfer",qr_code:qr},
         }]},
-      }),{status:201});
+      }),{status:201,headers:{"Content-Type":"application/json"}});
     }));
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"})).rejects.toThrow(/socket timeout/);
     const result=await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"});
@@ -120,7 +120,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
     vi.stubGlobal("fetch",vi.fn().mockImplementation(async (_url:unknown,opts?:RequestInit)=>{
       calls++;
       const transactions=calls===1?{payments:[]}:{payments:[{
-        id:"PAY_QA_POLL",status:"action_required",payment_method:{
+        id:"PAY_QA_POLL",status:"action_required",amount:"35.24",payment_method:{
           id:"pix",type:"bank_transfer",qr_code:qr,
         },
       }]};
@@ -128,7 +128,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
         id:"ORDER_QA_PIX_ASYNC",external_reference:guideCode,
         total_amount:"35.24",status:calls===1?"processing":"action_required",
         transactions,
-      }),{status:calls===1?201:200});
+      }),{status:calls===1?201:200,headers:{"Content-Type":"application/json"}});
     }));
     const first=await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"});
     expect(first.ok).toBe(false);
@@ -142,7 +142,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
     vi.stubGlobal("fetch",vi.fn().mockImplementation(async()=>new Response(JSON.stringify({
       id:"ORDER_QA_PIX_002",external_reference:guideCode,
       total_amount:"999.99",transactions:{payments:[]},
-    }),{status:201})));
+    }),{status:201,headers:{"Content-Type":"application/json"}})));
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
       .rejects.toThrow(/não corresponde/);
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))

@@ -1,3 +1,4 @@
+import {exactProviderCents,isProviderId} from "./bank-provider-contract.js";
 import {readBankJson} from "./bank-json-response.js";
 import { isPersistedGuideSettled } from "./guide-settlement.js";
 import { createHash } from "node:crypto";
@@ -252,6 +253,20 @@ function extractMercadoPagoGuideResult(
       ? (payment.payment_method as Record<string, unknown>)
       : {};
 
+  const expectedCents=exactProviderCents(amountText);
+  const validOrder=isProviderId(source.id)&&source.external_reference===externalReference&&
+    expectedCents!==null&&exactProviderCents(source.total_amount)===expectedCents&&
+    Array.isArray(transactions.payments)&&payments.length<=1;
+  // A processing order may legitimately have no payment yet. Once a payment
+  // appears, its identity, exact amount and method must be confirmed.
+  const validPayment=payments.length===0
+    ? source.status==="processing"
+    : isProviderId(payment.id)&&exactProviderCents(payment.amount)===expectedCents&&
+      paymentMethod.id==="boleto"&&paymentMethod.type==="ticket";
+  if(!validOrder||!validPayment){
+    return {ok:false,environment,errorCode:"PROVIDER_ORDER_CONTRACT_MISMATCH",
+      error:"O retorno bancário não confirmou a referência, o valor ou a modalidade da guia original."};
+  }
   const status = String(source.status || payment.status || "");
   const statusDetail = String(source.status_detail || payment.status_detail || "");
   const paid =
@@ -273,10 +288,10 @@ function extractMercadoPagoGuideResult(
     environment,
     orderId: String(source.id || ""),
     paymentId: String(payment.id || ""),
-    externalReference: String(source.external_reference || externalReference),
+    externalReference: String(source.external_reference),
     status,
     statusDetail,
-    amount: String(source.total_amount || payment.amount || amountText),
+    amount: String(source.total_amount),
     ticketUrl: String(paymentMethod.ticket_url || ""),
     barcodeContent: banking.barcode,
     digitableLine: banking.digitableLine,
@@ -393,18 +408,20 @@ export async function getMercadoPagoGuideBoletoStatus(
   if (!input.orderId) {
     return { ok: false, environment, error: "Order do Mercado Pago não informado." };
   }
-  const amountText = Number(input.amount || 0).toFixed(2);
+  if(exactProviderCents(input.amount)===null)return {ok:false,environment,error:"Valor original da guia inválido."};
+  const amountText = Number(input.amount).toFixed(2);
   const result = await refetchMercadoPagoOrder(
     input.orderId,
     token,
     environment,
-    normalizeGuideCode(input.guideCode),
+    stored ? stored.guide_number : normalizeGuideCode(input.guideCode),
     amountText,
   );
   if (!result) {
     return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
   }
-  if (result.orderId !== input.orderId) {
+  if (!result.ok) return result;
+  if (result.orderId !== input.orderId || (stored?.bank_payment_id && result.paymentId !== stored.bank_payment_id)) {
     return { ...result, ok: false, error: "Ordem bancária retornada não corresponde à guia original." };
   }
   if (!result.ok) return result;
@@ -465,7 +482,7 @@ export async function createMercadoPagoGuideBoleto(
     throw new Error("Somente guia pré-existente do Neon isolado e credencial de TESTE podem emitir boleto de homologação.");
   }
   const token = resolved.token;
-  const guideCode = normalizeGuideCode(input.guideCode);
+  const guideCode = stored ? stored.guide_number : normalizeGuideCode(input.guideCode);
   const amount = Number(input.amount);
 
   if (!token) {
@@ -487,7 +504,7 @@ export async function createMercadoPagoGuideBoleto(
     };
   }
 
-  if (!Number.isFinite(amount) || amount <= 0) {
+  if (exactProviderCents(input.amount)===null) {
     return {
       ok: false,
       environment,

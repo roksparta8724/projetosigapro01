@@ -55,9 +55,11 @@ beforeEach(() => {
     status: "action_required",
     transactions: { payments: [{
       id: "MP-PAYMENT-SANDBOX",
+      amount:"35.24",
       status: "action_required",
       status_detail: "waiting_payment",
       payment_method: {
+        id:"boleto",type:"ticket",
         barcode_content: barcode,
         digitable_line: digitable,
         financial_institution: "Banco de testes",
