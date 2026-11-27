@@ -142,6 +142,7 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   if (pathname.startsWith("/prefeitura/financeiro/iptu")) return import("@/pages/saas/IptuDeskPage");
   if (pathname.startsWith("/prefeitura/financeiro")) return import("@/pages/saas/FinanceDeskPage");
   if (pathname.startsWith("/prefeitura/ti")) return import("@/pages/saas/MunicipalItPage");
+  if (pathname.startsWith("/prefeitura/comunicacoes")) return import("@/pages/saas/MunicipalCommunicationsPage");
   if (pathname.startsWith("/prefeitura/usuarios/novo")) return import("@/pages/saas/MunicipalStaffCreationPage");
   if (pathname.startsWith("/prefeitura/organograma")) return import("@/pages/saas/MunicipalOrganizationPage");
   if (pathname.startsWith("/prefeitura/processos")) return import("@/pages/saas/MunicipalProcessRegistryPage");

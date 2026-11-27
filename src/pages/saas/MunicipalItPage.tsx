@@ -21,7 +21,7 @@ const memoNumber=(m:Memo)=>"MEM-TI "+String(m.number).padStart(6,"0")+"/"+new Da
 const blank={fullName:"",email:"",departmentId:"",title:"",justification:""};
 export function MunicipalItPage(){
  const {session}=usePlatformSession();
- return <MunicipalItWorkspace key={String(session.id)+":"+String(session.municipalityId??session.tenantId??"")} />;
+ return <MunicipalItWorkspace key={String(session.id)+":"+String(session.municipalityId??session.tenantId??"")+":"+session.role+":"+(session.department??"")} />;
 }
 function MunicipalItWorkspace(){
  const {session}=usePlatformSession();

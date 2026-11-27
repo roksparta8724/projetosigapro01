@@ -80,7 +80,7 @@ import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { formatInstitutionPhone, hasInstitutionEmail, shouldRepeatInstitutionLocality } from "@/lib/institutionFooterPresentation";
 import { resolveTopbarProcessDestination } from "@/lib/topbarProcessDestination";
 import { buildProcessPath, can, canAccessMunicipalArea,
-  getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+  getSessionLandingPath, isMunicipalTiDepartmentLabel, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -561,7 +561,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       new CustomEvent("sigapro-platform-session-updated", { detail: nextSession }),
     );
 
-    navigate(getRoleLandingPath(canonicalSignedInUser.role), { replace: true });
+    navigate(getSessionLandingPath(nextSession), { replace: true, state:{sigaproContextLanding:true} });
   }, [canonicalSignedInUser, navigate, session]);
 
   useEffect(() => {
@@ -667,7 +667,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
   const activeBg = darken(primaryColor, -14);
 
   const itScope=session.municipalityId??session.tenantId??"";
-  const itIdentity=String(session.id)+":"+itScope;
+  const activeTiDepartment=isInternalRole(session.role)&&session.role!=="prefeitura_admin"&&isMunicipalTiDepartmentLabel(session.department);
+  const itIdentity=String(session.id)+":"+itScope+":"+session.role+":"+(session.department??"");
   const [itPermission,setItPermission]=useState<{key:string;allowed:boolean}>({key:"",allowed:false});
   useEffect(()=>{
     let active=true;
@@ -682,7 +683,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       const isExternalProfessional = isExternalProfessionalRole(session.role);
       if(item.to==="/prefeitura/comunicacoes"&&(!itScope||!["prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(session.role)||(itPermission.key===itIdentity&&itPermission.allowed)))return null;
       if(item.to==="/prefeitura"&&session.role==="prefeitura_admin"&&itScope)return null;
-      if(item.to==="/prefeitura/ti"&&!(itScope&&session.role==="prefeitura_admin")&&!(itPermission.key===itIdentity&&itPermission.allowed))return null;
+      if(activeTiDepartment&&item.to!=="/prefeitura/ti"&&item.to!=="/notificacoes"&&item.to!=="/dashboard")return null;
+      if(item.to==="/prefeitura/ti"&&!activeTiDepartment&&!(itScope&&session.role==="prefeitura_admin")&&!(itPermission.key===itIdentity&&itPermission.allowed))return null;
 
       if (item.to.startsWith("/externo") && !isExternalProfessional) return null;
 
@@ -725,6 +727,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
   const visibleNavItemsResolved = visibleNavItems.flatMap((item) => {
+    if(activeTiDepartment&&item.to==="/dashboard")return [];
     if ((session.role === "master_admin" || session.role === "master_ops") && item.to === "/master") {
       return [{ ...item, label: "Cadastro e Gestão" }];
     }
@@ -1069,7 +1072,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     };
   }, [loading, session.id, location.pathname, activeInstitutionId, inverseMainTheme]);
 
-  const processShortcutPath = resolveTopbarProcessDestination(session.role);
+  const processShortcutPath = activeTiDepartment ? "/prefeitura/ti/memorandos" : resolveTopbarProcessDestination(session.role);
+  const processShortcutLabel = activeTiDepartment ? "Memorandos e comunicações" : "Processos";
 
   const resetMarkerEditor = () => {
     setEditingMarkerId(null);
@@ -1558,8 +1562,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
                 )}
-                aria-label="Processos"
-                title="Processos"
+                aria-label={processShortcutLabel}
+                title={processShortcutLabel}
               >
                 <ScrollText className="h-[18px] w-[18px] text-white/92" />
               </Link>
@@ -1753,8 +1757,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                     topbarUtilityButtonClass,
                     topbarIconButton,
                   )}
-                  aria-label="Processos"
-                  title="Processos"
+                  aria-label={processShortcutLabel}
+                  title={processShortcutLabel}
                 >
                   <ScrollText className={topbarUtilityIconClass} aria-hidden="true" />
                 </Link>

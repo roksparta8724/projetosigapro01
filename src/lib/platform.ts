@@ -2732,8 +2732,11 @@ function resolveDepartmentAccessBucket(value: string | null | undefined) {
 
 /** TI is a support scope, not a synonym for protocolo/atendimento geral. */
 export function isMunicipalTiDepartmentLabel(value:string|null|undefined){
-  const name=normalizeDepartmentAccessLabel(value||"");
-  return /^(ti(?:-|\s|$)|tecnologia da informacao$|sistemas e suporte$|infraestrutura e redes$|seguranca da informacao$|administracao de usuarios e permissoes$|central de atendimento tecnico$)/.test(name);
+  // A hierarchy-qualified label may contain the municipal parent before TI.
+  return String(value??"").split(/\s*\/\s*|\s*>\s*/).some(part=>{
+    const name=normalizeDepartmentAccessLabel(part).trim();
+    return /^(?:ti(?: (?:sis|inf|ace|seg|sd))?(?: |$)|tecnologia da informacao$|sistemas e suporte$|infraestrutura e redes$|seguranca da informacao$|administracao de usuarios e permissoes$|gestao de usuarios e permissoes$|central de atendimento tecnico$)/.test(name);
+  });
 }
 export type MunicipalOperationalArea = "protocolos" | "analise" | "financeiro";
 

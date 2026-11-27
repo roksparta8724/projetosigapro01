@@ -38,11 +38,12 @@ export async function verifyLoginLandingAccess(
   role: string | null,
   municipalityId: string | null,
   rpc: LoginAccessRpc,
+  resolveMunicipalContext?: () => Promise<{ isTi: boolean; allowed: boolean }>,
 ): Promise<LoginLandingDecision> {
-  const path = getRoleLandingPath(role);
+  let path = getRoleLandingPath(role);
   if (role === "master_admin" || role === "master_ops") return { ok: true, path };
 
-  const module = landingModuleForRole(role);
+  let module = landingModuleForRole(role);
   if (!module || !municipalityId || !UUID.test(municipalityId))
     return { ok: false, message: "O vínculo municipal deste perfil não foi confirmado no banco." };
 
@@ -52,6 +53,15 @@ export async function verifyLoginLandingAccess(
     const membership = await rpc("has_tenant_access", { target_tenant: municipalityId });
     if (membership.error || membership.data !== true)
       return { ok: false, message: "Esta conta não possui vínculo ativo com a Prefeitura." };
+
+    if (resolveMunicipalContext && ["prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(role??"")) {
+      const context = await resolveMunicipalContext();
+      if (context.isTi) {
+        if (!context.allowed) return {ok:false,message:"O acesso ao TI ainda não foi liberado pelo administrador da Prefeitura."};
+        path="/prefeitura/ti";
+        module="Configurações";
+      }
+    }
 
     const contract = await rpc("assert_municipality_entitlement_v1", {
       _municipality_id: municipalityId,
@@ -81,6 +91,7 @@ export async function preloadLoginLanding(path: string): Promise<void> {
   switch (path) {
     case "/master": await import("@/pages/saas/MasterAdminPage"); return;
     case "/prefeitura": await import("@/pages/saas/TenantAdminPage"); return;
+    case "/prefeitura/ti": await import("@/pages/saas/MunicipalItPage"); return;
     case "/prefeitura/analise": await import("@/pages/saas/AnalystDeskPage"); return;
     case "/prefeitura/financeiro": await import("@/pages/saas/FinanceDeskPage"); return;
     case "/prefeitura/protocolos": await import("@/pages/saas/ProtocolDeskPage"); return;
