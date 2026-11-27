@@ -32,3 +32,41 @@ html body #root .sig-sidebar-panel :is(.sig-sidebar-item,.sig-sidebar-subitem):f
 .sigapro-active-department {flex-shrink:0;}
 @media(max-width:380px){.sigapro-active-department{margin-inline:8px;padding:10px 8px;}}
 @media(prefers-reduced-motion:reduce){.sigapro-pending-line>span{animation:none;width:100%;}}
+
+/* Shared navigation icon paint: Phosphor filled glyphs and Lucide outline
+   glyphs must not inherit legacy dark path paint on selected blue surfaces.
+   The rule is intentionally confined to navigation/action icons, not PDFs,
+   QR, logos, charts, status marks or illustrations. */
+html body #root [data-sidebar-surface="dark"] .sig-sidebar-panel [data-sigapro-nav-icon-contrast="light-ink"] {--sig-nav-icon-ink:#eaf5ff;}
+html body #root [data-sidebar-surface="dark"] .sig-sidebar-panel [data-sigapro-nav-icon-contrast="light-ink"][data-sidebar-active="true"] {--sig-nav-icon-ink:#ffffff;}
+html body #root [data-sidebar-surface="light"] .sig-sidebar-panel [data-sigapro-nav-icon-contrast="dark-ink"] {--sig-nav-icon-ink:#123e59;}
+html body #root [data-sidebar-surface] .sig-sidebar-panel [data-sigapro-nav-icon-contrast][data-sidebar-active] :is(.sig-sidebar-icon,svg,svg *) {
+  color:var(--sig-nav-icon-ink)!important;
+  -webkit-text-fill-color:var(--sig-nav-icon-ink)!important;
+  opacity:1!important;
+  filter:none!important;
+}
+html body #root [data-sidebar-surface] .sig-sidebar-panel [data-sigapro-nav-icon-contrast][data-sidebar-active] svg:not([data-sigapro-icon-paint="filled"]),
+html body #root [data-sidebar-surface] .sig-sidebar-panel [data-sigapro-nav-icon-contrast][data-sidebar-active] svg:not([data-sigapro-icon-paint="filled"]) :is(path,line,polyline,polygon,circle,rect,ellipse):not([stroke="none"]) {
+  stroke:var(--sig-nav-icon-ink)!important;
+}
+html body #root [data-sidebar-surface] .sig-sidebar-panel [data-sigapro-nav-icon-contrast][data-sidebar-active] svg[data-sigapro-icon-paint="filled"],
+html body #root [data-sidebar-surface] .sig-sidebar-panel [data-sigapro-nav-icon-contrast][data-sidebar-active] svg[data-sigapro-icon-paint="filled"] :is(path,circle,rect,polygon,ellipse):not([fill="none"]) {
+  fill:var(--sig-nav-icon-ink)!important;
+  stroke:none!important;
+}
+/* Shared internal section navigation uses a white foreground on saturated
+   blue and leaves the inactive, status and disabled controls to their own palette. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav :is(button,a)[data-nav-active="true"] :is(svg,svg *),
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav :is(button,a)[data-premium-nav-active="true"] :is(svg,svg *) {
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav :is(button,a):is([data-nav-active="true"],[data-premium-nav-active="true"]) svg[data-sigapro-icon-paint="filled"],
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav :is(button,a):is([data-nav-active="true"],[data-premium-nav-active="true"]) svg[data-sigapro-icon-paint="filled"] :is(path,circle,rect,polygon,ellipse):not([fill="none"]) {
+  fill:#ffffff!important;stroke:none!important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav :is(button,a):is([data-nav-active="true"],[data-premium-nav-active="true"]) svg:not([data-sigapro-icon-paint="filled"]),
+html body #root [data-premium-design="institutional-v3"][data-layout-mode] .sig-main-shell .sig-section-nav :is(button,a):is([data-nav-active="true"],[data-premium-nav-active="true"]) svg:not([data-sigapro-icon-paint="filled"]) :is(path,line,polyline,polygon,circle,rect,ellipse):not([stroke="none"]) {
+  stroke:#ffffff!important;
+}
