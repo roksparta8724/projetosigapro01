@@ -196,6 +196,10 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
   if(String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[qa-recovery-readonly]")){
     run("qa-historical-original-source-discovery",["scripts/qa-r2-dam-exact-recovery.mjs"],{SIGAPRO_QA_R2_RECOVERY_WRITE:"false"});
   }
+  // One synthetic model inference and provider GET, without any storage writes or bank order.
+  if(String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[qa-provider-readonly-once]")){
+    run("qa-provider-synthetic-readonly",["node_modules/vitest/vitest.mjs","run","--maxWorkers=1","server/qa-commercial-live-probe-once.test.ts"],{SIGAPRO_QA_PROVIDER_READONLY_ONCE:"true",SIGAPRO_QA_COMMERCIAL_PROBE_ONCE:"false"});
+  }
   // Exact one-shot mark, only the active preview; no customer data or bank orders.
   if(String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[qa-commercial-probe-once]")){
     run("qa-historical-original-exact-recovery",["scripts/qa-r2-dam-exact-recovery.mjs"]);
