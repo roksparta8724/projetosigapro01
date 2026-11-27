@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import {getDataApiUrl as getScopedDataApiUrl} from "../server/municipal-storage.js";
 
 type ApiReq = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -39,19 +40,23 @@ function readBearer(req: ApiReq) {
 }
 
 function getDataApiUrl() {
-  return (
-    readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL") ||
-    VALIDATED_NEON_DATA_API_URL
-  ).replace(/\/+$/, "");
+  if(process.env.VERCEL_ENV==="production")return VALIDATED_NEON_DATA_API_URL;
+  return getScopedDataApiUrl();
 }
 
 function getNeonAuthUrl() {
-  return (
-    readEnv("NEON_AUTH_URL") ||
-    readEnv("VITE_NEON_AUTH_URL") ||
-    VALIDATED_NEON_AUTH_URL
-  ).replace(/\/+$/, "");
+  if(process.env.VERCEL_ENV==="production")return VALIDATED_NEON_AUTH_URL;
+  const data=new URL(getDataApiUrl());
+  const configured=process.env.VERCEL_ENV==="preview"||readEnv("VITE_SIGAPRO_NEON_ISOLATED")==="true"
+   ?readEnv("VITE_NEON_AUTH_URL"):data.href===VALIDATED_NEON_DATA_API_URL
+     ?VALIDATED_NEON_AUTH_URL:readEnv("NEON_AUTH_URL")||readEnv("VITE_NEON_AUTH_URL");
+  const auth=new URL(configured);
+  const expectedHost=data.hostname.replace(".apirest.",".neonauth.");
+  const expectedPath=data.pathname.replace(/\/rest\/v1\/?$/,"/auth");
+  if(!data.hostname.includes(".apirest.")||expectedPath===data.pathname||auth.protocol!=="https:"||auth.hostname!==expectedHost||
+     auth.pathname.replace(/\/$/,"")!==expectedPath||auth.username||auth.password||auth.port||auth.search||auth.hash||
+     data.username||data.password||data.port||data.search||data.hash||data.protocol!=="https:")throw Error("Ambiente de assinatura não corresponde à conexão autenticada.");
+  return auth.href.replace(/\/$/,"");
 }
 
 function normalizeErrorMessage(value: unknown): string {
@@ -306,14 +311,15 @@ export default async function handler(req: ApiReq, res: Res) {
   }
   if (req.method === "GET") {
     const serverSecret = validateServerSecret();
-    json(res, serverSecret.ok ? 200 : 503, {
-      ok: serverSecret.ok,
+    let scopeReady=false;try{scopeReady=Boolean(getNeonAuthUrl()&&getDataApiUrl());}catch{/* fail closed */}
+    json(res, serverSecret.ok&&scopeReady ? 200 : 503, {
+      ok: serverSecret.ok&&scopeReady,
       service: "sigapro-electronic-signature",
       version: 2,
       checks: {
         serverKey: serverSecret.ok,
-        neonAuth: Boolean(getNeonAuthUrl()),
-        neonDataApi: Boolean(getDataApiUrl()),
+        neonAuth: scopeReady,
+        neonDataApi: scopeReady,
       },
     });
     return;
@@ -342,6 +348,10 @@ export default async function handler(req: ApiReq, res: Res) {
     if (!serverSecret.ok) {
       fail(res, 503, "configuration", "SIGNATURE_KEY_MISMATCH", serverSecret.error, "Serviço de assinatura não configurado.");
       return;
+    }
+
+    try{getNeonAuthUrl();getDataApiUrl();}catch{
+      fail(res,503,"configuration","SIGNATURE_ENVIRONMENT_INVALID",null,"Ambiente de assinatura não configurado corretamente.");return;
     }
 
     const body = await readJsonBody(req);
