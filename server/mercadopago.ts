@@ -1,3 +1,4 @@
+import {readBankJson} from "./bank-json-response.js";
 import { isPersistedGuideSettled } from "./guide-settlement.js";
 import { createHash } from "node:crypto";
 import type { ApiReq } from "./municipal-storage.js";
@@ -90,13 +91,14 @@ export async function checkMercadoPagoConnection(
   try {
     const response = await fetch("https://api.mercadopago.com/v1/payment_methods", {
       method: "GET",
+      redirect:"error",cache:"no-store",signal:AbortSignal.timeout(10000),
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
     });
 
-    const payload = await response.json().catch(() => null);
+    const payload = await readBankJson(response).catch(() => null);
 
     if (!response.ok) {
       const message =
@@ -306,13 +308,14 @@ async function refetchMercadoPagoOrder(
     `https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`,
     {
       method: "GET",
+      redirect:"error",cache:"no-store",signal:AbortSignal.timeout(10000),
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
     },
   );
-  const payload = await response.json().catch(() => null);
+  const payload = await readBankJson(response).catch(() => null);
   if (!response.ok) return null;
   return extractMercadoPagoGuideResult(
     payload,
@@ -543,6 +546,7 @@ export async function createMercadoPagoGuideBoleto(
   try {
     const response = await fetch("https://api.mercadopago.com/v1/orders", {
       method: "POST",
+      redirect:"error",cache:"no-store",signal:AbortSignal.timeout(15000),
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -552,7 +556,7 @@ export async function createMercadoPagoGuideBoleto(
       body: JSON.stringify(body),
     });
 
-    const payload = await response.json().catch(() => null);
+    const payload = await readBankJson(response).catch(() => null);
     const source =
       payload && typeof payload === "object"
         ? (payload as Record<string, unknown>)

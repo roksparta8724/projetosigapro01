@@ -1,3 +1,4 @@
+import {readBankJson} from "./bank-json-response.js";
 /** Read-only, fail-closed, bank-confirmed Orders observation for production. */
 export type MpOrderObservation = {
   fetched:boolean;status:string;reference:string;currency:string;amount:number|null;
@@ -23,7 +24,7 @@ export async function fetchMunicipalMpOrder(orderId:string,token:string):Promise
   redirect:"error",cache:"no-store",signal:AbortSignal.timeout(6500),
  });
  if(!response.ok) return {fetched:false,status:"provider_http_"+response.status,reference:"",currency:"",amount:null};
- const raw=await response.json().catch(()=>null) as Record<string,unknown>|null;
+ const raw=await readBankJson(response).catch(()=>null) as Record<string,unknown>|null;
  if(!raw||String(raw.id||"").toLowerCase()!==orderId.toLowerCase()) return {fetched:false,status:"provider_order_mismatch",reference:"",currency:"",amount:null};
  const amount=money(raw.total_amount);
  const paidAmount=money(raw.total_paid_amount);

@@ -1,3 +1,4 @@
+import {readBankJson} from "./bank-json-response.js";
 import {
   createCipheriv,
   createDecipheriv,
@@ -225,7 +226,7 @@ export async function testMercadoPagoToken(accessToken: string) {
       Authorization: `Bearer ${token}`,
     },
   });
-  const payload = await response.json().catch(() => null);
+  const payload = await readBankJson(response).catch(() => null);
 
   if (!response.ok) {
     const source =
