@@ -1,4 +1,4 @@
-import { inspectPreparedPdfSignature,embedUnverifiedPkcs7,type PreparedSignatureRange } from "./certified-pdf-byte-range.js";
+import { inspectPreparedPdfSignature,embedUnverifiedPkcs7,assertEmbeddedCmsBytes,type PreparedSignatureRange } from "./certified-pdf-byte-range.js";
 import { assertIcpPersonCertificateIdentity,verifySandboxIcpPersonCms,type CmsTrustBundle } from "./certified-cms-preflight.js";
 import { exchangeItiSandboxCode,readItiSandboxCertificate,requestItiSandboxPkcs7,type ItiSandboxConfig } from "./iti-signature-sandbox.js";
 
@@ -53,6 +53,8 @@ export async function completeIcpSandboxCandidate(deps:IcpSandboxWorkerDependenc
  const evidence=verifySandboxIcpPersonCms({mode:"icp_brasil",coveredBytes:covered,expectedByteRangeSha256:session.byteRangeSha256,cmsDer:cms,expectedProviderCertificatePem:certificate,trust,expectedProfileCpf:actor.cpf});
  if(identity.certificateSha256!==evidence.certificateSha256)throw Error("ITI_CERTIFICATE_BINDING_MISMATCH");
  const candidate=embedUnverifiedPkcs7(prepared.bytes,prepared.range,session.preparedPdfSha256,session.byteRangeSha256,cms);
+ const finalProof=assertEmbeddedCmsBytes({preparedBytes:prepared.bytes,signedBytes:candidate.bytes,range:prepared.range,preparedSha256:session.preparedPdfSha256,byteRangeSha256:session.byteRangeSha256,cmsDer:cms});
+ if(finalProof.sha256!==candidate.sha256)throw Error("ITI_FINAL_PDF_HASH_MISMATCH");
  // Recheck competence after the provider request; a revoked assignment
  // cannot proceed. Storage/issuance must later do another atomic check.
  const current=await deps.reauthorizeSigner(session);
