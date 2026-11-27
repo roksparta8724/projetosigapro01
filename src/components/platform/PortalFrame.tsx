@@ -70,6 +70,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import {MunicipalIdentityPrefix} from "@/components/platform/MunicipalIdentityPrefix";
 import {useMunicipalIdentityBadges} from "@/hooks/useMunicipalAuthority";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import {municipalItCommand} from "@/integrations/backend/platform";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
@@ -79,7 +80,7 @@ import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { formatInstitutionPhone, hasInstitutionEmail, shouldRepeatInstitutionLocality } from "@/lib/institutionFooterPresentation";
 import { resolveTopbarProcessDestination } from "@/lib/topbarProcessDestination";
 import { buildProcessPath, can, canAccessMunicipalArea,
-  getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+  getSessionLandingPath, isMunicipalTiDepartmentLabel, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -136,6 +137,12 @@ function readEffectiveThemeCache(): LayoutThemeOverride | null {
 const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "municipal-ti", to: "/prefeitura/ti", label: "Tecnologia da Informação", icon: MonitorCog, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined, children: [
+    { to: "/prefeitura/ti", label: "Visão geral", icon: LayoutDashboard },
+    { to: "/prefeitura/ti/memorandos", label: "Memorandos e comunicações", icon: FileText },
+    { to: "/prefeitura/ti/equipe", label: "Equipe e organograma", icon: Network },
+  ] },
+  { key: "municipal-comunicacoes", to: "/prefeitura/comunicacoes", label: "Comunicações oficiais", icon: FileText, permission: "manage_own_profile" as Permission, essential: true, internalOnly: true, module: undefined as PlanModuleName | undefined },
   { key: "municipal-organogram", to: "/prefeitura/organograma", label: "Organograma", icon: Network, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "dashboard-master",
@@ -224,6 +231,8 @@ const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefei
 
 const operationalNavItems = [
   "/dashboard",
+  "/prefeitura/ti",
+  "/prefeitura/comunicacoes",
   "/prefeitura/protocolos",
   "/prefeitura/analise",
   "/prefeitura/financeiro",
@@ -483,7 +492,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
           user.email.trim().toLowerCase() === session.email?.trim().toLowerCase()),
     ),
   );
-  const showBlockingOfficialDataError = Boolean(
+  const hasBlockingOfficialDataError = Boolean(
     dataError &&
     !loading &&
     !dataReadyForCurrentUser &&
@@ -491,6 +500,10 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     source !== "warm" &&
     !hasUsableScopedData,
   );
+  const officialErrorKey=hasBlockingOfficialDataError?`${session.id}:${session.department??""}:${dataError}`:null;
+  const [visibleOfficialErrorKey,setVisibleOfficialErrorKey]=useState<string|null>(null);
+  useEffect(()=>{if(!officialErrorKey){setVisibleOfficialErrorKey(null);return;}const id=window.setTimeout(()=>setVisibleOfficialErrorKey(officialErrorKey),1200);return()=>window.clearTimeout(id);},[officialErrorKey]);
+  const showBlockingOfficialDataError=Boolean(officialErrorKey&&visibleOfficialErrorKey===officialErrorKey);
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
@@ -552,7 +565,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       new CustomEvent("sigapro-platform-session-updated", { detail: nextSession }),
     );
 
-    navigate(getRoleLandingPath(canonicalSignedInUser.role), { replace: true });
+    navigate(getSessionLandingPath(nextSession), { replace: true, state:{sigaproContextLanding:true} });
   }, [canonicalSignedInUser, navigate, session]);
 
   useEffect(() => {
@@ -657,11 +670,25 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
   const bannerMid = darken(primaryColor, -4);
   const activeBg = darken(primaryColor, -14);
 
+  const itScope=session.municipalityId??session.tenantId??"";
+  const activeTiDepartment=isInternalRole(session.role)&&session.role!=="prefeitura_admin"&&isMunicipalTiDepartmentLabel(session.department);
+  const itIdentity=String(session.id)+":"+itScope+":"+session.role+":"+(session.department??"");
+  const [itPermission,setItPermission]=useState<{key:string;allowed:boolean}>({key:"",allowed:false});
+  useEffect(()=>{
+    let active=true;
+    if(!itScope||!["prefeitura_admin","prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(session.role))return ()=>{active=false;};
+    void municipalItCommand<{allowed:boolean}>(itScope,"access").then(result=>{if(active)setItPermission({key:itIdentity,allowed:result.allowed===true});}).catch(()=>{if(active)setItPermission({key:itIdentity,allowed:false});});
+    return ()=>{active=false;};
+  },[itScope,itIdentity,session.role]);
   const visibleNavItems = navItems
     .map((item) => {
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
 
       const isExternalProfessional = isExternalProfessionalRole(session.role);
+      if(item.to==="/prefeitura/comunicacoes"&&(!itScope||!["prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(session.role)||(itPermission.key===itIdentity&&itPermission.allowed)))return null;
+      if(item.to==="/prefeitura"&&session.role==="prefeitura_admin"&&itScope)return null;
+      if(activeTiDepartment&&item.to!=="/prefeitura/ti"&&item.to!=="/notificacoes"&&item.to!=="/dashboard")return null;
+      if(item.to==="/prefeitura/ti"&&!activeTiDepartment&&!(itScope&&session.role==="prefeitura_admin")&&!(itPermission.key===itIdentity&&itPermission.allowed))return null;
 
       if (item.to.startsWith("/externo") && !isExternalProfessional) return null;
 
@@ -700,10 +727,11 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       const parentAllowed = can(session, item.permission);
       if (!parentAllowed && visibleChildren.length === 0) return null;
       if (item.key && !item.essential && !isItemVisible(item.key as MenuPreferenceKey)) return null;
-      return { ...item, children: visibleChildren };
+      return { ...item, children: item.to==="/prefeitura/ti"&&session.role==="prefeitura_supervisor"?visibleChildren.filter(child=>child.to!=="/prefeitura/ti/equipe"):visibleChildren };
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
   const visibleNavItemsResolved = visibleNavItems.flatMap((item) => {
+    if(activeTiDepartment&&item.to==="/dashboard")return [];
     if ((session.role === "master_admin" || session.role === "master_ops") && item.to === "/master") {
       return [{ ...item, label: "Cadastro e Gestão" }];
     }
@@ -919,7 +947,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
   });
   const institutionDisplayName = municipalityName || activeInstitution?.name || "SIGAPRO";
   const showMunicipalOrganogramShortcut =
-    isInternalRole(session.role) || location.pathname.startsWith("/prefeitura/");
+    !activeTiDepartment && (isInternalRole(session.role) || location.pathname.startsWith("/prefeitura/"));
 
   const departmentOwnershipKey =
     location.pathname.startsWith("/prefeitura/financeiro")
@@ -1048,7 +1076,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     };
   }, [loading, session.id, location.pathname, activeInstitutionId, inverseMainTheme]);
 
-  const processShortcutPath = resolveTopbarProcessDestination(session.role);
+  const processShortcutPath = activeTiDepartment ? "/prefeitura/ti/memorandos" : resolveTopbarProcessDestination(session.role);
+  const processShortcutLabel = activeTiDepartment ? "Memorandos e comunicações" : "Processos";
 
   const resetMarkerEditor = () => {
     setEditingMarkerId(null);
@@ -1537,8 +1566,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                   "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
                 )}
-                aria-label="Processos"
-                title="Processos"
+                aria-label={processShortcutLabel}
+                title={processShortcutLabel}
               >
                 <ScrollText className="h-[18px] w-[18px] text-white/92" />
               </Link>
@@ -1732,8 +1761,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
                     topbarUtilityButtonClass,
                     topbarIconButton,
                   )}
-                  aria-label="Processos"
-                  title="Processos"
+                  aria-label={processShortcutLabel}
+                  title={processShortcutLabel}
                 >
                   <ScrollText className={topbarUtilityIconClass} aria-hidden="true" />
                 </Link>
@@ -2646,18 +2675,18 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
             </header> : null}
 
             {showBlockingOfficialDataError ? (
-              <div className="mx-4 mb-4 rounded-[18px] border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm sm:mx-6 lg:mx-8">
+              <div role="alert" className="mx-4 mb-3 rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100 sm:mx-6 lg:mx-8">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold">Dados oficiais temporariamente indisponíveis</p>
-                    <p className="mt-1 text-sm leading-5 text-amber-800">
-                      O SIGAPRO não está simulando dados locais. Aguarde a reconexão com o banco oficial antes de concluir operações.
+                    <p className="mt-1 text-xs leading-5 text-amber-800 dark:text-amber-200">
+                      Não foi possível carregar os dados oficiais. Tente reconectar antes de realizar operações.
                     </p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="shrink-0 rounded-full border-amber-400 bg-white text-amber-900 hover:bg-amber-100"
+                    className="shrink-0 rounded-lg border-amber-400 bg-background text-foreground hover:bg-muted"
                     onClick={() => void refreshRemoteStore().catch(() => undefined)}
                   >
                     Tentar novamente

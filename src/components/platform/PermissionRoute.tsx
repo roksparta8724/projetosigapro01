@@ -7,7 +7,7 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole, roleLabels } from "@/lib/platform";
+import { can, canAccessMunicipalArea, isMunicipalTiDepartmentLabel, isInternalRole, roleLabels } from "@/lib/platform";
 import type { Permission, SessionUser, UserRole } from "@/lib/platform";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { useMunicipalContextTransition } from "@/lib/municipalContextTransition";
@@ -78,6 +78,7 @@ export function PermissionRoute({
     // A identidade continua bloqueando conteúdo, mas nunca exibir uma tela vazia.
     return (
       <SecureRoutePending
+        failed={bootstrap.stage === "bootstrap_error"}
         title={bootstrap.stage === "bootstrap_error" ? "Não foi possível validar o acesso" : "Validando o acesso municipal"}
         detail={bootstrap.stage === "bootstrap_error"
           ? "A autenticação não foi concluída. Use Recarregar ou volte ao acesso para tentar novamente."
@@ -107,12 +108,12 @@ export function PermissionRoute({
 
   if (!isActuallyBlocked && !isMaster && isExternalPortalPath && !isExternalRole) {
     if (permissionDataPending) return pendingAccess();
-    return <Navigate to={getRoleLandingPath(session.role)} replace />;
+    return <Navigate to={getSessionLandingPath(session)} replace />;
   }
 
   if (!isActuallyBlocked && !isMaster && isMunicipalPortalPath && isExternalRole) {
     if (permissionDataPending) return pendingAccess();
-    return <Navigate to={getRoleLandingPath(session.role)} replace />;
+    return <Navigate to={getSessionLandingPath(session)} replace />;
   }
 
   const isTenantMismatch =
@@ -205,6 +206,16 @@ export function PermissionRoute({
     (!isAdminOnlyMunicipalPath &&
       (!requiredOperationalArea || canAccessMunicipalArea(session, requiredOperationalArea)));
 
+  const activeTiDepartment=isMunicipalEmployee&&isMunicipalTiDepartmentLabel(session.department);
+  const isLegacyOperationalPath=Boolean(requiredOperationalArea)||location.pathname.startsWith("/prefeitura/processos")||location.pathname.startsWith("/dashboard")||location.pathname==="/historico";
+  const isContextLanding=location.state?.sigaproContextLanding===true;
+  // During login/switch do not authorize a generic role while its active lotação is still resolving.
+  if(!isActuallyBlocked&&isMunicipalEmployee&&(isContextLanding||isLegacyOperationalPath||location.pathname.startsWith("/prefeitura/ti"))&&(!storeIdentityConfirmed||permissionDataPending))return pendingAccess();
+  if(!isActuallyBlocked&&activeTiDepartment&&!/^\/(?:prefeitura\/ti(?:\/|$)|perfil(?:\/|$)|notificacoes(?:\/|$))/.test(location.pathname))return <Navigate to="/prefeitura/ti" replace/>;
+  if(!isActuallyBlocked&&isMunicipalEmployee&&isContextLanding&&storeIdentityConfirmed&&!permissionDataPending){
+    const target=getSessionLandingPath(session);
+    if(target!==location.pathname)return <Navigate to={target} replace/>;
+  }
   const roleAllowed = !allowedRoles || allowedRoles.includes(session.role);
   const permissionAllowed = can(session, permission) && departmentRouteAllowed && roleAllowed;
   // A previous account's store must never supply department-specific privileges.
@@ -287,7 +298,7 @@ function resolveAllowedArea(session: SessionUser) {
     case "master_ops":
       return "/master";
     case "prefeitura_admin":
-      return "/prefeitura";
+      return "/prefeitura/ti";
     case "profissional_externo":
       return "/externo";
     case "proprietario_consulta":
@@ -295,6 +306,7 @@ function resolveAllowedArea(session: SessionUser) {
       return "/proprietario";
     default:
       if (isInternalRole(session.role)) {
+        if(isMunicipalTiDepartmentLabel(session.department))return "/prefeitura/ti";
         if (canAccessMunicipalArea(session, "protocolos")) return "/prefeitura/protocolos";
         if (canAccessMunicipalArea(session, "analise")) return "/prefeitura/analise";
         if (canAccessMunicipalArea(session, "financeiro")) return "/prefeitura/financeiro";

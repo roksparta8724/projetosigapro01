@@ -36,7 +36,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
-import { ensureMercadoPagoGuideCharge, requestQaPixCharge, reconcileQaPixAfterPdf, type QaPixCharge, type MercadoPagoGuideCharge, type BoletoPayerForm } from "@/lib/mercadoPagoGuide";
+import { ensureMercadoPagoGuideCharge, requestQaPixCharge, reconcileQaPixAfterPdf, reconcileProductionAfterPdf, type QaPixCharge, type MercadoPagoGuideCharge, type BoletoPayerForm } from "@/lib/mercadoPagoGuide";
 import { RealBoletoPayerDialog } from "@/components/platform/RealBoletoPayerDialog";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
@@ -76,7 +76,7 @@ export function ExternalPaymentsPage() {
   // Each operation has its own identity. Shared per-guide loading state made
   // "Emitir boleto" and "Gerar PIX" animate at the same time.
   const [busyGuideAction, setBusyGuideAction] = useState<{
-    key: string; action: "boleto" | "pix" | "guide";
+    key: string; action: "boleto" | "pix" | "guide" | "reconcile";
   } | null>(null);
   const [statusGuideKey, setStatusGuideKey] = useState("");
   const [guideActionStatus, setGuideActionStatus] = useState("");
@@ -183,6 +183,10 @@ export function ExternalPaymentsPage() {
     setStatusGuideKey(actionKey);
     setRealBoletoError("");
     setGuideActionStatus("");
+    // Reserve the tab inside the consent gesture, before the first await.
+    const boletoWindow=window.open("", "_blank");
+    if(boletoWindow)boletoWindow.opener=null;
+    let issued=false;
     try {
       const stored=await readGuideOriginal(effectiveScopeId,guide.code);
       if (isGuideSettled(stored))
@@ -200,12 +204,59 @@ export function ExternalPaymentsPage() {
       });
       if (result.environment!=="production" || !result.orderId)
         throw new Error("O banco não confirmou uma ordem de produção associada à guia.");
-      await refreshRemoteStore();
+      issued=true;
       setRealBoletoTarget(null);
-      setGuideActionStatus("Boleto oficial registrado. Utilize Visualizar guia para abrir o PDF arquivado.");
+      await refreshRemoteStore();
+      if(boletoWindow&&!boletoWindow.closed){
+        const archived=await openExternalGuide(process,guide,boletoWindow);
+        if(!archived)throw Error("Cobrança registrada, mas o PDF original ainda não está disponível. Use Visualizar guia para recuperar a DAM sem emitir outro boleto.");
+        await reconcileArchivedProductionGuide(guide.code);
+      }else{
+        setGuideActionStatus("Boleto registrado no banco. Permita a nova aba e use Visualizar guia para arquivar a DAM original, sem emitir outra cobrança.");
+      }
     } catch(error) {
-      setRealBoletoError(error instanceof Error?error.message:"Falha na emissão bancária.");
+      if(boletoWindow&&!boletoWindow.closed)boletoWindow.close();
+      const message=error instanceof Error?error.message:"Falha na emissão bancária.";
+      if(issued)setGuideActionStatus("Cobrança já registrada. "+message);
+      else setRealBoletoError(message);
     } finally {setBusyGuideAction(null);}
+  };
+
+  const reconcileArchivedProductionGuide = async (guideCode:string) => {
+    if(isolatedQaMode||!effectiveScopeId)return;
+    try{
+      const outcome=await reconcileProductionAfterPdf({municipalityId:effectiveScopeId,guideCode});
+      if(outcome.settled){
+        setGuideActionStatus("DAM original arquivada e compensação confirmada pelo banco.");
+        await refreshRemoteStore();
+      }else{
+        setGuideActionStatus("DAM original arquivada. A compensação aguarda confirmação bancária assinada. Não emita outra cobrança.");
+      }
+    }catch(error){
+      setGuideActionStatus("DAM original arquivada. "+(error instanceof Error?error.message:"Compensação não confirmada."));
+    }
+  };
+
+  const checkRealGuideSettlement=async(process:ProcessRecord,guide:PaymentGuideEntry)=>{
+    if(isolatedQaMode||!effectiveScopeId||busyGuideAction)return;
+    const key=`${process.id}:${guide.code}`;
+    setBusyGuideAction({key,action:"reconcile"});
+    setStatusGuideKey(key);
+    setGuideActionStatus("");
+    try{
+      const original=await readGuideOriginal(effectiveScopeId,guide.code);
+      if(isGuideSettled(original)){
+        setGuideActionStatus("Guia já compensada no sistema. Utilize Visualizar guia.");
+        await refreshRemoteStore();return;
+      }
+      if(original.payment_provider!=="mercado_pago"||original.provider_environment!=="production"||!original.bank_reference||!original.bank_payment_id)
+        throw Error("A cobrança oficial ainda não está registrada para esta guia.");
+      if(!original.original_pdf_key||!original.original_pdf_sha256)
+        throw Error("Use Visualizar guia para arquivar a DAM original antes de conferir a compensação.");
+      await reconcileArchivedProductionGuide(guide.code);
+    }catch(error){
+      setGuideActionStatus(error instanceof Error?error.message:"Não foi possível conferir a compensação.");
+    }finally{setBusyGuideAction(null);}
   };
 
   const reconcileArchivedQaPix = async (guideCode:string) => {
@@ -732,6 +783,7 @@ export function ExternalPaymentsPage() {
                               </Button>
                             ) : null}
                             {!isolatedQaMode && !isGuideSettled(guide) &&
+                            !(guide.bankReference && normalizeOfficialBanking(guide.barcode,guide.digitableLine).digitableLine) &&
                             (guide.paymentProvider || tenantSettings?.paymentProvider || "mercado_pago")==="mercado_pago" ? (
                               <Button
                                 type="button"
@@ -769,6 +821,7 @@ export function ExternalPaymentsPage() {
                               <Link to={processTarget}>Ver processo</Link>
                             </Button>
                             {!isolatedQaMode && !isGuideSettled(guide) &&
+                            !(guide.bankReference && normalizeOfficialBanking(guide.barcode,guide.digitableLine).digitableLine) &&
                             (guide.paymentProvider || tenantSettings?.paymentProvider || "mercado_pago")==="mercado_pago" ? (
                               <Button
                                 type="button" variant="outline"
@@ -796,6 +849,17 @@ export function ExternalPaymentsPage() {
                             </Button>
                           </>
                         )}
+                        {!isolatedQaMode && !isGuideSettled(guide) && guide.paymentProvider==="mercado_pago" &&
+                          guide.providerEnvironment==="production" && guide.bankReference ? (
+                          <Button type="button" variant="outline" data-prod-reconcile-guide="true"
+                            className="rounded-full px-4 text-[12px] font-semibold"
+                            disabled={Boolean(busyGuideAction)}
+                            onClick={()=>void checkRealGuideSettlement(process,guide)}>
+                            {busyGuideAction?.key===`${process.id}:${guide.code}`&&busyGuideAction.action==="reconcile"
+                              ? <Loader2 className="mr-1.5 size-3.5 animate-spin"/> : <CreditCard className="mr-1.5 size-3.5"/>}
+                            Conferir pagamento
+                          </Button>
+                        ) : null}
                         {statusGuideKey === `${process.id}:${guide.code}` && guideActionStatus ? (
                           <div role="status" aria-live="polite"
                             data-qa-guide-feedback="true"

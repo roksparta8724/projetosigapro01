@@ -91,6 +91,8 @@ const PersistentPortalFrameLayout = lazy(() =>
 const MasterAdminPage = lazy(() => import("@/pages/saas/MasterAdminPage").then((module) => ({ default: module.MasterAdminPage })));
 const PlatformStaffCreationPage = lazy(() => import("@/pages/saas/PlatformStaffCreationPage").then((module) => ({ default: module.PlatformStaffCreationPage })));
 const TenantAdminPage = lazy(() => import("@/pages/saas/TenantAdminPage").then((module) => ({ default: module.TenantAdminPage })));
+const MunicipalCommunicationsPage = lazy(() => import("@/pages/saas/MunicipalCommunicationsPage").then(module=>({default:module.MunicipalCommunicationsPage})));
+const MunicipalItPage = lazy(() => import("@/pages/saas/MunicipalItPage").then(module=>({default:module.MunicipalItPage})));
 const MunicipalStaffCreationPage = lazy(() => import("@/pages/saas/MunicipalStaffCreationPage").then((module) => ({ default: module.MunicipalStaffCreationPage })));
 const CollectionSettingsPage = lazy(() => import("@/pages/saas/CollectionSettingsPage").then((module) => ({ default: module.CollectionSettingsPage })));
 const MunicipalOrganizationPage = lazy(() => import("@/pages/saas/MunicipalOrganizationPage").then((module) => ({ default: module.MunicipalOrganizationPage })));
@@ -139,6 +141,8 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   if (pathname.startsWith("/prefeitura/financeiro/protocolos")) return import("@/pages/saas/FinanceProtocolsPage");
   if (pathname.startsWith("/prefeitura/financeiro/iptu")) return import("@/pages/saas/IptuDeskPage");
   if (pathname.startsWith("/prefeitura/financeiro")) return import("@/pages/saas/FinanceDeskPage");
+  if (pathname.startsWith("/prefeitura/ti")) return import("@/pages/saas/MunicipalItPage");
+  if (pathname.startsWith("/prefeitura/comunicacoes")) return import("@/pages/saas/MunicipalCommunicationsPage");
   if (pathname.startsWith("/prefeitura/usuarios/novo")) return import("@/pages/saas/MunicipalStaffCreationPage");
   if (pathname.startsWith("/prefeitura/organograma")) return import("@/pages/saas/MunicipalOrganizationPage");
   if (pathname.startsWith("/prefeitura/processos")) return import("@/pages/saas/MunicipalProcessRegistryPage");
@@ -384,6 +388,8 @@ const AppRoutes = () => {
             </PermissionRoute>
           }
         />
+        <Route path="/prefeitura/comunicacoes" element={<PermissionRoute permission="manage_own_profile" allowedRoles={["prefeitura_admin","prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"]}><MunicipalCommunicationsPage /></PermissionRoute>} />
+        <Route path="/prefeitura/ti/*" element={<PermissionRoute permission="manage_own_profile" allowedRoles={["prefeitura_admin","prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"]}><MunicipalItPage /></PermissionRoute>} />
         <Route path="/prefeitura/arrecadacao" element={<PermissionRoute permission="view_collection_settings"><PlanModuleRoute module="Configurações"><CollectionSettingsPage /></PlanModuleRoute></PermissionRoute>} />
         <Route
           path="/prefeitura/processos"

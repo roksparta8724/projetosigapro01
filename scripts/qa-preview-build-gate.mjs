@@ -128,6 +128,11 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/masterInstitutionalGovernance20261119.test.ts",
     "src/test/refreshVisualContinuity.test.ts",
     "src/test/staticInPlaceRefresh20261118.test.ts",
+    "src/test/municipalTiNavigation20261128.test.ts",
+    "src/test/municipalLoginIdentity20261128.test.ts",
+    "src/test/municipalOrganizationTree20261128.test.tsx",
+    "src/test/secureTransitionPremium20261128.test.tsx",
+    "src/test/municipalTiWorkspace20261128.test.ts",
     "src/test/municipalMultiDepartmentStaff20261118.test.ts",
     "src/test/municipalStaffLegacyAssignment20261119.test.tsx",
     "src/test/municipalUserRegistryPhoto20261119.test.tsx",
@@ -192,6 +197,10 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
   run("current-qa-provider-config",["scripts/qa-visual-provider-config.mjs"]);
   run("current-qa-original-byte-audit",["scripts/qa-r2-original-bytes.mjs"]);
   run("current-qa-live-readonly-integrations",["node_modules/vitest/vitest.mjs","run","--maxWorkers=1","server/qa-live-current-readiness.test.ts"],{SIGAPRO_QA_LIVE_READONLY_CHECKS:"true"});
+  // Explicitly requested synthetic backup/restore, with dedicated QA credentials only.
+  if(String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[qa-recovery-roundtrip-once]")){
+    run("qa-dedicated-r2-recovery-roundtrip",["scripts/qa-r2-roundtrip.mjs"]);
+  }
   // Read-only forensic scan, separated from the paid model call and disposable upload probe.
   if(String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[qa-recovery-readonly]")){
     run("qa-historical-original-source-discovery",["scripts/qa-r2-dam-exact-recovery.mjs"],{SIGAPRO_QA_R2_RECOVERY_WRITE:"false"});
@@ -224,7 +233,7 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
   run("read-only-r2-original-byte-integrity",["scripts/qa-r2-original-bytes.mjs"]);
   // Real isolated R2 PUT/HEAD/GET/sha256/DELETE on a disposable QA key.
   // Never writes into a municipal document prefix or production bucket.
-  run("live-qa-r2-byte-roundtrip-and-cleanup",["scripts/qa-r2-roundtrip.mjs"]);
+  // Retired preview branch cannot write to storage. Current QA has a dedicated opt-in recovery gate.
   // One deliberately marked, single-build QA test; never call a chargeable
   // external vision model in ordinary CI, every-preview builds or production.
   const marked=String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[visual-qa-once]") ||

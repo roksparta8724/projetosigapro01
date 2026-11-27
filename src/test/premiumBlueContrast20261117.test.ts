@@ -77,11 +77,20 @@ describe("SIGAPRO — contrato de contraste das superfícies azuis", () => {
     }
   });
 
-  it("azul do organograma mantém texto branco e não altera os cards claros", () => {
+  it("reserva azul para a raiz e valida contraste AA de todas as siglas hierárquicas", () => {
     const organogram = source("src/components/platform/MunicipalOrganizationChart.tsx");
-    expect(organogram).toContain('data-organogram-code-surface="blue"');
-    expect(organogram).toContain('data-contrast-surface="dark"');
+    const hierarchy = source("src/components/platform/municipal-organization-hierarchy.css");
+    expect(organogram).toContain('data-organogram-code-surface={depth===0?"blue":undefined}');
+    expect(organogram).toContain('data-contrast-surface={depth===0?"dark":undefined}');
     expect(css).toContain('[data-organogram-code-surface="blue"][data-contrast-surface="dark"]');
     expect(css).toContain('-webkit-text-fill-color: #ffffff !important');
+    const pairs = [...hierarchy.matchAll(/--org-badge-bg:(#[a-f0-9]{6});--org-badge-fg:(#[a-f0-9]{3,6});/gi)];
+    expect(pairs).toHaveLength(5);
+    for (const [,background,rawForeground] of pairs) {
+      const foreground=rawForeground==="#fff"?"#ffffff":rawForeground;
+      expect(contrast(foreground,background)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(new Set(pairs.slice(0,3).map(pair=>pair[1])).size).toBe(3);
+    expect(hierarchy).toContain('background:var(--org-badge-bg)!important');
   });
 });

@@ -120,6 +120,13 @@ export function AcessoPage() {
             error: response.error ? { message: response.error.message } : null,
           };
         },
+        async () => {
+          const response=await backendClient.rpc("municipal_ti_login_context_v1",{m:result.municipalityId??""});
+          if(response.error)throw Error(response.error.message||"Lotação não confirmada.");
+          const data=response.data as {isTi?:boolean;allowed?:boolean}|null;
+          if(!data||typeof data.isTi!=="boolean"||typeof data.allowed!=="boolean")throw Error("Lotação não confirmada.");
+          return {isTi:data.isTi,allowed:data.allowed};
+        },
       );
       if (decision.ok === false) {
         setError(decision.message);

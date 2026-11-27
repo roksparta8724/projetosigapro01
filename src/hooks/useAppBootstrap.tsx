@@ -411,6 +411,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     // que aumentavam sensivelmente o tempo de login em produção.
     const retryDelays = [0, 80, 180, 350];
     let lastProfileError: unknown = null;
+    let mismatchedSubject = false;
 
     for (const delayMs of retryDelays) {
       if (delayMs > 0) {
@@ -426,6 +427,12 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
       const ctx = contextResult.data as Record<string, unknown> | null;
       const profileId = String(ctx?.profile_id || "").trim();
       if (!profileId) continue;
+      // A previous Neon token may still be visible during a manual account switch.
+      // Never accept the profile or privileges of another authenticated subject.
+      if (String(ctx?.auth_subject || "").trim() !== userId) {
+        mismatchedSubject = true;
+        continue;
+      }
 
       return {
         userId: profileId,
@@ -445,6 +452,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
       };
     }
 
+    if (mismatchedSubject) throw new Error("A sessão anterior não corresponde à conta atual. Entre novamente para confirmar a identidade.");
     console.warn("[Bootstrap][Profile] Neon Auth sem profile ativo após tentativas de resolução", {
       userId,
       error: lastProfileError,
@@ -1100,11 +1108,13 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setError(null);
         setStage("bootstrapping_auth");
         try {
-          // O signInWithPassword substitui a sessão autenticada atual.
-          // Evitamos getSession + signOut antes de TODO login, que adicionava duas
-          // viagens de rede no caminho crítico. Em caso de erro de sessão, fazemos
-          // uma limpeza e uma única nova tentativa.
+          // Manual sign-in is an explicit identity boundary, unlike F5 or a department switch.
+          // End any previous Neon session before authenticating another account.
           clearIdentity();
+          if (isNeonBackend) {
+            try { await backendClient.auth.signOut(); } catch { /* Subject validation below remains mandatory. */ }
+          }
+          if (!isCurrentSignIn()) return { ok: false, message: "A autenticação foi interrompida." };
 
           let signInResult = await backendClient.auth.signInWithPassword({
             email: normalized,
@@ -1140,6 +1150,9 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             return { ok: false, message: translatedMessage };
           }
 
+          if (isNeonBackend && normalizeEmail(data.user.email) !== normalized) {
+            throw new Error("A autenticação retornou uma identidade diferente da conta informada.");
+          }
           let nextProfile = await loadProfileByUserId(data.user.id);
           nextProfile = await completePendingSignup(data.user, nextProfile, resolution);
           if (nextProfile?.accountStatus === "blocked" || nextProfile?.accountStatus === "inactive") {

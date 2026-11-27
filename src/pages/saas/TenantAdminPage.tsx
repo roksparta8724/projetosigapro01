@@ -1628,13 +1628,13 @@ export function TenantAdminPage() {
             <PageMainContent>
               <TableCard
                 title="Organograma municipal"
-                description="Estrutura institucional da Prefeitura exibida por siglas, sem nomes de usuários, no padrão de navegação administrativa."
+                description="Lista hierárquica de secretarias, diretorias e unidades. Pesquise, expanda ou recolha cada nível."
                 icon={Network}
               >
                 <MunicipalOrganizationChart
                   departments={activeDepartments}
                   emptyMessage="Nenhuma unidade cadastrada. Crie a primeira estrutura ao lado para disponibilizar o organograma institucional."
-                  onEdit={handleEditDepartment}
+                  onEdit={session.role==="prefeitura_admin"?handleEditDepartment:undefined}
                   onAddChild={session.role==="prefeitura_admin" ? (id)=>{setEditingDepartmentId(null);setOrgForm({code:"",name:"",unitType:"departamento",parentDepartmentId:id,description:"",email:"",phone:""});document.getElementById("municipal-org-editor")?.scrollIntoView({block:"nearest",behavior:"smooth"});} : undefined}
                 />
               </TableCard>

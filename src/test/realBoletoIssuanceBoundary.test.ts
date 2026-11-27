@@ -72,6 +72,21 @@ describe("SIGAPRO: boleto real exige titular e cobrança explícita",()=>{
     expect(dialog).toContain("Confirmar emissão bancária");
     expect(dialog).not.toContain("localStorage");
   });
+  it("liga emissão explícita ao arquivo original e consulta de compensação sem reemitir",()=>{
+    const page=source("src/pages/saas/ExternalPaymentsPage.tsx");
+    const issue=page.slice(page.indexOf("const issueRealBoleto = async"),page.indexOf("const reconcileArchivedProductionGuide"));
+    expect(issue.indexOf('window.open("", "_blank")')).toBeLessThan(issue.indexOf("await readGuideOriginal"));
+    expect(issue.indexOf("await ensureMercadoPagoGuideCharge")).toBeLessThan(issue.indexOf("await openExternalGuide"));
+    expect(issue.indexOf("await openExternalGuide")).toBeLessThan(issue.indexOf("await reconcileArchivedProductionGuide"));
+    expect(issue).toContain("sem emitir outro boleto");
+    expect(page).toContain('data-prod-reconcile-guide="true"');
+    const retry=page.slice(page.indexOf("const checkRealGuideSettlement"),page.indexOf("const reconcileArchivedQaPix"));
+    expect(retry).toContain("original.original_pdf_sha256");
+    expect(retry).not.toContain("ensureMercadoPagoGuideCharge");
+    const client=source("src/lib/mercadoPagoGuide.ts");
+    expect(client).toContain("/api/mercadopago-webhook?mode=post-archive-reconcile");
+    expect(client).toContain('result.settled===true');
+  });
   it("API recebe pagador como dado não confiável; servidor controla a identidade e o banco",()=>{
     const api=source("api/mercadopago.ts");
     const server=source("server/mercadopago.ts");
