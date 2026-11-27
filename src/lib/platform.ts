@@ -2730,11 +2730,17 @@ function resolveDepartmentAccessBucket(value: string | null | undefined) {
   return normalized;
 }
 
+/** TI is a support scope, not a synonym for protocolo/atendimento geral. */
+export function isMunicipalTiDepartmentLabel(value:string|null|undefined){
+  const name=normalizeDepartmentAccessLabel(value||"");
+  return /^(ti(?:-|\s|$)|tecnologia da informacao$|sistemas e suporte$|infraestrutura e redes$|seguranca da informacao$|administracao de usuarios e permissoes$|central de atendimento tecnico$)/.test(name);
+}
 export type MunicipalOperationalArea = "protocolos" | "analise" | "financeiro";
 
 export function resolveSessionOperationalArea(
   session: Pick<SessionUser, "role" | "department" | "title">,
 ): MunicipalOperationalArea | "" {
+  if(isMunicipalTiDepartmentLabel(session.department))return "";
   const explicitDepartment = resolveDepartmentAccessBucket(session.department || "");
   if (
     explicitDepartment === "protocolos" ||
@@ -2796,6 +2802,7 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
 }
 
 export function getSessionLandingPath(session: SessionUser) {
+  if(session.role!=="prefeitura_admin"&&isInternalRole(session.role)&&isMunicipalTiDepartmentLabel(session.department))return "/prefeitura/ti";
   if (isInternalRole(session.role) && session.role !== "prefeitura_admin") {
     const area = resolveSessionOperationalArea(session);
     const required = area === "protocolos" ? "manage_protocols" : area === "analise" ? "review_processes" : area === "financeiro" ? "manage_financial" : null;

@@ -70,6 +70,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import {MunicipalIdentityPrefix} from "@/components/platform/MunicipalIdentityPrefix";
 import {useMunicipalIdentityBadges} from "@/hooks/useMunicipalAuthority";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import {municipalItCommand} from "@/integrations/backend/platform";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
@@ -659,12 +660,21 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
   const bannerMid = darken(primaryColor, -4);
   const activeBg = darken(primaryColor, -14);
 
+  const itScope=session.municipalityId??session.tenantId??"";
+  const itIdentity=String(session.id)+":"+itScope;
+  const [itPermission,setItPermission]=useState<{key:string;allowed:boolean}>({key:"",allowed:false});
+  useEffect(()=>{
+    let active=true;
+    if(!itScope||!["prefeitura_admin","prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(session.role))return ()=>{active=false;};
+    void municipalItCommand<{allowed:boolean}>(itScope,"access").then(result=>{if(active)setItPermission({key:itIdentity,allowed:result.allowed===true});}).catch(()=>{if(active)setItPermission({key:itIdentity,allowed:false});});
+    return ()=>{active=false;};
+  },[itScope,itIdentity,session.role]);
   const visibleNavItems = navItems
     .map((item) => {
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
 
       const isExternalProfessional = isExternalProfessionalRole(session.role);
-      if(item.to==="/prefeitura/ti"&&!["prefeitura_admin","prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(session.role))return null;
+      if(item.to==="/prefeitura/ti"&&!(itScope&&session.role==="prefeitura_admin")&&!(itPermission.key===itIdentity&&itPermission.allowed))return null;
 
       if (item.to.startsWith("/externo") && !isExternalProfessional) return null;
 
