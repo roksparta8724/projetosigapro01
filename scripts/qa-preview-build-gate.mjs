@@ -129,6 +129,7 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/refreshVisualContinuity.test.ts",
     "src/test/staticInPlaceRefresh20261118.test.ts",
     "src/test/municipalTiNavigation20261128.test.ts",
+    "src/test/municipalLoginIdentity20261128.test.ts",
     "src/test/municipalTiWorkspace20261128.test.ts",
     "src/test/municipalMultiDepartmentStaff20261118.test.ts",
     "src/test/municipalStaffLegacyAssignment20261119.test.tsx",
