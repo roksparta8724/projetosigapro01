@@ -1,6 +1,6 @@
 import {describe,it,expect,vi,beforeEach} from "vitest";
 import {createHmac} from "node:crypto";
-import {beginIcpSandboxSession,bindIcpSandboxSession,recordIcpSandboxArchive} from "./certified-icp-session-adapter";
+import {beginIcpSandboxSession,bindIcpSandboxSession,recordIcpSandboxArchive,readIcpSandboxArchive} from "./certified-icp-session-adapter";
 import {callDataApiRpc,readBearer,readEnv,type ApiReq} from "./municipal-storage";
 vi.mock("./municipal-storage",()=>({callDataApiRpc:vi.fn(),readBearer:vi.fn(),readEnv:vi.fn()}));
 const municipalityId="11111111-1111-4111-8111-111111111111",profileId="22222222-2222-4222-8222-222222222222";
@@ -41,5 +41,19 @@ describe("ICP sandbox authenticated session adapter",()=>{
   expect(callDataApiRpc).not.toHaveBeenCalled();
   vi.mocked(callDataApiRpc).mockResolvedValueOnce(ok({...session,municipalityId:profileId}));
   await expect(bindIcpSandboxSession(req,binding).consumeSession(binding)).rejects.toThrow("ITI_SESSION_BINDING_MISMATCH");
+ });
+});
+
+describe("ICP manifest recovery",()=>{
+ it("does not return an absent or mismatched proof as success",async()=>{
+  const sha256="a".repeat(64),archive={objectKey:"sandbox-only/certified-candidates/"+municipalityId+"/fixture/"+sha256+".pdf",sha256,fileSizeBytes:120,byteRangeSha256:binding.byteRangeSha256,cmsSha256:"b".repeat(64),certificateSha256:"c".repeat(64),environment:"sandbox",archiveVerified:true,pdfPolicyVerified:false,issuanceAuthorized:false,manifestRecorded:true};
+  vi.mocked(callDataApiRpc).mockResolvedValueOnce(ok({manifestRecorded:false,environment:"sandbox",issuanceAuthorized:false})).mockResolvedValueOnce(ok(archive)).mockResolvedValueOnce(ok({...archive,byteRangeSha256:"f".repeat(64)}));
+  await expect(readIcpSandboxArchive(req,binding)).resolves.toBeNull();
+  await expect(readIcpSandboxArchive(req,binding)).resolves.toEqual(archive);
+  await expect(readIcpSandboxArchive(req,binding)).rejects.toThrow("ITI_ARCHIVE_MANIFEST_NOT_CONFIRMED");
+  const [,rpc,args]=vi.mocked(callDataApiRpc).mock.calls[0];
+  expect(rpc).toBe("certified_icp_manifest_status_v1");
+  const key=createHmac("sha256",Buffer.from("1".repeat(64),"hex")).update("sigapro-certified-manifest-status-domain-v1").digest();
+  expect(args._mac).toBe(createHmac("sha256",key).update(["sigapro-certified-manifest-status-v1",municipalityId,args._payload,args._epoch].join("\n")).digest("hex"));
  });
 });
