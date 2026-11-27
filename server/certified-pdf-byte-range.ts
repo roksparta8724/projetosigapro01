@@ -39,3 +39,23 @@ export function embedUnverifiedPkcs7(bytes:Uint8Array,range:PreparedSignatureRan
  if(actual!==expectedRangeSha)throw Error("PDF_SIGNED_BYTES_CHANGED");
  return {bytes:output,sha256:sha(output),byteRangeSha256:actual,verified:false as const};
 }
+
+/** Independently check the final serialized signature against the trusted
+ * prepared bytes. Reject changes outside Contents and any extra data inside
+ * the reserved field. This checks serialization, not PDF policy conformance. */
+export function assertEmbeddedCmsBytes(input:{
+ preparedBytes:Uint8Array; signedBytes:Uint8Array; range:PreparedSignatureRange;
+ preparedSha256:string; byteRangeSha256:string; cmsDer:Uint8Array;
+}){
+ const checked=inspectPreparedPdfSignature(input.preparedBytes,input.range,input.preparedSha256);
+ const original=Buffer.from(input.preparedBytes), signed=Buffer.from(input.signedBytes);
+ const [_,start,end]=input.range;
+ if(checked.byteRangeSha256!==input.byteRangeSha256||signed.length!==original.length||
+   !signed.subarray(0,start+1).equals(original.subarray(0,start+1))||
+   !signed.subarray(end-1).equals(original.subarray(end-1)))throw Error("PDF_SIGNED_BYTES_CHANGED");
+ if(input.cmsDer.length<16||input.cmsDer[0]!==0x30||input.cmsDer.length>checked.capacityBytes)throw Error("PDF_CMS_INVALID_OR_TOO_LARGE");
+ const expected=Buffer.from(input.cmsDer).toString("hex").padEnd(checked.capacityBytes*2,"0");
+ const actual=signed.subarray(start+1,end-1).toString("ascii");
+ if(actual!==expected)throw Error("PDF_EMBEDDED_CMS_MISMATCH");
+ return {sha256:sha(signed),byteRangeSha256:checked.byteRangeSha256,embeddedCmsVerified:true as const,pdfPolicyVerified:false as const,issuanceAuthorized:false as const};
+}
