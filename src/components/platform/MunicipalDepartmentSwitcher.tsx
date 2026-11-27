@@ -75,11 +75,12 @@ export function MunicipalDepartmentSwitcher({ dark }: { dark: boolean }) {
             active[0].departmentId !== activated.departmentId) {
           throw new Error("O departamento ativo não foi confirmado pelo banco.");
         }
+        await routeReady;
         if(isCurrentMunicipalContextTransition(operation))setRowState({profileId:session.id,municipalityId,rows:verified});
       };
       // These read-only requests are independent after the transactional switch.
       // The provider waits for confirmation BEFORE publishing the scoped store.
-      await refreshRemoteStore(null, assignment, async()=>{ await Promise.all([confirmAssignment(),routeReady]); });
+      await refreshRemoteStore(null, assignment, confirmAssignment);
       if (!isCurrentMunicipalContextTransition(operation)) return;
       // Commit the confirmed store and navigation together, before reopening
       // operational content. No optimistic profile or success toast.
