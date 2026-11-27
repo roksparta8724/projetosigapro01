@@ -88,6 +88,25 @@ export async function reconcileQaPixAfterPdf(input: {
  return {code:String(data.code||"manual_review"),settled:data.automaticallySettled===true};
 }
 
+/** Explicit post-archive reconciliation; never creates another bank order.
+ * Only the production worker may settle, after signed bank evidence + GET. */
+export async function reconcileProductionAfterPdf(input:{municipalityId:string;guideCode:string}):Promise<{code:string;settled:boolean}>{
+ if(import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true")throw Error("Conciliação de produção indisponível na homologação.");
+ const sessionResult=await backendClient.auth.getSession();
+ const session=sessionResult?.data?.session;
+ const token=session?.access_token||session?.accessToken||session?.token||"";
+ if(!token)throw Error("Entre novamente para consultar a compensação.");
+ const response=await fetch("/api/mercadopago-webhook?mode=post-archive-reconcile",{
+   method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:"Bearer "+token},
+   body:JSON.stringify(input),cache:"no-store",signal:AbortSignal.timeout(25000),
+ });
+ const result=await response.json().catch(()=>null) as {ok?:boolean;code?:string;status?:string;settled?:boolean}|null;
+ if(response.status===409&&result?.code==="SIGNED_BANK_EVENT_REQUIRED")return {code:"SIGNED_BANK_EVENT_REQUIRED",settled:false};
+ if(!response.ok||result?.ok!==true||typeof result.status!=="string"||typeof result.settled!=="boolean")
+   throw Error("A compensação ainda não foi confirmada pelo servidor. Consulte novamente sem emitir outra cobrança.");
+ return {code:result.status,settled:result.settled===true};
+}
+
 /** Collected explicitly by the payer; never cache or log these private fields. */
 export type BoletoPayerForm = {
   email:string;
