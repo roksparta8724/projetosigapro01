@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Building2, Network, Plus, Pencil, ChevronDown, ChevronRight, Search, X, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import "./municipal-organization-hierarchy.css";
 import { buildOrganizationRows, filterOrganizationRows } from "@/lib/municipalOrganizationTree";
 import { isAdjunctUnit } from "@/lib/municipalUnitCodes";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
@@ -132,35 +133,8 @@ export function MunicipalOrganizationChart({
             Hierarquia institucional por siglas, níveis e unidades oficiais da Prefeitura.
           </span>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {["secretaria", "secretaria_adjunta", "diretoria", "diretoria_adjunta", "departamento", "setor"].map((type) => {
-            const identity = type==="secretaria_adjunta"?{...getInstitutionalUnitIdentity("secretaria"),short:"SAD",label:"Secretaria adjunta"}:type==="diretoria_adjunta"?{...getInstitutionalUnitIdentity("diretoria"),short:"DAD",label:"Diretoria adjunta"}:getInstitutionalUnitIdentity(type);
-            return (
-              <span
-                key={type}
-                data-organogram-legend="true"
-                data-organogram-level-badge="true"
-                data-organogram-code-surface="blue"
-                data-contrast-surface="dark"
-                data-unit-type={type}
-                className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-h-7 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[12px] font-black tracking-[0.04em] shadow-[0_5px_14px_rgba(3,55,84,0.20)]"
-                title={identity.label}
-              >
-                <strong
-                  data-organogram-code-text="true"
-                  style={{
-                    color: "#ffffff",
-                    WebkitTextFillColor: "#ffffff",
-                    opacity: 1,
-                    fontWeight: 900,
-                  }}
-                  className="block whitespace-nowrap text-[12px] font-extrabold leading-4 tracking-[0.04em] !text-white"
-                >
-                  {identity.short}
-                </strong>
-              </span>
-            );
-          })}
+        <div className="flex flex-wrap gap-2 text-xs font-medium">
+          {([{tone:"root",label:"Unidade principal"},{tone:"child",label:"Subunidade"},{tone:"nested",label:"Nível adicional"}] as const).map(item=><span key={item.tone} className="flex items-center gap-1.5"><span aria-hidden="true" data-org-hierarchy-tone={item.tone} className="sig-org-hierarchy-swatch"/>{item.label}</span>)}
         </div>
       </div>
 
@@ -184,13 +158,14 @@ export function MunicipalOrganizationChart({
           const open=searching||effectiveExpanded.has(department.id);
           const staff=staffByDepartment.get(department.name)||[];
           const expandable=childCount>0||staff.length>0;
-          return <li key={department.id} data-organogram-node="true" data-organogram-root={depth===0?"true":"false"} data-unit-type={department.unitType||"unidade"} data-unit-adjunct={adjunct?"true":"false"} data-depth={depth} className="min-w-0 bg-card text-card-foreground">
-            <div data-organogram-unit-header="true" className="flex min-w-0 items-center gap-2 py-2 pr-2 hover:bg-muted/50" style={{paddingInlineStart:8+Math.min(depth,5)*12}}>
+          const hierarchyTone=depth===0?"root":depth===1?"child":"nested";
+          return <li key={department.id} data-organogram-node="true" data-organogram-root={depth===0?"true":"false"} data-unit-type={department.unitType||"unidade"} data-unit-adjunct={adjunct?"true":"false"} data-depth={depth} data-org-hierarchy-row={hierarchyTone} className="min-w-0 bg-card text-card-foreground">
+            <div data-organogram-unit-header="true" className="flex min-w-0 items-center gap-2 py-2 pr-2 hover:bg-muted/50" style={{paddingInlineStart:8+Math.min(depth,5)*16}}>
               {expandable?<button type="button" aria-expanded={open} aria-label={(open?"Recolher ":"Expandir ")+department.name} disabled={searching} onClick={()=>toggle(department.id)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{open?<ChevronDown size={17}/>:<ChevronRight size={17}/>}</button>:<span className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground" aria-hidden="true"><Building2 size={16}/></span>}
               <div data-organogram-unit-copy="true" className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                  <span data-organogram-level-badge="true" data-organogram-code-surface="blue" data-contrast-surface="dark" className="sig-organogram-code-badge sig-organogram-blue-code inline-flex shrink-0 items-center rounded-md bg-[#075985] px-2 py-1 text-xs font-bold !text-white" title={identity.label}><strong data-organogram-code-text="true" className="!text-white">{acronym}</strong></span>
-                  <span data-organogram-name="true" className="min-w-0 break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">{department.name}</span>
+                  <span data-organogram-level-badge="true" data-org-hierarchy-tone={hierarchyTone} className="sig-org-hierarchy-code inline-flex shrink-0 items-center rounded-md px-2 py-1 text-xs font-bold" title={identity.label}><strong>{acronym}</strong></span>
+                  <span data-organogram-name="true" className={"min-w-0 break-words text-sm text-foreground [overflow-wrap:anywhere] "+(depth===0?"font-bold":"font-medium")}>{department.name}</span>
                 </div>
                 <div data-organogram-level-label="true" className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground"><span>{identity.label}</span>{childCount>0&&<span>· {childCount} {childCount===1?"subunidade":"subunidades"}</span>}{staff.length>0&&<span>· {staff.length} {staff.length===1?"servidor":"servidores"}</span>}{detached&&<span className="font-semibold text-amber-700 dark:text-amber-300">· Vínculo a revisar</span>}</div>
               </div>

@@ -78,6 +78,7 @@ export function PermissionRoute({
     // A identidade continua bloqueando conteúdo, mas nunca exibir uma tela vazia.
     return (
       <SecureRoutePending
+        failed={bootstrap.stage === "bootstrap_error"}
         title={bootstrap.stage === "bootstrap_error" ? "Não foi possível validar o acesso" : "Validando o acesso municipal"}
         detail={bootstrap.stage === "bootstrap_error"
           ? "A autenticação não foi concluída. Use Recarregar ou volte ao acesso para tentar novamente."

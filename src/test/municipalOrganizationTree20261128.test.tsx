@@ -6,6 +6,15 @@ import {buildOrganizationRows,filterOrganizationRows} from "@/lib/municipalOrgan
 const unit=(id:string,name:string,parentDepartmentId:string|null=null)=>({id,name,parentDepartmentId,code:id.toUpperCase(),unitType:"departamento",isActive:true,sortOrder:0,municipalityId:"qa",description:"",email:"",phone:""});
 const units=[unit("a","Administração"),unit("b","Tecnologia da Informação","a"),unit("c","Infraestrutura e Redes","b")];
 describe("Organograma recolhível",()=>{
+ it("diferencia raiz, subunidade e terceiro nível pela hierarquia real",()=>{
+ render(<MunicipalOrganizationChart departments={units}/>);
+ fireEvent.click(screen.getByRole("button",{name:"Expandir tudo"}));
+ for(const [name,tone] of [["Administração","root"],["Tecnologia da Informação","child"],["Infraestrutura e Redes","nested"]]){
+  const row=screen.getByText(name).closest("[data-organogram-node]");
+  expect(row).toHaveAttribute("data-org-hierarchy-row",tone);
+  expect(row?.querySelector("[data-org-hierarchy-tone]")).toHaveAttribute("data-org-hierarchy-tone",tone);
+ }
+ });
  it("abre e fecha níveis sem esconder a raiz",()=>{
  render(<MunicipalOrganizationChart departments={units}/>);
  expect(screen.queryByText("Infraestrutura e Redes")).not.toBeInTheDocument();

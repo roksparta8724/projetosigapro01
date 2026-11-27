@@ -492,7 +492,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
           user.email.trim().toLowerCase() === session.email?.trim().toLowerCase()),
     ),
   );
-  const showBlockingOfficialDataError = Boolean(
+  const hasBlockingOfficialDataError = Boolean(
     dataError &&
     !loading &&
     !dataReadyForCurrentUser &&
@@ -500,6 +500,10 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     source !== "warm" &&
     !hasUsableScopedData,
   );
+  const officialErrorKey=hasBlockingOfficialDataError?`${session.id}:${session.department??""}:${dataError}`:null;
+  const [visibleOfficialErrorKey,setVisibleOfficialErrorKey]=useState<string|null>(null);
+  useEffect(()=>{if(!officialErrorKey){setVisibleOfficialErrorKey(null);return;}const id=window.setTimeout(()=>setVisibleOfficialErrorKey(officialErrorKey),1200);return()=>window.clearTimeout(id);},[officialErrorKey]);
+  const showBlockingOfficialDataError=Boolean(officialErrorKey&&visibleOfficialErrorKey===officialErrorKey);
 
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
@@ -2671,18 +2675,18 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
             </header> : null}
 
             {showBlockingOfficialDataError ? (
-              <div className="mx-4 mb-4 rounded-[18px] border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm sm:mx-6 lg:mx-8">
+              <div role="alert" className="mx-4 mb-3 rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100 sm:mx-6 lg:mx-8">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold">Dados oficiais temporariamente indisponíveis</p>
-                    <p className="mt-1 text-sm leading-5 text-amber-800">
-                      O SIGAPRO não está simulando dados locais. Aguarde a reconexão com o banco oficial antes de concluir operações.
+                    <p className="mt-1 text-xs leading-5 text-amber-800 dark:text-amber-200">
+                      Não foi possível carregar os dados oficiais. Tente reconectar antes de realizar operações.
                     </p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="shrink-0 rounded-full border-amber-400 bg-white text-amber-900 hover:bg-amber-100"
+                    className="shrink-0 rounded-lg border-amber-400 bg-background text-foreground hover:bg-muted"
                     onClick={() => void refreshRemoteStore().catch(() => undefined)}
                   >
                     Tentar novamente
