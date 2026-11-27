@@ -187,8 +187,11 @@ if (typeof window !== "undefined") {
   if (isWorkspaceBootPath(initialPath)) {
     void import("@/components/platform/PortalFrame").catch(() => undefined);
     void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);
+  } else if (/\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(initialPath)) {
+    // Standalone document route: warm only its own code, not the portal frame.
+    void preloadCurrentInternalRoute(initialPath)?.catch(() => undefined);
   } else {
-    void (preloadCurrentPublicRoute(initialPath) ?? preloadCurrentInternalRoute(initialPath))?.catch(() => undefined);
+    void preloadCurrentPublicRoute(initialPath)?.catch(() => undefined);
   }
 }
 
