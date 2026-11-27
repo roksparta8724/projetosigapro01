@@ -1,0 +1,31 @@
+import {useEffect,useState} from "react";
+import {backendClient} from "@/integrations/backend/databaseClient";
+import {Button} from "@/components/ui/button";
+type Status={configured:boolean;archiveConfigured:boolean;trustConfigured:boolean;runtimeEnabled:boolean;issuanceAuthorized:false};
+async function request(municipalityId:string,action:"get"|"save",fields:Record<string,string>={}){
+ const session=(await backendClient.auth.getSession())?.data?.session;
+ const token=session?.access_token||session?.accessToken||session?.token;
+ if(!token)throw Error("Sua sessão expirou.");
+ const response=await fetch("/api/e-sign-artifact?action=certified-icp-configuration",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},cache:"no-store",body:JSON.stringify({municipalityId,action,...fields})});
+ const data=await response.json().catch(()=>null);
+ if(!response.ok||!data?.ok||data.issuanceAuthorized!==false)throw Error(data?.message||"Configuração não confirmada.");
+ return data as Status;
+}
+export function MunicipalItiSandboxSetup({municipalityId}:{municipalityId:string}){
+ const [status,setStatus]=useState<Status|null>(null),[clientId,setClientId]=useState(""),[clientSecret,setClientSecret]=useState(""),[redirectUri,setRedirectUri]=useState(""),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[failed,setFailed]=useState(false);
+ useEffect(()=>{let active=true;setStatus(null);setClientId("");setClientSecret("");setNotice("");setFailed(false);setRedirectUri(window.location.origin+"/api/certified-icp-sandbox");
+  void request(municipalityId,"get").then(s=>{if(active)setStatus(s);}).catch(()=>{if(active){setFailed(true);setNotice("Não foi possível consultar o cadastro.");}});return()=>{active=false;};},[municipalityId]);
+ const save=async()=>{if(busy||!clientId.trim()||!clientSecret.trim())return;setBusy(true);setNotice("");setFailed(false);
+ try{setStatus(await request(municipalityId,"save",{clientId:clientId.trim(),clientSecret,redirectUri}));setClientSecret("");setClientId("");setNotice("Credenciais cadastradas. A conexão real ainda precisa ser homologada.");}
+ catch(e){setFailed(true);setNotice(e instanceof Error?e.message:"Cadastro não confirmado.");}finally{setBusy(false);}};
+ const field="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
+ return <section className="space-y-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+ <div><h3 className="text-sm font-bold">Credenciais ITI · homologação ICP-Brasil</h3><p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Cadastro seguro por prefeitura. Não autoriza emissão oficial nem substitui o credenciamento.</p></div>
+ {status?<div className="grid gap-2 sm:grid-cols-2">{[["Credenciais municipais",status.configured],["Bucket dedicado configurado",status.archiveConfigured],["Cadeia de confiança informada",status.trustConfigured],["Execução habilitada",status.runtimeEnabled]].map(([label,ok])=><div key={String(label)} className="rounded-lg border border-slate-200 p-2 text-xs dark:border-slate-700"><span className="font-semibold">{String(label)}</span><p className="mt-1 text-slate-600 dark:text-slate-300">{ok?"Configurado — não homologado":"Pendente"}</p></div>)}</div>:null}
+ <label className="block space-y-1 text-xs font-semibold">Client ID<input className={field} value={clientId} onChange={e=>setClientId(e.target.value)} autoComplete="off" maxLength={512}/></label>
+ <label className="block space-y-1 text-xs font-semibold">Client Secret<input className={field} type="password" value={clientSecret} onChange={e=>setClientSecret(e.target.value)} autoComplete="new-password" maxLength={2048}/></label>
+ <label className="block space-y-1 text-xs font-semibold">Callback registrado<input className={field} value={redirectUri} readOnly/></label>
+ <Button type="button" disabled={busy||!status||!clientId.trim()||!clientSecret.trim()} onClick={()=>void save()}>{busy?"Salvando…":"Cadastrar credenciais"}</Button>
+ {notice?<p role={failed?"alert":"status"} className="break-words text-xs text-slate-700 dark:text-slate-200">{notice}</p>:null}
+ </section>;
+}

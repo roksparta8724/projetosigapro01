@@ -56,3 +56,6 @@ O retorno de homologação somente confirma sucesso após leitura do objeto e re
 
 ## Regressão HTTP (27/11)
 A execução 46018620347 teve sete shards aprovados e uma falha no teste legado que proibia qualquer onClick na orientação de assinatura. A nova expectativa conserva a vedação de emissão oficial e exige isolamento da QA e confirmação do manifesto. Testes HTTP verificam callback sem eco de código, recusa de produção, origem indevida, falta de JWT e erro de manifesto. Metadados Vercel confirmam ausência das variáveis SIGAPRO_QA_ICP_* e SIGAPRO_QA_CERTIFIED_*; nenhuma chave foi inventada nem ativação realizada.
+
+## Cadastro ITI municipal em QA
+Cadastro cifrado por prefeitura com AES-GCM e domínio separado; somente administração autorizada pode gravar, signatário autorizado de solicitação pendente pode resolver internamente, sem devolver segredos ao navegador. Callback deve coincidir com o registrado na infraestrutura. Revisão de credenciais vinculada ao ticket; troca invalida conclusão. Interface informa configuração, não certificação. Não escolhe política jurídica nem habilita emissão oficial. Ainda exige credenciais emitidas pelo ITI, callback registrado, bucket dedicado e cadeia de confiança.

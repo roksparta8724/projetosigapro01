@@ -1,3 +1,4 @@
+import { MunicipalItiSandboxSetup } from "./MunicipalItiSandboxSetup";
 import { useEffect, useState } from "react";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
@@ -60,6 +61,7 @@ export function MunicipalPermitSignaturePolicy({municipalityId}:{municipalityId:
    {mode&&mode!=="internal_allowed"?<p className="rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:bg-amber-950 dark:text-amber-100">A regra bloqueará a emissão e a assinatura interna deste tipo de alvará até a integração certificada estar disponível.</p>:null}
    <Button type="button" disabled={saving||!mode||reference.trim().length<5} onClick={()=>void save()} className="min-h-10 rounded-xl bg-sky-800 !text-white hover:bg-sky-700">{saving?"Registrando…":"Registrar política normativa"}</Button>
   </>:null}
+  {String(import.meta.env.VITE_SIGAPRO_NEON_ISOLATED)==="true"?<MunicipalItiSandboxSetup key={municipalityId} municipalityId={municipalityId}/>:null}
   {message?<p role="status" className="text-sm text-emerald-800 dark:text-emerald-200">{message}</p>:null}
  </div>;
 }

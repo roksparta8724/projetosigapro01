@@ -296,6 +296,10 @@ function validateServerSecret() {
 export default async function handler(req: ApiReq, res: Res) {
   // Keep the Vercel Hobby function budget; sandbox is a separate, guarded handler.
   const route = new URL(req.url || "/", "https://sigapro.invalid");
+  if (route.searchParams.get("action") === "certified-icp-configuration") {
+    const { default: setup } = await import("../server/municipal-iti-config-http.js");
+    return setup(req, res);
+  }
   if (route.pathname === "/api/certified-icp-sandbox" || route.searchParams.get("action") === "certified-icp-sandbox") {
     const { default: certifiedSandbox } = await import("../server/certified-icp-sandbox-http.js");
     return certifiedSandbox(req, res);

@@ -1,3 +1,4 @@
+import {resolveItiConfig} from "./municipal-iti-sandbox-config.js";
 import {createHash,createHmac,timingSafeEqual} from "node:crypto";
 import {execFileSync} from "node:child_process";
 import {createItiSandboxAuthorization,type ItiSandboxConfig} from "./iti-signature-sandbox.js";
@@ -8,7 +9,7 @@ import type {CmsTrustBundle} from "./certified-cms-preflight.js";
 import {readBearer,type ApiReq} from "./municipal-storage.js";
 type Env=Record<string,string|undefined>;
 type Selection=Parameters<typeof prepareIcpSandboxSnapshot>[1];
-type Ticket=Selection&{state:string;snapshotSha256:string;preparedPdfSha256:string;byteRangeSha256:string;expiresAt:number};
+type Ticket=Selection&{configRevision?:string;state:string;snapshotSha256:string;preparedPdfSha256:string;byteRangeSha256:string;expiresAt:number};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const hash=/^[a-f0-9]{64}$/;
 const sha=(b:Uint8Array|string)=>createHash("sha256").update(b).digest("hex");
@@ -58,12 +59,12 @@ export function openSandboxTicket(value:string,env:Env,now=Date.now()):Ticket{
  if(!validSelection(t)||![t.snapshotSha256,t.preparedPdfSha256,t.byteRangeSha256].every(v=>hash.test(v))||!/^[A-Za-z0-9_-]{43}$/.test(t.state)||!Number.isSafeInteger(t.expiresAt)||t.expiresAt<=now||t.expiresAt>now+300000)throw Error("ITI_TICKET_EXPIRED_OR_INVALID");
  return t;
 }
-export function sandboxConfig(municipalityId:string,env:Env){
+export function sandboxConfig(municipalityId:string,env:Env,municipalConfig?:ItiSandboxConfig){
  archiveConfig(env);
- if(env.SIGAPRO_QA_ICP_HTTP_ENABLED!=="true"||env.SIGAPRO_QA_ICP_MUNICIPALITY_ID!==municipalityId)throw Error("ITI_SANDBOX_NOT_CONFIGURED");
- const config:ItiSandboxConfig={municipalityId,clientId:env.SIGAPRO_QA_ICP_CLIENT_ID||"",clientSecret:env.SIGAPRO_QA_ICP_CLIENT_SECRET||"",redirectUri:env.SIGAPRO_QA_ICP_REDIRECT_URI||""};
+ if(env.SIGAPRO_QA_ICP_HTTP_ENABLED!=="true"||(!municipalConfig&&env.SIGAPRO_QA_ICP_MUNICIPALITY_ID!==municipalityId))throw Error("ITI_SANDBOX_NOT_CONFIGURED");
+ const config:ItiSandboxConfig=municipalConfig??{municipalityId,clientId:env.SIGAPRO_QA_ICP_CLIENT_ID||"",clientSecret:env.SIGAPRO_QA_ICP_CLIENT_SECRET||"",redirectUri:env.SIGAPRO_QA_ICP_REDIRECT_URI||""};
  const url=new URL(config.redirectUri);
- if(!config.clientId||!config.clientSecret||url.protocol!=="https:"||url.pathname!=="/api/certified-icp-sandbox"||url.search||url.hash||url.username||url.password||url.port)throw Error("ITI_SANDBOX_NOT_CONFIGURED");
+ if(config.municipalityId!==municipalityId||config.redirectUri!==env.SIGAPRO_QA_ICP_REDIRECT_URI||!config.clientId||!config.clientSecret||url.protocol!=="https:"||url.pathname!=="/api/certified-icp-sandbox"||url.search||url.hash||url.username||url.password||url.port)throw Error("ITI_SANDBOX_NOT_CONFIGURED");
  const trust:CmsTrustBundle={mode:"icp_brasil",environment:"sandbox",rootsPem:env.SIGAPRO_QA_ICP_ROOTS_PEM||"",rootsSha256:env.SIGAPRO_QA_ICP_ROOTS_SHA256||"",intermediatesPem:env.SIGAPRO_QA_ICP_INTERMEDIATES_PEM||"",crlsPem:env.SIGAPRO_QA_ICP_CRLS_PEM||""};
  if(!hash.test(trust.rootsSha256)||sha(trust.rootsPem)!==trust.rootsSha256||!trust.crlsPem.includes("-----BEGIN X509 CRL-----"))throw Error("ITI_SANDBOX_TRUST_NOT_CONFIGURED");
  try{if(!/^OpenSSL 3\./.test(execFileSync("openssl",["version"],{encoding:"utf8",timeout:2000})))throw Error("version");}catch{throw Error("ITI_OPENSSL_UNAVAILABLE");}
@@ -71,11 +72,12 @@ export function sandboxConfig(municipalityId:string,env:Env){
 }
 export async function startSandboxFlow(req:ApiReq,selection:Selection,env:Env=process.env){
  if(!readBearer(req)||!validSelection(selection))throw Error("ITI_AUTHENTICATION_REQUIRED");
- const {config}=sandboxConfig(selection.municipalityId,env);
+ const resolved=await resolveItiConfig(req,selection.municipalityId,selection);
+ const {config}=sandboxConfig(selection.municipalityId,env,resolved.config);
  const authorization=createItiSandboxAuthorization(config,"icp_brasil");
  const snapshotSha256=await prepareIcpSandboxSnapshot(req,selection);
  const doc=createSandboxEvidencePdf(selection,snapshotSha256,authorization.state);
- const ticket:Ticket={...selection,state:authorization.state,snapshotSha256,preparedPdfSha256:doc.preparedPdfSha256,byteRangeSha256:doc.byteRangeSha256,expiresAt:authorization.expiresAt};
+ const ticket:Ticket={...selection,configRevision:resolved.revision,state:authorization.state,snapshotSha256,preparedPdfSha256:doc.preparedPdfSha256,byteRangeSha256:doc.byteRangeSha256,expiresAt:authorization.expiresAt};
  await beginIcpSandboxSession(req,{...selection,state:ticket.state,nonce:authorization.nonce,snapshotSha256,preparedPdfSha256:ticket.preparedPdfSha256,byteRangeSha256:ticket.byteRangeSha256});
  return {authorizationUrl:authorization.url,ticket:sealSandboxTicket(ticket,env),state:ticket.state,expiresAt:ticket.expiresAt,environment:"sandbox",issuanceAuthorized:false};
 }
@@ -83,7 +85,9 @@ export async function finishSandboxFlow(req:ApiReq,input:{ticket:string;state:st
  if(!readBearer(req))throw Error("ITI_AUTHENTICATION_REQUIRED");
  const t=openSandboxTicket(input.ticket,env);
  if(t.state!==input.state)throw Error("ITI_SESSION_BINDING_MISMATCH");
- const {config,trust}=sandboxConfig(t.municipalityId,env);
+ const resolved=await resolveItiConfig(req,t.municipalityId,t);
+ if(!t.configRevision||resolved.revision!==t.configRevision)throw Error("ITI_CONFIGURATION_CHANGED");
+ const {config,trust}=sandboxConfig(t.municipalityId,env,resolved.config);
  const doc=createSandboxEvidencePdf(t,t.snapshotSha256,t.state);
  if(doc.preparedPdfSha256!==t.preparedPdfSha256||doc.byteRangeSha256!==t.byteRangeSha256)throw Error("ITI_DOCUMENT_BINDING_MISMATCH");
  const binding={state:t.state,municipalityId:t.municipalityId,profileId:t.profileId,preparedPdfSha256:t.preparedPdfSha256,byteRangeSha256:t.byteRangeSha256};
