@@ -49,7 +49,7 @@ describe("Neon guide charge persistence", () => {
     rpc.mockResolvedValueOnce({ ok: true, status: 200, payload: guide, error: "" })
       .mockResolvedValueOnce({ ok: true, status: 200, payload: true, error: "" })
       .mockResolvedValue({ ok: true, status: 200, payload: { ...guide, bank_reference: "order1", payment_provider: "mercado_pago", provider_environment: "test" }, error: "" });
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ id: "order1", external_reference: "DAM-001", total_amount: "300.00" }), { status: 200 }));
+    vi.mocked(fetch).mockImplementation(async()=>new Response(JSON.stringify({ id: "order1", external_reference: "DAM-001", total_amount: "300.00",status:"processing",transactions:{payments:[]} }), { status: 200,headers:{"Content-Type":"application/json"} }));
     const result = await createMercadoPagoGuideBoleto(input, req);
     expect(result.ok).toBe(false);
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)).total_amount).toBe("300.00");
@@ -59,7 +59,7 @@ describe("Neon guide charge persistence", () => {
     rpc.mockResolvedValueOnce({ ok: true, status: 200, payload: guide, error: "" })
       .mockResolvedValueOnce({ ok: true, status: 200, payload: true, error: "" })
       .mockResolvedValue({ ok: false, status: 503, payload: null, error: "offline" });
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ id: "order1", external_reference: "DAM-001", total_amount: "300.00" }), { status: 200 }));
+    vi.mocked(fetch).mockImplementation(async()=>new Response(JSON.stringify({ id: "order1", external_reference: "DAM-001", total_amount: "300.00",status:"processing",transactions:{payments:[]} }), { status: 200,headers:{"Content-Type":"application/json"} }));
     expect((await createMercadoPagoGuideBoleto(input, req)).error).toContain("salvar dados bancários");
   });
   it("updates an existing reference without authorizing a second charge", async () => {
@@ -67,11 +67,11 @@ describe("Neon guide charge persistence", () => {
     rpc.mockResolvedValueOnce({ ok: true, status: 200, payload: stored, error: "" })
       .mockResolvedValueOnce({ ok: true, status: 200, payload: stored, error: "" })
       .mockResolvedValueOnce({ ok: true, status: 200, payload: true, error: "" })
-      .mockResolvedValueOnce({ ok: true, status: 200, payload: { ...stored, payment_provider: "mercado_pago", provider_environment: "test", barcode: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" }, error: "" });
+      .mockResolvedValueOnce({ ok: true, status: 200, payload: { ...stored,bank_payment_id:"payment1", payment_provider: "mercado_pago", provider_environment: "test", barcode: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" }, error: "" });
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
       id: "order1", external_reference: "DAM-001", total_amount: "300.00",
-      transactions: { payments: [{ payment_method: { barcode_content: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" } }] },
-    }), { status: 200 }));
+      transactions: { payments: [{ id:"payment1",amount:"300.00",payment_method: { id:"boleto",type:"ticket",barcode_content: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" } }] },
+    }), { status: 200,headers:{"Content-Type":"application/json"} }));
     expect((await createMercadoPagoGuideBoleto(input, req)).ok).toBe(true);
     expect(rpc.mock.calls.some((call) => call[1] === "authorize_payment_guide_charge_v1")).toBe(false);
     expect(rpc.mock.calls.some((call) => call[1] === "authorize_payment_guide_provider_sync_v1")).toBe(true);

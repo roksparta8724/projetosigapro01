@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubGlobal("crypto", webcrypto);
   vi.mocked(getSignedUrlForObjectStrict).mockResolvedValue("https://storage.test/original.pdf");
-  vi.mocked(uploadFile).mockImplementation(async (input) => ({ bucket: input.bucket, objectKey: input.objectKey, publicUrl: "" }));
+  vi.mocked(uploadFile).mockImplementation(async (input) => ({ bucket: input.bucket, objectKey: input.objectKey, publicUrl: "",sha256:input.objectKey.split("/").at(-1)?.replace(/\.pdf$/,""),fileSizeBytes:input.file.size }));
   vi.mocked(renderGuideOriginalPdf).mockResolvedValue(new NodeBlob(["%PDF-test"]) as unknown as Blob);
 });
 
@@ -62,6 +62,13 @@ describe("immutable DAM original", () => {
     expect(uploadFile).toHaveBeenCalledWith(expect.objectContaining({ objectKey: expect.stringMatching(/^municipalities\/m1\/processes\/p1\/dam-originals\/g1\/[a-f0-9]{64}\.pdf$/) }));
     expect(getSignedUrlForObjectStrict).toHaveBeenCalledWith(expect.objectContaining({ objectKey: `municipalities/m1/processes/p1/dam-originals/g1/${storedSha}.pdf` }));
     expect(target.location.replace).toHaveBeenCalledTimes(1);
+  });
+  it("does not attach an original unless storage confirms its exact bytes",async()=>{
+    vi.mocked(backendClient.rpc).mockResolvedValueOnce({data:original}).mockResolvedValueOnce({data:{...original,document_snapshot:props}});
+    vi.mocked(uploadFile).mockImplementationOnce(async input=>({bucket:input.bucket,objectKey:input.objectKey,publicUrl:"",sha256:"b".repeat(64),fileSizeBytes:input.file.size}));
+    await expect(archiveAndOpenGuide("m1",props,target)).rejects.toThrow("SHA-256");
+    expect(backendClient.rpc).toHaveBeenCalledTimes(2);
+    expect(target.location.replace).not.toHaveBeenCalled();
   });
   it("does not pretend the PDF is saved when upload fails", async () => {
     backendClient.rpc.mockResolvedValueOnce({ data: original }).mockResolvedValueOnce({ data: { ...original, document_snapshot: props } });

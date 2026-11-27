@@ -48,7 +48,7 @@ describe("server-authenticated municipal bank charge persistence",()=>{
  it("sends signed bank reply only to the audited Neon v2 RPC",async()=>{
   vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","ab".repeat(32));
   mock.rpc.mockResolvedValue({ok:true,status:200,payload:{
-    ...guide,bank_reference:charge.orderId,payment_provider:"mercado_pago",provider_environment:"test"
+    ...guide,bank_reference:charge.orderId,bank_payment_id:charge.paymentId,payment_provider:"mercado_pago",provider_environment:"test"
   }});
   await persistGuideCharge({headers:{authorization:"Bearer demo"}} as never,guide,charge,false);
   expect(mock.rpc).toHaveBeenCalledTimes(1);
@@ -60,7 +60,7 @@ describe("server-authenticated municipal bank charge persistence",()=>{
  it("keeps isolated QA persistence separate from the production signing contract",async()=>{
   vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","");
   mock.rpc.mockResolvedValue({ok:true,status:200,payload:{
-    ...guide,bank_reference:charge.orderId,payment_provider:"mercado_pago",provider_environment:"test"
+    ...guide,bank_reference:charge.orderId,bank_payment_id:charge.paymentId,payment_provider:"mercado_pago",provider_environment:"test"
   }});
   await persistGuideCharge({headers:{}} as never,guide,charge,true);
   expect(mock.rpc).toHaveBeenCalledWith(expect.anything(),"qa_persist_payment_guide_provider_charge_v1",
