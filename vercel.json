@@ -144,6 +144,10 @@
       "destination": "/api/r2?action=profile-avatar-open"
     },
     {
+      "source": "/api/certified-icp-sandbox",
+      "destination": "/api/e-sign-artifact?action=certified-icp-sandbox"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

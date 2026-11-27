@@ -1,7 +1,7 @@
 import {randomBytes} from "node:crypto";
-import {currentQaPreview} from "../server/qa-runtime-scope.js";
-import {startSandboxFlow,finishSandboxFlow} from "../server/certified-icp-sandbox-flow.js";
-import type {ApiReq} from "../server/municipal-storage.js";
+import {currentQaPreview} from "./qa-runtime-scope.js";
+import {startSandboxFlow,finishSandboxFlow} from "./certified-icp-sandbox-flow.js";
+import type {ApiReq} from "./municipal-storage.js";
 type Res=import("http").ServerResponse;
 function json(res:Res,status:number,body:unknown){res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");res.end(JSON.stringify(body));}
 async function readBody(req:ApiReq){
@@ -21,7 +21,7 @@ export default async function handler(req:ApiReq,res:Res){
   const nonce=randomBytes(18).toString("base64");
   res.setHeader("Content-Type","text/html; charset=utf-8");
   res.setHeader("Content-Security-Policy","default-src 'none'; script-src 'nonce-"+nonce+"'; base-uri 'none'; frame-ancestors 'none'");
-  res.end('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Retorno de homologação SIGAPRO</title><body><p>Retorno de homologação. Volte à janela do SIGAPRO.</p><script nonce="'+nonce+'">const q=new URLSearchParams(location.search);const code=q.get("code"),state=q.get("state");history.replaceState(null,"",location.pathname);if(window.opener&&code&&state){window.opener.postMessage({type:"sigapro-icp-sandbox-callback",code,state},location.origin);window.close();}</script></body></html>');return;
+  res.end('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Retorno de homologação SIGAPRO</title><body><p>Retorno de homologação. Volte à janela do SIGAPRO.</p><script nonce="'+nonce+'">const q=new URLSearchParams(location.search);const code=q.get("code"),state=q.get("state");history.replaceState(null,"",location.pathname);if(window.opener&&state){window.opener.postMessage({type:"sigapro-icp-sandbox-callback",code,state,denied:!code},location.origin);window.close();}</script></body></html>');return;
  }
  if(req.method!=="POST"){json(res,405,{ok:false});return;}
  if(req.headers.origin!==redirect.origin){json(res,403,{ok:false});return;}
