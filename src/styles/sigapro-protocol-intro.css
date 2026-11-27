@@ -1,0 +1,107 @@
+/*
+ * SIGAPRO — abertura de protocolos, cabeçalho operacional compacto.
+ * Não usa o PageHero genérico (grande e parcialmente ocultado no tema
+ * institucional). Escopo exclusivo da rota de abertura/edição do protocolo.
+ * O conteúdo do formulário e os controles de pagamento ficam intactos.
+ */
+html body #root [data-sigapro-protocol-intro="premium-v2"] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+  background: linear-gradient(112deg,#eaf5fc 0%,#f7fbfe 55%,#ffffff 100%) !important;
+  border: 1px solid #bad7e8 !important;
+  border-left: 4px solid #2388b5 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 22px rgba(17,65,99,.07) !important;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-icon="true"] {
+  color: #12618c !important;
+  -webkit-text-fill-color: #12618c !important;
+  background: #d9edf9 !important;
+  border-color: #b0d8ed !important;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-eyebrow="true"] {
+  display: block !important;
+  color: #436d88 !important;
+  -webkit-text-fill-color: #436d88 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  letter-spacing: .09em !important;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-title="true"] {
+  display: block !important;
+  max-width: 100% !important;
+  margin-top: 4px;
+  color: #123d59 !important;
+  -webkit-text-fill-color: #123d59 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: 20px !important;
+  font-weight: 750 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -.025em !important;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-description="true"] {
+  display: block !important;
+  color: #4b6c82 !important;
+  -webkit-text-fill-color: #4b6c82 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: 12.5px !important;
+  line-height: 1.55 !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  word-spacing: normal;
+  overflow-wrap: break-word;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-actions="true"] {
+  align-self: center;
+  min-width: 0;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-actions="true"] button {
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap !important;
+  color: #1e4e6c !important;
+  -webkit-text-fill-color: #1e4e6c !important;
+  border: 1px solid #bbd0df !important;
+  background: #ffffff !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-actions="true"] button:hover:not(:disabled) {
+  background: #f1f9fe !important;
+  border-color: #8fbbd3 !important;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-actions="true"] button:focus-visible {
+  outline: 3px solid #86c3e3 !important;
+  outline-offset: 2px;
+}
+html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-actions="true"] button:disabled {
+  opacity: .55 !important;
+  cursor: not-allowed;
+}
+@media (max-width: 900px) {
+  html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-actions="true"] {
+    align-self: stretch;
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 520px) {
+  html body #root [data-sigapro-protocol-intro="premium-v2"] {
+    padding: 14px !important;
+  }
+  html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-title="true"] {
+    font-size: 17px !important;
+  }
+  html body #root [data-sigapro-protocol-intro="premium-v2"] [data-protocol-intro-actions="true"] button {
+    flex: 1 1 130px;
+    justify-content: center;
+  }
+}

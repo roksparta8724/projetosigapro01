@@ -1,0 +1,58 @@
+/* SIGAPRO Master — diretório de prefeituras, contratos e busca responsiva.
+   Colors inherit from Master inverse-main; no white masks on dark surfaces. */
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] {
+  --portfolio-ink:#16374f;
+  --portfolio-muted:#4c667b;
+  --portfolio-surface:#f4f8fc;
+  --portfolio-field:#ffffff;
+  --portfolio-border:#c9dbe8;
+  color:var(--portfolio-ink);
+}
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] .sig-portfolio-toolbar {
+  background:var(--portfolio-surface) !important;
+  border-color:var(--portfolio-border) !important;
+  box-shadow:0 8px 18px rgba(7,30,47,.05);
+}
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] .sig-portfolio-control {
+  background:var(--portfolio-field) !important;
+  color:var(--portfolio-ink) !important;
+  border-color:var(--portfolio-border) !important;
+  -webkit-text-fill-color:var(--portfolio-ink) !important;
+}
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] .sig-portfolio-control::placeholder {
+  color:var(--portfolio-muted) !important;
+  opacity:1;
+  -webkit-text-fill-color:var(--portfolio-muted) !important;
+}
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] .sig-portfolio-count,
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] .sig-portfolio-search-icon {
+  color:var(--portfolio-ink) !important;
+  -webkit-text-fill-color:var(--portfolio-ink) !important;
+}
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] .sig-portfolio-context {
+  border-color:var(--portfolio-border) !important;
+  background:var(--portfolio-field) !important;
+  color:var(--portfolio-muted) !important;
+  -webkit-text-fill-color:var(--portfolio-muted) !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-sigapro-portfolio-registry="compact"] {
+  --portfolio-ink:#f1f8ff;
+  --portfolio-muted:#c1d8e9;
+  --portfolio-surface:#193a50;
+  --portfolio-field:#203e56;
+  --portfolio-border:#4b6c83;
+}
+html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] [data-mobile-portfolio-scroll="true"] {
+  max-width:100%;
+  min-width:0;
+}
+@media(max-width:767px) {
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] .sig-portfolio-toolbar {
+    padding:14px !important;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] .sig-portfolio-context {
+    max-width:100%;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+}

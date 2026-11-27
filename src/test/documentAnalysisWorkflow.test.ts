@@ -30,7 +30,7 @@ describe("municipal document analysis workflow", () => {
       'const canUploadProcessDocuments = session.role === "profissional_externo"',
     );
     expect(processDetail).toContain(
-      "Somente o profissional externo pode enviar documentos para o processo.",
+      "Somente o profissional responsável, em rascunho ou correção documental, pode enviar documentos.",
     );
     expect(processDetail).toContain(
       "O analista não anexa documentos em nome do profissional.",

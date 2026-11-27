@@ -1,7 +1,8 @@
+import { findMunicipalUnitNameConflict, suggestDistinctMunicipalUnitName } from "@/lib/municipalUnitName";
 import { useMemo, useState } from "react";
 import { Network, PencilLine, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
-import { PageHero } from "@/components/platform/PageHero";
+import { adjunctUnitTemplates, suggestMunicipalUnitCode, municipalUnitEditorType, changeMunicipalUnitEditorType } from "@/lib/municipalUnitCodes";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { PageShell } from "@/components/platform/PageShell";
 import { TableCard } from "@/components/platform/TableCard";
@@ -17,8 +18,10 @@ import {
 } from "@/integrations/backend/platform";
 
 const UNIT_TYPES = [
-  ["secretaria", "Secretaria"],
-  ["diretoria", "Diretoria"],
+  ["secretaria", "Secretaria titular"],
+  ["secretaria_adjunta", "Secretaria adjunta"],
+  ["diretoria", "Diretoria titular"],
+  ["diretoria_adjunta", "Diretoria adjunta"],
   ["departamento", "Departamento"],
   ["coordenadoria", "Coordenadoria"],
   ["setor", "Setor"],
@@ -70,6 +73,11 @@ export function MunicipalOrganizationPage() {
   const [editor, setEditor] = useState<EditorState>(EMPTY_EDITOR);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorStatus, setEditorStatus] = useState("");
+  const [editorError, setEditorError] = useState(false);
+  const [savingUnit, setSavingUnit] = useState(false);
+  const suggestedCode = suggestMunicipalUnitCode(editor.name, editor.unitType, departments, editor.id);
+  const nameConflict = findMunicipalUnitNameConflict(editor.name,departments,editor.id);
+  const distinctName = nameConflict ? suggestDistinctMunicipalUnitName(editor.name,editor.unitType,departments,editor.id,editor.parentDepartmentId,editor.code) : "";
 
   const descendantsOfEditingUnit = useMemo(() => {
     if (!editor.id) return new Set<string>();
@@ -108,8 +116,9 @@ export function MunicipalOrganizationPage() {
       parentDepartmentId,
       sortOrder: String(maxSort + 10),
     });
-    setEditorStatus("");
+    setEditorStatus("");setEditorError(false);
     setEditorOpen(true);
+    window.requestAnimationFrame(()=>document.getElementById("municipal-organization-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
 
   const startEdit = (department: MunicipalDepartmentRecord) => {
@@ -123,23 +132,26 @@ export function MunicipalOrganizationPage() {
       sortOrder: String(department.sortOrder ?? 100),
       isActive: department.isActive,
     });
-    setEditorStatus("");
+    setEditorStatus("");setEditorError(false);
     setEditorOpen(true);
+    window.requestAnimationFrame(()=>document.getElementById("municipal-organization-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
 
   const saveEditor = async () => {
-    if (!canEdit || !municipalityId) return;
+    if (!canEdit || !municipalityId || savingUnit) return;
+    setEditorError(false);setEditorStatus("");
     const name = editor.name.trim();
     if (!name) {
-      setEditorStatus("Informe o nome da unidade.");
+      setEditorError(true);setEditorStatus("Informe o nome da unidade.");
       return;
     }
 
+    if(nameConflict){setEditorError(true);setEditorStatus("O nome já está em uso. Escolha um nome distinto para preservar os vínculos.");return;}
     const sortOrder = Number(editor.sortOrder);
     const nextDepartment: MunicipalDepartmentRecord = {
       id: editor.id || `local-org-${crypto.randomUUID()}`,
       municipalityId,
-      code: editor.code.trim().toUpperCase(),
+      code: editor.code.trim().toUpperCase() || suggestedCode,
       name,
       description: editor.id
         ? departments.find((item) => item.id === editor.id)?.description || ""
@@ -161,6 +173,7 @@ export function MunicipalOrganizationPage() {
       ? departments.map((item) => (item.id === editor.id ? nextDepartment : item))
       : [...departments, nextDepartment];
 
+    setSavingUnit(true);
     try {
       if (localValidation) {
         saveLocalDepartments(next);
@@ -170,7 +183,7 @@ export function MunicipalOrganizationPage() {
           municipalityId,
           departmentId: editor.id,
           name: nextDepartment.name,
-          code: nextDepartment.code,
+          code: editor.code.trim().toUpperCase(), // blank requests authoritative automatic code
           description: nextDepartment.description,
           email: nextDepartment.email,
           phone: nextDepartment.phone,
@@ -185,14 +198,15 @@ export function MunicipalOrganizationPage() {
       setEditorOpen(false);
       setEditor(EMPTY_EDITOR);
     } catch (error) {
-      setEditorStatus(
+      setEditorError(true);setEditorStatus(
         error instanceof Error ? error.message : "Não foi possível salvar o organograma.",
       );
-    }
+    } finally { setSavingUnit(false); }
   };
 
   const toggleUnit = async (department: MunicipalDepartmentRecord) => {
     if (!canEdit || !municipalityId) return;
+    setEditorError(false);setEditorStatus("");
     const nextActive = !department.isActive;
 
     try {
@@ -224,7 +238,7 @@ export function MunicipalOrganizationPage() {
           : `${department.name} voltou ao organograma ativo.`,
       );
     } catch (error) {
-      setEditorStatus(
+      setEditorError(true);setEditorStatus(
         error instanceof Error ? error.message : "Não foi possível alterar esta unidade.",
       );
     }
@@ -232,6 +246,7 @@ export function MunicipalOrganizationPage() {
 
   const removeUnit = async (department: MunicipalDepartmentRecord) => {
     if (!canEdit || !municipalityId) return;
+    setEditorError(false);setEditorStatus("");
 
     try {
       if (localValidation) {
@@ -266,7 +281,7 @@ export function MunicipalOrganizationPage() {
       setEditorOpen(false);
       setEditor(EMPTY_EDITOR);
     } catch (error) {
-      setEditorStatus(
+      setEditorError(true);setEditorStatus(
         error instanceof Error ? error.message : "Não foi possível remover esta unidade.",
       );
     }
@@ -277,42 +292,68 @@ export function MunicipalOrganizationPage() {
   return (
     <PortalFrame eyebrow="Estrutura institucional" title="Organograma municipal">
       <PageShell>
-        <PageHero
-          eyebrow={municipalityName || municipality?.name || "Prefeitura"}
-          title="Estrutura da Prefeitura"
-          description="O organograma é a referência única de unidades e siglas em todo o SIGAPRO. Ele aparece nos departamentos, processos e destinos de despacho."
-          icon={Network}
-          actions={
-            canEdit ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full"
-                  onClick={() => startCreate()}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova unidade
+        <section
+          data-municipal-organization-hero="compact-v5"
+          aria-label="Resumo do organograma oficial"
+          className="min-w-0 overflow-hidden rounded-[18px] border border-[#32647d] bg-[linear-gradient(120deg,#102e46,#12516a)] px-4 py-4 text-white shadow-[0_12px_28px_rgba(5,39,61,0.16)] sm:px-5"
+        >
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-sky-100">
+                <Network className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#b9e5f9]">
+                  {municipalityName || municipality?.name || "Prefeitura"} · estrutura oficial
+                </p>
+                <h1 data-organogram-headline="true" className="mt-1 text-xl font-extrabold leading-tight text-white">Estrutura da Prefeitura</h1>
+                <p className="mt-1 max-w-[72ch] text-xs leading-5 text-sky-100">
+                  Secretarias, diretorias e unidades que organizam os setores e os destinos dos despachos.
+                </p>
+              </div>
+            </div>
+            {canEdit ? (
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm"
+                  className="h-9 rounded-xl border-white/20 bg-white font-bold !text-[#123650] hover:bg-sky-50"
+                  onClick={() => startCreate()}>
+                  <Plus className="mr-1.5 h-4 w-4" /> Nova unidade
                 </Button>
                 {localValidation && hasLocalOverride ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
+                  <Button type="button" size="sm" variant="outline"
+                    className="h-9 rounded-xl border-sky-200/30 bg-white/10 !text-white hover:bg-white/20"
                     onClick={() => {
                       clearLocalOverride();
                       setEditorOpen(false);
                       setEditorStatus("Estrutura local removida. O SIGAPRO voltou ao organograma oficial carregado.");
-                    }}
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Restaurar oficial
+                    }}>
+                    <RotateCcw className="mr-1.5 h-4 w-4" /> Restaurar oficial
                   </Button>
                 ) : null}
               </div>
-            ) : undefined
-          }
-        />
+            ) : (
+              <span className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-sky-100">
+                Consulta institucional
+              </span>
+            )}
+          </div>
+          <div data-organogram-real-counts="true" className="mt-3 grid grid-cols-1 gap-2 border-t border-white/15 pt-3 sm:grid-cols-3">
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.065] px-3 py-2">
+              <span className="text-xs text-sky-100">Unidades ativas</span>
+              <strong className="text-lg font-extrabold tabular-nums text-white">{activeCount}</strong>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.065] px-3 py-2">
+              <span className="text-xs text-sky-100">Secretarias</span>
+              <strong className="text-lg font-extrabold tabular-nums text-white">
+                {departments.filter((unit) => unit.isActive && unit.unitType === "secretaria").length}
+              </strong>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.065] px-3 py-2">
+              <span className="text-xs text-sky-100">Unidades ocultas</span>
+              <strong className="text-lg font-extrabold tabular-nums text-white">{departments.length - activeCount}</strong>
+            </div>
+          </div>
+        </section>
 
         {canEdit ? (
           <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
@@ -337,7 +378,7 @@ export function MunicipalOrganizationPage() {
         ) : null}
 
         {editorStatus ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div role={editorError?"alert":"status"} className={"rounded-2xl border px-4 py-3 text-sm "+(editorError?"border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100":"border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100")}>
             {editorStatus}
           </div>
         ) : null}
@@ -348,6 +389,8 @@ export function MunicipalOrganizationPage() {
             description="Defina a posição desta unidade dentro do organograma municipal."
             icon={PencilLine}
           >
+            <div id="municipal-organization-editor" className="scroll-mt-24"/>
+            {!editor.id ? <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/40"><span className="w-full text-xs font-semibold text-slate-700 dark:text-slate-200">Modelos opcionais · ou digite qualquer nome</span>{adjunctUnitTemplates.map(template=><Button key={template.unitType} type="button" variant="outline" size="sm" disabled={savingUnit} className="rounded-xl dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100" onClick={()=>setEditor(current=>({...current,name:template.name,unitType:template.unitType,code:""}))}>{template.label}</Button>)}</div>:null}
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
@@ -356,25 +399,29 @@ export function MunicipalOrganizationPage() {
                 <Input
                   value={editor.name}
                   onChange={(event) =>
-                    setEditor((current) => ({ ...current, name: event.target.value }))
+                    {setEditor((current) => ({ ...current, name: event.target.value }));setEditorStatus("");setEditorError(false);}
                   }
                   placeholder="Ex.: Análise Urbanística"
+                  aria-invalid={Boolean(nameConflict)}
                   className="h-11 rounded-xl"
                 />
+                {nameConflict?<div role="alert" className="mt-2 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"><p>Já existe: <strong>{nameConflict.code || "Sem sigla"} — {nameConflict.name}</strong> ({nameConflict.isActive?"ativa":"inativa"}). Nenhuma unidade será sobrescrita.</p>{distinctName?<Button type="button" variant="outline" size="sm" className="h-auto min-h-8 max-w-full whitespace-normal text-left dark:border-amber-700 dark:bg-slate-900 dark:text-amber-100" onClick={()=>{setEditor(current=>({...current,name:distinctName}));setEditorStatus("");setEditorError(false);}}>Usar {distinctName}</Button>:null}</div>:null}
               </div>
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  Sigla
+                  Sigla {editor.code.trim() ? "(manual)" : "(automática)"}
                 </p>
                 <Input
                   value={editor.code}
                   onChange={(event) =>
                     setEditor((current) => ({ ...current, code: event.target.value }))
                   }
-                  placeholder="Ex.: ANU"
+                  placeholder={suggestedCode || "Automática"}
+                  maxLength={8}
                   className="h-11 rounded-xl uppercase"
                 />
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2"><p className="text-xs leading-5 text-slate-600 dark:text-slate-300">{editor.code.trim() ? "Sigla atual preservada até você solicitar nova geração." : suggestedCode ? "Prévia: "+suggestedCode+" · confirmada ao salvar." : "A sigla será gerada a partir do nome e tipo."}</p>{editor.code.trim()?<Button type="button" variant="outline" size="sm" disabled={savingUnit} className="h-8 rounded-lg dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" onClick={()=>setEditor(current=>({...current,code:""}))}>Gerar sigla automática</Button>:null}</div>
               </div>
 
               <div>
@@ -382,10 +429,8 @@ export function MunicipalOrganizationPage() {
                   Tipo
                 </p>
                 <Select
-                  value={editor.unitType}
-                  onValueChange={(value) =>
-                    setEditor((current) => ({ ...current, unitType: value }))
-                  }
+                  value={municipalUnitEditorType(editor.name,editor.unitType)}
+                  onValueChange={(value) => setEditor(current=>({...current,...changeMunicipalUnitEditorType(current.name,current.unitType,value,departments.find(d=>d.id===current.parentDepartmentId)?.name),code:""}))}
                 >
                   <SelectTrigger className="h-11 rounded-xl bg-white">
                     <SelectValue />
@@ -430,7 +475,7 @@ export function MunicipalOrganizationPage() {
 
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  Ordem
+                  Posição na unidade superior (opcional)
                 </p>
                 <Input
                   type="number"
@@ -443,6 +488,7 @@ export function MunicipalOrganizationPage() {
                   }
                   className="h-11 rounded-xl"
                 />
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Preenchida automaticamente. Menor número aparece primeiro; não altera a hierarquia.</p>
               </div>
 
               <div>
@@ -469,9 +515,7 @@ export function MunicipalOrganizationPage() {
               </div>
             </div>
 
-            {editorStatus && editorOpen ? (
-              <p className="mt-3 text-sm font-medium text-amber-700">{editorStatus}</p>
-            ) : null}
+            {editorError && editorStatus && editorOpen ? <p role="alert" className="mt-3 text-sm font-medium text-rose-800 dark:text-rose-200">{editorStatus}</p> : null}
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -506,7 +550,7 @@ export function MunicipalOrganizationPage() {
                 <Button
                   type="button"
                   className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
-                  onClick={() => void saveEditor()}
+                  onClick={() => void saveEditor()} disabled={savingUnit || !editor.name.trim() || Boolean(nameConflict)}
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Salvar estrutura
@@ -524,6 +568,7 @@ export function MunicipalOrganizationPage() {
           <MunicipalOrganizationChart
             departments={departments}
             onEdit={canEdit ? startEdit : undefined}
+              onAddChild={canEdit ? startCreate : undefined}
           />
 
           {canEdit && departments.length > 0 ? (

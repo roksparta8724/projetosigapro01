@@ -7,80 +7,94 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole } from "@/lib/platform";
-import type { Permission, SessionUser } from "@/lib/platform";
-import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
+import { can, canAccessMunicipalArea, isMunicipalTiDepartmentLabel, isInternalRole, roleLabels } from "@/lib/platform";
+import type { Permission, SessionUser, UserRole } from "@/lib/platform";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
+import { useMunicipalContextTransition } from "@/lib/municipalContextTransition";
+import { MunicipalTransitionSurface } from "@/components/platform/MunicipalTransitionSurface";
+import { getSessionLandingPath } from "@/lib/platform";
 
 export function PermissionRoute({
   permission,
   children,
+  allowedRoles,
 }: {
   permission: Permission;
   children: React.ReactNode;
+  allowedRoles?: readonly UserRole[];
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, signOut, authenticatedUserId } = useAuthGateway();
+  const { isAuthenticated, signOut, authenticatedUserId, authenticatedProfileId } = useAuthGateway();
   const bootstrap = useAppBootstrap();
-  const { sessionUsers } = usePlatformData();
+  const { sessionUsers, remoteSyncedForCurrentUser, storeIdentityConfirmed } = usePlatformData();
   const { session } = usePlatformSession();
   const tenant = useTenant();
+  const contextTransition = useMunicipalContextTransition(session.id);
   const verifiedScopeId =
     bootstrap.profile?.municipalityId ??
     session.municipalityId ??
     session.tenantId ??
     null;
 
-  // Depois que a identidade autenticada já foi resolvida, sincronizações de fundo
-  // NUNCA podem desmontar a tela. Isso mantém brasão, dados e layout fixos sem loop visual.
-  const hasStableAuthenticatedView =
-    session.id !== "unknown" &&
-    Boolean(session.role) &&
-    (
-      Boolean(bootstrap.authUserId) ||
-      Boolean(bootstrap.profile?.userId) ||
-      Boolean(session.email)
-    );
-
+  // A resolved identity is required before either granting or denying access.
+  // Cache continuity may preserve visuals, but is not an authorization bypass.
+  const businessUserId = authenticatedProfileId || bootstrap.profile?.userId || authenticatedUserId;
+  const hasStableAuthenticatedView = Boolean(
+    isAuthenticated && authenticatedUserId && businessUserId &&
+    session.id === businessUserId && session.id !== "unknown" && session.role
+  );
+  const requiresMasterPermission =
+    permission === "view_master_dashboard" || permission === "manage_commercial_plans";
+  const hasStableAuthenticatedMasterView =
+    hasStableAuthenticatedView &&
+    (session.role === "master_admin" || session.role === "master_ops");
   const isInitialAccessResolution =
-    !hasStableAuthenticatedView &&
-    (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || tenant.loading);
+    bootstrap.stage === "bootstrap_error" ||
+    (!hasStableAuthenticatedView &&
+      (!bootstrap.isReady || !bootstrap.authResolved || bootstrap.loading || isAuthenticated)) ||
+    (requiresMasterPermission && !hasStableAuthenticatedMasterView && !bootstrap.authResolved);
+
+  // A confirmed anonymous identity must never render a stale permission error.
+  if (!isAuthenticated && bootstrap.authResolved && bootstrap.isReady) {
+    return <Navigate to="/acesso" replace />;
+  }
 
   if (isInitialAccessResolution) {
-    // F5/reload da MESMA conta e MESMA rota: nunca desmontar a árvore real.
-    // A identidade continua sendo revalidada pelo bootstrap em segundo plano.
-    if (hasValidRefreshContinuity()) {
-      return <>{children}</>;
-    }
-
     const documentRoute =
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.exec(location.pathname);
 
     if (documentRoute) {
-      // Cold start da guia documental: mantenha somente o canvas neutro.
-      // A tela falsa de carregamento foi removida para que o usuário passe
-      // diretamente do processo para o PDF real quando a sessão terminar de validar.
+      // Um PDF restrito também deve dar feedback sem expor dados antes da autenticação.
       return (
-        <div
-          data-document-route-preboot="silent"
-          className="min-h-screen bg-[#2b3037]"
-          aria-hidden="true"
+        <SecureRoutePending
+          surface="document"
+          title="Preparando o documento oficial"
+          detail="Verificando se sua sessão tem autorização para abrir este documento."
         />
       );
     }
 
-    // Cold start real sem continuidade: não liberar conteúdo antes da identidade.
-    return null;
+    // A identidade continua bloqueando conteúdo, mas nunca exibir uma tela vazia.
+    return (
+      <SecureRoutePending
+        failed={bootstrap.stage === "bootstrap_error"}
+        title={bootstrap.stage === "bootstrap_error" ? "Não foi possível validar o acesso" : "Validando o acesso municipal"}
+        detail={bootstrap.stage === "bootstrap_error"
+          ? "A autenticação não foi concluída. Use Recarregar ou volte ao acesso para tentar novamente."
+          : "Estamos verificando a sessão e o vínculo com a Prefeitura. Nenhum processo fica visível antes da confirmação."}
+      />
+    );
   }
 
 
-  if (!isAuthenticated && bootstrap.isReady && bootstrap.authResolved) {
-    return <Navigate to="/acesso" replace />;
-  }
+  const authenticatedUser = storeIdentityConfirmed ? sessionUsers.find((item) => item.id === businessUserId || item.id === authenticatedUserId) : undefined;
+  const accountStatus = [bootstrap.profile?.accountStatus, authenticatedUser?.accountStatus].find(status => status === "blocked" || status === "inactive") ?? bootstrap.profile?.accountStatus ?? authenticatedUser?.accountStatus;
+  const isActuallyBlocked = accountStatus === "blocked" || accountStatus === "inactive" || Boolean(authenticatedUser?.deletedAt);
+  const permissionDataPending = !remoteSyncedForCurrentUser;
+  const pendingAccess = () => <SecureRoutePending title="Verificando acesso municipal" detail="Aguardando confirmação dos vínculos e permissões desta conta." />;
 
-  const authenticatedUser = sessionUsers.find((item) => item.id === authenticatedUserId);
-  const accountStatus = bootstrap.profile?.accountStatus ?? authenticatedUser?.accountStatus;
-  const isActuallyBlocked = accountStatus === "blocked" || accountStatus === "inactive";
+  if (!isActuallyBlocked && contextTransition) return <MunicipalTransitionSurface departmentName={contextTransition.departmentName} />;
 
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const isExternalRole =
@@ -92,12 +106,14 @@ export function PermissionRoute({
     location.pathname.startsWith("/proprietario");
   const isMunicipalPortalPath = location.pathname.startsWith("/prefeitura");
 
-  if (!isMaster && isExternalPortalPath && !isExternalRole) {
-    return <Navigate to={getRoleLandingPath(session.role)} replace />;
+  if (!isActuallyBlocked && !isMaster && isExternalPortalPath && !isExternalRole) {
+    if (permissionDataPending) return pendingAccess();
+    return <Navigate to={getSessionLandingPath(session)} replace />;
   }
 
-  if (!isMaster && isMunicipalPortalPath && isExternalRole) {
-    return <Navigate to={getRoleLandingPath(session.role)} replace />;
+  if (!isActuallyBlocked && !isMaster && isMunicipalPortalPath && isExternalRole) {
+    if (permissionDataPending) return pendingAccess();
+    return <Navigate to={getSessionLandingPath(session)} replace />;
   }
 
   const isTenantMismatch =
@@ -133,6 +149,7 @@ export function PermissionRoute({
   }
 
   if (isTenantMismatch) {
+    if (!isActuallyBlocked && !verifiedScopeId && permissionDataPending) return pendingAccess();
     return (
       <div className="flex min-h-screen items-center justify-center bg-white p-4">
         <Card className="max-w-xl rounded-[28px] border-slate-200">
@@ -189,10 +206,34 @@ export function PermissionRoute({
     (!isAdminOnlyMunicipalPath &&
       (!requiredOperationalArea || canAccessMunicipalArea(session, requiredOperationalArea)));
 
-  if (!isActuallyBlocked && can(session, permission) && departmentRouteAllowed) {
+  const activeTiDepartment=isMunicipalEmployee&&isMunicipalTiDepartmentLabel(session.department);
+  const isLegacyOperationalPath=Boolean(requiredOperationalArea)||location.pathname.startsWith("/prefeitura/processos")||location.pathname.startsWith("/dashboard")||location.pathname==="/historico";
+  const isContextLanding=location.state?.sigaproContextLanding===true;
+  // During login/switch do not authorize a generic role while its active lotação is still resolving.
+  if(!isActuallyBlocked&&isMunicipalEmployee&&(isContextLanding||isLegacyOperationalPath||location.pathname.startsWith("/prefeitura/ti"))&&(!storeIdentityConfirmed||permissionDataPending))return pendingAccess();
+  if(!isActuallyBlocked&&activeTiDepartment&&!/^\/(?:prefeitura\/ti(?:\/|$)|perfil(?:\/|$)|notificacoes(?:\/|$))/.test(location.pathname))return <Navigate to="/prefeitura/ti" replace/>;
+  if(!isActuallyBlocked&&isMunicipalEmployee&&isContextLanding&&storeIdentityConfirmed&&!permissionDataPending){
+    const target=getSessionLandingPath(session);
+    if(target!==location.pathname)return <Navigate to={target} replace/>;
+  }
+  const roleAllowed = !allowedRoles || allowedRoles.includes(session.role);
+  const permissionAllowed = can(session, permission) && departmentRouteAllowed && roleAllowed;
+  // A previous account's store must never supply department-specific privileges.
+  const needsDepartmentContext = isMunicipalEmployee && Boolean(requiredOperationalArea ||
+    ["manage_protocols", "review_processes", "manage_financial", "manage_fiscal_financial", "dispatch_interdepartmental", "sign_documents"].includes(permission));
+  if (!isActuallyBlocked && permissionAllowed && (!needsDepartmentContext || storeIdentityConfirmed)) {
     return <>{children}</>;
   }
+  // A missing department/role during hydration is not a confirmed refusal.
+  if (!isActuallyBlocked && permissionDataPending) return pendingAccess();
 
+  // A login/department landing can be corrected to the verified department;
+  // direct navigation to a forbidden URL remains a genuine refusal.
+  const landingPath = getSessionLandingPath(session);
+  if (!isActuallyBlocked && location.state?.sigaproContextLanding === true &&
+      remoteSyncedForCurrentUser && landingPath !== location.pathname) {
+    return <Navigate to={landingPath} replace />;
+  }
   const fallbackPath = resolveAllowedArea(session);
 
   return (
@@ -214,10 +255,20 @@ export function PermissionRoute({
           ) : (
             <>
               <p className="mt-3 text-sm text-slate-600">
-                Esta area exige um perfil diferente do seu acesso atual. Isso nao significa bloqueio da conta.
+                {requiresMasterPermission
+                  ? "A área Master é reservada aos perfis Administrador Geral ou Operação Geral da plataforma."
+                  : "Esta area exige um perfil diferente do seu acesso atual. Isso nao significa bloqueio da conta."}
+              </p>
+              <p className="mt-2 text-sm text-slate-700">
+                Perfil atualmente reconhecido:{" "}
+                <strong data-active-access-role="true" className="font-semibold text-slate-950">
+                  {roleLabels[session.role] ?? "Não identificado"}
+                </strong>
               </p>
               <p className="mt-2 text-sm text-slate-500">
-                Se voce quiser entrar com outra conta, acesse novamente para trocar de usuario.
+                {requiresMasterPermission
+                  ? "Para entrar no Master, utilize uma conta da plataforma autorizada. Caso você já tenha esse perfil, faça uma nova autenticação para atualizar a sessão."
+                  : "Se voce quiser entrar com outra conta, acesse novamente para trocar de usuario."}
               </p>
             </>
           )}
@@ -247,7 +298,7 @@ function resolveAllowedArea(session: SessionUser) {
     case "master_ops":
       return "/master";
     case "prefeitura_admin":
-      return "/prefeitura";
+      return "/prefeitura/ti";
     case "profissional_externo":
       return "/externo";
     case "proprietario_consulta":
@@ -255,6 +306,7 @@ function resolveAllowedArea(session: SessionUser) {
       return "/proprietario";
     default:
       if (isInternalRole(session.role)) {
+        if(isMunicipalTiDepartmentLabel(session.department))return "/prefeitura/ti";
         if (canAccessMunicipalArea(session, "protocolos")) return "/prefeitura/protocolos";
         if (canAccessMunicipalArea(session, "analise")) return "/prefeitura/analise";
         if (canAccessMunicipalArea(session, "financeiro")) return "/prefeitura/financeiro";

@@ -13,6 +13,7 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { UrbanOfficialLegalSourcesPanel } from "@/components/platform/UrbanOfficialLegalSourcesPanel";
 import { QuickActionsCard } from "@/components/platform/QuickActionsCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { SummaryCard } from "@/components/platform/SummaryCard";
@@ -20,7 +21,7 @@ import { TableContainer } from "@/components/platform/TableContainer";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { getLegislationOpenUrl } from "@/integrations/r2/client";
+import { getLegislationOpenUrl, getStableMunicipalLegislationReference } from "@/integrations/r2/client";
 
 type LegislationView = "visao-geral" | "plano-diretor" | "uso-solo" | "leis-complementares" | "referencias";
 
@@ -35,7 +36,7 @@ export function LegislationPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { getInstitutionSettings } = usePlatformData();
-  const [view, setView] = useState<LegislationView>("visao-geral");
+  const [view, setView] = useState<LegislationView>("plano-diretor");
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
   const liveSettings = getInstitutionSettings(
@@ -121,7 +122,7 @@ export function LegislationPage() {
   const openOfficialDocument = (item: LawItem) => {
     if (!item.fileUrl) return;
 
-    const targetUrl = getLegislationOpenUrl(item.fileUrl);
+    const targetUrl = getLegislationOpenUrl(getStableMunicipalLegislationReference(item.fileUrl, effectiveScopeId));
     if (!targetUrl) return;
 
     const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");
@@ -253,6 +254,10 @@ export function LegislationPage() {
           onChange={(value) => setView(value as LegislationView)}
         />
 
+        {view === "referencias" ? (
+          <UrbanOfficialLegalSourcesPanel municipalityId={effectiveScopeId} />
+        ) : null}
+
         {view === "visao-geral" ? (
           <PageMainGrid>
             <PageMainContent>
@@ -261,20 +266,20 @@ export function LegislationPage() {
                 description="Os principais conjuntos normativos foram separados para reduzir ruído e facilitar consulta técnica."
                 icon={Landmark}
               >
-                <div className="grid gap-4 xl:grid-cols-3">
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
                   {items.map((item) => (
-                    <div key={item.title} className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                      <p className="text-base font-semibold text-slate-950">{item.title}</p>
-                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{item.detail}</p>
-                      <div className="mt-4 flex items-center justify-between gap-3">
-                        <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                    <div key={item.title} className="flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere]">
+                      <p className="min-w-0 max-w-full break-words text-sm font-bold leading-5 text-slate-950">{item.title}</p>
+                      <p className="mt-2 min-w-0 break-words text-xs leading-5 text-slate-600 [overflow-wrap:anywhere]">{item.detail}</p>
+                      <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-2 pt-4">
+                        <p className="min-w-0 max-w-full flex-1 break-all text-[11px] font-medium uppercase tracking-wide text-slate-500" title={item.fileName || "Sem arquivo oficial"}>
                           {item.fileName || "Sem arquivo oficial"}
                         </p>
                         {item.fileUrl ? (
                           <Button
                             type="button"
                             variant="outline"
-                            className="h-9 rounded-full border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
+                            className="min-h-9 shrink-0 rounded-xl border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
                             onClick={() => openOfficialDocument(item)}
                           >
                             <ExternalLink className="mr-2 h-3.5 w-3.5" />

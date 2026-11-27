@@ -1,3 +1,4 @@
+import {readBankJson} from "./bank-json-response.js";
 import {
   createCipheriv,
   createDecipheriv,
@@ -8,7 +9,7 @@ import {
   type ApiReq,
   callDataApiRpc,
   readEnv,
-} from "./municipal-storage";
+} from "./municipal-storage.js";
 
 export type MunicipalPaymentConnection = {
   municipality_id?: string;
@@ -82,6 +83,17 @@ export function encryptPaymentAccessToken(accessToken: string) {
 export function encryptPaymentWebhookSecret(webhookSecret: string) {
   if (!webhookSecret.trim()) return "";
   return encryptSecret(webhookSecret);
+}
+
+export function encryptMunicipalCollectionSecret(secret: string) {
+  if (!secret.trim()) throw new Error("Informe a credencial da integração municipal.");
+  return encryptSecret(secret);
+}
+
+export function municipalCollectionSecretFingerprint(value: string) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  return `MUN · ${createHash("sha256").update(normalized).digest("hex").slice(0, 12).toUpperCase()}`;
 }
 
 export function decryptPaymentAccessToken(ciphertext: string) {
@@ -166,48 +178,37 @@ export async function resolveMunicipalPaymentSecret(
   return result.payload || {};
 }
 
+/** Resolve credentials for ONE municipality. Never use global environment tokens here. */
 export async function resolveMercadoPagoMunicipalAccessToken(
   req: ApiReq,
   municipalityId: string | null | undefined,
 ) {
-  if (municipalityId) {
-    try {
-      const config = await resolveMunicipalPaymentSecret(req, municipalityId);
-      if (
-        config.provider === "mercado_pago" &&
-        config.status === "active" &&
-        config.credentials_ciphertext
-      ) {
-        return {
-          token: decryptPaymentAccessToken(config.credentials_ciphertext),
-          environment:
-            config.environment === "production" ? "production" : "test",
-          source: "municipality" as const,
-          connection: config,
-        };
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error || "");
-      if (!/does not exist|schema cache|not found|autentica[cç][aã]o necess[aá]ria/i.test(message)) {
-        throw error;
-      }
-    }
+  const id = String(municipalityId || "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error("Identificação da Prefeitura obrigatória para pagamentos.");
   }
-
-  const environment =
-    readEnv("MERCADOPAGO_ENV").toLowerCase() === "production"
-      ? "production"
-      : "test";
-  const token =
-    environment === "production"
-      ? readEnv("MERCADOPAGO_ACCESS_TOKEN_PROD")
-      : readEnv("MERCADOPAGO_ACCESS_TOKEN_TEST");
-
+  // Propagate authorization, unavailable schema and network errors.
+  // Fallback to a global Mercado Pago account would route tax money incorrectly.
+  const config = await resolveMunicipalPaymentSecret(req, id);
+  if (config.municipality_id && config.municipality_id !== id.toLowerCase()) {
+    throw new Error("A conexão bancária não pertence à Prefeitura solicitada.");
+  }
+  if (
+    config.provider !== "mercado_pago" ||
+    config.status !== "active" ||
+    !config.credentials_ciphertext ||
+    (config.environment !== "test" && config.environment !== "production")
+  ) {
+    throw new Error(
+      "Mercado Pago não está ativo e homologado para esta Prefeitura. Cadastre e teste a credencial municipal em Guias e Arrecadação.",
+    );
+  }
+  if(config.municipality_id!==id.toLowerCase())throw Error("A conexão bancária não pertence à Prefeitura solicitada.");
   return {
-    token,
-    environment,
-    source: "environment" as const,
-    connection: null,
+    token: decryptPaymentAccessToken(config.credentials_ciphertext),
+    environment: config.environment,
+    source: "municipality" as const,
+    connection: config,
   };
 }
 
@@ -217,12 +218,15 @@ export async function testMercadoPagoToken(accessToken: string) {
 
   const response = await fetch("https://api.mercadopago.com/v1/payment_methods", {
     method: "GET",
+    redirect:"error",
+    cache:"no-store",
+    signal: AbortSignal.timeout(10000),
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
     },
   });
-  const payload = await response.json().catch(() => null);
+  const payload = await readBankJson(response).catch(() => null);
 
   if (!response.ok) {
     const source =
@@ -234,7 +238,8 @@ export async function testMercadoPagoToken(accessToken: string) {
     );
   }
 
-  const rows = Array.isArray(payload) ? payload : [];
+  if (!Array.isArray(payload)) throw new Error("O provedor retornou um formato de resposta inválido.");
+  const rows = payload;
   const methods = rows
     .map((row) => {
       const source =
@@ -249,19 +254,17 @@ export async function testMercadoPagoToken(accessToken: string) {
     })
     .filter((row) => row.id);
 
-  return {
-    ok: true,
-    boletoAvailable: methods.some(
+  const boletoAvailable = methods.some(
       (method) =>
         method.id.toLowerCase() === "boleto" ||
         (method.type.toLowerCase() === "ticket" &&
           /boleto/i.test(`${method.id} ${method.name}`)),
-    ),
-    pixAvailable: methods.some(
+    );
+  const pixAvailable = methods.some(
       (method) =>
         method.id.toLowerCase() === "pix" ||
         /pix/i.test(`${method.id} ${method.name}`),
-    ),
-    methods,
-  };
+    );
+  if (!boletoAvailable && !pixAvailable) throw new Error("Nenhum meio de arrecadação suportado foi confirmado pelo provedor.");
+  return { ok:true,boletoAvailable,pixAvailable,methods };
 }

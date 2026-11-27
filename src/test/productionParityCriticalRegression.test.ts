@@ -22,9 +22,10 @@ describe("critical localhost x production parity", () => {
 
   it("allows public municipal legislation to fall back to SIGAPRO R2 without BYOS auth", () => {
     expect(storage).toContain("isPublicMunicipalLegislationObject");
-    expect(storage).toContain("publicLegislation && !readBearer(req)");
-    expect(storage).toContain("return null");
-    expect(storage).toContain("resolve_municipal_storage_secret_v1");
+    expect(storage).toContain("if(publicLegislation)return null;");
+    expect(storage).toContain("const config=await resolveMunicipalStorageSecret(req,municipalityId);");
+    expect(storage).toContain("municipal_storage_command_v2");
+    expect(storage).not.toContain("schema cache|does not exist|not found");
   });
 
   it("shows the real persisted permit stage instead of telling users to fill an existing permit again", () => {
@@ -39,7 +40,9 @@ describe("critical localhost x production parity", () => {
   });
 
   it("invalidates the old production asset cache and actively checks service-worker updates", () => {
-    expect(sw).toContain('const CACHE_VERSION = "sigapro-enterprise-v3"');
+    expect(sw).toContain('const CACHE_VERSION = "sigapro-enterprise-v10"');
+    expect(sw).toContain("safeAssetResponse");
+    expect(sw).not.toContain("AVATAR_CACHE");
     expect(main).toContain(".then((registration) => registration.update())");
   });
 });

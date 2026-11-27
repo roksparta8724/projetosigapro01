@@ -1,0 +1,279 @@
+/*
+ * SIGAPRO | Operational process premium contrast v4
+ * Restores text/surface polarity in the actual municipal workspace.
+ * Neither identity, status, professional marker colors nor workflows change.
+ * Imported LAST by PremiumProcessRegistry on all departmental process lists.
+ */
+html body #root .sig-main-shell .sig-workspace-shell[data-sigapro-process-workspace="approved-premium-mockup"] {
+  --sig-process-ink: #15344d;
+  --sig-process-muted: #435e75;
+  min-width: 0;
+  color: var(--sig-process-ink);
+}
+/* Visual leadership remains compact: one heading, readable subtitle, no
+ * duplicate bright banner or unnecessarily enlarged dashboard cards. */
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-hero {
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: 13px;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-hero > span:last-child {
+  min-width: 0;
+  max-width: 100%;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-breadcrumb,
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-breadcrumb strong {
+  color: #35536a !important;
+  -webkit-text-fill-color: #35536a !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-breadcrumb strong {
+  font-weight: 800 !important;
+  color: #17364f !important;
+  -webkit-text-fill-color: #17364f !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-hero-icon {
+  background: linear-gradient(135deg,#165d85 0%,#0b3857 100%) !important;
+  border: 1px solid #205b7a;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-hero-icon svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-hero h2 {
+  max-width: 100%;
+  white-space: normal !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  color: #12344d !important;
+  -webkit-text-fill-color: #12344d !important;
+  opacity: 1 !important;
+  font-size: clamp(20px, 1.75vw, 27px);
+  font-weight: 800 !important;
+  line-height: 1.19 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-hero p {
+  max-width: 78ch;
+  color: #415c72 !important;
+  -webkit-text-fill-color: #415c72 !important;
+  opacity: 1 !important;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+/* KPI cards stay off-white with charcoal ink, including focus/hover. */
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi,
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi:hover {
+  border-color: #c3d7e5 !important;
+  background: linear-gradient(125deg,#ffffff 0%,#f1f7fb 100%) !important;
+  color: #12344d !important;
+  box-shadow: 0 6px 16px rgba(14,62,92,.075);
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi[data-workspace-kpi="critical"] {
+  border-top: 3px solid #c27b22 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi[data-workspace-kpi="guides"] {
+  border-top: 3px solid #7a56b4 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi[data-workspace-kpi="decision"] {
+  border-top: 3px solid #19805c !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi[data-workspace-kpi="total"] {
+  border-top: 3px solid #217ba6 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi strong {
+  color: #133950 !important;
+  -webkit-text-fill-color: #133950 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi small {
+  color: #405b70 !important;
+  -webkit-text-fill-color: #405b70 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi-icon {
+  border: 1px solid #bdd5e3;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-search input,
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-selected {
+  color: #15344d !important;
+  -webkit-text-fill-color: #15344d !important;
+}
+/* A process row is one coherent record. Selection is explicit, not a
+ * fleeting Tailwind background whose foreground may remain stale. */
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row:not([data-selected="true"]):nth-child(even) {
+  background: #f3f8fc !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row:not([data-selected="true"]):nth-child(odd) {
+  background: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row:hover:not([data-selected="true"]) {
+  background: #e9f4fc !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row[data-selected="true"],
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row[data-selected="true"]:hover {
+  background: #d8ebf7 !important;
+  box-shadow: inset 3px 0 #0f6b99 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-row
+:is(.sig-process-number-link,.sig-process-subject-title,.sig-process-responsible-name) {
+  color: #15344d !important;
+  -webkit-text-fill-color: #15344d !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-number-link {
+  color: #105a82 !important;
+  -webkit-text-fill-color: #105a82 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-interested {
+  color: #4c6478 !important;
+  -webkit-text-fill-color: #4c6478 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-head {
+  background: #e7f0f7 !important;
+  border-color: #c5d9e7 !important;
+  color: #294b63 !important;
+  -webkit-text-fill-color: #294b63 !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-open-btn:not(:disabled),
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-open-btn:not(:disabled):hover {
+  background: #104a6f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: #104a6f !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell
+.sig-process-registry[data-sigapro-table-legibility="v2"] .sig-process-open-btn:not(:disabled) :is(svg,span) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+}
+/* Active quick filters share ONE background/text pairing under all themes. */
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-chip.is-active:not(:disabled),
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-chip.is-active:not(:disabled):hover {
+  background: #104f75 !important;
+  border-color: #104f75 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-workspace-shell .sig-workspace-chip.is-active:not(:disabled) svg {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+/* Inverse-main does not always emit html.dark. Both theme signals are
+ * explicitly supported, without recoloring semantic process markers. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell,
+html.dark body #root .sig-main-shell .sig-workspace-shell {
+  --sig-process-ink: #f4faff;
+  --sig-process-muted: #bdd6e7;
+  color: #f4faff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-breadcrumb,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-breadcrumb strong,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-breadcrumb,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-breadcrumb strong {
+  color: #d3e7f5 !important;
+  -webkit-text-fill-color: #d3e7f5 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-hero h2,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-hero h2 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-hero p,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-hero p {
+  color: #c4dced !important;
+  -webkit-text-fill-color: #c4dced !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-kpi,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi {
+  background: linear-gradient(135deg,#1a3b50 0%,#102a3e 100%) !important;
+  border-color: #426b84 !important;
+  color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-kpi strong,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi strong {
+  color: #f5fbff !important;
+  -webkit-text-fill-color: #f5fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-kpi small,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-kpi small {
+  color: #cce1ef !important;
+  -webkit-text-fill-color: #cce1ef !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-process-registry {
+  background: #122c40 !important;
+  border-color: #42627a !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-head,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-head {
+  background: #1c3e54 !important;
+  border-color: #456b83 !important;
+  color: #d9ebf7 !important;
+  -webkit-text-fill-color: #d9ebf7 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row:not([data-selected="true"]):nth-child(odd),
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row:not([data-selected="true"]):nth-child(odd) {
+  background: #142e42 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row:not([data-selected="true"]):nth-child(even),
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row:not([data-selected="true"]):nth-child(even) {
+  background: #1a3a4f !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row:hover:not([data-selected="true"]),
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row:hover:not([data-selected="true"]) {
+  background: #204c67 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row[data-selected="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row[data-selected="true"]:hover,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row[data-selected="true"] {
+  background: #245573 !important;
+  box-shadow: inset 3px 0 #87cde9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row :is(.sig-process-number-link,.sig-process-subject-title,.sig-process-responsible-name),
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row :is(.sig-process-number-link,.sig-process-subject-title,.sig-process-responsible-name) {
+  color: #f5fbff !important;
+  -webkit-text-fill-color: #f5fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row .sig-process-interested,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-process-registry .sig-process-row .sig-process-interested {
+  color: #c0d9e9 !important;
+  -webkit-text-fill-color: #c0d9e9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-search,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-search {
+  background: #17384e !important;
+  border-color: #587991 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-search input,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-search input {
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-chip:not(.is-active),
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-chip:not(.is-active) {
+  background: #1d465e !important;
+  border-color: #5b8098 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-workspace-shell .sig-workspace-selected,
+html.dark body #root .sig-main-shell .sig-workspace-shell .sig-workspace-selected {
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}

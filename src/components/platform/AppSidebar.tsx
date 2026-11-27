@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from "@/components/platform/PremiumIcons";
 import { cn } from "@/lib/utils";
+import { isMunicipalOverviewSubpagePath } from "@/lib/municipalOverviewSubpages";
 
 export type AppSidebarItem = {
   to: string;
@@ -18,6 +19,7 @@ export type AppSidebarGroup = {
 type SidebarInnerProps = {
   pathname: string;
   groups: AppSidebarGroup[];
+  activeDepartment?: string;
   expanded?: boolean;
   darkSurface?: boolean;
   onNavigate?: () => void;
@@ -30,10 +32,16 @@ type SidebarInnerProps = {
 };
 
 function isRouteActive(pathname: string, route: string) {
-  if (route === "/dashboard") {
-    return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const currentPath = pathname.replace(/\/+$/, "") || "/";
+  // A Visão geral possui URLs próprias. Não tratar todas as rotas /prefeitura/*
+  // como ativas: Organograma, Protocolo e Financeiro têm entradas independentes.
+  if (route === "/prefeitura") {
+    return currentPath === "/prefeitura" || isMunicipalOverviewSubpagePath(currentPath);
   }
-  return pathname === route;
+  if (route === "/dashboard") {
+    return currentPath === "/dashboard" || pathname.startsWith("/dashboard/");
+  }
+  return currentPath === route;
 }
 
 function isParentActive(pathname: string, routeGroup: string) {
@@ -55,6 +63,7 @@ function getInitialExpandedItems(groups: AppSidebarGroup[], pathname: string) {
 function SidebarInner({
   pathname,
   groups,
+  activeDepartment,
   expanded = true,
   darkSurface = true,
   onNavigate,
@@ -96,9 +105,10 @@ function SidebarInner({
         </div>
       ) : null}
 
+      {activeDepartment ? <div data-sigapro-active-department="true" title={activeDepartment} className={cn("sigapro-active-department",!expanded&&"sigapro-active-department-collapsed")}><span aria-hidden="true" className="sigapro-department-dot"/>{expanded?<div className="min-w-0"><span className="sigapro-department-caption">Departamento ativo</span><strong className="sigapro-department-name">{activeDepartment}</strong></div>:<span className="sr-only">Departamento ativo: {activeDepartment}</span>}</div>:null}
       <div
         ref={scrollContainerRef}
-        className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-4 py-4.5" : "px-2.5 py-4")}
+        className={cn("sig-sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", expanded ? "px-2.5 py-3.5" : "px-2 py-3.5")}
       >
         <nav className="sig-sidebar-nav space-y-0">
           {groups.map((group) => {
@@ -119,7 +129,7 @@ function SidebarInner({
                   const itemClassName = cn(
                     "sig-sidebar-item group flex items-center justify-start text-left text-sm leading-5 ",
                     expanded
-                      ? "w-full min-h-[58px] gap-3 rounded-[18px] px-3.5 py-3"
+                      ? "w-full min-h-[51px] gap-2.5 rounded-[14px] px-2.5 py-2"
                       : "mx-auto min-h-[56px] w-[56px] justify-center gap-0 rounded-[18px] px-0 py-0",
                     parentActive
                       ? darkSurface
@@ -140,6 +150,7 @@ function SidebarInner({
                           title={!expanded ? item.label : undefined}
                           aria-expanded={isExpanded}
                           data-sidebar-active={parentActive ? "true" : "false"}
+                          data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
                           data-sidebar-collapsed={expanded ? "false" : "true"}
                           className={itemClassName}
                         >
@@ -204,7 +215,9 @@ function SidebarInner({
                           to={item.to}
                           onClick={onNavigate}
                           title={!expanded ? item.label : undefined}
+                          aria-current={parentActive ? "page" : undefined}
                           data-sidebar-active={parentActive ? "true" : "false"}
+                          data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
                           data-sidebar-collapsed={expanded ? "false" : "true"}
                           className={itemClassName}
                         >
@@ -270,6 +283,7 @@ function SidebarInner({
                                   onClick={onNavigate}
                                   aria-current={childActive ? "page" : undefined}
                                   data-sidebar-active={childActive ? "true" : "false"}
+                                  data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
                                   className={cn(
                                     "sig-sidebar-subitem group relative flex w-full min-h-[40px] items-center gap-3 rounded-[14px] px-3.5 py-2.5 text-[13px] font-medium transition-all",
                                     childActive
@@ -320,6 +334,7 @@ function SidebarInner({
 export function AppSidebar({
   pathname,
   groups,
+  activeDepartment,
   expanded = true,
   className,
   inverseMain = false,
@@ -329,6 +344,7 @@ export function AppSidebar({
 }: {
   pathname: string;
   groups: AppSidebarGroup[];
+  activeDepartment?: string;
   expanded?: boolean;
   className?: string;
   inverseMain?: boolean;
@@ -360,14 +376,19 @@ export function AppSidebar({
       node.scrollTop = nextScrollTop;
       pendingScrollRestoreRef.current = null;
     }
-    if (!pendingNearestRevealRef.current || !activeItemNodeRef.current) return;
+    if (!pendingNearestRevealRef.current) return;
+    // Desktop and mobile both exist in the DOM. Resolve the selected element
+    // from the visible scroll container, never from the hidden duplicate.
+    const selected = node.querySelector<HTMLElement>('[aria-current="page"]') ?? node.querySelector<HTMLElement>('[data-sidebar-active="true"]');
+    if (!selected) return;
     pendingNearestRevealRef.current = false;
-    const activeRect = activeItemNodeRef.current.getBoundingClientRect();
+    const activeRect = selected.getBoundingClientRect();
     const containerRect = node.getBoundingClientRect();
     const isAbove = activeRect.top < containerRect.top;
     const isBelow = activeRect.bottom > containerRect.bottom;
     if (isAbove || isBelow) {
-      activeItemNodeRef.current.scrollIntoView({ block: "nearest", inline: "nearest" });
+      // Move only the sidebar, not the main document or institutional chrome.
+      node.scrollTop += isAbove ? activeRect.top-containerRect.top : activeRect.bottom-containerRect.bottom;
     }
   }, [activeScrollContainerRef]);
 
@@ -397,8 +418,8 @@ export function AppSidebar({
         className={cn(
           "sig-sidebar-shell relative hidden min-h-full shrink-0 self-stretch overflow-visible lg:flex lg:flex-col",
           expanded
-            ? "w-[304px]"
-            : "w-[96px]",
+            ? "w-[232px]"
+            : "w-[76px]",
           className,
         )}
         data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
@@ -408,6 +429,7 @@ export function AppSidebar({
         <SidebarInner
           pathname={pathname}
           groups={groups}
+          activeDepartment={activeDepartment}
           expanded={expanded}
           darkSurface={darkSurface}
           onNavigate={handleNavigate}
@@ -440,7 +462,7 @@ export function AppSidebar({
         />
         <aside
           className={cn(
-            "absolute left-0 top-0 flex h-full w-[min(90vw,348px)] flex-col border-r border-white/10 shadow-[0_24px_48px_rgba(2,6,23,0.45)] transition-transform duration-200 ease-out",
+            "absolute left-0 top-0 flex h-full w-[min(88vw,300px)] flex-col border-r border-white/10 shadow-[0_24px_48px_rgba(2,6,23,0.45)] transition-transform duration-200 ease-out",
             mobileOpen ? "translate-x-0" : "-translate-x-full",
           )}
           data-sidebar-mode={inverseMain ? "inverse-main" : "default"}
@@ -450,6 +472,7 @@ export function AppSidebar({
           <SidebarInner
             pathname={pathname}
             groups={groups}
+            activeDepartment={activeDepartment}
             expanded
             darkSurface={darkSurface}
             onNavigate={handleNavigate}

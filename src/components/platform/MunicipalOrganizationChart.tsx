@@ -1,7 +1,11 @@
-import { Building2, Network } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Building2, Network, Plus, Pencil, ChevronDown, ChevronRight, Search, X, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import "./municipal-organization-hierarchy.css";
+import { buildOrganizationRows, filterOrganizationRows } from "@/lib/municipalOrganizationTree";
+import { isAdjunctUnit } from "@/lib/municipalUnitCodes";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
-import { cn } from "@/lib/utils";
-import { OrganogramAcronymGlyph } from "@/components/platform/OrganogramAcronymGlyph";
 
 const STOP_WORDS = new Set(["de", "da", "do", "das", "dos", "e", "para", "por", "em", "na", "no"]);
 
@@ -83,156 +87,35 @@ export function getInstitutionalUnitIdentity(unitType?: string | null) {
   };
 }
 
-function UnitNode({
-  department,
-  allDepartments,
-  onEdit,
-  depth = 0,
-}: {
-  department: MunicipalDepartmentRecord;
-  allDepartments: MunicipalDepartmentRecord[];
-  onEdit?: (department: MunicipalDepartmentRecord) => void;
-  depth?: number;
-}) {
-  const acronym = getDepartmentAcronym(department);
-  const identity = getInstitutionalUnitIdentity(department.unitType);
-  const children = allDepartments.filter(
-    (item) => item.parentDepartmentId === department.id,
-  );
-  const isRoot = depth === 0;
-
-  return (
-    <article
-      data-organogram-node="true"
-      data-organogram-root={isRoot ? "true" : "false"}
-      data-unit-type={(department.unitType || "unidade").toLocaleLowerCase("pt-BR")}
-      className={cn(
-        "relative overflow-hidden border transition-shadow",
-        isRoot
-          ? "rounded-[26px] border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfe_100%)] shadow-[0_14px_34px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#12283a_0%,#0b1927_100%)]"
-          : "rounded-[18px] border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/80",
-      )}
-    >
-      <div
-        className={cn(
-          "absolute inset-y-0 left-0",
-          isRoot ? "w-1.5 bg-[linear-gradient(180deg,#0b5f8a_0%,#14b8a6_100%)]" : "w-1 bg-slate-300 dark:bg-slate-600",
-        )}
-        aria-hidden="true"
-      />
-
-      <div className={cn(isRoot ? "p-5 pl-6" : "p-3.5 pl-5")}>
-        <div className="flex items-start gap-3">
-          <div
-            data-organogram-icon="true"
-            className={cn(
-              "flex shrink-0 items-center justify-center border",
-              identity.iconTone,
-              isRoot
-                ? "h-11 w-11 rounded-[14px]"
-                : "h-9 w-9 rounded-xl",
-            )}
-          >
-            <Building2 className={isRoot ? "h-[18px] w-[18px]" : "h-4 w-4"} />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                data-organogram-level-badge="true"
-                data-organogram-code-surface="blue"
-                data-contrast-surface="dark"
-                className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-w-11 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
-                title={identity.label}
-              >
-                <OrganogramAcronymGlyph code={identity.short} className="h-4 w-10" />
-              </span>
-              <span
-                data-organogram-level-label="true"
-                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300"
-              >
-                {identity.label}
-              </span>
-            </div>
-
-            <p
-              data-organogram-acronym="true"
-              className={cn(
-                "mt-2 font-black tracking-[-0.02em] text-slate-950 dark:text-white",
-                isRoot ? "text-[22px] leading-7" : "text-[16px] leading-6",
-              )}
-              title={department.name}
-            >
-              {acronym}
-            </p>
-            <p
-              data-organogram-name="true"
-              className={cn(
-                "mt-0.5 truncate text-slate-500 dark:text-slate-300",
-                isRoot ? "text-xs" : "text-[11px]",
-              )}
-              title={department.name}
-            >
-              {department.name}
-            </p>
-          </div>
-
-          {onEdit ? (
-            <button
-              type="button"
-              data-organogram-edit="true"
-              onClick={() => onEdit(department)}
-              className="inline-flex h-9 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-sky-500 dark:hover:bg-slate-700"
-            >
-              Editar
-            </button>
-          ) : null}
-        </div>
-
-        {children.length > 0 ? (
-          <div
-            data-organogram-children="true"
-            className={cn(
-              "mt-4 space-y-2.5 border-l",
-              isRoot ? "ml-5 border-sky-200 pl-4 dark:border-sky-800" : "ml-4 border-slate-200 pl-3 dark:border-slate-700",
-            )}
-          >
-            {children.map((child) => (
-              <UnitNode
-                key={child.id}
-                department={child}
-                allDepartments={allDepartments}
-                onEdit={onEdit}
-                depth={depth + 1}
-              />
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
 export function MunicipalOrganizationChart({
   departments,
   emptyMessage = "Nenhuma unidade cadastrada no organograma municipal.",
   onEdit,
+  onAddChild,
+  members = [],
+  expandRoots = false,
 }: {
   departments: MunicipalDepartmentRecord[];
   emptyMessage?: string;
   onEdit?: (department: MunicipalDepartmentRecord) => void;
+  onAddChild?: (parentId:string)=>void;
+  members?: readonly {id:string;name:string;department:string}[];
+  expandRoots?: boolean;
 }) {
-  const active = departments
-    .filter((item) => item.isActive)
-    .sort(
-      (a, b) =>
-        a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR"),
-    );
-  const roots = active.filter((item) => !item.parentDepartmentId);
-
+  const active = useMemo(()=>departments.filter(item=>item.isActive).sort((a,b)=>a.sortOrder-b.sortOrder||a.name.localeCompare(b.name,"pt-BR")),[departments]);
+  const rows = useMemo(()=>buildOrganizationRows(active),[active]);
+  const [query,setQuery]=useState("");
+  const [expanded,setExpanded]=useState<Set<string>>(()=>new Set());
+  const [defaultRoots,setDefaultRoots]=useState(expandRoots);
+  const effectiveExpanded=useMemo(()=>defaultRoots?new Set([...expanded,...rows.filter(r=>r.depth===0).map(r=>r.unit.id)]):expanded,[rows,expanded,defaultRoots]);
+  const visible=useMemo(()=>filterOrganizationRows(rows,query,effectiveExpanded),[rows,query,effectiveExpanded]);
+  const searching=Boolean(query.trim());
+  const staffByDepartment=useMemo(()=>{const map=new Map<string,typeof members[number][]>();for(const member of members){const group=map.get(member.department)||[];group.push(member);map.set(member.department,group);}return map;},[members]);
+  const branches=rows.filter(r=>r.childCount>0||(staffByDepartment.get(r.unit.name)||[]).length>0);
+  const toggle=(id:string)=>{setDefaultRoots(false);setExpanded(()=>{const next=new Set(effectiveExpanded);if(next.has(id))next.delete(id);else next.add(id);return next;});};
   if (active.length === 0) {
     return (
-      <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+      <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
         {emptyMessage}
       </div>
     );
@@ -250,48 +133,51 @@ export function MunicipalOrganizationChart({
             Hierarquia institucional por siglas, níveis e unidades oficiais da Prefeitura.
           </span>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {["secretaria", "diretoria", "departamento", "setor"].map((type) => {
-            const identity = getInstitutionalUnitIdentity(type);
-            return (
-              <span
-                key={type}
-                data-organogram-legend="true"
-                data-organogram-level-badge="true"
-                data-organogram-code-surface="blue"
-                data-contrast-surface="dark"
-                data-unit-type={type}
-                className="sig-organogram-code-badge sig-organogram-blue-code rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[9px] font-black tracking-[0.1em] shadow-[0_5px_14px_rgba(3,55,84,0.20)]"
-                title={identity.label}
-              >
-                <strong
-                  data-organogram-code-text="true"
-                  style={{
-                    color: "#ffffff",
-                    WebkitTextFillColor: "#ffffff",
-                    opacity: 1,
-                    fontWeight: 900,
-                  }}
-                  className="block !text-white"
-                >
-                  {identity.short}
-                </strong>
-              </span>
-            );
-          })}
+        <div className="flex flex-wrap gap-2 text-xs font-medium">
+          {([{tone:"root",label:"Unidade principal"},{tone:"child",label:"Subunidade"},{tone:"nested",label:"Nível adicional"}] as const).map(item=><span key={item.tone} className="flex items-center gap-1.5"><span aria-hidden="true" data-org-hierarchy-tone={item.tone} className="sig-org-hierarchy-swatch"/>{item.label}</span>)}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-        {roots.map((department) => (
-          <UnitNode
-            key={department.id}
-            department={department}
-            allDepartments={active}
-            onEdit={onEdit}
-          />
-        ))}
+      <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-[1_1_220px]">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground"/>
+          <Input aria-label="Pesquisar unidades do organograma" placeholder="Pesquisar por nome ou sigla" className="h-10 pl-9 pr-10" value={query} onChange={e=>setQuery(e.target.value)}/>
+          {query&&<button type="button" aria-label="Limpar pesquisa" onClick={()=>setQuery("")} className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-lg text-foreground hover:bg-muted"><X size={16}/></button>}
+        </div>
+        <Button type="button" variant="outline" size="sm" disabled={searching||branches.length===0} onClick={()=>{setDefaultRoots(false);setExpanded(new Set(branches.map(r=>r.unit.id)));}}>Expandir tudo</Button>
+        <Button type="button" variant="outline" size="sm" disabled={searching||branches.length===0} onClick={()=>{setDefaultRoots(false);setExpanded(new Set());}}>Recolher tudo</Button>
       </div>
+      <p className="mb-3 text-xs text-muted-foreground" role="status">{active.length} {active.length===1?"unidade":"unidades"} · {visible.length} {visible.length===1?"visível":"visíveis"}{searching?" · Pesquisa inclui a hierarquia superior":""}</p>
+      {visible.length===0&&<p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">Nenhuma unidade encontrada.</p>}
+      <ul aria-label="Hierarquia das unidades administrativas" data-organogram-responsive-grid="true" className="min-w-0 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
+        {visible.map(({unit:department,depth,childCount,detached})=>{
+          const acronym=getDepartmentAcronym(department);
+          const baseIdentity=getInstitutionalUnitIdentity(department.unitType);
+          const adjunct=isAdjunctUnit(department.name)&&["secretaria","diretoria"].includes(department.unitType);
+          const identity=adjunct?{...baseIdentity,short:department.unitType==="secretaria"?"SAD":"DAD",label:baseIdentity.label+" adjunta"}:baseIdentity;
+          const open=searching||effectiveExpanded.has(department.id);
+          const staff=staffByDepartment.get(department.name)||[];
+          const expandable=childCount>0||staff.length>0;
+          const hierarchyTone=depth===0?"root":depth===1?"child":"nested";
+          return <li key={department.id} data-organogram-node="true" data-organogram-root={depth===0?"true":"false"} data-unit-type={department.unitType||"unidade"} data-unit-adjunct={adjunct?"true":"false"} data-depth={depth} data-org-hierarchy-row={hierarchyTone} className="min-w-0 bg-card text-card-foreground">
+            <div data-organogram-unit-header="true" className="flex min-w-0 items-center gap-2 py-2 pr-2 hover:bg-muted/50" style={{paddingInlineStart:8+Math.min(depth,5)*16}}>
+              {expandable?<button type="button" aria-expanded={open} aria-label={(open?"Recolher ":"Expandir ")+department.name} disabled={searching} onClick={()=>toggle(department.id)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{open?<ChevronDown size={17}/>:<ChevronRight size={17}/>}</button>:<span className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground" aria-hidden="true"><Building2 size={16}/></span>}
+              <div data-organogram-unit-copy="true" className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <span data-organogram-level-badge="true" data-org-hierarchy-tone={hierarchyTone} data-organogram-code-surface={depth===0?"blue":undefined} data-contrast-surface={depth===0?"dark":undefined} className="sig-org-hierarchy-code inline-flex shrink-0 items-center rounded-md px-2 py-1 text-xs font-bold" title={identity.label}><strong>{acronym}</strong></span>
+                  <span data-organogram-name="true" className={"min-w-0 break-words text-sm text-foreground [overflow-wrap:anywhere] "+(depth===0?"font-bold":"font-medium")}>{department.name}</span>
+                </div>
+                <div data-organogram-level-label="true" className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground"><span>{identity.label}</span>{childCount>0&&<span>· {childCount} {childCount===1?"subunidade":"subunidades"}</span>}{staff.length>0&&<span>· {staff.length} {staff.length===1?"servidor":"servidores"}</span>}{detached&&<span className="font-semibold text-amber-700 dark:text-amber-300">· Vínculo a revisar</span>}</div>
+              </div>
+              {(onAddChild||onEdit)&&<div data-organogram-unit-actions="true" className="flex shrink-0 items-center gap-1">
+                {onAddChild&&<button type="button" aria-label={"Adicionar unidade em "+department.name} title="Adicionar unidade subordinada" onClick={()=>onAddChild(department.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Plus size={16}/></button>}
+                {onEdit&&<button type="button" data-organogram-edit="true" aria-label={"Editar "+department.name} title="Editar unidade" onClick={()=>onEdit(department)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Pencil size={15}/></button>}
+              </div>}
+            </div>
+            {staff.length>0&&open&&<ul aria-label={"Equipe de "+department.name} className="mb-2 space-y-1 pr-2" style={{paddingInlineStart:48+Math.min(depth,5)*12}}>{staff.map(member=><li key={member.id} className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground"><Users size={13} className="shrink-0"/><span className="break-words [overflow-wrap:anywhere]">{member.name}</span></li>)}</ul>}
+          </li>;
+        })}
+      </ul>
     </div>
   );
 }

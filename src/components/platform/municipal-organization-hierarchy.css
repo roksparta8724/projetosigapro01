@@ -1,0 +1,23 @@
+/* Hierarchy is encoded by depth, not administrative unit type. */
+[data-municipal-organogram] [data-org-hierarchy-tone="root"]{--org-badge-bg:#145477;--org-badge-fg:#fff;--org-badge-border:#145477}
+[data-municipal-organogram] [data-org-hierarchy-tone="child"]{--org-badge-bg:#287454;--org-badge-fg:#ffffff;--org-badge-border:#287454}
+[data-municipal-organogram] [data-org-hierarchy-tone="nested"]{--org-badge-bg:#674c91;--org-badge-fg:#ffffff;--org-badge-border:#674c91}
+.dark [data-municipal-organogram] [data-org-hierarchy-tone="child"],[data-layout-mode="inverse-main"] [data-municipal-organogram] [data-org-hierarchy-tone="child"]{--org-badge-bg:#173e34;--org-badge-fg:#d5f5e7;--org-badge-border:#396a59}
+.dark [data-municipal-organogram] [data-org-hierarchy-tone="nested"],[data-layout-mode="inverse-main"] [data-municipal-organogram] [data-org-hierarchy-tone="nested"]{--org-badge-bg:#382950;--org-badge-fg:#f0e5ff;--org-badge-border:#655184}
+html body #root .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code,
+[data-municipal-organogram] [data-org-hierarchy-tone].sig-org-hierarchy-code,
+[data-municipal-organogram] [data-org-hierarchy-tone].sig-org-hierarchy-swatch{
+ background:var(--org-badge-bg)!important;border:1px solid var(--org-badge-border)!important;color:var(--org-badge-fg)!important;-webkit-text-fill-color:var(--org-badge-fg)!important;box-shadow:none!important;
+}
+html body #root .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code strong,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code strong,
+[data-municipal-organogram] [data-org-hierarchy-tone].sig-org-hierarchy-code strong{
+ color:var(--org-badge-fg)!important;-webkit-text-fill-color:var(--org-badge-fg)!important;opacity:1!important;
+}
+.sig-org-hierarchy-swatch{display:inline-block;width:12px;height:12px;border-radius:4px;flex:none}
+[data-municipal-organogram] [data-org-hierarchy-row="root"]> [data-organogram-unit-header]{background:color-mix(in srgb,hsl(var(--card)) 94%,#145477 6%);border-inline-start:3px solid #25749a}
+[data-municipal-organogram] [data-org-hierarchy-row="child"]> [data-organogram-unit-header]{border-inline-start:3px solid #80ad9b}
+[data-municipal-organogram] [data-org-hierarchy-row="nested"]> [data-organogram-unit-header]{border-inline-start:3px solid #9c85bd}
+[data-municipal-organogram] [data-organogram-unit-header]:hover{background:hsl(var(--muted))}
+@media(max-width:480px){[data-municipal-organogram] [data-organogram-unit-header]{gap:4px}[data-municipal-organogram] [data-organogram-unit-actions] button{width:32px;height:32px}}

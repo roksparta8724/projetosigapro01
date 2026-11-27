@@ -1,0 +1,139 @@
+/*
+ * SIGAPRO — autoridade de contraste para navegação premium.
+ *
+ * O tema claro aplica regras genéricas de texto escuro com !important e
+ * -webkit-text-fill-color. Os botões/links selecionados possuem fundo azul
+ * mesmo nesse tema: Tailwind text-white não supera todos esses seletores.
+ *
+ * Use apenas atributos explícitos de item ATIVO, para não alterar cards,
+ * formulários, links inativos, a identidade visual ou a prévia de PDFs.
+ * Importado após index.css e surface-polarity.css em main.tsx.
+ */
+
+/* Guias principais de todos os painéis internos (Master, Prefeitura e afins). */
+html body #root .sig-main-shell .sig-section-nav
+button[data-nav-active="true"],
+html body #root .sig-main-shell .sig-section-nav
+button[data-premium-nav-active="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-section-nav
+button[data-nav-active="true"] .sig-nav-item-label,
+html body #root .sig-main-shell .sig-section-nav
+button[data-premium-nav-active="true"] .sig-nav-item-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body #root .sig-main-shell .sig-section-nav
+button[data-nav-active="true"] .sig-nav-item-helper,
+html body #root .sig-main-shell .sig-section-nav
+button[data-premium-nav-active="true"] .sig-nav-item-helper {
+  color: #e0f2fe !important;
+  -webkit-text-fill-color: #e0f2fe !important;
+  opacity: 1 !important;
+}
+
+/* Subpáginas Resumo, Processos, Pendências e Atividades.
+   O link ativo não pode herdar preto de seletores globais de modo claro. */
+html body #root [data-sigapro-overview-subpages="true"]
+a[data-sigapro-overview-tab="active"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body #root [data-sigapro-overview-subpages="true"]
+a[data-sigapro-overview-tab="active"]
+[data-sigapro-overview-tab-title="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body #root [data-sigapro-overview-subpages="true"]
+a[data-sigapro-overview-tab="active"]
+[data-sigapro-overview-tab-helper="true"] {
+  color: #e0f2fe !important;
+  -webkit-text-fill-color: #e0f2fe !important;
+  opacity: 1 !important;
+}
+
+html body #root [data-sigapro-overview-subpages="true"]
+a[data-sigapro-overview-tab="active"]
+[data-sigapro-overview-tab-counter="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background-color: rgba(255, 255, 255, .17) !important;
+  opacity: 1 !important;
+}
+
+/* Links não selecionados: texto escuro no tema claro, claro no tema inverso. */
+html body #root [data-layout-mode="default"] [data-sigapro-overview-subpages="true"]
+a[data-sigapro-overview-tab="inactive"]
+[data-sigapro-overview-tab-title="true"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body #root [data-layout-mode="default"] [data-sigapro-overview-subpages="true"]
+a[data-sigapro-overview-tab="inactive"]
+[data-sigapro-overview-tab-helper="true"] {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+html body #root [data-layout-mode="inverse-main"] [data-sigapro-overview-subpages="true"]
+a[data-sigapro-overview-tab="inactive"]
+[data-sigapro-overview-tab-title="true"] {
+  color: #f1f5f9 !important;
+  -webkit-text-fill-color: #f1f5f9 !important;
+}
+html body #root [data-layout-mode="inverse-main"] [data-sigapro-overview-subpages="true"]
+a[data-sigapro-overview-tab="inactive"]
+[data-sigapro-overview-tab-helper="true"] {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+/* Filtros selecionados na página de processos seguem a mesma regra. */
+html body #root .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="true"] {
+  /* Texto e fundo são um único contrato: evita branco sobre branco no tema claro. */
+  background: #0c4a6e !important;
+  background-color: #0c4a6e !important;
+  border-color: #075985 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="true"]:hover {
+  background: #075985 !important;
+  background-color: #075985 !important;
+}
+
+/* No modo claro, filtros não selecionados continuam brancos e legíveis.
+   Não modificar outros botões nem sobrescrever o tema inverso. */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="false"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+  -webkit-text-fill-color: #1e293b !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="false"]:hover {
+  background: #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
+}
+html body #root .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="true"] :is(span, strong, svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}

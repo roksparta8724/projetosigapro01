@@ -2,26 +2,28 @@ import { ArrowRight, CheckCircle2, CircleDashed, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  defaultMunicipalWorkflowStages,
   type MunicipalStageCode,
   type MunicipalWorkflowStage,
 } from "@/lib/govtech";
-import { getWorkflowProgress } from "@/lib/workflowEngine";
+import { buildMunicipalWorkflowForKind, getWorkflowProgress, type MunicipalWorkflowKind } from "@/lib/workflowEngine";
 
 interface WorkflowStageBoardProps {
   title?: string;
   description?: string;
   currentStageCode: MunicipalStageCode;
+  workflowKind?: MunicipalWorkflowKind;
   stages?: MunicipalWorkflowStage[];
 }
 
 export function WorkflowStageBoard({
   title = "Fluxo configurado da Prefeitura",
-  description = "Visualize o encadeamento das etapas do processo municipal e identifique rapidamente o ponto atual do workflow.",
+  description = "Fluxo próprio para aprovação ou habite-se. Cadastro, guia, compensação e triagem precedem a atuação técnica; cada protocolo possui seu encerramento.",
   currentStageCode,
+  workflowKind,
   stages,
 }: WorkflowStageBoardProps) {
-  const orderedStages = stages ?? defaultMunicipalWorkflowStages;
+  const chosenKind=workflowKind??(currentStageCode==="occupancy_permit"?"habite_se":"aprovacao");
+  const orderedStages=stages??buildMunicipalWorkflowForKind(chosenKind).stages;
   const snapshot = getWorkflowProgress(currentStageCode, orderedStages);
 
   return (

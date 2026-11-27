@@ -1,6 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
+import { assertPersonalProcessMarkerLimit } from "@/lib/processMarkerLimits";
+import { IdentityScopedSingleFlight } from "@/lib/identityScopedSingleFlight";
+import { contextEpoch, isMunicipalContextBusy, cancelForeignMunicipalTransition } from "@/lib/municipalContextTransition";
+import type { MunicipalStaffAssignment } from "@/lib/municipalStaffAssignments";
 import {
   type AccountStatus,
   buildProcessDocuments,
@@ -110,7 +115,11 @@ interface PlatformDataState {
   loading: boolean;
   dataError: string | null;
   dataReadyForCurrentUser: boolean;
-  refreshRemoteStore: (focusProcessRouteKey?: string | null) => Promise<void>;
+  /** Store belongs to the current account, independent of background loading. */
+  storeIdentityConfirmed: boolean;
+  /** True only after the official database revalidated this user and all required records. */
+  remoteSyncedForCurrentUser: boolean;
+  refreshRemoteStore: (focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment, confirmAssignment?: () => Promise<void>) => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
   tenantSettings: InstitutionSettings[];
@@ -163,6 +172,7 @@ interface PlatformDataState {
   }) => Promise<OwnerProjectRequest | null>;
   setOwnerChatEnabled: (input: { linkId: string; enabled: boolean; actor: string }) => Promise<OwnerProjectLink | null>;
   sendOwnerMessage: (input: {
+    linkId?: string;
     projectId: string;
     ownerUserId: string;
     professionalUserId: string;
@@ -952,12 +962,12 @@ function isAuthError(error: unknown) {
   return status === 401 || status === 403;
 }
 
-async function loadRemotePlatformStoreWithRetry(focusProcessRouteKey?: string | null, maxAttempts = 3) {
+async function loadRemotePlatformStoreWithRetry(focusProcessRouteKey?: string | null, maxAttempts = 3, expectedAssignment?: MunicipalStaffAssignment) {
   let lastError: unknown = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await loadRemotePlatformStore(focusProcessRouteKey);
+      return await loadRemotePlatformStore(focusProcessRouteKey, expectedAssignment);
     } catch (error) {
       lastError = error;
       if (isAuthError(error) || attempt >= maxAttempts) {
@@ -989,6 +999,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     initialStateRef.current = getInitialPlatformStoreState();
   }
   const [store, setStore] = useState<PlatformStore>(() => initialStateRef.current?.store ?? defaultStore);
+  // A single authenticated browser tab cannot concurrently add a fourth
+  // marker to the same process from two desks.
+  const markerWritesInFlightRef = useRef<Set<string>>(new Set());
   const [loading, setLoading] = useState<boolean>(false);
   const [source, setSource] = useState<DataSource>(() => initialStateRef.current?.source ?? "demo");
   const [dataError, setDataError] = useState<string | null>(null);
@@ -996,6 +1009,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     () => initialStateRef.current?.contextUserId ?? null,
   );
   const lastFetchedUserId = useRef<string | null>(null);
+  // The 31-query store load must not multiply for multiple focus/change
+  // events, and an old account's request must never mutate the new account.
+  const refreshFlightsRef = useRef(new IdentityScopedSingleFlight());
+  const currentAuthIdentityRef = useRef(authenticatedUserId);
+  currentAuthIdentityRef.current = authenticatedUserId;
+  useLayoutEffect(()=>{cancelForeignMunicipalTransition(authenticatedUserId ? authenticatedProfileId || authenticatedUserId : null);},[authenticatedProfileId,authenticatedUserId]);
   const allowRemoteInLocal =
     isNeonBackend ||
     (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
@@ -1015,7 +1034,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     // autenticar. Só aquece o cache depois que o bootstrap remoto confirmou
     // que o contexto pertence ao usuário atual.
     const contextConfirmed =
-      !expectsRemoteStore || remoteContextUserId === authenticatedUserId;
+      !expectsRemoteStore || isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId);
 
     if (hasVisibleData && contextConfirmed) {
       syncWarmPlatformStore(store, warmIdentity);
@@ -1032,7 +1051,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     if (
       !authenticatedUserId ||
       !remoteContextUserId ||
-      authenticatedUserId === remoteContextUserId
+      isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId)
     ) {
       return;
     }
@@ -1050,13 +1069,15 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       ownerLinks: [],
       ownerMessages: [],
     }));
-  }, [authenticatedUserId, remoteContextUserId]);
+  }, [authenticatedProfileId, authenticatedUserId, remoteContextUserId]);
 
   useEffect(() => {
     let active = true;
+    const initialContextEpoch = contextEpoch(authenticatedProfileId || authenticatedUserId);
+    const contextStillCurrent = () => initialContextEpoch === contextEpoch(authenticatedProfileId || authenticatedUserId) && !isMunicipalContextBusy(authenticatedProfileId || authenticatedUserId);
 
     const bootstrap = async () => {
-      if (authLoading) return;
+      if (authLoading || isMunicipalContextBusy(authenticatedProfileId || authenticatedUserId)) return;
 
       if (!authenticatedUserId || (localDev && !allowRemoteInLocal) || !hasBackendEnv) {
         if (!active) return;
@@ -1229,7 +1250,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           if (initialStateRef.current) initialStateRef.current.legacyStore = null;
         }
 
-        if (!active) return;
+        if (!active || !contextStillCurrent()) return;
         const authoritativeProfile = findUserProfile(
           sanitized.userProfiles,
           authenticatedProfileId || authenticatedUserId,
@@ -1256,17 +1277,21 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           authenticatedEmail,
         );
         if (activeProfile) syncProfileVisualCache(activeProfile);
-        setStore(sanitized);
-        syncWarmPlatformStore(sanitized, authenticatedUserId);
+        setStore((current) => stabilizePlatformStore(current, sanitized));
+        syncWarmPlatformStore(sanitized, authenticatedProfileId || authenticatedUserId);
         syncStore(sanitized);
         setSource("remote");
         setDataError(null);
         lastFetchedUserId.current = authenticatedUserId;
         setRemoteContextUserId(authenticatedUserId);
       } catch (error) {
-        if (!active) return;
-        if (isAuthError(error) && backendClient) {
-          await backendClient.auth.signOut();
+        if (!active || !contextStillCurrent() || currentAuthIdentityRef.current !== authenticatedUserId) return;
+        // 401/403 from a data query can be an old token, missing module access
+        // or a concurrent identity transition. Never let a data loader revoke
+        // the current authentication session. AuthGateway owns logout.
+        if (isAuthError(error)) {
+          setRemoteContextUserId(null);
+          lastFetchedUserId.current = null;
         }
         const cachedVisualProfile = readProfileVisualCache();
         const nextStore =
@@ -1290,7 +1315,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
             : "Banco oficial temporariamente indisponível.",
         );
       } finally {
-        if (active) setLoading(false);
+        if (active && contextStillCurrent()) setLoading(false);
       }
     };
 
@@ -1321,16 +1346,41 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
   }, [authenticatedProfileId, authenticatedUserId, authLoading]);
 
-  const refreshRemoteStore = async (focusProcessRouteKey?: string | null) => {
+  const refreshRemoteStore = async (focusProcessRouteKey?: string | null, expectedAssignment?: MunicipalStaffAssignment, confirmAssignment?: () => Promise<void>) => {
     if (!authenticatedUserId || !hasBackendEnv) {
       const error = new Error("Sessão ou banco oficial indisponível para atualizar os dados.");
       setDataError(error.message);
       throw error;
     }
 
-    try {
-      const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
+    const identity = authenticatedUserId;
+    if(currentAuthIdentityRef.current !== identity) throw new Error("A sessão mudou durante a atualização.");
+    const profileId = authenticatedProfileId || identity;
+    if (!expectedAssignment && isMunicipalContextBusy(profileId)) return;
+    const epoch = contextEpoch(profileId);
+    const scope = JSON.stringify([focusProcessRouteKey ?? "", epoch, expectedAssignment?.id ?? ""]);
+    const stillCurrent = () => currentAuthIdentityRef.current === identity && contextEpoch(profileId) === epoch;
+    return refreshFlightsRef.current.run(identity, scope, async () => {
+      try {
+        // Read the scoped store and confirm the active lotation in parallel. Do not
+        // publish any data until both checks have completed successfully.
+        const [remote] = await Promise.all([
+          loadRemotePlatformStoreWithRetry(focusProcessRouteKey, expectedAssignment ? 1 : 3, expectedAssignment),
+          confirmAssignment?.() ?? Promise.resolve(),
+        ]);
+        // Never apply a late response from a previously signed-in account.
+        if (!stillCurrent()) {
+          if (expectedAssignment) throw new Error("A sessão mudou durante a troca de departamento.");
+          return;
+        }
       let sanitized = buildSanitizedStore(remote, false);
+      if (expectedAssignment) {
+        const confirmed = sanitized.sessionUsers.find(user => user.id === profileId && user.municipalityId === expectedAssignment.municipalityId);
+        if (!confirmed || confirmed.accountStatus !== "active" || confirmed.role !== expectedAssignment.role || confirmed.department !== expectedAssignment.departmentName) {
+          setRemoteContextUserId(null);
+          throw new Error("O contexto operacional ainda não foi confirmado. Tente novamente.");
+        }
+      }
       const authoritativeProfile = findUserProfile(
         sanitized.userProfiles,
         authenticatedProfileId || authenticatedUserId,
@@ -1358,20 +1408,25 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       );
       if (activeProfile) syncProfileVisualCache(activeProfile);
       setStore((current) => stabilizePlatformStore(current, sanitized));
-      syncWarmPlatformStore(sanitized, authenticatedUserId);
+      syncWarmPlatformStore(sanitized, authenticatedProfileId || authenticatedUserId);
       syncStore(sanitized);
       setSource("remote");
       setDataError(null);
       lastFetchedUserId.current = authenticatedUserId;
       setRemoteContextUserId(authenticatedUserId);
-    } catch (error) {
-      setDataError(
-        error instanceof Error && error.message
-          ? `Banco oficial indisponível: ${error.message}`
-          : "Banco oficial temporariamente indisponível.",
-      );
-      throw error;
-    }
+      setLoading(false);
+      } catch (error) {
+        if (stillCurrent()) {
+          if (expectedAssignment) {setRemoteContextUserId(null);lastFetchedUserId.current=null;setLoading(false);}
+          setDataError(
+            error instanceof Error && error.message
+              ? `Banco oficial indisponível: ${error.message}`
+              : "Banco oficial temporariamente indisponível.",
+          );
+        }
+        throw error;
+      }
+    });
   };
 
   // Revalidações periódicas/focus podem consultar o backend, mas nunca devem
@@ -1388,6 +1443,43 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
   const value = useMemo<PlatformDataState>(() => {
     const metrics = getMasterMetrics(store.processes, store.tenants);
+
+    const savePersonalProcessMarker = async (
+      processId: string, label: string, color: string,
+    ) => {
+      const normalized = label.trim();
+      if (!normalized) return;
+      if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
+      const process = store.processes.find(item => item.id === processId);
+      if (!process) throw new Error("Processo não sincronizado. Atualize a lista e tente novamente.");
+      assertPersonalProcessMarkerLimit(process.tags ?? [], normalized);
+      if (markerWritesInFlightRef.current.has(processId)) {
+        throw new Error("Uma gravação de marcador já está em andamento neste processo.");
+      }
+      markerWritesInFlightRef.current.add(processId);
+      try {
+        await upsertRemoteProcessMarker(processId, normalized, color);
+        const serialized = serializeMarker(normalized, color);
+        updateStore((current) => ({
+          ...current,
+          processes: current.processes.map(item => {
+            if (item.id !== processId) return item;
+            const tags = item.tags ?? [];
+            const index = tags.findIndex(tag =>
+              parseMarker(tag).label.trim().toLowerCase() === normalized.toLowerCase()
+            );
+            // Recoloring an existing professional marker retains its order.
+            const nextTags = index >= 0
+              ? tags.map((tag, i) => i === index ? serialized : tag)
+              : [...tags, serialized];
+            return { ...item, tags: nextTags };
+          }),
+        }));
+      } finally {
+        markerWritesInFlightRef.current.delete(processId);
+      }
+    };
+
     const upsertInstitution: PlatformDataState["upsertInstitution"] = (input, options) => {
       if (hasBackendEnv && !options?.remoteConfirmed) {
         throw new Error(
@@ -1593,6 +1685,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         };
       });
 
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("sigapro:data-changed"));
       return nextPlan;
     };
 
@@ -1631,7 +1724,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
     const saveClientPlanAssignment: PlatformDataState["saveClientPlanAssignment"] = async (assignment) => {
       const now = new Date().toISOString();
-      const nextAssignment: ClientPlanAssignment = {
+      let nextAssignment: ClientPlanAssignment = {
         ...assignment,
         id: assignment.id ?? `assignment-${crypto.randomUUID()}`,
         createdAt:
@@ -1644,7 +1737,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         throw new Error("Banco oficial indisponível para salvar o vínculo comercial.");
       }
 
-      await saveRemoteClientPlanAssignment(nextAssignment);
+      nextAssignment = await saveRemoteClientPlanAssignment(nextAssignment);
 
       updateStore((current) => {
         const linkedPlan = current.plans.find((item) => item.id === nextAssignment.planId);
@@ -1671,6 +1764,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { ...current, planAssignments, tenants };
       });
 
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("sigapro:data-changed"));
       return nextAssignment;
     };
 
@@ -1695,11 +1789,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           notes: input.notes?.trim() || undefined,
         });
 
-        await refreshRemoteStore();
-        return {
-          request: result.request,
-          process: result.process,
-        };
+        if (result.request) updateStore((current) => ({
+          ...current,
+          ownerRequests: [result.request!, ...current.ownerRequests.filter((item) => item.id !== result.request!.id)],
+        }));
+        return { request: result.request, process: result.process };
       } catch (error) {
         return {
           request: null,
@@ -1712,20 +1806,25 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
 
     const respondOwnerRequest: PlatformDataState["respondOwnerRequest"] = async (input) => {
-      const existingRequest = store.ownerRequests.find((item) => item.id === input.requestId);
-      if (!existingRequest) return null;
       if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível. A solicitação não foi alterada.");
       }
 
-      const { request: remoteRequest } = await respondRemoteOwnerRequest({
+      const { request: remoteRequest, link: remoteLink } = await respondRemoteOwnerRequest({
         requestId: input.requestId,
         status: input.status,
         professionalUserId: input.professionalUserId,
         notes: input.notes,
       });
 
-      await refreshRemoteStore();
+      if (!remoteRequest) throw new Error("O banco não confirmou a resposta ao proprietário.");
+      updateStore((current) => ({
+        ...current,
+        ownerRequests: [remoteRequest, ...current.ownerRequests.filter((item) => item.id !== remoteRequest.id)],
+        ownerLinks: remoteLink
+          ? [remoteLink, ...current.ownerLinks.filter((item) => item.id !== remoteLink.id)]
+          : current.ownerLinks,
+      }));
       return remoteRequest;
     };
 
@@ -1740,13 +1839,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         actor: input.actor,
       });
 
-      await refreshRemoteStore();
+      if (!updated) throw new Error("O banco não confirmou a alteração do chat.");
+      updateStore((current) => ({
+        ...current,
+        ownerLinks: current.ownerLinks.map((item) => item.id === updated.id ? updated : item),
+      }));
       return updated;
     };
 
     const sendOwnerMessage: PlatformDataState["sendOwnerMessage"] = async (input) => {
       const normalized = input.message.trim();
-      if (!normalized) return null;
+      if (!normalized) throw new Error("Digite uma mensagem para enviar.");
+      if (normalized.length > 4000) throw new Error("O limite de cada mensagem é 4.000 caracteres.");
 
       const linkSnapshot = store.ownerLinks.find(
         (item) =>
@@ -1755,14 +1859,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           item.professionalUserId === input.professionalUserId,
       );
 
-      if (!linkSnapshot) return null;
-      if (input.senderUserId === input.ownerUserId && !linkSnapshot.chatEnabled) return null;
+      const confirmedLinkId = input.linkId || linkSnapshot?.id;
+      if (!confirmedLinkId) throw new Error("O vínculo aprovado ainda não está disponível para a conversa.");
       if (!hasBackendEnv) {
         throw new Error("Banco oficial indisponível. A mensagem não foi enviada.");
       }
 
       const message = await createRemoteOwnerMessage({
-        linkId: linkSnapshot.id,
+        linkId: confirmedLinkId,
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
         professionalUserId: input.professionalUserId,
@@ -1771,13 +1875,17 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         isSystemMessage: input.isSystemMessage ?? false,
       });
 
-      await refreshRemoteStore();
+      if (!message) throw new Error("O banco não confirmou a gravação da mensagem.");
+      updateStore((current) => ({
+        ...current,
+        ownerMessages: [...current.ownerMessages.filter((item) => item.id !== message.id), message],
+      }));
       return message;
     };
 
     const dataReadyForCurrentUser = Boolean(
       authenticatedUserId &&
-      remoteContextUserId === authenticatedUserId &&
+      isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId) &&
       !authLoading &&
       !loading &&
       (
@@ -1787,11 +1895,22 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       ),
     );
 
+    // A same-account warm cache is useful for F5 visual continuity, but it
+    // must never be counted as an authoritative bank refresh. In particular,
+    // an outage must not leave stale process counts labeled as current.
+    const remoteSyncedForCurrentUser = Boolean(
+      dataReadyForCurrentUser &&
+      !dataError &&
+      (!expectsRemoteStore || source === "remote")
+    );
+
     return {
       source,
       loading,
       dataError,
       dataReadyForCurrentUser,
+      storeIdentityConfirmed: Boolean(authenticatedUserId && (!expectsRemoteStore || isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId))),
+      remoteSyncedForCurrentUser,
       refreshRemoteStore,
       ...store,
       institutions: store.tenants,
@@ -2436,42 +2555,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await refreshRemoteStore();
       },
       addProcessMarker: async (processId, marker, actor) => {
-        const normalized = marker.trim();
-        if (!normalized) return;
-        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
-
-        await upsertRemoteProcessMarker(processId, normalized, "#2563eb");
-        const serialized = serializeMarker(normalized, "#2563eb");
-
-        updateStore((current) => ({
-          ...current,
-          processes: current.processes.map((process) => {
-            if (process.id !== processId) return process;
-            const nextTags = (process.tags ?? []).filter(
-              (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized.toLowerCase(),
-            );
-            return { ...process, tags: [...nextTags, serialized] };
-          }),
-        }));
+        await savePersonalProcessMarker(processId, marker, "#2563eb");
       },
       addProcessMarkerWithColor: async (processId, marker, color, actor) => {
-        const normalized = marker.trim();
-        if (!normalized) return;
-        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para salvar marcador.");
-
-        await upsertRemoteProcessMarker(processId, normalized, color);
-        const serialized = serializeMarker(normalized, color);
-
-        updateStore((current) => ({
-          ...current,
-          processes: current.processes.map((process) => {
-            if (process.id !== processId) return process;
-            const nextTags = (process.tags ?? []).filter(
-              (tag) => parseMarker(tag).label.trim().toLowerCase() !== normalized.toLowerCase(),
-            );
-            return { ...process, tags: [...nextTags, serialized] };
-          }),
-        }));
+        await savePersonalProcessMarker(processId, marker, color);
       },
       removeProcessMarker: async (processId, marker, actor) => {
         const parsedMarker = parseMarker(marker);
@@ -2623,6 +2710,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
   }, [
     authenticatedEmail,
+    authenticatedProfileId,
     authenticatedMunicipalityId,
     authenticatedRole,
     authenticatedUserId,

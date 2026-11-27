@@ -1,0 +1,5 @@
+-- Enforce external visibility at the data layer.
+ALTER POLICY process_requirements_select_scoped ON public.process_requirements TO authenticated USING (public.has_process_access(process_id) AND (public.is_master() OR public.is_internal_municipality_role() OR (visibility IN ('externo','misto'))));
+ALTER POLICY process_audit_entries_select_scoped ON public.process_audit_entries TO authenticated USING (public.has_process_access(process_id) AND (public.is_master() OR public.is_internal_municipality_role() OR (visible_to_external IS TRUE)));
+ALTER POLICY process_movements_select_scoped ON public.process_movements TO authenticated USING (public.has_process_access(process_id) AND (public.is_master() OR public.is_internal_municipality_role() OR (visible_to_external IS TRUE)));
+ALTER POLICY interdepartmental_dispatches_select_scoped ON public.interdepartmental_dispatches TO authenticated USING (public.has_process_access(process_id) AND (public.is_master() OR public.is_internal_municipality_role() OR (visibility IN ('externo','misto'))));

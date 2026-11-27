@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
+import { fitMunicipalLogoFrame } from "@/lib/municipalLogoFraming";
 import type { InstitutionalBranding } from "@/lib/institutionBranding";
 
 const branding: InstitutionalBranding = {
@@ -91,6 +92,118 @@ describe("InstitutionalLogo", () => {
     act(() => vi.advanceTimersByTime(500));
     expect(screen.getByRole("img", { name: "Prefeitura A" })).toBeInTheDocument();
     expect(screen.queryByText("SIGAPRO")).not.toBeInTheDocument();
+  });
+
+  it("keeps a 1.75x header crop with its actual saved pan", () => {
+    const framed = { ...branding, logoScale: 1.75, logoOffsetX: 20, logoOffsetY: -12 };
+    const { container } = render(
+      <InstitutionalLogo branding={framed} variant="header" contextScope="municipality" />,
+    );
+    const f = fitMunicipalLogoFrame({ scale: 1.75, offsetX: 20, offsetY: -12 });
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: `translate(${f.offsetX / 188 * 100}%, ${f.offsetY / 188 * 100}%) scale(${f.scale * (2 / 3)})`,
+    });
+  });
+
+  it("uses a compact square official logo tile while keeping the same framing ratios as the 188px editor", () => {
+    const scaled = { ...branding, logoScale: 1.2, logoOffsetX: 0, logoOffsetY: 0 };
+    const { container } = render(
+      <InstitutionalLogo branding={scaled} variant="footer" contextScope="municipality" />,
+    );
+    expect(container.firstChild).toHaveClass(
+      "h-[144px]", "w-[144px]", "max-h-[144px]", "max-w-[144px]",
+      "overflow-hidden",
+    );
+    expect(container.firstChild).not.toHaveClass("h-[188px]", "w-[188px]");
+    const image = container.querySelector("img");
+    expect(image).toHaveClass("object-contain", "object-center");
+    expect(image).toHaveStyle({ transform: "translate(0%, 0%) scale(0.7999999999999999)" });
+  });
+
+  it("uses the same safe fit in the real header at zoom 1.50x", () => {
+    const { container } = render(<InstitutionalLogo branding={{
+      ...branding, logoScale: 1.5, logoOffsetX: 0, logoOffsetY: 0,
+    }} variant="header" contextScope="municipality" />);
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: "translate(0%, 0%) scale(1)",
+    });
+  });
+
+  it("fits the entire municipal footer logo when zoom is 1.50x", () => {
+    const { container } = render(
+      <InstitutionalLogo branding={{ ...branding, logoScale: 1.5, logoOffsetX: 0, logoOffsetY: 0 }}
+        variant="footer" contextScope="municipality" />,
+    );
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: "translate(0%, 0%) scale(1)",
+    });
+  });
+
+  it("keeps municipal footer framing independent of the header", () => {
+    const framed = { ...branding, logoScale: 1.2, logoOffsetX: 8, logoOffsetY: 10 };
+    const { container, rerender } = render(
+      <InstitutionalLogo branding={framed} variant="footer" contextScope="municipality" />,
+    );
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(${1.2 * (2 / 3)})`,
+    });
+    rerender(<InstitutionalLogo branding={{ ...framed, logoScale: 2 }} variant="footer" contextScope="municipality" />);
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(${2 * (2 / 3)})`,
+    });
+  });
+
+  it("caps legacy 5.0x values at the correct, independent header/footer limits", () => {
+    for (const variant of ["header", "footer"] as const) {
+      const { container, unmount } = render(<InstitutionalLogo
+        branding={{ ...branding, logoScale: 5, logoOffsetX: 400, logoOffsetY: -300 }}
+        variant={variant} contextScope="municipality"
+      />);
+      const f = fitMunicipalLogoFrame({ scale: 5, offsetX: 400, offsetY: -300 }, variant);
+      expect(container.querySelector("img")).toHaveStyle({
+        transform: `translate(${f.offsetX / 188 * 100}%, ${f.offsetY / 188 * 100}%) scale(${f.scale * (2 / 3)})`,
+      });
+      unmount();
+    }
+  });
+
+  it("keeps the validated Master logo fixed while route remount hydrates branding", () => {
+    const activeMaster = { ...branding, tenantId: "master", logoUrl: "/platform/custom-master-logo.png" };
+    const initial = render(<InstitutionalLogo branding={activeMaster} variant="header" contextScope="master" />);
+    fireEvent.load(screen.getByRole("img", { name: "Logo da prefeitura A" }));
+    initial.unmount();
+
+    const originalImage = window.Image;
+    const preloads: Array<{ onload: (() => void) | null; onerror: (() => void) | null; src: string }> = [];
+    class ProbeImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      src = "";
+      decoding = "auto";
+      complete = false;
+      naturalWidth = 0;
+      constructor() { preloads.push(this); }
+    }
+    Object.defineProperty(window, "Image", { configurable: true, writable: true, value: ProbeImage });
+    try {
+      const { rerender, container } = render(
+        <InstitutionalLogo branding={{ ...activeMaster, logoUrl: "" }} variant="header" contextScope="master" />,
+      );
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/platform/custom-master-logo.png"));
+      // O fallback genérico não pode entrar na fila de pré-carga para
+      // sobrepor uma imagem institucional já validada na mesma sessão.
+      expect(preloads).toHaveLength(0);
+      expect(container.querySelectorAll("img")).toHaveLength(1);
+
+      // A URL oficial pode chegar depois sem trocar o que já está correto.
+      rerender(<InstitutionalLogo branding={activeMaster} variant="header" contextScope="master" />);
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/platform/custom-master-logo.png"));
+      expect(preloads).toHaveLength(0);
+    } finally {
+      Object.defineProperty(window, "Image", { configurable: true, writable: true, value: originalImage });
+    }
   });
 
   it("uses the official local asset for an unconfigured master logo", () => {

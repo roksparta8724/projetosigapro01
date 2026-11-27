@@ -23,19 +23,23 @@ describe("commercial plan enforcement", () => {
     const data = read("src/hooks/usePlatformData.tsx");
 
     expect(data).toContain("dataReadyForCurrentUser");
-    expect(data).toContain("remoteContextUserId === authenticatedUserId");
+    expect(data).toContain("isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId)");
     expect(hook).toContain("isResolving");
     expect(hook).toContain("!dataReadyForCurrentUser");
     expect(hook).toContain("isBackgroundRefreshing");
     expect(hook).toContain("(municipalityLoading || platformDataLoading)");
-    expect(route).toContain("if (entitlements.isResolving)");
-    expect(route.indexOf("if (entitlements.isResolving)")).toBeLessThan(
+    expect(route).toContain("if (entitlements.isResolving ||");
+    expect(route).toContain("!entitlements.isDenialConfirmed");
+    expect(route.indexOf("if (entitlements.isResolving ||")).toBeLessThan(
       route.indexOf('const planName = entitlements.plan?.name ?? "não configurado"'),
     );
     expect(route).not.toContain("Validando acesso da Prefeitura");
-    expect(route).toContain("hasValidRefreshContinuity");
+    // No client refresh marker may bypass a pending or unconfirmed contract.
+    expect(route).not.toContain("hasValidRefreshContinuity");
+    expect(route).toContain("if (entitlements.isMaster || entitlements.canUseModule(module))");
     expect(route).toContain("return <>{children}</>;");
-    expect(route).toContain("return null;");
+    expect(route).toContain('title="Conferindo o módulo contratado"');
+    expect(route).not.toContain("return null;");
   });
 
   it("enforces quotas in the database, not only in the interface", () => {

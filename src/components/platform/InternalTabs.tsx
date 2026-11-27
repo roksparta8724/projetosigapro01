@@ -9,6 +9,9 @@ export function InternalTabs({
   className,
   urlParam = "secao",
   persistInUrl = true,
+  summaryFirst = false,
+  disabled = false,
+  reselectValue,
 }: {
   items: Array<{ value: string; label: string; helper?: string }>;
   value: string;
@@ -16,12 +19,15 @@ export function InternalTabs({
   className?: string;
   urlParam?: string;
   persistInUrl?: boolean;
+  summaryFirst?: boolean;
+  disabled?: boolean;
+  reselectValue?: string;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
 
   useLayoutEffect(() => {
-    if (!persistInUrl) return;
+    if (!persistInUrl || disabled) return;
     const params = new URLSearchParams(location.search);
     const requested = params.get(urlParam);
 
@@ -30,23 +36,13 @@ export function InternalTabs({
       return;
     }
 
-    if (!requested) {
-      const currentItem = items.find((item) => item.value === value);
-      const currentIsSummary =
-        currentItem && /^(resumo|vis[aã]o geral)$/i.test(currentItem.label.trim());
-
-      if (currentIsSummary) {
-        const firstOperationalItem = items.find(
-          (item) => !/^(resumo|vis[aã]o geral)$/i.test(item.label.trim()),
-        );
-        if (firstOperationalItem && firstOperationalItem.value !== value) {
-          onChange(firstOperationalItem.value);
-        }
-      }
-    }
-  }, [items, location.search, onChange, persistInUrl, urlParam, value]);
+    // Never force a Summary tab to a different operational tab.
+    // The user-selected route/section is authoritative; a query parameter is
+    // read only when it explicitly names an available tab.
+  }, [disabled, items, location.search, onChange, persistInUrl, urlParam, value]);
 
   const handleChange = (next: string) => {
+    if (disabled) return;
     if (persistInUrl) {
       const params = new URLSearchParams(location.search);
       params.set(urlParam, next);
@@ -62,5 +58,5 @@ export function InternalTabs({
     onChange(next);
   };
 
-  return <InternalSectionNav items={items} value={value} onChange={handleChange} className={className} />;
+  return <InternalSectionNav items={items} value={value} onChange={handleChange} className={className} summaryFirst={summaryFirst} disabled={disabled} reselectValue={reselectValue} />;
 }

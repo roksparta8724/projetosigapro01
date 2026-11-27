@@ -1,0 +1,97 @@
+import { describe, expect, it } from "vitest";
+import {
+  evaluateUrbanPrecheck, filterUrbanPrecheckHistoryForContext, formatUrbanHistoryDate, normalizeUrbanCode, selectUrbanRegulation, summarizeUrbanPrecheckHistory, validateUrbanRules,
+  type UrbanRegulationVersion,
+} from "@/lib/urbanPrecheck";
+
+const rules = [
+  { metric: "front_setback_m" as const, limit: 5, reference: "Lei hipotética 01, art. 12" },
+  { metric: "occupancy_percent" as const, limit: 60, reference: "Lei hipotética 01, art. 13" },
+];
+const regulation: UrbanRegulationVersion = {
+  id: "v1", municipality_id: "municipio-A", zone_code: "ZR1", use_code: "RESIDENCIAL",
+  version: 1, status: "active", effective_from: "2026-01-01",
+  rules, created_at: "2026-01-01T00:00:00Z",
+};
+describe("SIGAPRO urbanismo: pré-conferência informativa, sem aprovação automática", () => {
+  it("aplica limites mínimos e máximos, com evidência", () => {
+    const result = evaluateUrbanPrecheck(rules, {
+      front_setback_m: { value: 4.5, evidence: "Prancha 01, cota 04" },
+      occupancy_percent: { value: 59.5, evidence: "Quadro de áreas, prancha 02" },
+    });
+    expect(result.map((x) => x.status)).toEqual(["attention", "within_limit"]);
+  });
+  it("não marca conformidade sem documento/cota citados", () => {
+    expect(evaluateUrbanPrecheck(rules, { front_setback_m: { value: 6, evidence: "" } })[0].status)
+      .toBe("missing_evidence");
+    expect(evaluateUrbanPrecheck(rules, {})[1].status).toBe("missing_evidence");
+  });
+  it("compara CA mínimo, área do lote e testada com evidência do projeto, sem aprovação automática", () => {
+    const additional = [
+      { metric: "floor_area_ratio_min" as const, limit: 0.25, reference: "LC hipotética, Quadro I, p. 37" },
+      { metric: "lot_area_m2" as const, limit: 250, reference: "LC hipotética, Quadro I, p. 37" },
+      { metric: "lot_frontage_m" as const, limit: 10, reference: "LC hipotética, Quadro I, p. 37" },
+    ];
+    expect(validateUrbanRules(additional)).toBe(true);
+    const findings = evaluateUrbanPrecheck(additional,{
+      floor_area_ratio_min: { value: 0.2, evidence: "Quadro de áreas, prancha 02" },
+      lot_area_m2: { value: 300, evidence: "Matrícula e levantamento topográfico" },
+      lot_frontage_m: { value: 9.5, evidence: "Cota do levantamento topográfico" },
+    });
+    expect(findings.map((x) => x.status)).toEqual(["attention", "within_limit", "attention"]);
+    expect(evaluateUrbanPrecheck(additional, {})[0].status).toBe("missing_evidence");
+  });
+  it("não importa legislação de outra prefeitura, outra zona ou outra vigência", () => {
+    expect(selectUrbanRegulation([regulation], "municipio-B", "ZR1", "RESIDENCIAL", "2026-10-23")).toBeNull();
+    expect(selectUrbanRegulation([regulation], "municipio-A", "ZC", "RESIDENCIAL", "2026-10-23")).toBeNull();
+    expect(selectUrbanRegulation([regulation], "municipio-A", "ZR1", "RESIDENCIAL", "2025-01-01")).toBeNull();
+    expect(selectUrbanRegulation([regulation], "municipio-A", " zr1 ", "residencial", "2026-10-23")?.id).toBe("v1");
+    expect(normalizeUrbanCode(" zr1 ")).toBe("ZR1");
+  });
+  it("rejeita regra sem artigo, métrica duplicada ou percentual inválido", () => {
+    expect(validateUrbanRules([{ metric: "front_setback_m", limit: 5, reference: "" }])).toBe(false);
+    expect(validateUrbanRules([...rules, rules[0]])).toBe(false);
+    expect(validateUrbanRules([{ metric: "occupancy_percent", limit: 120, reference: "Lei hipotética 01" }])).toBe(false);
+  });
+  it("não permite que uma regra fictícia de QA sirva a um processo real", () => {
+    const fixture = { ...regulation, zone_code: "QA-URBAN-E2E-20261024",
+      rules: [{ metric: "front_setback_m" as const, limit: 5,
+        reference: "LEI FICTICIA QA SEM VALIDADE LEGAL" }] };
+    expect(selectUrbanRegulation([fixture], "municipio-A",
+      "QA-URBAN-E2E-20261024", "RESIDENCIAL", "2026-10-23")).toBeNull();
+  });
+  it("não aceita rascunho como norma vigente", () => {
+    expect(selectUrbanRegulation([{ ...regulation, status: "draft" }], "municipio-A", "ZR1", "RESIDENCIAL", "2026-10-23")).toBeNull();
+  });
+  it("não apresenta registros de outro processo nem de outra prefeitura", () => {
+    const entries = [
+      { id: "ok", municipality_id: "municipio-A", process_id: "processo-1" },
+      { id: "cross-tenant", municipality_id: "municipio-B", process_id: "processo-1" },
+      { id: "cross-process", municipality_id: "municipio-A", process_id: "processo-2" },
+    ];
+    expect(filterUrbanPrecheckHistoryForContext(entries, "municipio-A", "processo-1"))
+      .toEqual([entries[0]]);
+  });
+  it("não exibe sinal verde se faltam evidências ou a norma histórica está indisponível", () => {
+    expect(summarizeUrbanPrecheckHistory(null, {}).status).toBe("unavailable");
+    expect(summarizeUrbanPrecheckHistory(rules, {}).status).toBe("incomplete");
+    expect(summarizeUrbanPrecheckHistory(rules, {
+      front_setback_m: { value: 6, evidence: "Prancha 01" },
+      occupancy_percent: { value: 55, evidence: "" },
+    }).status).toBe("incomplete");
+    expect(summarizeUrbanPrecheckHistory(rules, {
+      front_setback_m: { value: 3, evidence: "Prancha 01" },
+      occupancy_percent: { value: 55, evidence: "Prancha 02" },
+    }).status).toBe("attention");
+    expect(summarizeUrbanPrecheckHistory(rules, {
+      front_setback_m: { value: 6, evidence: "Prancha 01" },
+      occupancy_percent: { value: 55, evidence: "Prancha 02" },
+    }).status).toBe("within_limit");
+  });
+  it("não mostra Invalid Date no histórico da pré-conferência", () => {
+    expect(formatUrbanHistoryDate("invalid")).toBe("Data não registrada");
+    expect(formatUrbanHistoryDate(null)).toBe("Data não registrada");
+    expect(formatUrbanHistoryDate("2026-10-29T13:00:00Z")).not.toContain("Invalid Date");
+  });
+
+});

@@ -17,6 +17,8 @@ export function usePlanEntitlements() {
     loading: platformDataLoading,
     dataError,
     dataReadyForCurrentUser,
+    storeIdentityConfirmed,
+    remoteSyncedForCurrentUser,
   } = usePlatformData();
   const {
     municipality,
@@ -29,7 +31,6 @@ export function usePlanEntitlements() {
     authenticatedProfileId,
     authenticatedMunicipalityId,
     authResolved,
-    loading: authLoading,
   } = useAuthGateway();
 
   const authenticatedBusinessUserId =
@@ -81,18 +82,13 @@ export function usePlanEntitlements() {
 
   const authContextUnresolved =
     explicitIdentityMismatch ||
-    (
-      !hasStableCachedSession &&
-      (
-        authLoading ||
-        !authResolved ||
-        !identityMatchesAuth ||
-        session.id === "unknown"
-      )
-    );
+    !identityMatchesAuth ||
+    !authResolved ||
+    !hasStableCachedSession;
 
   const hasStablePlanContext =
     (platformDataSource === "warm" || platformDataSource === "remote") &&
+    storeIdentityConfirmed &&
     hasStableCachedSession &&
     (isMaster || Boolean(sessionMunicipalityId));
 
@@ -100,6 +96,7 @@ export function usePlanEntitlements() {
     authContextUnresolved ||
     (!isMaster && (
       !municipalityMatchesAuth ||
+      !storeIdentityConfirmed ||
       !sessionMunicipalityId ||
       !municipalityMatchesSession ||
       (!dataReadyForCurrentUser && !hasStablePlanContext) ||
@@ -128,12 +125,13 @@ export function usePlanEntitlements() {
       ...state,
       isMaster,
       isResolving,
+      isDenialConfirmed: !isResolving && Boolean(remoteSyncedForCurrentUser),
       isBackgroundRefreshing,
       dataError,
       isConfigured: Boolean(state.assignment && state.plan),
       canUseModule: (module: PlanModuleName) =>
         !isResolving && (isMaster || planHasModule(state, module)),
     }),
-    [dataError, isBackgroundRefreshing, isMaster, isResolving, state],
+    [dataError, isBackgroundRefreshing, isMaster, isResolving, remoteSyncedForCurrentUser, state],
   );
 }

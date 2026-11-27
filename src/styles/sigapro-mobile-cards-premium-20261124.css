@@ -1,0 +1,401 @@
+/*
+ * SIGAPRO 2026-11-24 — responsividade de cards internos.
+ * Mantem desktop, esquema inverse-main e semantica operacional intactos.
+ * Quebra nomes, e-mails, URLs e valores sem ocultar informacoes essenciais.
+ */
+@media (max-width: 1023px) {
+  html body #root .sig-main-shell :is(
+    .sig-page-shell,.sig-main-grid,.sig-main-content,.sig-side-content,
+    .sig-stats-row,[data-ui="card"],[data-plan-capacity],
+    [data-sigapro-portfolio-registry="compact"]
+  ) {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    box-sizing: border-box;
+  }
+  html body #root .sig-main-shell :is(
+    .sig-stats-row,.sig-main-grid,.sig-section-card,.sig-ui-card,
+    .sig-stat-card,.sig-metric-card
+  ) > :is(div,section,article,aside,header,footer) {
+    min-width: 0;
+    max-width: 100%;
+  }
+  html body #root .sig-main-shell :is(
+    [data-ui="card"],[data-plan-capacity],[data-master-prefeitura-form="premium-standalone"]
+  ) :is(
+    .sig-fit-title,.sig-fit-copy,.sig-section-title,.sig-subtitle,
+    .sig-metric-title,.sig-metric-helper,.sig-stat-value,.sig-metric-value
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    hyphens: none;
+  }
+}
+@media (max-width: 767px) {
+  html body #root .sig-main-shell :is(
+    .sig-stat-card,.sig-metric-card,.sig-section-card,.sig-ui-card,
+    .sig-page-header,[data-plan-capacity]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+  }
+  html body #root .sig-main-shell :is(.sig-stat-card,.sig-metric-card) > div:first-child {
+    min-width: 0;
+    max-width: 100%;
+    gap: 10px;
+  }
+  html body #root .sig-main-shell :is(.sig-stat-card,.sig-metric-card) .sig-stat-icon {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 11px !important;
+  }
+  /* Conteudo deve crescer verticalmente; nao truncar dados reais. */
+  html body #root .sig-main-shell :is(.sig-stat-card,.sig-metric-card)
+  :is(.sig-stat-value,.sig-metric-value,.sig-fit-title,.sig-fit-copy,.sig-metric-title,.sig-metric-helper),
+  html body #root .sig-main-shell :is(.sig-section-card,.sig-ui-card,.sig-page-header)
+  :is(.sig-section-title,.sig-subtitle,.sig-page-title,.sig-fit-title,.sig-fit-copy) {
+    display: block;
+    min-width: 0;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    hyphens: none !important;
+    text-overflow: clip !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+    line-height: 1.4 !important;
+  }
+  html body #root .sig-main-shell :is(.sig-stat-card,.sig-metric-card)
+  :is(.sig-stat-value,.sig-metric-value) {
+    font-size: clamp(17px,5vw,24px);
+    line-height: 1.2 !important;
+  }
+  html body #root .sig-main-shell :is(.sig-stat-card,.sig-metric-card)
+  :is(.sig-fit-title,.sig-metric-title) {
+    letter-spacing: .04em !important;
+  }
+  html body #root .sig-main-shell :is(.sig-section-card,.sig-ui-card,.sig-page-header)
+  :is(.sig-section-actions,.sig-header-actions) {
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+  }
+  html body #root .sig-main-shell :is(.sig-section-card,.sig-ui-card,.sig-page-header)
+  :is(.sig-section-actions,.sig-header-actions) > :is(button,a) {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 40px;
+    flex: 1 1 140px;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  html body #root .sig-main-shell [data-plan-capacity] { padding: 16px; }
+  html body #root .sig-main-shell [data-plan-capacity] :is(
+    h3,p,[data-plan-remaining],[data-plan-remaining-percent]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  html body #root .sig-main-shell [data-plan-capacity] > div.grid {
+    grid-template-columns: minmax(0,1fr);
+    gap: 10px;
+  }
+  /* Relatorios, financas, processos: apenas dimensoes; sem cores forçadas. */
+  html body #root .sig-main-shell :is(
+    .sig-finance-workspace,.sig-protocol-workspace,
+    [data-sigapro-process-workspace],[data-sigapro-overview-quickfacts]
+  ) :is(.sig-fit-title,.sig-fit-copy,[data-summary-title],[data-summary-light-title]) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+  }
+  html body #root .sig-main-shell [data-master-prefeitura-form="premium-standalone"]
+  :is(input,select,textarea,button) {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+@media (max-width: 359px) {
+  html body #root .sig-main-shell :is(.sig-stat-card,.sig-metric-card) {
+    padding: 12px !important;
+  }
+  html body #root .sig-main-shell [data-plan-capacity] {
+    padding: 12px;
+  }
+}
+
+
+/* Carteira Master: os mesmos registros da tabela viram cards somente no telefone.
+   Mantem a listagem original, o detalhe expansivel e a paginacao intactos. */
+@media (max-width: 767px) {
+  html body #root .sig-main-shell
+  [data-sigapro-portfolio-registry="compact"] [data-mobile-portfolio-scroll="true"] {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: visible !important;
+    border: 0;
+    background: transparent;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0 !important;
+    table-layout: auto;
+    border: 0;
+    background: transparent;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] table > thead { display: none; }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"] table > tbody {
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 10px;
+    min-width: 0;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 4px 12px;
+    width: 100%;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #dbe4ed;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(15,23,42,.06);
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] > td {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    padding: 6px 0;
+    border: 0;
+    text-align: left;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] > td:first-child,
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] > td:last-child {
+    grid-column: 1 / -1;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] > td:first-child {
+    margin-bottom: 4px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] td[data-mobile-label]::before {
+    content: attr(data-mobile-label);
+    display: block;
+    margin-bottom: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    line-height: 1.3;
+    color: #475569;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] :is(p,.truncate) {
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] td:last-child button {
+    min-height: 42px;
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-details-row="true"] {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    margin-top: -10px;
+  }
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  td[data-sigapro-portfolio-details="open"] {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #dbe4ed;
+    border-top: 0;
+    border-radius: 0 0 16px 16px;
+    overflow-wrap: anywhere;
+  }
+  html body #root .sig-main-shell :is(
+    [data-master-institution-card],[data-master-user-card]
+  ) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  html body #root .sig-main-shell :is(
+    [data-master-institution-card],[data-master-user-card]
+  ) :is(.sig-fit-title,.sig-fit-copy,.truncate,.sig-url-display) {
+    min-width: 0;
+    max-width: 100%;
+    display: block;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+  }
+  html body #root .sig-main-shell :is(
+    [data-master-institution-card],[data-master-user-card]
+  ) :is(button,a) {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  html body #root .sig-main-shell
+  [data-sigapro-overview-quickfacts="true"] :is(.truncate,[data-summary-label],[data-summary-title],[data-summary-light-title]) {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    text-overflow: clip !important;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] {
+    background: #1b364c !important;
+    border-color: #49677f !important;
+    color: #f6fbff;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-portfolio-registry="compact"] tr[data-sigapro-portfolio-row="true"] p {
+    color: #f1f7fc !important;
+  }
+  html body #root [data-layout-mode="inverse-main"] .sig-main-shell
+  [data-sigapro-portfolio-registry="compact"] td[data-mobile-label]::before {
+    color: #cce4f5 !important;
+  }
+}
+@media (max-width: 359px) {
+  html body #root .sig-main-shell [data-sigapro-portfolio-registry="compact"]
+  tr[data-sigapro-portfolio-row="true"] {
+    grid-template-columns: minmax(0,1fr);
+    padding: 12px;
+  }
+}
+
+
+/* Aplicar a mesma geometria aos cards independentes dos módulos de
+   processos, análise, planos, resumo municipal e financeiro. */
+@media (max-width: 767px) {
+  html body #root .sig-main-shell :is(
+    .sig-process-card,.sig-process-flow-card,.sig-premium-summary-card,
+    .sig-command-metric,.sig-dispatch-destination-card,
+    [data-master-plan-card],[data-master-commercial-plan-card],
+    [data-summary-dark-card],[data-summary-light-card],
+    [data-analysis-availability-card],.sig-dark-panel
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  html body #root .sig-main-shell :is(
+    .sig-process-card,.sig-process-flow-card,.sig-premium-summary-card,
+    .sig-command-metric,.sig-dispatch-destination-card,
+    [data-master-plan-card],[data-master-commercial-plan-card],
+    [data-summary-dark-card],[data-summary-light-card],
+    [data-analysis-availability-card],.sig-dark-panel
+  ) :is(.sig-fit-title,.sig-fit-copy,.truncate,[data-summary-value],
+        [data-summary-label],[data-summary-title]) {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    text-overflow: clip !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+  }
+  html body #root .sig-main-shell :is(
+    [data-master-plan-card],[data-master-commercial-plan-card],
+    [data-analysis-availability-card]
+  ) :is(h2,h3,p,span) {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+}
+
+/* Fila de processos: uma coluna para fatos operacionais em telefone estreito.
+   Sem ocultar SLA, responsáveis ou marcadores do processo. */
+@media (max-width: 430px) {
+  html body #root .sig-main-shell .sig-process-registry .sig-process-row {
+    min-width: 0;
+    max-width: 100%;
+    padding: 12px;
+    row-gap: 10px;
+  }
+  html body #root .sig-main-shell .sig-process-registry .sig-process-flow-group {
+    grid-template-columns: minmax(0,1fr);
+    gap: 8px;
+  }
+  html body #root .sig-main-shell .sig-process-registry :is(
+    .sig-process-number-link,.sig-process-subject-title,
+    .sig-process-interested,.sig-process-responsible-name,
+    .sig-process-marker-label,.sig-process-stage-description
+  ) {
+    display: block;
+    max-width: 100%;
+    max-height: none;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    text-overflow: clip;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+  }
+  html body #root .sig-main-shell .sig-process-registry .sig-process-actions {
+    flex-wrap: wrap;
+    min-width: 0;
+    gap: 8px;
+  }
+  html body #root .sig-main-shell .sig-process-registry .sig-process-open-btn {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 40px;
+    white-space: normal;
+  }
+}

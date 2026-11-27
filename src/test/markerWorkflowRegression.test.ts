@@ -50,9 +50,9 @@ describe("marker workflow", () => {
   it("renders applied markers prominently instead of large process cards", () => {
     const selector = read("src/components/platform/MarkerSelector.tsx");
 
-    expect(selector).toContain("markers.slice(0, 2)");
+    expect(selector).toContain("markers.slice(0, MAX_PERSONAL_PROCESS_MARKERS)");
     expect(selector).toContain('style={{');
     expect(selector).toContain("backgroundColor:");
-    expect(selector).toContain("{markers.length - 2}");
+    expect(selector).toContain("{markers.length - MAX_PERSONAL_PROCESS_MARKERS}");
   });
 });

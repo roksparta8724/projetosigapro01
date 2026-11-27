@@ -1,18 +1,12 @@
-import type { MunicipalStorageConnection } from "../server/municipal-storage";
 import {
-  callDataApiRpc,
+  municipalStorageCommand,
   credentialFingerprint,
   encryptStorageCredentials,
   getMunicipalStorageConnection,
   getMunicipalStorageSecretAdmin,
   normalizeStorageEndpoint,
   testMunicipalStorageConnection,
-} from "../server/municipal-storage";
-
-function readEnv(key: string) {
-  const raw = process.env[key];
-  return raw ? String(raw).replace(/^['"]|['"]$/g, "").trim() : "";
-}
+} from "../server/municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -26,7 +20,9 @@ function setCors(res: Res) {
 function json(res: Res, status: number, body: unknown) {
   setCors(res);
   res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.end(JSON.stringify(body));
 }
 
@@ -34,7 +30,8 @@ async function readJsonBody(req: Req) {
   if (req.body && typeof req.body === "object") return req.body as Record<string, unknown>;
   return new Promise<Record<string, unknown>>((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    let size=0;
+    req.on("data", (chunk) => {const bytes=Buffer.from(chunk);size+=bytes.length;if(size>16384){reject(Error("Configuração excede o limite."));return;}chunks.push(bytes);});
     req.on("end", () => {
       try {
         const raw = Buffer.concat(chunks).toString("utf8");
@@ -55,18 +52,6 @@ function municipalityIdFrom(body: Record<string, unknown>) {
   return id;
 }
 
-async function rpcOrThrow<T>(
-  req: Req,
-  fn: string,
-  body: Record<string, unknown>,
-) {
-  const result = await callDataApiRpc<T>(req, fn, body);
-  if (!result.ok) {
-    throw new Error(result.error || "Operação de armazenamento não autorizada.");
-  }
-  return result.payload;
-}
-
 export default async function handler(req: Req, res: Res) {
   setCors(res);
 
@@ -74,20 +59,10 @@ export default async function handler(req: Req, res: Res) {
   const actionFromQuery = requestUrl.searchParams.get("action") || "";
 
   if (req.method === "GET" && actionFromQuery === "health") {
-    json(res, 200, {
-      ok: true,
-      env: {
-        hasNeonAuthUrl: Boolean(readEnv("VITE_NEON_AUTH_URL")),
-        hasNeonDataApiUrl: Boolean(readEnv("VITE_NEON_DATA_API_URL")),
-        hasR2Endpoint: Boolean(readEnv("R2_ENDPOINT")),
-        hasR2AccessKeyId: Boolean(readEnv("R2_ACCESS_KEY_ID")),
-        hasR2Secret: Boolean(readEnv("R2_SECRET_ACCESS_KEY")),
-        hasR2BucketLogos: Boolean(readEnv("R2_BUCKET_LOGOS")),
-        hasR2BucketDocs: Boolean(readEnv("R2_BUCKET_DOCUMENTOS")),
-        hasOpenAiApiKey: Boolean(readEnv("OPENAI_API_KEY")),
-      },
-      timestamp: new Date().toISOString(),
-    });
+    // Public health is strictly liveness, never an inventory of secrets,
+    // storage providers, API credentials, or which services are configured.
+    // Restricted operational diagnostics use authenticated admin workflows.
+    json(res, 200, { ok: true, service: "sigapro", status: "alive" });
     return;
   }
 
@@ -105,6 +80,7 @@ export default async function handler(req: Req, res: Res) {
     const body = await readJsonBody(req);
     const action = typeof body.action === "string" ? body.action : "get";
     const municipalityId = municipalityIdFrom(body);
+    if(JSON.stringify(body).length>16384)throw Error("Configuração excede o limite.");
 
     if (action === "get") {
       const connection = await getMunicipalStorageConnection(req, municipalityId);
@@ -121,34 +97,10 @@ export default async function handler(req: Req, res: Res) {
       const accessKeyId = String(body.accessKeyId || "").trim();
       const secretAccessKey = String(body.secretAccessKey || "").trim();
 
-      if (!bucketDocuments) {
-        throw new Error("Informe o bucket de documentos da Prefeitura.");
-      }
-      if ((accessKeyId && !secretAccessKey) || (!accessKeyId && secretAccessKey)) {
-        throw new Error("Informe Access Key e Secret Key juntos.");
-      }
-
-      let encrypted: string | null = null;
-      let fingerprint: string | null = null;
-      if (accessKeyId && secretAccessKey) {
-        encrypted = encryptStorageCredentials({ accessKeyId, secretAccessKey });
-        fingerprint = credentialFingerprint(accessKeyId);
-      }
-
-      const connection = await rpcOrThrow<MunicipalStorageConnection>(
-        req,
-        "save_municipal_storage_connection_v1",
-        {
-          _municipality_id: municipalityId,
-          _endpoint_url: endpoint,
-          _region: region,
-          _bucket_documents: bucketDocuments,
-          _base_path: basePath,
-          _force_path_style: forcePathStyle,
-          _credentials_ciphertext: encrypted,
-          _credential_fingerprint: fingerprint,
-        },
-      );
+      if(!bucketDocuments)throw Error("Informe o bucket de documentos da Prefeitura.");
+      if(!accessKeyId||!secretAccessKey)throw Error("Informe Access Key e Secret Key juntas para salvar a configuração.");
+      const ciphertext=encryptStorageCredentials({accessKeyId,secretAccessKey},{municipalityId,endpoint});
+      const connection=await municipalStorageCommand(req,municipalityId,"save",{endpoint,region,bucket:bucketDocuments,basePath,forcePathStyle,ciphertext,fingerprint:credentialFingerprint(accessKeyId)});
       json(res, 200, connection || {});
       return;
     }
@@ -159,54 +111,26 @@ export default async function handler(req: Req, res: Res) {
         throw new Error("Configure o armazenamento próprio antes de testar.");
       }
 
-      try {
-        const result = await testMunicipalStorageConnection(secretConfig);
-        const connection = await rpcOrThrow<MunicipalStorageConnection>(
-          req,
-          "mark_municipal_storage_test_v1",
-          {
-            _municipality_id: municipalityId,
-            _ok: true,
-            _message: result.message,
-          },
-        );
-        json(res, 200, {
-          ...(connection || {}),
-          testOk: true,
-          testMessage: result.message,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Falha no teste de conexão.";
-        await rpcOrThrow<MunicipalStorageConnection>(
-          req,
-          "mark_municipal_storage_test_v1",
-          {
-            _municipality_id: municipalityId,
-            _ok: false,
-            _message: message,
-          },
-        ).catch(() => null);
-        json(res, 400, { error: message, testOk: false });
+      if(!secretConfig.config_revision)throw Error("Salve a configuração antes de testar.");
+      try{
+        const result=await testMunicipalStorageConnection(secretConfig);
+        const connection=await municipalStorageCommand(req,municipalityId,"mark",{revision:secretConfig.config_revision,ok:true});
+        json(res,200,{...connection,testOk:true,testMessage:result.message});
+      }catch{
+        await municipalStorageCommand(req,municipalityId,"mark",{revision:secretConfig.config_revision,ok:false}).catch(()=>null);
+        json(res,400,{error:"Não foi possível comprovar a gravação, leitura e remoção. Confira credenciais e permissões e repita o teste.",testOk:false});
       }
       return;
     }
 
     if (action === "activate") {
-      const connection = await rpcOrThrow<MunicipalStorageConnection>(
-        req,
-        "activate_municipal_storage_connection_v1",
-        { _municipality_id: municipalityId },
-      );
+      const connection = await municipalStorageCommand(req,municipalityId,"activate");
       json(res, 200, connection || {});
       return;
     }
 
     if (action === "use_sigapro") {
-      const connection = await rpcOrThrow<MunicipalStorageConnection>(
-        req,
-        "use_sigapro_storage_v1",
-        { _municipality_id: municipalityId },
-      );
+      const connection = await municipalStorageCommand(req,municipalityId,"use_sigapro");
       json(res, 200, connection || {});
       return;
     }
@@ -214,7 +138,7 @@ export default async function handler(req: Req, res: Res) {
     json(res, 400, { error: "Ação de armazenamento inválida." });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao configurar armazenamento.";
-    console.error("[SIGAPRO][MunicipalStorage] configuração", { error: message });
+    console.warn("[SIGAPRO][MunicipalStorage] configuração não confirmada");
     json(res, 400, { error: message });
   }
 }

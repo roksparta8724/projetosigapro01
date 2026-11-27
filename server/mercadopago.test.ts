@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMercadoPagoGuideBoleto } from "./mercadopago";
 
 const line = "23793388096060157364540663333335168400000300000";
-const barcode = "23795168400000300003388060157364506333333510";
+const barcode = "23791684000003000003388060601573644066333333";
 
 function successPayload(complete = true) {
   return {
@@ -82,6 +82,21 @@ describe("Mercado Pago guide boleto adapter", () => {
     });
   });
 
+  it.each(["reference","amount","payment_amount","method","duplicate_payment","fractional_amount"])("rejects provider response missing or mismatching %s", async (kind) => {
+    process.env.MERCADOPAGO_ENV="test";
+    process.env.MERCADOPAGO_ACCESS_TOKEN_TEST="APP_USR_TEST";
+    const order=successPayload();
+    const payment=order.transactions.payments[0];
+    if(kind==="reference")Object.assign(order,{external_reference:undefined});
+    if(kind==="amount")Object.assign(order,{total_amount:undefined});
+    if(kind==="payment_amount")payment.amount="299.99";
+    if(kind==="method")payment.payment_method.id="pix";
+    if(kind==="duplicate_payment")order.transactions.payments.push({...payment,id:"PAYOTHER123"});
+    if(kind==="fractional_amount")order.total_amount="300.001";
+    vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify(order),{status:201,headers:{"Content-Type":"application/json"}}));
+    const result=await createMercadoPagoGuideBoleto({guideCode:"DAM-ISS-2026-00002",amount:300});
+    expect(result.ok).toBe(false);
+  });
   it("refetches the order when the POST response has not exposed banking fields yet", async () => {
     process.env.MERCADOPAGO_ENV = "test";
     process.env.MERCADOPAGO_ACCESS_TOKEN_TEST = "APP_USR_TEST";

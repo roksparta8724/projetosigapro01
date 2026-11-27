@@ -1,0 +1,137 @@
+/*
+ SIGAPRO Dashboard + Topbar Premium V6
+ Context: user video Nov 12, 2026. A dark empty dashboard hero was showing
+ only two actions while hiding its title and explanation. The new hero has
+ real counts, visible text, accessible actions and a fixed natural height.
+ Topbar is compact but retains focus and accessible hit targets.
+ This layer is loaded LAST after historical !important topbar overrides.
+*/
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+[data-dashboard-hero="compact-v6"] {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  align-self: start !important;
+  background: linear-gradient(120deg,#0d3048 0%,#0d3854 57%,#10516b 100%) !important;
+  border-color: #356982 !important;
+  color: #f8fbff !important;
+  box-shadow: 0 12px 28px rgba(5,35,57,.16) !important;
+}
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+[data-dashboard-hero="compact-v6"] :is([data-dashboard-hero-title],strong) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+[data-dashboard-hero="compact-v6"] :is([data-dashboard-hero-description],[data-dashboard-hero-eyebrow],[data-dashboard-hero-fact] span) {
+  color: #d3e9f8 !important;
+  -webkit-text-fill-color: #d3e9f8 !important;
+}
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+[data-dashboard-hero="compact-v6"] [data-dashboard-hero-fact="true"] {
+  min-width: 0;
+  background: rgba(255,255,255,.075) !important;
+  border: 1px solid rgba(197,229,247,.21) !important;
+}
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+[data-dashboard-hero="compact-v6"] [data-dashboard-hero-actions] > div {
+  gap: 8px !important;
+}
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+[data-dashboard-hero="compact-v6"] [data-dashboard-hero-actions] button {
+  min-height: 36px !important;
+  height: 36px !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+}
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+[data-dashboard-hero="compact-v6"] [data-dashboard-hero-actions] button:first-child {
+  color: #123650 !important;
+  -webkit-text-fill-color: #123650 !important;
+  background: #f7fbff !important;
+  border-color: #d2edf9 !important;
+}
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+[data-dashboard-hero="compact-v6"] [data-dashboard-hero-actions] button:last-child {
+  color: #f8fcff !important;
+  -webkit-text-fill-color: #f8fcff !important;
+  background: rgba(111,192,228,.13) !important;
+  border-color: rgba(185,225,245,.35) !important;
+}
+/* Compact fixed topbar: height, content offset, sticky sidebar all derive
+   from PortalFrame's --sig-topbar-height (60px). No isolated magic number. */
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar {
+  min-height: var(--sig-topbar-height-mobile,60px) !important;
+}
+html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-shell {
+  min-height: var(--sig-topbar-height-mobile,60px) !important;
+}
+@media (min-width: 1024px) {
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar,
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-shell {
+    min-height: var(--sig-topbar-height,60px) !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-brand-badge {
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 13px !important;
+    padding: 2px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-brand-cluster {
+    gap: 9px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-primary-group {
+    gap: 8px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-actions-wrap {
+    gap: 8px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-search-wrap {
+    flex: 0 1 auto !important;
+    width: clamp(185px,18vw,270px) !important;
+    min-width: 160px !important;
+    max-width: 270px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-utility-group {
+    gap: 5px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar :is(.sig-topbar-action-trigger,.sig-topbar-icon-button) {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    border-radius: 13px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-account-cluster {
+    height: 46px !important;
+  }
+}
+@media (max-width: 1023px) {
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-brand-badge {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar :is(.sig-topbar-icon-button,.sig-topbar-control) {
+    min-height: 40px !important;
+  }
+}
+@media (max-width: 640px) {
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar .sig-topbar-brand-subtitle {
+    display: none !important;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+  [data-dashboard-hero="compact-v6"] [data-dashboard-hero-actions] {
+    width: 100%;
+  }
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-main-shell
+  [data-dashboard-hero="compact-v6"] [data-dashboard-hero-actions] > div {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  html body #root .sig-app-frame[data-premium-design="institutional-v3"] .sig-premium-topbar :is(button,a) {
+    transition: none !important;
+    transform: none !important;
+  }
+}

@@ -8,6 +8,7 @@ vi.mock("@/hooks/useAuthGateway", () => ({
     isAuthenticated: true,
     signOut: vi.fn(),
     authenticatedUserId: "daa16788-343c-45fe-a649-bbbce94d4798",
+    authenticatedProfileId: "17b9f386-cf7a-4f92-8646-e3944d28eb4f",
   }),
 }));
 
