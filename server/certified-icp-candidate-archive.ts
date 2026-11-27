@@ -12,7 +12,7 @@ const MAX=32*1024*1024;
 /** Deliberately separate from the official DAM or municipal object namespace.
  * A dedicated account-scoped credential/bucket must be provisioned by the
  * infrastructure operator; never fall back to institutional R2 credentials. */
-function archiveConfig(env:Env){
+export function archiveConfig(env:Env){
  const bucket=String(env.SIGAPRO_QA_CERTIFIED_BUCKET||"").trim();
  const account=String(env.SIGAPRO_QA_CERTIFIED_R2_ACCOUNT_ID||"").trim();
  const accessKeyId=String(env.SIGAPRO_QA_CERTIFIED_R2_ACCESS_KEY_ID||"").trim();

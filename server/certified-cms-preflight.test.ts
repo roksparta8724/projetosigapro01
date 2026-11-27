@@ -134,7 +134,7 @@ describe("CMS independent crypto preflight with real ephemeral QA certificates",
   run(["cms","-sign","-binary","-in","workflow-covered.bin","-signer","leaf.pem","-inkey","leaf.key","-outform","DER","-out","workflow.der","-md","sha256"]);
   const cms=readFileSync(join(dir,"workflow.der"));
   const binding={state:authorization.state,municipalityId:city,profileId:profile,preparedPdfSha256,byteRangeSha256};
-  const start={...binding,nonce:authorization.nonce,processId,requestId,artifactType:"construction_permit" as const,signerSlot:"diretoria" as const};
+  const start={...binding,snapshotSha256:"e".repeat(64),nonce:authorization.nonce,processId,requestId,artifactType:"construction_permit" as const,signerSlot:"diretoria" as const};
   const session={...start,mode:"icp_brasil" as const,environment:"sandbox" as const};
   const req={headers:{authorization:"Bearer synthetic-token"}} as ApiReq;
   const api="https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";

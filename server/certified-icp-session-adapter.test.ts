@@ -5,7 +5,7 @@ import {callDataApiRpc,readBearer,readEnv,type ApiReq} from "./municipal-storage
 vi.mock("./municipal-storage",()=>({callDataApiRpc:vi.fn(),readBearer:vi.fn(),readEnv:vi.fn()}));
 const municipalityId="11111111-1111-4111-8111-111111111111",profileId="22222222-2222-4222-8222-222222222222";
 const binding={state:"a".repeat(43),municipalityId,profileId,preparedPdfSha256:"c".repeat(64),byteRangeSha256:"d".repeat(64)};
-const start={...binding,nonce:"b".repeat(43),processId:"33333333-3333-4333-8333-333333333333",requestId:"44444444-4444-4444-8444-444444444444",artifactType:"construction_permit" as const,signerSlot:"diretoria" as const};
+const start={...binding,snapshotSha256:"e".repeat(64),nonce:"b".repeat(43),processId:"33333333-3333-4333-8333-333333333333",requestId:"44444444-4444-4444-8444-444444444444",artifactType:"construction_permit" as const,signerSlot:"diretoria" as const};
 const session={...start,mode:"icp_brasil" as const,environment:"sandbox" as const};
 const req={headers:{authorization:"Bearer fictional"}} as ApiReq;
 const ok=(payload:unknown)=>({ok:true,status:200,payload,error:""});

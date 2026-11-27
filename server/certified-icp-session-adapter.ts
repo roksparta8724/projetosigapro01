@@ -2,7 +2,8 @@ import {createHmac} from "node:crypto";
 import {callDataApiRpc,readBearer,readEnv,type ApiReq} from "./municipal-storage.js";
 import type {IcpSandboxWorkerDependencies} from "./certified-icp-sandbox-worker.js";
 type SessionBinding={state:string;municipalityId:string;profileId:string;preparedPdfSha256:string;byteRangeSha256:string};
-type StartBinding=SessionBinding&{nonce:string;processId:string;requestId:string;artifactType:"construction_permit"|"habite_se_permit";signerSlot:"diretoria"|"secretaria"};
+type StartBinding=SessionBinding&{snapshotSha256:string;nonce:string;processId:string;requestId:string;artifactType:"construction_permit"|"habite_se_permit";signerSlot:"diretoria"|"secretaria"};
+type PrepareBinding=Pick<StartBinding,"municipalityId"|"profileId"|"processId"|"requestId"|"artifactType"|"signerSlot">;
 type Session=Awaited<ReturnType<IcpSandboxWorkerDependencies["consumeSession"]>>;
 type Actor=Awaited<ReturnType<IcpSandboxWorkerDependencies["reauthorizeSigner"]>>;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -10,8 +11,8 @@ const hash=/^[0-9a-f]{64}$/;
 function checkBinding(binding:SessionBinding){
  if(!uuid.test(binding.municipalityId)||!uuid.test(binding.profileId)||!/^[A-Za-z0-9_-]{43}$/.test(binding.state)||!hash.test(binding.preparedPdfSha256)||!hash.test(binding.byteRangeSha256))throw Error("ITI_SESSION_BINDING_INVALID");
 }
-async function command<T>(req:ApiReq,action:"begin"|"consume"|"reauthorize",binding:SessionBinding|StartBinding){
- checkBinding(binding);
+async function command<T>(req:ApiReq,action:"prepare"|"begin"|"consume"|"reauthorize",binding:SessionBinding|StartBinding|PrepareBinding){
+ if(action!=="prepare")checkBinding(binding as SessionBinding);
  if(!readBearer(req))throw Error("ITI_AUTHENTICATION_REQUIRED");
  const root=readEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET");
  if(!hash.test(root))throw Error("ITI_SERVER_ATTESTATION_UNAVAILABLE");
@@ -24,10 +25,17 @@ async function command<T>(req:ApiReq,action:"begin"|"consume"|"reauthorize",bind
  if(!result.ok||!result.payload)throw Error("ITI_SESSION_NOT_AUTHORIZED");
  return result.payload;
 }
+export async function prepareIcpSandboxSnapshot(req:ApiReq,binding:PrepareBinding){
+ if(![binding.municipalityId,binding.profileId,binding.processId,binding.requestId].every(x=>uuid.test(x))||
+   !["construction_permit","habite_se_permit"].includes(binding.artifactType)||!["diretoria","secretaria"].includes(binding.signerSlot))throw Error("ITI_SESSION_START_INVALID");
+ const result=await command<{snapshotSha256:string}>(req,"prepare",binding);
+ if(!hash.test(result.snapshotSha256))throw Error("ITI_SNAPSHOT_INVALID");
+ return result.snapshotSha256;
+}
 /** Trusted server use only: prepared bytes must have been generated from the
  * authorized persisted snapshot. Never sign a browser-supplied PDF hash. */
 export async function beginIcpSandboxSession(req:ApiReq,binding:StartBinding){
- if(!uuid.test(binding.processId)||!uuid.test(binding.requestId)||!["construction_permit","habite_se_permit"].includes(binding.artifactType)||!["diretoria","secretaria"].includes(binding.signerSlot)||!/^[A-Za-z0-9_-]{43}$/.test(binding.nonce)||binding.nonce===binding.state)throw Error("ITI_SESSION_START_INVALID");
+ if(!hash.test(binding.snapshotSha256)||!uuid.test(binding.processId)||!uuid.test(binding.requestId)||!["construction_permit","habite_se_permit"].includes(binding.artifactType)||!["diretoria","secretaria"].includes(binding.signerSlot)||!/^[A-Za-z0-9_-]{43}$/.test(binding.nonce)||binding.nonce===binding.state)throw Error("ITI_SESSION_START_INVALID");
  const result=await command<{ok:boolean;environment:string;issuanceAuthorized:boolean}>(req,"begin",binding);
  if(result.ok!==true||result.environment!=="sandbox"||result.issuanceAuthorized!==false)throw Error("ITI_SESSION_START_NOT_CONFIRMED");
  return {ok:true as const};
