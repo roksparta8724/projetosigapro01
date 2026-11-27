@@ -2,8 +2,8 @@ import {resolveItiConfig} from "./municipal-iti-sandbox-config.js";
 import {createHash,createHmac,timingSafeEqual} from "node:crypto";
 import {execFileSync} from "node:child_process";
 import {createItiSandboxAuthorization,type ItiSandboxConfig} from "./iti-signature-sandbox.js";
-import {prepareIcpSandboxSnapshot,beginIcpSandboxSession,bindIcpSandboxSession,recordIcpSandboxArchive} from "./certified-icp-session-adapter.js";
-import {archiveConfig,completeAndArchiveIcpSandboxCandidate} from "./certified-icp-candidate-archive.js";
+import {prepareIcpSandboxSnapshot,beginIcpSandboxSession,bindIcpSandboxSession,recordIcpSandboxArchive,readIcpSandboxArchive} from "./certified-icp-session-adapter.js";
+import {archiveConfig,completeAndArchiveIcpSandboxCandidate,verifyRecordedIcpArchive} from "./certified-icp-candidate-archive.js";
 import {inspectPreparedPdfSignature,type PreparedSignatureRange} from "./certified-pdf-byte-range.js";
 import type {CmsTrustBundle} from "./certified-cms-preflight.js";
 import {readBearer,type ApiReq} from "./municipal-storage.js";
@@ -94,4 +94,21 @@ export async function finishSandboxFlow(req:ApiReq,input:{ticket:string;state:st
  const binding={state:t.state,municipalityId:t.municipalityId,profileId:t.profileId,preparedPdfSha256:t.preparedPdfSha256,byteRangeSha256:t.byteRangeSha256};
  const archived=await completeAndArchiveIcpSandboxCandidate({...bindIcpSandboxSession(req,binding),readPreparedPdf:async()=>({bytes:doc.bytes,range:doc.range}),readMunicipalSandboxConfig:async()=>config,readTrustBundle:async()=>trust},{...binding,code:input.code},env);
  return recordIcpSandboxArchive(req,binding,archived);
+}
+
+/** Recover a committed response after a transient HTTP failure. A missing
+ * manifest is not evidence of success and never triggers another signature. */
+export async function recoverSandboxFlow(req:ApiReq,input:{ticket:string;state:string},env:Env=process.env){
+ if(!readBearer(req))throw Error("ITI_AUTHENTICATION_REQUIRED");
+ const t=openSandboxTicket(input.ticket,env);
+ if(t.state!==input.state)throw Error("ITI_SESSION_BINDING_MISMATCH");
+ const resolved=await resolveItiConfig(req,t.municipalityId,t);
+ if(!t.configRevision||resolved.revision!==t.configRevision||t.callbackSha256!==sha(resolved.config.redirectUri))throw Error("ITI_CONFIGURATION_CHANGED");
+ const binding={state:t.state,municipalityId:t.municipalityId,profileId:t.profileId,preparedPdfSha256:t.preparedPdfSha256,byteRangeSha256:t.byteRangeSha256};
+ const proof=await readIcpSandboxArchive(req,binding);
+ if(!proof)return null;
+ const canonical=["sandbox-only","certified-candidates",t.municipalityId,t.processId,t.requestId,t.profileId,t.artifactType,t.signerSlot,proof.sha256+".pdf"].join("/");
+ if(proof.objectKey!==canonical)throw Error("ITI_ARCHIVE_MANIFEST_NOT_CONFIRMED");
+ await verifyRecordedIcpArchive(proof,env);
+ return proof;
 }
