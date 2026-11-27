@@ -99,6 +99,8 @@ export function verifySandboxDetachedCms(input: {
   cmsDer: Uint8Array;
   expectedProviderCertificatePem: string;
   trust: CmsTrustBundle;
+  /** Explicit CAdES certificate-binding gate, not a PAdES compliance claim. */
+  requireCades?: boolean;
 }) {
   const { trust } = input;
   if (trust.environment !== "sandbox" || trust.mode !== input.mode || !["govbr","icp_brasil"].includes(input.mode) ||
@@ -133,7 +135,7 @@ export function verifySandboxDetachedCms(input: {
     // Only the certificate returned by the provider can be selected as signer;
     // exact leaf fingerprint is checked again below. Trust roots are pinned.
     run(["cms","-verify","-binary","-inform","DER","-in",signature,"-content",data,
-      "-nointern","-certfile",certs,...flags,"-signer",signer,"-out",output],"CMS_SIGNATURE_OR_CHAIN_INVALID");
+      "-nointern","-certfile",certs,...flags,...(input.requireCades===true?["-cades"]:[]),"-signer",signer,"-out",output],input.requireCades===true?"CMS_CADES_SIGNATURE_OR_CHAIN_INVALID":"CMS_SIGNATURE_OR_CHAIN_INVALID");
     const actual = pemCertificates(readFileSync(signer,"utf8"),1)[0];
     if (!actual.raw.equals(expected.raw) || !readFileSync(output).equals(Buffer.from(input.coveredBytes))) throw Error("CMS_SIGNER_OR_CONTENT_MISMATCH");
     // OpenSSL verifies current validity, CRL signatures, CRL validity and
@@ -219,4 +221,12 @@ export function verifySandboxIcpPersonCms(input:Parameters<typeof verifySandboxD
   const identity=assertIcpPersonCertificateIdentity(input.expectedProviderCertificatePem,input.expectedProfileCpf);
   if(identity.certificateSha256!==preflight.certificateSha256)throw Error("CMS_SIGNER_OR_CONTENT_MISMATCH");
   return {...preflight,...identity};
+}
+
+/** Preflight for a future PAdES writer: the ESS signing-certificate binding
+ * is checked by OpenSSL as well as the signature, chain, CRL and PDF digest.
+ * Not sufficient for PAdES conformance or an official issuance transition. */
+export function verifySandboxCadesBinding(input:Parameters<typeof verifySandboxDetachedCms>[0]){
+ const result=verifySandboxDetachedCms({...input,requireCades:true});
+ return {...result,cadesCertificateBindingVerified:true as const};
 }
