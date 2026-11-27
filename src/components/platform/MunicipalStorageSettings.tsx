@@ -64,6 +64,7 @@ async function storageRequest(
   if (!response.ok) {
     throw new Error(body.error || "Não foi possível concluir a configuração de armazenamento.");
   }
+  if(body.municipality_id!==municipalityId.toLowerCase())throw Error("O servidor não confirmou a Prefeitura selecionada.");
   return body;
 }
 
@@ -114,14 +115,14 @@ function MunicipalStorageSettingsForm({
   const hasValidTest = connection?.last_test_status === "ok" && Number.isFinite(testAge) && testAge >= 0 && testAge < 86400000;
 
   const statusLabel = useMemo(() => {
-    if (!connection) return "Carregando";
+    if (!connection) return busy==="load" ? "Carregando" : "Configuração não consultada";
     if (isMunicipalActive) return "Armazenamento municipal ativo";
     if (connection.provider === "s3_compatible" && connection.status === "error") {
       return "Conexão municipal com erro";
     }
     if (connection.provider === "s3_compatible") return "Conexão municipal preparada";
     return "SIGAPRO Nuvem ativa";
-  }, [connection, isMunicipalActive]);
+  }, [connection, isMunicipalActive, busy]);
 
   const load = async () => {
     if (!municipalityId) return;
@@ -407,11 +408,12 @@ function MunicipalStorageSettingsForm({
           />
         </div>
 
+        {!connection&&!busy?<Button type="button" variant="outline" onClick={()=>void load()}>Consultar configuração novamente</Button>:null}
         {message ? (
           <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
             messageOk
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-amber-200 bg-amber-50 text-amber-900"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+              : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
           }`}>
             {message}
           </div>
