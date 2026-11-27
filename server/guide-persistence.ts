@@ -43,7 +43,11 @@ export async function readStoredGuide(req: ApiReq, municipalityId: string | unde
   if (!result.ok || !result.payload?.id) {
     throw new Error(result.error || "Guia não encontrada ou acesso não autorizado.");
   }
-  return result.payload;
+  const guide=result.payload;
+  if(guide.municipality_id!==municipalityId||guide.guide_number!==guideCode||
+    typeof guide.process_id!=="string"||!guide.process_id||guideCents(guide.amount)===null)
+    throw Error("Guia inconsistente com a Prefeitura, processo ou valor no Neon.");
+  return {...guide,amount:Number(guide.amount)};
 }
 
 function assertPayableGuide(guide: StoredGuide) {
@@ -104,6 +108,7 @@ export function exactChargeCents(value:unknown):number|null{
   return Number.isSafeInteger(cents)&&cents>0?cents:null;
 }
 function guideCents(value:unknown):number|null{
+  if(typeof value==="string")return exactChargeCents(value);
   if(typeof value!=="number"||!Number.isFinite(value)||value<=0)return null;
   const cents=Math.round(value*100);
   return Number.isSafeInteger(cents)&&
@@ -139,6 +144,9 @@ export function assertProviderChargeMatchesGuide(
   }
   if (guide.bank_reference && guide.bank_reference !== charge.orderId) {
     throw new Error("Guia já vinculada a outra cobrança; é proibido trocar a ordem bancária.");
+  }
+  if (guide.bank_payment_id && guide.bank_payment_id !== charge.paymentId) {
+    throw Error("Guia já vinculada a outro pagamento bancário.");
   }
   const amount = exactChargeCents(charge.amount);
   const original = guideCents(guide.amount);
@@ -190,7 +198,9 @@ export async function persistGuideCharge(req: ApiReq, guide: StoredGuide, charge
   if (!persisted?.id || persisted.id !== guide.id || persisted.municipality_id !== guide.municipality_id ||
       persisted.guide_number !== guide.guide_number || persisted.bank_reference !== charge.orderId ||
       persisted.payment_provider !== "mercado_pago" || persisted.provider_environment !== charge.environment ||
-      Math.round(Number(persisted.amount) * 100) !== Math.round(Number(guide.amount) * 100)) {
+      persisted.process_id!==guide.process_id ||
+      (charge.paymentId && persisted.bank_payment_id!==charge.paymentId) ||
+      guideCents(persisted.amount)===null || guideCents(persisted.amount)!==guideCents(guide.amount)) {
     throw new Error("O Neon não confirmou a persistência da cobrança na guia original.");
   }
   return storedGuideCharge(persisted);

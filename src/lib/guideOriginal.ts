@@ -190,7 +190,7 @@ export async function archiveAndOpenGuide(
   const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   const objectKey = originalObjectKey(original, sha256);
   const uploaded = await uploadFile({ bucket: "process-documents", objectKey, file: new File([bytes], `${code}.pdf`, { type: "application/pdf" }) });
-  if (uploaded.objectKey !== objectKey) throw new Error("O R2 não confirmou a chave permanente do PDF original.");
+  if (uploaded.objectKey !== objectKey || uploaded.sha256!==sha256 || uploaded.fileSizeBytes!==bytes.byteLength) throw new Error("O R2 não confirmou a chave, o tamanho e o SHA-256 do PDF original.");
   // Concurrent opens converge to the first attached original, even if their
   // rendered PDF metadata differs. A failed attach never displays an unsaved PDF.
   original = await guideRpc("attach_payment_guide_original_v1", municipalityId, code, { _object_key: objectKey, _sha256: sha256 });
