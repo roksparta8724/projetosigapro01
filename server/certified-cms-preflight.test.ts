@@ -11,9 +11,9 @@ import { mkdtempSync,readFileSync,writeFileSync,mkdirSync,rmSync } from "node:fs
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll,beforeAll,describe,expect,it,vi } from "vitest";
-import { verifySandboxDetachedCms,assertDetachedSha256Cms,assertIcpPersonCertificateIdentity,verifySandboxIcpPersonCms,type CmsTrustBundle } from "./certified-cms-preflight";
+import { verifySandboxDetachedCms,verifySandboxCadesBinding,assertDetachedSha256Cms,assertIcpPersonCertificateIdentity,verifySandboxIcpPersonCms,type CmsTrustBundle } from "./certified-cms-preflight";
 const sha=(v:string|Uint8Array)=>createHash("sha256").update(v).digest("hex");
-let dir:string, root:string, leaf:string, crl:string, signature:Buffer, attached:Buffer, sha1:Buffer;
+let dir:string, root:string, leaf:string, crl:string, signature:Buffer, attached:Buffer, sha1:Buffer,cades:Buffer;
 const content=Buffer.from("SIGAPRO QA detached signature bytes");
 const run=(args:string[])=>execFileSync("openssl",args,{cwd:dir,timeout:15000,stdio:["ignore","pipe","pipe"]});
 const read=(name:string)=>readFileSync(join(dir,name),"utf8");
@@ -55,7 +55,7 @@ subjectAltName=otherName:2.16.76.1.3.1;UTF8:010119905299822472500000000000000000
    run(["cms","-sign","-binary","-in","input.bin","-signer","leaf.pem","-inkey","leaf.key","-outform","DER","-out",name,...extra]);
    return readFileSync(join(dir,name));
  };
- signature=sign("detached.der",["-md","sha256"]);attached=sign("attached.der",["-md","sha256","-nodetach"]);sha1=sign("sha1.der",["-md","sha1"]);
+ cades=sign("cades.der",["-md","sha256","-cades"]);signature=sign("detached.der",["-md","sha256"]);attached=sign("attached.der",["-md","sha256","-nodetach"]);sha1=sign("sha1.der",["-md","sha1"]);
 },30000);
 afterAll(()=>{if(dir)rmSync(dir,{recursive:true,force:true});});
 function input(){
@@ -69,6 +69,14 @@ describe("CMS independent crypto preflight with real ephemeral QA certificates",
   expect(result.issuanceAuthorized).toBe(false);
   expect(result.identityVerified).toBe(false);
   expect(result.coveredBytesSha256).toBe(sha(content));
+ });
+ it("requires an independently verified ESS certificate binding for CAdES",()=>{
+  const proof=verifySandboxCadesBinding({...input(),cmsDer:cades});
+  expect(proof.cadesCertificateBindingVerified).toBe(true);
+  expect(proof.pdfPolicyVerified).toBe(false);
+  expect(proof.issuanceAuthorized).toBe(false);
+  expect(()=>verifySandboxCadesBinding(input())).toThrow("CMS_CADES_SIGNATURE_OR_CHAIN_INVALID");
+  expect(()=>verifySandboxCadesBinding({...input(),cmsDer:cades,coveredBytes:Buffer.from("altered"),expectedByteRangeSha256:sha("altered")})).toThrow("CMS_CADES_SIGNATURE_OR_CHAIN_INVALID");
  });
  it("rejects attached content, weak digest and trailing DER",()=>{
   expect(()=>assertDetachedSha256Cms(attached)).toThrow("CMS_NOT_DETACHED");
