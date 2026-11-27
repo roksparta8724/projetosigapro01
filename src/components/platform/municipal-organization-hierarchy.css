@@ -1,16 +1,18 @@
 /* Hierarchy is encoded by depth, not administrative unit type. */
 [data-municipal-organogram] [data-org-hierarchy-tone="root"]{--org-badge-bg:#145477;--org-badge-fg:#fff;--org-badge-border:#145477}
-[data-municipal-organogram] [data-org-hierarchy-tone="child"]{--org-badge-bg:#e1eee9;--org-badge-fg:#225947;--org-badge-border:#b3d1c4}
-[data-municipal-organogram] [data-org-hierarchy-tone="nested"]{--org-badge-bg:#eee9f5;--org-badge-fg:#594078;--org-badge-border:#cfc1e0}
+[data-municipal-organogram] [data-org-hierarchy-tone="child"]{--org-badge-bg:#287454;--org-badge-fg:#ffffff;--org-badge-border:#287454}
+[data-municipal-organogram] [data-org-hierarchy-tone="nested"]{--org-badge-bg:#674c91;--org-badge-fg:#ffffff;--org-badge-border:#674c91}
 .dark [data-municipal-organogram] [data-org-hierarchy-tone="child"],[data-layout-mode="inverse-main"] [data-municipal-organogram] [data-org-hierarchy-tone="child"]{--org-badge-bg:#173e34;--org-badge-fg:#d5f5e7;--org-badge-border:#396a59}
 .dark [data-municipal-organogram] [data-org-hierarchy-tone="nested"],[data-layout-mode="inverse-main"] [data-municipal-organogram] [data-org-hierarchy-tone="nested"]{--org-badge-bg:#382950;--org-badge-fg:#f0e5ff;--org-badge-border:#655184}
 html body #root .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code,
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code,
+[data-municipal-organogram] [data-org-hierarchy-tone].sig-org-hierarchy-code,
 [data-municipal-organogram] [data-org-hierarchy-tone].sig-org-hierarchy-swatch{
  background:var(--org-badge-bg)!important;border:1px solid var(--org-badge-border)!important;color:var(--org-badge-fg)!important;-webkit-text-fill-color:var(--org-badge-fg)!important;box-shadow:none!important;
 }
 html body #root .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code strong,
-html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code strong{
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell [data-municipal-organogram="true"] [data-org-hierarchy-tone].sig-org-hierarchy-code strong,
+[data-municipal-organogram] [data-org-hierarchy-tone].sig-org-hierarchy-code strong{
  color:var(--org-badge-fg)!important;-webkit-text-fill-color:var(--org-badge-fg)!important;opacity:1!important;
 }
 .sig-org-hierarchy-swatch{display:inline-block;width:12px;height:12px;border-radius:4px;flex:none}

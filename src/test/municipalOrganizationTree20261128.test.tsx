@@ -12,7 +12,10 @@ describe("Organograma recolhível",()=>{
  for(const [name,tone] of [["Administração","root"],["Tecnologia da Informação","child"],["Infraestrutura e Redes","nested"]]){
   const row=screen.getByText(name).closest("[data-organogram-node]");
   expect(row).toHaveAttribute("data-org-hierarchy-row",tone);
-  expect(row?.querySelector("[data-org-hierarchy-tone]")).toHaveAttribute("data-org-hierarchy-tone",tone);
+  const chip=row?.querySelector("[data-org-hierarchy-tone]");
+  expect(chip).toHaveAttribute("data-org-hierarchy-tone",tone);
+  if(tone==="root")expect(chip).toHaveAttribute("data-organogram-code-surface","blue");
+  else expect(chip).not.toHaveAttribute("data-organogram-code-surface");
  }
  });
  it("abre e fecha níveis sem esconder a raiz",()=>{
