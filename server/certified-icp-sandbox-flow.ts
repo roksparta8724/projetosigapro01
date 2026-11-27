@@ -9,7 +9,7 @@ import type {CmsTrustBundle} from "./certified-cms-preflight.js";
 import {readBearer,type ApiReq} from "./municipal-storage.js";
 type Env=Record<string,string|undefined>;
 type Selection=Parameters<typeof prepareIcpSandboxSnapshot>[1];
-type Ticket=Selection&{configRevision?:string;state:string;snapshotSha256:string;preparedPdfSha256:string;byteRangeSha256:string;expiresAt:number};
+type Ticket=Selection&{configRevision?:string;callbackSha256?:string;state:string;snapshotSha256:string;preparedPdfSha256:string;byteRangeSha256:string;expiresAt:number};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const hash=/^[a-f0-9]{64}$/;
 const sha=(b:Uint8Array|string)=>createHash("sha256").update(b).digest("hex");
@@ -77,7 +77,7 @@ export async function startSandboxFlow(req:ApiReq,selection:Selection,env:Env=pr
  const authorization=createItiSandboxAuthorization(config,"icp_brasil");
  const snapshotSha256=await prepareIcpSandboxSnapshot(req,selection);
  const doc=createSandboxEvidencePdf(selection,snapshotSha256,authorization.state);
- const ticket:Ticket={...selection,configRevision:resolved.revision,state:authorization.state,snapshotSha256,preparedPdfSha256:doc.preparedPdfSha256,byteRangeSha256:doc.byteRangeSha256,expiresAt:authorization.expiresAt};
+ const ticket:Ticket={...selection,configRevision:resolved.revision,callbackSha256:sha(config.redirectUri),state:authorization.state,snapshotSha256,preparedPdfSha256:doc.preparedPdfSha256,byteRangeSha256:doc.byteRangeSha256,expiresAt:authorization.expiresAt};
  await beginIcpSandboxSession(req,{...selection,state:ticket.state,nonce:authorization.nonce,snapshotSha256,preparedPdfSha256:ticket.preparedPdfSha256,byteRangeSha256:ticket.byteRangeSha256});
  return {authorizationUrl:authorization.url,ticket:sealSandboxTicket(ticket,env),state:ticket.state,expiresAt:ticket.expiresAt,environment:"sandbox",issuanceAuthorized:false};
 }
@@ -88,6 +88,7 @@ export async function finishSandboxFlow(req:ApiReq,input:{ticket:string;state:st
  const resolved=await resolveItiConfig(req,t.municipalityId,t);
  if(!t.configRevision||resolved.revision!==t.configRevision)throw Error("ITI_CONFIGURATION_CHANGED");
  const {config,trust}=sandboxConfig(t.municipalityId,env,resolved.config);
+ if(t.callbackSha256!==sha(config.redirectUri))throw Error("ITI_CONFIGURATION_CHANGED");
  const doc=createSandboxEvidencePdf(t,t.snapshotSha256,t.state);
  if(doc.preparedPdfSha256!==t.preparedPdfSha256||doc.byteRangeSha256!==t.byteRangeSha256)throw Error("ITI_DOCUMENT_BINDING_MISMATCH");
  const binding={state:t.state,municipalityId:t.municipalityId,profileId:t.profileId,preparedPdfSha256:t.preparedPdfSha256,byteRangeSha256:t.byteRangeSha256};
