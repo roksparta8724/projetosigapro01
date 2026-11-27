@@ -63,6 +63,14 @@ export async function runCertifiedSandbox(selection:SandboxSelection,popup:Windo
   if(context.error||!c||!uuid.test(c.municipality_id||"")||!uuid.test(c.profile_id||"")||c.process_id!==selection.processId||c.signer_slot!==selection.signerSlot||request.request?.status!=="pending"||!uuid.test(request.request.id))throw Error("Solicitação pendente ou competência municipal não confirmada.");
   const start=validateSandboxStart(await post({action:"start",...selection,municipalityId:c.municipality_id,profileId:c.profile_id,requestId:request.request.id},signal));
   const code=await callback(popup,start,signal);
-  return validateSandboxProof(await post({action:"complete",ticket:start.ticket,state:start.state,code},signal));
+  try{
+   return validateSandboxProof(await post({action:"complete",ticket:start.ticket,state:start.state,code},signal));
+  }catch(error){
+   // A lost response may follow a committed manifest. Only query the original
+   // session; never repeat the OAuth code or the external signing operation.
+   if(signal.aborted||Date.now()>=start.expiresAt)throw error;
+   try{return validateSandboxProof(await post({action:"status",ticket:start.ticket,state:start.state},signal));}
+   catch{throw error;}
+  }
  }finally{if(!popup.closed)popup.close();}
 }
