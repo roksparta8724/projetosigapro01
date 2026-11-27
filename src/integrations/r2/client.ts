@@ -290,7 +290,7 @@ export async function getSignedUrlForObjectStrict(input: {
 }
 
 // A 3 MiB PDF base64 request stays below the Vercel 4.5 MB function payload limit.
-const LARGE_LEGAL_PDF_THRESHOLD = 3 * 1024 * 1024;
+const LARGE_LEGAL_PDF_THRESHOLD = PROCESS_INLINE_MAX_BYTES;
 const LEGAL_PROXY_CHUNK_BYTES = 2 * 1024 * 1024;
 const LEGAL_PDF_KEY = /^municipalities\/[0-9a-f-]{36}\/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)\//i;
 

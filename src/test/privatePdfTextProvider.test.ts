@@ -34,5 +34,8 @@ describe("Private PDF textual adapter",()=>{
   expect(options?.redirect).toBe("error");
   expect(String(options?.body)).not.toContain("private-file.pdf");
   expect(String(options?.body)).not.toContain("application/pdf");
+  const prompt=JSON.parse(String(options?.body)).messages[0].content;
+  expect(prompt).toContain("floor_count");expect(prompt).toContain("occupancy_percent");
+  expect(prompt).not.toContain("coverage_percent");expect(prompt).not.toMatch(/\bfloors\b/);
  });
 });

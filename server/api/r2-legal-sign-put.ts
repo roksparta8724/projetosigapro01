@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { assertStoredDocumentBytes } from "../document-storage-integrity.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { callDataApiRpc, readBearer, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { resolveR2Endpoint } from "../r2-runtime.js";
@@ -109,11 +110,14 @@ export default async function handler(req: Req, res: Res) {
   if (!sameOrigin(req)) return json(res, 403, { error: "Origem não autorizada." });
   if (!readBearer(req)) return json(res, 401, { error: "Sessão SIGAPRO necessária." });
   let input;
-  try { input = validateLegalUploadInput(await readBody(req)); }
+  let raw:unknown;
+  try { raw=await readBody(req); input = validateLegalUploadInput(raw); }
   catch { return json(res, 400, { error: "Solicitação inválida." }); }
   if (!input) return json(res, 400, {
     error: "Somente PDF oficial de legislação, até 100 MB, com chave municipal válida.",
   });
+  const expectedSha=(raw as Record<string,unknown>).fileSha256;
+  if(input.action==="verify"&&(typeof expectedSha!=="string"||!/^[a-f0-9]{64}$/.test(expectedSha)))return json(res,400,{error:"Informe o SHA-256 do PDF original para verificar o arquivo."});
   const gate = await authorize(req, input.municipalityId, input.fileSize);
   if (gate.ok === false) return json(res, gate.status, { code: gate.code, error: gate.error });
   try {
@@ -182,11 +186,12 @@ export default async function handler(req: Req, res: Res) {
     }
     // A response from PUT is not enough: confirm bytes stored match the
     // declared original before allowing the UI to save the permanent reference.
-    const result = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-    if (result.ContentLength !== input.fileSize || result.ContentType !== "application/pdf") {
-      return json(res, 409, { error: "A verificação do PDF armazenado não corresponde ao arquivo original." });
+    try {
+      const proof=await assertStoredDocumentBytes(client,{bucket,objectKey:key,expectedSha256:expectedSha as string,expectedBytes:input.fileSize,contentType:"application/pdf",maxBytes:MAX_OFFICIAL_LEGAL_PDF_BYTES,requirePdf:true});
+      return json(res,200,{ok:true,objectKey:input.objectKey,publicUrl:"",...proof});
+    } catch {
+      return json(res,409,{error:"A verificação dos bytes do PDF armazenado não corresponde ao arquivo original."});
     }
-    return json(res, 200, { ok: true, objectKey: input.objectKey, publicUrl: "" });
   } catch (error) {
     const status = (error as { $metadata?: { httpStatusCode?: number } } | null)?.$metadata?.httpStatusCode;
     return json(res, status === 404 ? 409 : 502, {
