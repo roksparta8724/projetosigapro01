@@ -8,7 +8,14 @@ describe("Modalidades de assinatura externa", () => {
     expect(source).toContain("https://validar.iti.gov.br/");
     expect(source).toContain("ICP-Brasil");
     expect(source).toContain("Integração direta ainda não habilitada");
-    expect(source).not.toMatch(/signProcessArtifact|fetch\(|\.rpc\(|onClick=/);
+    expect(source).not.toMatch(/signProcessArtifact|fetch\(|\.rpc\(/);
+    expect(source).toContain('String(import.meta.env.VITE_SIGAPRO_NEON_ISOLATED)==="true"');
+    expect(source).toContain("runCertifiedSandbox(sandbox,popup,attempt.signal)");
+    expect(source).toContain("Nenhum alvará foi emitido");
+    const client=readFileSync("src/integrations/esign/certifiedSandboxClient.ts","utf8");
+    expect(client).not.toMatch(/signProcessArtifactWithPassword|finalizeHabiteSePermit|finalizeConstructionPermit/);
+    expect(client).toContain('v.issuanceAuthorized!==false');
+    expect(client).toContain('v.manifestRecorded!==true');
   });
   it("exibe as orientações nos dois fluxos sem substituir a confirmação existente", () => {
     for (const file of ["ConstructionPermitPanel", "HabiteSePermitPanel"]) {

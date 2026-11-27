@@ -20,9 +20,11 @@ export function validateSandboxProof(value:unknown):Proof{
  return {manifestRecorded:true,archiveVerified:true,issuanceAuthorized:false,pdfPolicyVerified:false,sha256:v.sha256,environment:"sandbox"};
 }
 async function post(body:Record<string,unknown>,signal:AbortSignal){
+ if(signal.aborted)throw Error("Homologação cancelada.");
  const s=await backendClient.auth.getSession();
  const session=s?.data?.session;const token=session?.access_token||session?.accessToken||session?.token||"";
  if(!token)throw Error("Sua sessão expirou. Entre novamente.");
+ if(signal.aborted)throw Error("Homologação cancelada.");
  const response=await fetch("/api/certified-icp-sandbox",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal});
  if(response.status===404||response.status===503)throw Error("A integração de homologação ainda não está configurada.");
  const data=await response.json().catch(()=>null);

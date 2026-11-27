@@ -1,7 +1,7 @@
 import {randomBytes} from "node:crypto";
 import {currentQaPreview} from "./qa-runtime-scope.js";
 import {startSandboxFlow,finishSandboxFlow} from "./certified-icp-sandbox-flow.js";
-import type {ApiReq} from "./municipal-storage.js";
+import {readBearer,type ApiReq} from "./municipal-storage.js";
 type Res=import("http").ServerResponse;
 function json(res:Res,status:number,body:unknown){res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");res.end(JSON.stringify(body));}
 async function readBody(req:ApiReq){
@@ -11,7 +11,7 @@ async function readBody(req:ApiReq){
  return JSON.parse(Buffer.concat(parts).toString("utf8"));
 }
 export default async function handler(req:ApiReq,res:Res){
- res.setHeader("Cache-Control","no-store");res.setHeader("Referrer-Policy","no-referrer");res.setHeader("X-Content-Type-Options","nosniff");
+ res.setHeader("Cache-Control","no-store");res.setHeader("Cross-Origin-Opener-Policy","unsafe-none");res.setHeader("Referrer-Policy","no-referrer");res.setHeader("X-Content-Type-Options","nosniff");
  if(!currentQaPreview(process.env)||process.env.SIGAPRO_QA_ICP_HTTP_ENABLED!=="true"){json(res,404,{ok:false});return;}
  let redirect:URL;try{redirect=new URL(process.env.SIGAPRO_QA_ICP_REDIRECT_URI||"");}catch{json(res,503,{ok:false,code:"ITI_SANDBOX_NOT_CONFIGURED"});return;}
  if(redirect.protocol!=="https:"||redirect.pathname!=="/api/certified-icp-sandbox"||redirect.host!==req.headers.host){json(res,403,{ok:false});return;}
@@ -25,8 +25,10 @@ export default async function handler(req:ApiReq,res:Res){
  }
  if(req.method!=="POST"){json(res,405,{ok:false});return;}
  if(req.headers.origin!==redirect.origin){json(res,403,{ok:false});return;}
+ if(!readBearer(req)){json(res,401,{ok:false,code:"ITI_AUTHENTICATION_REQUIRED"});return;}
  try{
   const body=await readBody(req);
+  if(!body||typeof body!=="object"||Array.isArray(body)){json(res,400,{ok:false,code:"ITI_REQUEST_INVALID"});return;}
   if(body.action==="start"){
    const result=await startSandboxFlow(req,{municipalityId:body.municipalityId,profileId:body.profileId,processId:body.processId,requestId:body.requestId,artifactType:body.artifactType,signerSlot:body.signerSlot});
    json(res,200,{ok:true,...result});return;
