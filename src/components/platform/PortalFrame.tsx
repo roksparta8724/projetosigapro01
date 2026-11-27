@@ -82,7 +82,7 @@ import { resolveTopbarProcessDestination } from "@/lib/topbarProcessDestination"
 import { buildProcessPath, can, canAccessMunicipalArea,
   getSessionLandingPath, isMunicipalTiDepartmentLabel, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
-import { AppSidebar } from "@/components/platform/AppSidebar";
+import { AppSidebar, type AppSidebarItem } from "@/components/platform/AppSidebar";
 import { MUNICIPAL_ADMIN_SECTIONS } from "@/lib/municipalAdminNavigation";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
@@ -731,7 +731,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       return { ...item, children: item.to==="/prefeitura/ti"&&session.role==="prefeitura_supervisor"?visibleChildren.filter(child=>child.to!=="/prefeitura/ti/equipe"):visibleChildren };
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  const visibleNavItemsResolved = visibleNavItems.flatMap((item) => {
+  const visibleNavItemsResolved = visibleNavItems.flatMap<AppSidebarItem>((item) => {
     if(activeTiDepartment&&item.to==="/dashboard")return [];
     if(session.role==="prefeitura_admin"&&item.to==="/prefeitura/organograma")return [];
     if(session.role==="prefeitura_admin"&&item.to==="/prefeitura")return [{...item,label:"Administração municipal",children:MUNICIPAL_ADMIN_SECTIONS.map(section=>({to:section.to,label:section.label,icon:section.value==="usuarios"?UserRound:section.value==="organograma"?Network:section.value==="historico"?History:section.value==="fila"?ListChecks:LayoutDashboard}))}];

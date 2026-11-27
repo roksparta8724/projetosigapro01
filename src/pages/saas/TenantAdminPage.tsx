@@ -1043,7 +1043,7 @@ export function TenantAdminPage() {
 
           {session.role === "prefeitura_admin" && effectiveScopeId && user.id!==session.id &&
             (isSwitchableMunicipalStaffRole(user.role)||user.role==="prefeitura_supervisor"||user.role==="prefeitura_admin") ? (
-              <MunicipalAuthorityDesignationsEditor key={"authority-"+user.id} municipalityId={effectiveScopeId} profileId={user.id} departments={activeDepartments} supervisor={user.role==="prefeitura_supervisor"} onOrganogram={()=>{setWorkspaceView("organograma");window.scrollTo({top:0,behavior:"instant"});}}/>
+              <MunicipalAuthorityDesignationsEditor key={"authority-"+user.id} municipalityId={effectiveScopeId} profileId={user.id} departments={activeDepartments} supervisor={user.role==="prefeitura_supervisor"} onOrganogram={()=>{navigate("/prefeitura?secao=organograma",{preventScrollReset:true});window.scrollTo({top:0,behavior:"instant"});}}/>
             ) : null}
           {session.role === "prefeitura_admin" && effectiveScopeId &&
             isSwitchableMunicipalStaffRole(user.role) ? (
