@@ -1,6 +1,6 @@
 import {randomBytes} from "node:crypto";
 import {currentQaPreview} from "./qa-runtime-scope.js";
-import {startSandboxFlow,finishSandboxFlow} from "./certified-icp-sandbox-flow.js";
+import {startSandboxFlow,finishSandboxFlow,recoverSandboxFlow} from "./certified-icp-sandbox-flow.js";
 import {readBearer,type ApiReq} from "./municipal-storage.js";
 type Res=import("http").ServerResponse;
 function json(res:Res,status:number,body:unknown){res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");res.end(JSON.stringify(body));}
@@ -32,6 +32,11 @@ export default async function handler(req:ApiReq,res:Res){
   if(body.action==="start"){
    const result=await startSandboxFlow(req,{municipalityId:body.municipalityId,profileId:body.profileId,processId:body.processId,requestId:body.requestId,artifactType:body.artifactType,signerSlot:body.signerSlot});
    json(res,200,{ok:true,...result});return;
+  }
+  if(body.action==="status"&&typeof body.ticket==="string"&&typeof body.state==="string"&&body.code===undefined){
+   const proof=await recoverSandboxFlow(req,{ticket:body.ticket,state:body.state});
+   if(!proof){json(res,409,{ok:false,code:"ITI_MANIFEST_NOT_RECORDED"});return;}
+   json(res,200,{ok:true,...proof});return;
   }
   if(body.action==="complete"&&typeof body.ticket==="string"&&typeof body.state==="string"&&typeof body.code==="string"){
    const result=await finishSandboxFlow(req,{ticket:body.ticket,state:body.state,code:body.code});
