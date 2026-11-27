@@ -1,6 +1,6 @@
 // @vitest-environment node
 import {describe,it,expect,vi} from "vitest";
-import {renderCertifiedPermitDraft} from "./certified-permit-draft-renderer";
+import {renderCertifiedPermitDraft,hashCertifiedPermitRenderPayload} from "./certified-permit-draft-renderer";
 import type {ProcessRecord} from "../src/lib/platform";
 import {buildConstructionPermitFormData} from "../src/lib/constructionPermit";
 const municipalityId="11111111-1111-4111-8111-111111111111",processId="22222222-2222-4222-8222-222222222222",createdAt="2026-11-27T12:30:00.000Z";
@@ -15,7 +15,9 @@ describe("Server render of actual municipal layouts, unsigned sandbox drafts",()
   vi.stubGlobal("fetch",network);
   try{
    for(const input of [construction,habite]){
-    const a=await renderCertifiedPermitDraft(input),b=await renderCertifiedPermitDraft(input);
+    const digest=hashCertifiedPermitRenderPayload(input);
+    const a=await renderCertifiedPermitDraft(input,digest),b=await renderCertifiedPermitDraft(input,digest);
+    expect(a.renderPayloadSha256).toBe(digest);
     expect(a.originalSha256).toBe(b.originalSha256);
     expect(a.preparedPdfSha256).toBe(b.preparedPdfSha256);
     expect(a.bytes.subarray(0,a.originalBytes.length)).toEqual(a.originalBytes);
@@ -28,6 +30,10 @@ describe("Server render of actual municipal layouts, unsigned sandbox drafts",()
   }finally{vi.unstubAllGlobals();}
  });
  it("rejects a mixed tenant, wrong process, wrong permit status or invalid snapshot",async()=>{
-  for(const bad of [{...construction,municipalityId:processId},{...construction,processId:municipalityId},{...construction,snapshotSha256:"invalid"},{...construction,data:{...construction.data,permit:{...construction.data.permit,status:"emitido" as const}}}])await expect(renderCertifiedPermitDraft(bad)).rejects.toThrow();
+  for(const bad of [{...construction,municipalityId:processId},{...construction,processId:municipalityId},{...construction,snapshotSha256:"invalid"},{...construction,data:{...construction.data,permit:{...construction.data.permit,status:"emitido" as const}}}])await expect(renderCertifiedPermitDraft(bad,hashCertifiedPermitRenderPayload(bad))).rejects.toThrow();
+ });
+ it("rejects modified process, legal conditions and municipal branding against the persisted render digest",async()=>{
+  const digest=hashCertifiedPermitRenderPayload(construction);
+  for(const changed of [{...construction,data:{...construction.data,municipalityName:"Outra prefeitura"}},{...construction,data:{...construction.data,process:{...process,ownerName:"Outro titular"}}},{...construction,data:{...construction.data,permit:{...construction.data.permit,formData:{...construction.data.permit.formData,complementaryConditions:"Texto substituido"}}}}])await expect(renderCertifiedPermitDraft(changed,digest)).rejects.toThrow("CERTIFIED_PERMIT_RENDER_PAYLOAD_HASH_MISMATCH");
  });
 });
