@@ -71,3 +71,22 @@ export async function recordIcpSandboxArchive(req:ApiReq,binding:SessionBinding,
    throw Error("ITI_ARCHIVE_MANIFEST_NOT_CONFIRMED");
  return stored;
 }
+
+/** Read-only recovery. The signed server ticket and current authenticated
+ * actor must match the recorded session. Never send the OAuth code here. */
+export async function readIcpSandboxArchive(req:ApiReq,binding:SessionBinding){
+ checkBinding(binding);
+ if(!readBearer(req))throw Error("ITI_AUTHENTICATION_REQUIRED");
+ const root=readEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET");
+ if(!hash.test(root))throw Error("ITI_SERVER_ATTESTATION_UNAVAILABLE");
+ const key=createHmac("sha256",Buffer.from(root,"hex")).update("sigapro-certified-manifest-status-domain-v1").digest();
+ const payload=Buffer.from(JSON.stringify(binding),"utf8").toString("base64"),epoch=String(Math.floor(Date.now()/1000));
+ const mac=createHmac("sha256",key).update(["sigapro-certified-manifest-status-v1",binding.municipalityId,payload,epoch].join("\n")).digest("hex");
+ const response=await callDataApiRpc<ArchiveProof&{manifestRecorded:boolean}>(req,"certified_icp_manifest_status_v1",{_municipality_id:binding.municipalityId,_payload:payload,_epoch:epoch,_mac:mac});
+ const p=response.payload;
+ if(!response.ok||!p||p.environment!=="sandbox"||p.issuanceAuthorized!==false)throw Error("ITI_MANIFEST_STATUS_NOT_AUTHORIZED");
+ if(p.manifestRecorded===false)return null;
+ if(p.manifestRecorded!==true||p.archiveVerified!==true||p.pdfPolicyVerified!==false||p.byteRangeSha256!==binding.byteRangeSha256||
+ ![p.sha256,p.cmsSha256,p.certificateSha256].every(x=>hash.test(x))||!Number.isSafeInteger(p.fileSizeBytes)||p.fileSizeBytes<64||p.fileSizeBytes>33554432||typeof p.objectKey!=="string"||!p.objectKey.startsWith("sandbox-only/certified-candidates/"+binding.municipalityId+"/")||!p.objectKey.endsWith("/"+p.sha256+".pdf"))throw Error("ITI_ARCHIVE_MANIFEST_NOT_CONFIRMED");
+ return p;
+}
