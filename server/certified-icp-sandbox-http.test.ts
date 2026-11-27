@@ -1,9 +1,9 @@
 import {describe,it,expect,vi,beforeEach,afterEach} from "vitest";
 import handler from "./certified-icp-sandbox-http";
-import {startSandboxFlow,finishSandboxFlow} from "./certified-icp-sandbox-flow";
+import {startSandboxFlow,finishSandboxFlow,recoverSandboxFlow} from "./certified-icp-sandbox-flow";
 import type {ApiReq} from "./municipal-storage";
 import type {ServerResponse} from "node:http";
-vi.mock("./certified-icp-sandbox-flow",()=>({startSandboxFlow:vi.fn(),finishSandboxFlow:vi.fn()}));
+vi.mock("./certified-icp-sandbox-flow",()=>({startSandboxFlow:vi.fn(),finishSandboxFlow:vi.fn(),recoverSandboxFlow:vi.fn()}));
 const origin="https://qa.example.invalid";
 const base={VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:"fix/homologacao-geral-sei-dashboard-bank-20261113",VITE_SIGAPRO_NEON_ISOLATED:"true",VITE_NEON_DATA_API_URL:"https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1",SIGAPRO_QA_ICP_HTTP_ENABLED:"true",SIGAPRO_QA_ICP_REDIRECT_URI:origin+"/api/certified-icp-sandbox"};
 const selection={municipalityId:"11111111-1111-4111-8111-111111111111",profileId:"22222222-2222-4222-8222-222222222222",processId:"33333333-3333-4333-8333-333333333333",requestId:"44444444-4444-4444-8444-444444444444",artifactType:"construction_permit" as const,signerSlot:"diretoria" as const};
@@ -48,5 +48,19 @@ describe("ICP sandbox HTTP contract",()=>{
   vi.mocked(finishSandboxFlow).mockRejectedValueOnce(Error("sensitive provider details"));
   const failed=await invoke(req("POST",{action:"complete",...input}));
   expect(failed.status).toBe(409);expect(failed.json().ok).toBe(false);expect(failed.body).not.toContain("sensitive provider details");
+ });
+});
+
+describe("Read-only recovery of a lost completion response",()=>{
+ it("returns only a recorded proof and does not invoke signing again",async()=>{
+  const proof={objectKey:"sandbox-only/fixture.pdf",sha256:"b".repeat(64),fileSizeBytes:123,byteRangeSha256:"c".repeat(64),certificateSha256:"d".repeat(64),cmsSha256:"e".repeat(64),environment:"sandbox" as const,archiveVerified:true as const,pdfPolicyVerified:false as const,issuanceAuthorized:false as const,manifestRecorded:true};
+  const input={ticket:"fixture",state:"a".repeat(43)};
+  vi.mocked(recoverSandboxFlow).mockResolvedValueOnce(proof).mockResolvedValueOnce(null);
+  expect((await invoke(req("POST",{action:"status",...input}))).json()).toEqual({ok:true,...proof});
+  const missing=await invoke(req("POST",{action:"status",...input}));
+  expect(missing.status).toBe(409);expect(missing.json().code).toBe("ITI_MANIFEST_NOT_RECORDED");
+  expect((await invoke(req("POST",{action:"status",...input,code:"must-not-replay"}))).status).toBe(400);
+  expect((await invoke(req("POST",{action:"status",...input},{authorization:""}))).status).toBe(401);
+  expect(finishSandboxFlow).not.toHaveBeenCalled();expect(recoverSandboxFlow).toHaveBeenCalledTimes(2);
  });
 });
