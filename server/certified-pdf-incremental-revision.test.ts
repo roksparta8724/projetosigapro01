@@ -1,7 +1,7 @@
 import {describe,it,expect} from "vitest";
 import {createHash} from "node:crypto";
 import {jsPDF} from "jspdf";
-import {prepareFirstPermitCertificateRevision} from "./certified-pdf-incremental-revision";
+import {prepareFirstPermitCertificateRevision,prepareSecondPermitCertificateRevision} from "./certified-pdf-incremental-revision";
 import {embedUnverifiedPkcs7,assertEmbeddedCmsBytes} from "./certified-pdf-byte-range";
 const sha=(b:Uint8Array)=>createHash("sha256").update(b).digest("hex");
 function fixture(){const p=new jsPDF({compress:true});p.text("SIGAPRO QA - SEM VALIDADE",15,20);p.text("Documento ficticio de ensaio",15,30);p.addPage();p.text("Segunda pagina preservada",15,20);return Buffer.from(p.output("arraybuffer"));}
@@ -27,4 +27,23 @@ describe("Trusted PDF first incremental certificate revision",()=>{
   expect(()=>prepareFirstPermitCertificateRevision({...input,originalBytes:damaged,expectedOriginalSha256:sha(damaged)})).toThrow();
   expect(()=>prepareFirstPermitCertificateRevision({...input,capacityBytes:1})).toThrow();
  });
+});
+
+it("appends the secretary signature without changing the earlier director signature bytes or its covered digest",()=>{
+ const original=fixture(),originalSha=sha(original),first=prepareFirstPermitCertificateRevision({originalBytes:original,expectedOriginalSha256:originalSha,slot:"diretoria",capacityBytes:4096});
+ const cms=Buffer.alloc(32,0x30),signed=embedUnverifiedPkcs7(first.bytes,first.range,first.preparedPdfSha256,first.byteRangeSha256,cms);
+ const input={originalBytes:original,expectedOriginalSha256:originalSha,directorSignedBytes:signed.bytes,expectedDirectorSignedSha256:signed.sha256,directorCmsDer:cms,directorCapacityBytes:4096,capacityBytes:4096};
+ const second=prepareSecondPermitCertificateRevision(input);
+ expect(second.bytes.subarray(0,signed.bytes.length)).toEqual(signed.bytes);
+ const suffix=second.bytes.subarray(signed.bytes.length).toString("latin1");
+ expect(suffix).toContain("SIGAPRO_secretaria");expect(suffix).toContain("/Fields [");
+ expect(second.previousRevisionBytesPreserved).toBe(true);
+ const final=embedUnverifiedPkcs7(second.bytes,second.range,second.preparedPdfSha256,second.byteRangeSha256,Buffer.alloc(48,0x30));
+ expect(final.bytes.subarray(0,signed.bytes.length)).toEqual(signed.bytes);
+ const prefix=final.bytes.subarray(0,signed.bytes.length);
+ expect(sha(Buffer.concat([prefix.subarray(0,first.range[1]),prefix.subarray(first.range[2])]))).toBe(first.byteRangeSha256);
+ expect(second.issuanceAuthorized).toBe(false);
+ const altered=Buffer.from(signed.bytes);altered[first.range[1]+1]^=1;
+ expect(()=>prepareSecondPermitCertificateRevision({...input,directorSignedBytes:altered,expectedDirectorSignedSha256:sha(altered)})).toThrow();
+ expect(()=>prepareSecondPermitCertificateRevision({...input,directorCmsDer:Buffer.alloc(33,0x30)})).toThrow();
 });

@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto";
-import {inspectPreparedPdfSignature,type PreparedSignatureRange} from "./certified-pdf-byte-range.js";
+import {inspectPreparedPdfSignature,assertEmbeddedCmsBytes,type PreparedSignatureRange} from "./certified-pdf-byte-range.js";
 const sha=(b:Uint8Array)=>createHash("sha256").update(b).digest("hex");
 const limit=32*1024*1024;
 const hash=/^[a-f0-9]{64}$/;
@@ -91,4 +91,49 @@ export function prepareFirstPermitCertificateRevision(input:{originalBytes:Uint8
  const inspected=inspectPreparedPdfSignature(bytes,range,sha(bytes));
  if(!bytes.subarray(0,original.length).equals(original))throw Error("PDF_ORIGINAL_BYTES_CHANGED");
  return {bytes,range,originalSha256:input.expectedOriginalSha256,preparedPdfSha256:inspected.preparedPdfSha256,byteRangeSha256:inspected.byteRangeSha256,originalBytesPreserved:true as const,pdfPolicyVerified:false as const,issuanceAuthorized:false as const};
+}
+
+/** Prepare an additional secretary signature ONLY from our exact prior
+ * director revision. The caller must supply archived bytes and persisted
+ * manifest hashes from a trusted, independently verified prior signature.
+ * This method checks serialization and preservation, not CMS trust/policy. */
+export function prepareSecondPermitCertificateRevision(input:{
+ originalBytes:Uint8Array;expectedOriginalSha256:string;directorSignedBytes:Uint8Array;
+ expectedDirectorSignedSha256:string;directorCmsDer:Uint8Array;directorCapacityBytes?:number;capacityBytes?:number;
+}){
+ const previous=Buffer.from(input.directorSignedBytes),capacity=input.capacityBytes??131072;
+ if(previous.length>limit-1024*1024||!hash.test(input.expectedDirectorSignedSha256)||sha(previous)!==input.expectedDirectorSignedSha256)throw Error("PDF_PREVIOUS_REVISION_HASH_MISMATCH");
+ if(!Number.isSafeInteger(capacity)||capacity<1024||capacity>262144)throw Error("PDF_SIGNATURE_RESERVATION_INVALID");
+ const first=prepareFirstPermitCertificateRevision({originalBytes:input.originalBytes,expectedOriginalSha256:input.expectedOriginalSha256,slot:"diretoria",capacityBytes:input.directorCapacityBytes});
+ assertEmbeddedCmsBytes({preparedBytes:first.bytes,signedBytes:previous,range:first.range,preparedSha256:first.preparedPdfSha256,byteRangeSha256:first.byteRangeSha256,cmsDer:input.directorCmsDer});
+ const original=Buffer.from(input.originalBytes),x=readOriginal(original),raw=original.toString("latin1"),catalog=dictionary(raw,x,x.root);
+ const pagesId=Number(/\/Pages\s+(\d+)\s+0\s+R\b/.exec(catalog)?.[1]),pages=dictionary(raw,x,pagesId);
+ const pageId=Number(/\/Kids\s*\[\s*(\d+)\s+0\s+R/.exec(pages)?.[1]),page=dictionary(raw,x,pageId);
+ const priorXref=Number(/startxref\s+(\d+)\s+%%EOF\s*$/.exec(previous.toString("latin1"))?.[1]);
+ if(!Number.isSafeInteger(priorXref)||priorXref<=original.length||previous.subarray(priorXref,priorXref+4).toString()!=="xref")return fail();
+ const directorWidget=x.size,form=x.size+2,widget=x.size+3,signature=x.size+4;
+ const reserved="0000000000 0000000000 0000000000 0000000000";
+ const objects=new Map<number,string>([
+  [pageId,appendDict(page,"/Annots ["+directorWidget+" 0 R "+widget+" 0 R]")],
+  [form,"<< /Fields ["+directorWidget+" 0 R "+widget+" 0 R] /SigFlags 3 >>"],
+  [widget,"<< /Type /Annot /Subtype /Widget /FT /Sig /T (SIGAPRO_secretaria) /F 4 /Rect [0 0 0 0] /P "+pageId+" 0 R /V "+signature+" 0 R >>"],
+  [signature,"<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /ETSI.CAdES.detached /ByteRange ["+reserved+"] /Contents <"+"0".repeat(capacity*2)+"> >>"],
+ ]);
+ let appended="\n";const positions=new Map<number,number>();
+ for(const [n,body] of [...objects].sort((a,b)=>a[0]-b[0])){
+  positions.set(n,previous.length+appended.length);appended+=n+" 0 obj\n"+body+"\nendobj\n";
+ }
+ const xrefOffset=previous.length+appended.length;
+ appended+="xref\n";
+ for(const [n,at] of positions)appended+=n+" 1\n"+xrefLine(at);
+ appended+="trailer\n<< /Size "+(x.size+5)+" /Root "+x.root+" 0 R /Prev "+priorXref+(x.info!==null?" /Info "+x.info+" 0 R":"")+(x.id?" /ID "+x.id:"")+" >>\nstartxref\n"+xrefOffset+"\n%%EOF\n";
+ const marker=appended.indexOf("/Contents <"+"0".repeat(32));
+ if(marker<0||appended.indexOf(reserved)<0)return fail();
+ const start=previous.length+marker+"/Contents ".length,end=start+capacity*2+2;
+ const range:PreparedSignatureRange=[0,start,end,previous.length+appended.length-end];
+ appended=appended.replace(reserved,range.map(n=>String(n).padStart(10,"0")).join(" "));
+ const bytes=Buffer.concat([previous,Buffer.from(appended,"latin1")]);
+ const inspected=inspectPreparedPdfSignature(bytes,range,sha(bytes));
+ if(!bytes.subarray(0,previous.length).equals(previous))throw Error("PDF_PREVIOUS_REVISION_CHANGED");
+ return {bytes,range,previousSha256:input.expectedDirectorSignedSha256,originalSha256:input.expectedOriginalSha256,preparedPdfSha256:inspected.preparedPdfSha256,byteRangeSha256:inspected.byteRangeSha256,previousRevisionBytesPreserved:true as const,pdfPolicyVerified:false as const,issuanceAuthorized:false as const};
 }
