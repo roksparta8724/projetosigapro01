@@ -136,6 +136,7 @@ function readEffectiveThemeCache(): LayoutThemeOverride | null {
 const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "municipal-ti", to: "/prefeitura/ti", label: "Tecnologia da Informação", icon: MonitorCog, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "municipal-organogram", to: "/prefeitura/organograma", label: "Organograma", icon: Network, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "dashboard-master",
@@ -224,6 +225,7 @@ const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefei
 
 const operationalNavItems = [
   "/dashboard",
+  "/prefeitura/ti",
   "/prefeitura/protocolos",
   "/prefeitura/analise",
   "/prefeitura/financeiro",
@@ -662,6 +664,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
 
       const isExternalProfessional = isExternalProfessionalRole(session.role);
+      if(item.to==="/prefeitura/ti"&&!["prefeitura_admin","prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(session.role))return null;
 
       if (item.to.startsWith("/externo") && !isExternalProfessional) return null;
 

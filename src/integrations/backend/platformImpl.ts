@@ -3988,6 +3988,27 @@ async function createDetachedNeonEmailAccount(input: {
   throw new Error(message);
 }
 
+/** All TI actions are authorized against the canonical municipal identity in Neon. */
+export async function municipalItCommand<T=unknown>(municipalityId:string,action:string,payload:Record<string,unknown>={}):Promise<T>{
+ if(!db||!isNeonBackend)throw Error("Departamento de TI exige o banco Neon.");
+ const {data,error}=await db.rpc("municipal_it_command_v1",{_municipality_id:municipalityId,_action:action,_payload:payload});
+ if(error)throw Error(error.message||"Operação TI não autorizada.");
+ if(!data||typeof data!=="object")throw Error("O banco não confirmou a operação TI.");
+ return data as T;
+}
+export async function provisionMunicipalItStaff(input:{municipalityId:string;requestId:string;temporaryPassword:string}){
+ const provision=()=>municipalItCommand<{ready:boolean;reason?:string;email?:string;name?:string;profileId?:string}>(input.municipalityId,"provision",{requestId:input.requestId});
+ let saved=await provision();
+ if(!saved.ready&&saved.reason==="auth_missing"){
+  if(!saved.email||!saved.name)throw Error("Identidade do memorando não confirmada.");
+  if(!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(input.temporaryPassword))throw Error("Senha provisória: mínimo de oito caracteres, maiúscula, minúscula, número e símbolo.");
+  await createDetachedNeonEmailAccount({email:saved.email,name:saved.name,password:input.temporaryPassword});
+  for(const delay of [0,150,350,800]){if(delay)await new Promise(resolve=>setTimeout(resolve,delay));saved=await provision();if(saved.ready)break;}
+ }
+ if(!saved.ready||!saved.profileId)throw Error("O Neon não confirmou a criação da conta e lotação. Retome o mesmo memorando.");
+ return saved;
+}
+
 /** Onboard a platform operator only after canonical Master authorization in Neon.
  * sign-up/email uses credentials:omit, so the current Master login is untouched.
  */
