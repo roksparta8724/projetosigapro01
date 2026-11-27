@@ -1,4 +1,4 @@
-import {renderCertifiedPermitDraft} from "./certified-permit-draft-renderer.js";
+import {renderCertifiedPermitDraft,hashCertifiedPermitRenderPayload} from "./certified-permit-draft-renderer.js";
 import {archiveCertifiedPermitDraft,readArchivedCertifiedPermitDraft,type CertifiedDraftArchiveManifest} from "./certified-permit-draft-archive.js";
 type Snapshot=Parameters<typeof renderCertifiedPermitDraft>[0];
 type Scope=Parameters<typeof readArchivedCertifiedPermitDraft>[1];
@@ -31,6 +31,7 @@ export async function prepareArchivedMunicipalDraft(input:{
 }){
  const {snapshot,requestId,registry}=input,env=input.env??process.env,storage=input.storage??defaultStorage;
  const scope:Scope={municipalityId:snapshot.municipalityId,processId:snapshot.processId,artifactType:snapshot.artifactType,snapshotSha256:snapshot.snapshotSha256,renderPayloadSha256:input.expectedRenderPayloadSha256,requestId};
+ if(hashCertifiedPermitRenderPayload(snapshot)!==input.expectedRenderPayloadSha256)throw Error("CERTIFIED_PERMIT_RENDER_PAYLOAD_HASH_MISMATCH");
  const existing=await registry.read(scope);
  if(existing){
   const doc=await storage.read(existing,scope,env);

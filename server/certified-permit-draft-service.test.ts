@@ -37,6 +37,8 @@ describe("Municipal draft render, immutable archive, and manifest commit",()=>{
   expect(first.registryConfirmed).toBe(true);expect(first.issuanceAuthorized).toBe(false);
   expect(f.events).toEqual(["registry:read","PutObjectCommand","GetObjectCommand","PutObjectCommand","GetObjectCommand","registry:commit","GetObjectCommand","GetObjectCommand"]);
   f.events.length=0;
+  await expect(prepareArchivedMunicipalDraft({...input,snapshot:{...snapshot,data:{...snapshot.data,municipalityName:"Prefeitura divergente"}}})).rejects.toThrow("CERTIFIED_PERMIT_RENDER_PAYLOAD_HASH_MISMATCH");
+  expect(f.events).toEqual([]);
   const retry=await prepareArchivedMunicipalDraft(input);
   expect(retry.reused).toBe(true);expect(retry.document.bytes).toEqual(first.document.bytes);
   expect(f.events).toEqual(["registry:read","GetObjectCommand","GetObjectCommand"]);
