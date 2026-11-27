@@ -17,7 +17,7 @@ vi.mock("./municipal-storage", () => ({
 }));
 vi.mock("./guide-persistence",()=>({readStoredGuide:mocks.guide}));
 vi.mock("./municipal-payment",()=>({resolveMercadoPagoMunicipalAccessToken:mocks.token}));
-import { qaMercadoPagoPix, qaPixIdempotencyKey } from "./qa-mercadopago-pix";
+import { qaMercadoPagoPix, qaPixIdempotencyKey,confirmHostedPixState } from "./qa-mercadopago-pix";
 const municipalityId="11111111-1111-4111-8111-111111111111";
 const guideCode="DAM-PRE-20261022-7791A2E9";
 const request={headers:{authorization:"Bearer QA_TOKEN"}} as never;
@@ -72,6 +72,23 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
     const duplicate=await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"});
     expect(duplicate.orderId).toBe(first.orderId);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it("requires exact durable hosted receipt, including every banking field",()=>{
+    const expected={state:"issued" as const,amount:"35.24",municipalityId,guideCode,orderId:"ORDER_QA_PIX_001",paymentId:"PAY_QA_001",qrCode:qr,status:"action_required"};
+    expect(confirmHostedPixState({...expected},expected)).toEqual(expected);
+    expect(()=>confirmHostedPixState(null,expected)).toThrow(/Neon não confirmou/);
+    for(const patch of [{state:"pending" as const},{amount:"35.25"},{municipalityId:"another"},{guideCode:"other"},{orderId:"different"},{paymentId:"different"},{qrCode:""},{status:"rejected"}]){
+      expect(()=>confirmHostedPixState({...expected,...patch},expected)).toThrow(/Neon não confirmou/);
+    }
+  });
+  it("refuses a valid QR for a different amount",async()=>{
+    const wrong=buildPixPayload({key:"sandbox@example.test",merchantName:"MERCADO PAGO TESTE",merchantCity:"SAO PAULO",amount:99.99,txid:"QA-PIX-01"})!;
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id:"ORDER_QA_PIX_001",external_reference:guideCode,total_amount:"35.24",
+      transactions:{payments:[{id:"PAY_QA_001",amount:"35.24",status:"action_required",payment_method:{id:"pix",type:"bank_transfer",qr_code:wrong}}]},
+    }),{status:201,headers:{"Content-Type":"application/json"}})));
+    await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"})).rejects.toThrow(/valor do QR PIX diverge/);
+    expect(await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"get"})).toMatchObject({ok:false});
   });
   it("blocks production provider credentials before any payment request",async()=>{
     mocks.token.mockResolvedValue({environment:"production",token:"APP_USR_PRODUCTION"});

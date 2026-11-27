@@ -18,7 +18,7 @@ import type { ApiReq } from "./municipal-storage.js";
 import { callDataApiRpc, getDataApiUrl } from "./municipal-storage.js";
 import { readStoredGuide } from "./guide-persistence.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
-import { isValidPixPayload } from "../src/lib/pix.js";
+import { isValidPixPayload,pixPayloadAmountCents } from "../src/lib/pix.js";
 
 export type QaPixResult = {
   ok: boolean;
@@ -109,6 +109,30 @@ export function qaPixIdempotencyKey(branch: string, municipalityId: string, guid
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-8${hex.slice(17,20)}-${hex.slice(20,32)}`;
 }
 
+/** Accept only the exact durable bank receipt. A network response or a
+ * locally assembled Store is never a substitute for committed hosted state. */
+export function confirmHostedPixState(value:Store|null,expected:Store):Store{
+  if(!value||value.state!==expected.state||value.amount!==expected.amount||
+    value.guideCode!==expected.guideCode||value.municipalityId!==expected.municipalityId||
+    (value.orderId||"")!==(expected.orderId||"")||
+    (value.paymentId||"")!==(expected.paymentId||"")||
+    (value.qrCode||"")!==(expected.qrCode||"")||
+    (value.status||"")!==(expected.status||""))
+    throw Error("O Neon não confirmou a cobrança PIX. Reutilize a mesma guia para recuperar a ordem.");
+  return value;
+}
+function validStoredPix(store:Store,amount:string,municipalityId:string,guideCode:string){
+  if(store.amount!==amount||store.municipalityId!==municipalityId||store.guideCode!==guideCode||
+    (store.orderId&&!isProviderId(store.orderId))||(store.paymentId&&!isProviderId(store.paymentId)))
+    throw Error("O PIX QA não corresponde à guia original.");
+  if(store.state==="issued"&&(!isProviderId(store.orderId)||!isProviderId(store.paymentId)||!isValidPixPayload(store.qrCode)))
+    throw Error("O recibo PIX persistido está incompleto.");
+  if(store.qrCode){
+    if(!isValidPixPayload(store.qrCode))throw Error("O QR persistido é inválido.");
+    const cents=pixPayloadAmountCents(store.qrCode);
+    if(cents!==null&&cents!==exactProviderCents(amount))throw Error("O valor do QR PIX diverge da guia.");
+  }
+}
 function response(store: Store | null): QaPixResult {
   if (!store) return {ok:false,sandboxOnly:true,error:"PIX de teste ainda não emitido."};
   if (!store.qrCode || !isValidPixPayload(store.qrCode) || !store.orderId) {
@@ -146,16 +170,15 @@ export async function qaMercadoPagoPix(
   let stored=hosted
     ? await hostedPixState(input.municipalityId,input.guideCode,idem,"get")
     : await safeRead(path);
+  if(exactProviderCents(guide.amount)===null)throw Error("Valor original da guia PIX inválido.");
+  const amount=Number(guide.amount).toFixed(2);
+  if(stored)validStoredPix(stored,amount,input.municipalityId,input.guideCode);
   if (input.action==="get" && (!stored || stored.state==="issued" || !stored.orderId)) return response(stored);
 
   const resolved=await resolveMercadoPagoMunicipalAccessToken(req,input.municipalityId);
   if(resolved.environment!=="test" || !resolved.token) {
     throw new Error("Somente credenciais Mercado Pago de TESTE são aceitas.");
   }
-  if(exactProviderCents(guide.amount)===null)throw Error("Valor original da guia PIX inválido.");
-  const amount=Number(guide.amount).toFixed(2);
-  if(stored && (stored.amount!==amount || stored.municipalityId!==input.municipalityId ||
-      stored.guideCode!==input.guideCode)) throw new Error("O PIX QA não corresponde à guia original.");
   if(stored?.state==="issued") return response(stored);
 
   type MercadoPagoQaOrder = {
@@ -185,6 +208,9 @@ export async function qaMercadoPagoPix(
       if(hosted){
         stored=await hostedPixState(input.municipalityId,input.guideCode,idem,"reserve");
         if(!stored)throw new Error("A reserva PIX não foi registrada no Neon QA.");
+        validStoredPix(stored,amount,input.municipalityId,input.guideCode);
+        if(stored.state==="issued")return response(stored);
+        if(stored.orderId)throw Error("Já existe uma ordem PIX pendente. Consulte a mesma guia antes de prosseguir.");
       }else{
         await mkdir(dirname(path),{recursive:true,mode:0o700});
         const pending:Store={state:"pending",amount,guideCode:input.guideCode,municipalityId:input.municipalityId};
@@ -234,7 +260,7 @@ export async function qaMercadoPagoPix(
     // the bank-issued QR rather than issuing another order.
     stored={state:"pending",amount,guideCode:input.guideCode,municipalityId:input.municipalityId,
       orderId:String(order.id),status:String(order.status||"processing")};
-    if(hosted)stored=await hostedPixState(input.municipalityId,input.guideCode,idem,"record",stored)??stored;
+    if(hosted)stored=confirmHostedPixState(await hostedPixState(input.municipalityId,input.guideCode,idem,"record",stored),stored);
     else await writeFile(path,JSON.stringify(stored),{mode:0o600});
     return response(stored);
   }
@@ -242,12 +268,15 @@ export async function qaMercadoPagoPix(
       (stored?.paymentId&&payment.id!==stored.paymentId)||payment.payment_method?.id!=="pix" || payment.payment_method?.type!=="bank_transfer"){
     throw new Error("O provedor não retornou uma transação PIX de homologação.");
   }
-  const qr=String(payment.payment_method.qr_code||"");
-  stored={state:qr&&isValidPixPayload(qr)?"issued":"pending",
+  const qr=String(payment.payment_method.qr_code||"").trim();
+  if(qr&&(!isValidPixPayload(qr)||qr.length>3000))throw Error("O provedor retornou QR PIX inválido.");
+  const qrCents=pixPayloadAmountCents(qr);
+  if(qrCents!==null&&qrCents!==exactProviderCents(amount))throw Error("O valor do QR PIX diverge da guia.");
+  stored={state:qr?"issued":"pending",
     amount,guideCode:input.guideCode,municipalityId:input.municipalityId,
     orderId:String(order.id),paymentId:String(payment.id||""),
     qrCode:qr,status:String(payment.status||order.status||"")};
-  if(hosted)stored=await hostedPixState(input.municipalityId,input.guideCode,idem,"record",stored)??stored;
+  if(hosted)stored=confirmHostedPixState(await hostedPixState(input.municipalityId,input.guideCode,idem,"record",stored),stored);
   else await writeFile(path,JSON.stringify(stored),{flag:"w",mode:0o600});
   return response(stored);
 }
