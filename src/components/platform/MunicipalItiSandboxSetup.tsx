@@ -11,10 +11,10 @@ async function request(municipalityId:string,action:"get"|"save",fields:Record<s
  if(!response.ok||!data?.ok||data.issuanceAuthorized!==false)throw Error(data?.message||"Configuração não confirmada.");
  return data as Status;
 }
-export function MunicipalItiSandboxSetup({municipalityId}:{municipalityId:string}){
- const [status,setStatus]=useState<Status|null>(null),[clientId,setClientId]=useState(""),[clientSecret,setClientSecret]=useState(""),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[failed,setFailed]=useState(false);
+function MunicipalItiSandboxSetupForm({municipalityId}:{municipalityId:string}){
+ const [status,setStatus]=useState<Status|null>(null),[clientId,setClientId]=useState(""),[clientSecret,setClientSecret]=useState(""),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[failed,setFailed]=useState(false),[reload,setReload]=useState(0);
  useEffect(()=>{let active=true;setStatus(null);setClientId("");setClientSecret("");setNotice("");setFailed(false);
-  void request(municipalityId,"get").then(s=>{if(active)setStatus(s);}).catch(()=>{if(active){setFailed(true);setNotice("Não foi possível consultar o cadastro.");}});return()=>{active=false;};},[municipalityId]);
+  void request(municipalityId,"get").then(s=>{if(active)setStatus(s);}).catch(()=>{if(active){setFailed(true);setNotice("Não foi possível consultar o cadastro.");}});return()=>{active=false;};},[municipalityId,reload]);
  const save=async()=>{if(busy||!status||!clientId.trim()||!clientSecret.trim())return;setBusy(true);setNotice("");setFailed(false);
  try{const saved=await request(municipalityId,"save",{clientId:clientId.trim(),clientSecret,redirectUri:status.registeredCallback||""});if(!saved.configured)throw Error("Cadastro não confirmado.");setStatus(saved);setClientSecret("");setClientId("");setNotice(saved.registeredCallback?"Credenciais cadastradas. A conexão real ainda precisa ser homologada.":"Credenciais guardadas com segurança. Aguardando o callback registrado e a homologação externa.");}
  catch(e){setFailed(true);setNotice(e instanceof Error?e.message:"Cadastro não confirmado.");}finally{setBusy(false);}};
@@ -28,6 +28,11 @@ export function MunicipalItiSandboxSetup({municipalityId}:{municipalityId:string
  {status&&!status.registeredCallback?<p role="status" className="text-xs text-slate-600 dark:text-slate-300">Você já pode cadastrar as credenciais. O endereço de retorno será definido pela infraestrutura de homologação antes de iniciar assinaturas.</p>:null}
  {status?.registeredCallback&&new URL(status.registeredCallback).origin!==window.location.origin?<p role="status" className="break-words text-xs text-slate-600 dark:text-slate-300">As credenciais podem ser cadastradas aqui. Para assinar em homologação, abra o SIGAPRO no domínio do callback registrado acima.</p>:null}
  <Button type="button" disabled={busy||!status||!clientId.trim()||!clientSecret.trim()} onClick={()=>void save()}>{busy?"Salvando…":"Cadastrar credenciais"}</Button>
+ {!status&&failed?<Button type="button" variant="outline" size="sm" onClick={()=>setReload(n=>n+1)}>Tentar novamente</Button>:null}
  {notice?<p role={failed?"alert":"status"} className="break-words text-xs text-slate-700 dark:text-slate-200">{notice}</p>:null}
  </section>;
+}
+
+export function MunicipalItiSandboxSetup(props:{municipalityId:string}){
+ return <MunicipalItiSandboxSetupForm key={props.municipalityId} {...props}/>;
 }
