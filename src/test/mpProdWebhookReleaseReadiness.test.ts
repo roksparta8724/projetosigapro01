@@ -95,3 +95,15 @@ describe("Production webhook SSL guarantees",()=>{
     expect(()=>prodDatabaseUrl()).toThrow("PROD_BRANCH_REQUIRED");
   });
 });
+
+describe("Financial reversal evidence is never ignored",()=>{
+ it("rejects refund and chargeback evidence at root or payment level",async()=>{
+  const orderId="ORDER123",payment={id:"PAYMENT123",amount:"1.00",paid_amount:"1.00",status:"processed",status_detail:"accredited",payment_method:{id:"pix",type:"bank_transfer"}};
+  const order={id:orderId,status:"processed",status_detail:"accredited",external_reference:"guide",currency:"BRL",total_amount:"1.00",total_paid_amount:"1.00",transactions:{payments:[payment]}};
+  for(const payload of [{...order,total_refunded_amount:"0.01"},{...order,refunds:[{}]},{...order,transactions:{payments:[{...payment,refunded_amount:"0.01"}]}},{...order,transactions:{payments:[{...payment,chargebacks:[{}]}]}},{...order,transactions:{payments:[{...payment,refunds:{id:"bad"}}]}}]){
+   const mock=vi.fn().mockResolvedValue(new Response(JSON.stringify(payload),{status:200}));vi.stubGlobal("fetch",mock);
+   expect((await fetchMunicipalMpOrder(orderId,"fixture-token")).accredited).toBe(false);
+   expect(mock.mock.calls[0][1]).toMatchObject({redirect:"error",cache:"no-store"});
+  }
+ });
+});

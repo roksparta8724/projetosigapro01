@@ -194,21 +194,26 @@ export function compareCnabCandidateToGuide(
   candidate: CnabReturnCandidate,
   guide: { guide_number: string; amount: number | string; paid?: boolean | null; bank_reference?: string | null },
 ) {
-  const value = typeof guide.amount === "number" ? guide.amount.toFixed(2) : String(guide.amount);
+  const value = String(guide.amount);
   const match = /^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(value);
   const [whole, fraction = ""] = value.split(".");
   const cents = match ? Number(whole) * 100 + Number(fraction.padEnd(2, "0")) : null;
-  const referenceMatches = Boolean(
-    guide.bank_reference && candidate.bankReference && guide.bank_reference === candidate.bankReference
-  ) || Boolean(candidate.reference && candidate.reference === guide.guide_number);
-  const amountMatches = cents !== null && Number.isSafeInteger(cents) && cents === candidate.paidCents;
+  const hasBankPair=Boolean(guide.bank_reference&&candidate.bankReference);
+  const hasGuidePair=Boolean(guide.guide_number&&candidate.reference);
+  const bankMatches=hasBankPair&&guide.bank_reference===candidate.bankReference;
+  const guideMatches=hasGuidePair&&guide.guide_number===candidate.reference;
+  // One matching reference must never hide a contradictory second reference.
+  const referenceMatches=(bankMatches||guideMatches)&&(!hasBankPair||bankMatches)&&(!hasGuidePair||guideMatches);
+  const amountMatches = cents !== null && Number.isSafeInteger(cents) && cents > 0 && cents === candidate.paidCents &&
+    (candidate.nominalCents===null||candidate.nominalCents===cents);
+  const validCredit=Boolean(candidate.creditDate&&candidate.occurrenceDate&&candidate.creditDate>=candidate.occurrenceDate&&candidate.netCents>0);
   return {
     referenceMatches,
     amountMatches,
     alreadyPaid: guide.paid === true,
     possibleLiquidation: candidate.classification === "possible_liquidation",
     canAutomaticallySettle: false as const,
-    status: referenceMatches && amountMatches && candidate.classification === "possible_liquidation" && !guide.paid
+    status: referenceMatches && amountMatches && validCredit && candidate.classification === "possible_liquidation" && guide.paid===false
       ? "pending_independent_bank_proof"
       : "manual_investigation_required",
   };

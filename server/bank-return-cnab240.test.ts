@@ -116,3 +116,19 @@ describe("SIGAPRO bank return reader — CNAB240 read-only", () => {
     }).canAutomaticallySettle).toBe(false);
   });
 });
+
+it("requires consistent references, exact nominal cents, unpaid state and credit dates",()=>{
+ const entry=parseCnab240CollectionReturn(fixture(),{expectedBankCode:"041"}).entries[0];
+ const guide={guide_number:"DAM-PRE-2026-123",bank_reference:"NOSSO-2026",amount:"123.45",paid:false};
+ expect(compareCnabCandidateToGuide(entry,guide).status).toBe("pending_independent_bank_proof");
+ for(const [candidate,input] of [
+  [entry,{...guide,bank_reference:"OUTRO"}],
+  [entry,{...guide,guide_number:"OUTRA"}],
+  [entry,{...guide,amount:123.451}],
+  [entry,{...guide,paid:undefined}],
+  [{...entry,nominalCents:12344},guide],
+  [{...entry,creditDate:null},guide],
+  [{...entry,creditDate:"2026-11-09"},guide],
+  [{...entry,netCents:0},guide],
+ ] as const)expect(compareCnabCandidateToGuide(candidate,input).status).toBe("manual_investigation_required");
+});
