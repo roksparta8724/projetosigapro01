@@ -1,4 +1,4 @@
-import {createCipheriv,createDecipheriv,createHmac,randomBytes} from "node:crypto";
+import {createCipheriv,createDecipheriv,createHash,createHmac,randomBytes} from "node:crypto";
 import {callDataApiRpc,readBearer,type ApiReq} from "./municipal-storage.js";
 import {currentQaPreview} from "./qa-runtime-scope.js";
 import {archiveConfig} from "./certified-icp-candidate-archive.js";
@@ -14,8 +14,9 @@ function key(domain:string,env:Env=process.env){
 }
 function aad(city:string){if(!uuid.test(city))throw Error("ITI_MUNICIPALITY_INVALID");return Buffer.from("sigapro-iti-sandbox-credentials-v1\n"+city);}
 function validateCredentials(config:ItiSandboxConfig){
- const url=new URL(config.redirectUri);
- if(!uuid.test(config.municipalityId)||!config.clientId.trim()||!config.clientSecret.trim()||config.clientId.length>512||config.clientSecret.length>2048||/[\r\n]/.test(config.clientId+config.clientSecret)||url.protocol!=="https:"||url.pathname!=="/api/certified-icp-sandbox"||url.username||url.password||url.port||url.search||url.hash)throw Error("ITI_CREDENTIALS_INVALID");
+ if(!uuid.test(config.municipalityId)||!config.clientId.trim()||!config.clientSecret.trim()||config.clientId.length>512||config.clientSecret.length>2048||/[\r\n]/.test(config.clientId+config.clientSecret)||typeof config.redirectUri!=="string")throw Error("ITI_CREDENTIALS_INVALID");
+ // An empty callback is a staged credential, never an executable OAuth config.
+ if(config.redirectUri!==""&&registeredItiCallback({SIGAPRO_QA_ICP_REDIRECT_URI:config.redirectUri})!==config.redirectUri)throw Error("ITI_CREDENTIALS_INVALID");
  return config;
 }
 export function encryptItiCredentials(config:ItiSandboxConfig,env:Env=process.env){
@@ -51,20 +52,31 @@ export function registeredItiCallback(env:Env=process.env):string|null{
   return url.href;
  }catch{return null;}
 }
+/** Stage credentials before infrastructure is configured. Only the trusted
+ * server callback can make a staged entry usable; no browser-supplied URL. */
+export function stageItiCredentials(config:ItiSandboxConfig,env:Env=process.env):ItiSandboxConfig{
+ const callback=registeredItiCallback(env);
+ if(config.redirectUri!==(callback||""))throw Error("ITI_REDIRECT_NOT_REGISTERED");
+ return validateCredentials(config);
+}
+export function bindRegisteredItiCallback(config:ItiSandboxConfig,env:Env=process.env):ItiSandboxConfig{
+ const callback=registeredItiCallback(env);
+ if(!callback||(config.redirectUri!==""&&config.redirectUri!==callback))throw Error("ITI_REDIRECT_NOT_REGISTERED");
+ return validateCredentials({...config,redirectUri:callback});
+}
 export function publicItiConfigStatus(row:ConfigRow,env:Env=process.env){
  let archiveReady=false;try{archiveConfig(env);archiveReady=true;}catch{/* not configured */}
- return {configured:row.configured,updatedAt:row.updatedAt||null,environment:"sandbox",registeredCallback:registeredItiCallback(env),archiveConfigured:archiveReady,trustConfigured:Boolean(env.SIGAPRO_QA_ICP_ROOTS_PEM&&env.SIGAPRO_QA_ICP_ROOTS_SHA256&&env.SIGAPRO_QA_ICP_CRLS_PEM),runtimeEnabled:env.SIGAPRO_QA_ICP_HTTP_ENABLED==="true",issuanceAuthorized:false};
+ return {configured:row.configured,updatedAt:row.updatedAt||null,environment:"sandbox",registeredCallback:registeredItiCallback(env),archiveConfigured:archiveReady,trustConfigured:Boolean(env.SIGAPRO_QA_ICP_ROOTS_PEM&&/^[a-f0-9]{64}$/.test(env.SIGAPRO_QA_ICP_ROOTS_SHA256||"")&&createHash("sha256").update(env.SIGAPRO_QA_ICP_ROOTS_PEM).digest("hex")===env.SIGAPRO_QA_ICP_ROOTS_SHA256&&env.SIGAPRO_QA_ICP_CRLS_PEM?.includes("-----BEGIN X509 CRL-----")),runtimeEnabled:env.SIGAPRO_QA_ICP_HTTP_ENABLED==="true",issuanceAuthorized:false};
 }
 export async function getItiConfigStatus(req:ApiReq,city:string){return publicItiConfigStatus(await command(req,city,"get",{}));}
 export async function saveItiConfig(req:ApiReq,config:ItiSandboxConfig){
- // exact registered callback remains an infrastructure-level restriction
- if(config.redirectUri!==registeredItiCallback())throw Error("ITI_REDIRECT_NOT_REGISTERED");
- const row=await command(req,config.municipalityId,"save",{ciphertext:encryptItiCredentials(config)});
+ const staged=stageItiCredentials(config);
+ const row=await command(req,config.municipalityId,"save",{ciphertext:encryptItiCredentials(staged)});
  if(!row.configured)throw Error("ITI_CONFIGURATION_NOT_CONFIRMED");
  return publicItiConfigStatus(row);
 }
 export async function resolveItiConfig(req:ApiReq,city:string,selection:Selection){
  const row=await command(req,city,"resolve",selection);
  if(!row.configured||!row.ciphertext||!row.revision||!uuid.test(row.revision))throw Error("ITI_SANDBOX_NOT_CONFIGURED");
- return {config:decryptItiCredentials(city,row.ciphertext),revision:row.revision};
+ return {config:bindRegisteredItiCallback(decryptItiCredentials(city,row.ciphertext)),revision:row.revision};
 }
