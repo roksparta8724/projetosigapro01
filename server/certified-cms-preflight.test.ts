@@ -1,9 +1,16 @@
+import {beginIcpSandboxSession,bindIcpSandboxSession} from "./certified-icp-session-adapter";
+import {createItiSandboxAuthorization} from "./iti-signature-sandbox";
+import {completeIcpSandboxCandidate} from "./certified-icp-sandbox-worker";
+import {archiveIcpSandboxCandidate} from "./certified-icp-candidate-archive";
+import type {PreparedSignatureRange} from "./certified-pdf-byte-range";
+import type {ApiReq} from "./municipal-storage";
+import type {S3Client} from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync,readFileSync,writeFileSync,mkdirSync,rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll,beforeAll,describe,expect,it } from "vitest";
+import { afterAll,beforeAll,describe,expect,it,vi } from "vitest";
 import { verifySandboxDetachedCms,assertDetachedSha256Cms,assertIcpPersonCertificateIdentity,verifySandboxIcpPersonCms,type CmsTrustBundle } from "./certified-cms-preflight";
 const sha=(v:string|Uint8Array)=>createHash("sha256").update(v).digest("hex");
 let dir:string, root:string, leaf:string, crl:string, signature:Buffer, attached:Buffer, sha1:Buffer;
@@ -98,6 +105,93 @@ describe("CMS independent crypto preflight with real ephemeral QA certificates",
     expect(()=>assertIcpPersonCertificateIdentity(read(name+".pem"),"52998224725")).toThrow(/CMS_CERT_(IDENTITY|PERSON_TYPE)/);
   }
  });
+ it("integrates actual OAuth transport, authenticated session adapter, real CMS/CRL and verified archive with synthetic external services",async()=>{
+  const city="11111111-1111-4111-8111-111111111111",profile="22222222-2222-4222-8222-222222222222";
+  const processId="33333333-3333-4333-8333-333333333333",requestId="44444444-4444-4444-8444-444444444444";
+  const config={municipalityId:city,clientId:"synthetic-client",clientSecret:"synthetic-secret",redirectUri:"https://example.invalid/callback"};
+  const authorization=createItiSandboxAuthorization(config,"icp_brasil");
+  const authUrl=new URL(authorization.url);
+  expect(authUrl.searchParams.get("scope")).toBe("sign icp_brasil");
+  expect(authUrl.searchParams.get("state")).toBe(authorization.state);
+  // Complete synthetic PDF with catalog, page, form field, signature dictionary and xref.
+  const objects=[
+   "<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [4 0 R] /SigFlags 3 >> >>",
+   "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+   "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Annots [4 0 R] >>",
+   "<< /Type /Annot /Subtype /Widget /FT /Sig /T (QA Synthetic) /Rect [0 0 0 0] /P 3 0 R /V 5 0 R /F 4 >>",
+   "<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /adbe.pkcs7.detached /ByteRange [0000000000 0000000000 0000000000 0000000000] /Contents <"+"0".repeat(16384)+"> >>"
+  ];
+  let raw="%PDF-1.7\n";const offsets=[0];
+  for(let i=0;i<objects.length;i++){offsets.push(raw.length);raw+=(i+1)+" 0 obj\n"+objects[i]+"\nendobj\n";}
+  const xref=raw.length;
+  raw+="xref\n0 6\n0000000000 65535 f \n"+offsets.slice(1).map(x=>String(x).padStart(10,"0")+" 00000 n \n").join("")+"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF\n";
+  const first=raw.indexOf("/Contents <")+10,end=first+16386;
+  const range:PreparedSignatureRange=[0,first,end,raw.length-end];
+  const pdf=Buffer.from(raw.replace("0000000000 0000000000 0000000000 0000000000",range.map(n=>String(n).padStart(10,"0")).join(" ")),"ascii");
+  const covered=Buffer.concat([pdf.subarray(0,first),pdf.subarray(end)]);
+  const preparedPdfSha256=sha(pdf),byteRangeSha256=sha(covered);
+  writeFileSync(join(dir,"workflow-covered.bin"),covered);
+  run(["cms","-sign","-binary","-in","workflow-covered.bin","-signer","leaf.pem","-inkey","leaf.key","-outform","DER","-out","workflow.der","-md","sha256"]);
+  const cms=readFileSync(join(dir,"workflow.der"));
+  const binding={state:authorization.state,municipalityId:city,profileId:profile,preparedPdfSha256,byteRangeSha256};
+  const start={...binding,nonce:authorization.nonce,processId,requestId,artifactType:"construction_permit" as const,signerSlot:"diretoria" as const};
+  const session={...start,mode:"icp_brasil" as const,environment:"sandbox" as const};
+  const req={headers:{authorization:"Bearer synthetic-token"}} as ApiReq;
+  const api="https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
+  const env={VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:"fix/homologacao-geral-sei-dashboard-bank-20261113",VITE_SIGAPRO_NEON_ISOLATED:"true",VITE_NEON_DATA_API_URL:api,R2_AUTH_DATA_API_URL:api,VITE_NEON_AUTH_URL:"https://ep-misty-breeze-b4ri8ig0.neonauth.c-6.us-east-2.aws.neon.tech/synthetic/auth",SIGAPRO_BANK_CHARGE_SIGNING_SECRET:"1".repeat(64),SIGAPRO_QA_CERTIFIED_ARCHIVE_ENABLED:"true",SIGAPRO_QA_CERTIFIED_BUCKET:"sigapro-qa-certified-fixture",SIGAPRO_QA_CERTIFIED_R2_ACCOUNT_ID:"a".repeat(32),SIGAPRO_QA_CERTIFIED_R2_ACCESS_KEY_ID:"synthetic-qa-id",SIGAPRO_QA_CERTIFIED_R2_SECRET_ACCESS_KEY:"synthetic-qa-secret"};
+  const events:string[]=[];
+  let began=false,consumed=false;
+  const provider=vi.fn(async(input:URL|string|Request,init?:RequestInit)=>{
+   const url=new URL(String(input));
+   if(url.href===api+"/rpc/certified_icp_session_command_v1"){
+    const packet=JSON.parse(String(init?.body));const body=JSON.parse(Buffer.from(packet._payload,"base64").toString("utf8"));
+    expect(body).toMatchObject(binding);expect(packet._mac).toMatch(/^[a-f0-9]{64}$/);
+    const action=packet._action;events.push("neon:"+action);
+    if(action==="begin"&&!began){began=true;return Response.json({ok:true,environment:"sandbox",issuanceAuthorized:false});}
+    if(action==="consume"&&began&&!consumed){consumed=true;return Response.json(session);}
+    if(action==="reauthorize"&&consumed)return Response.json({municipalityId:city,profileId:profile,cpf:"52998224725"});
+    return Response.json({message:"synthetic rejection"},{status:403});
+   }
+   if(url.hostname==="cas.staging.iti.br"&&url.pathname.endsWith("/token")){
+    events.push("iti:token");const form=new URLSearchParams(String(init?.body));expect(form.get("code")).toBe("synthetic-code");return Response.json({access_token:"synthetic-access",token_type:"bearer"});
+   }
+   if(url.hostname==="assinatura-api.staging.iti.br"&&url.pathname.endsWith("/certificadoPublico")){events.push("iti:certificate");return new Response(leaf);}
+   if(url.hostname==="assinatura-api.staging.iti.br"&&url.pathname.endsWith("/assinarPKCS7")){
+    events.push("iti:cms");expect(JSON.parse(String(init?.body)).hashBase64).toBe(Buffer.from(byteRangeSha256,"hex").toString("base64"));return new Response(new Uint8Array(cms));
+   }
+   throw Error("Unexpected network destination: "+url.hostname);
+  });
+  let stored:Buffer|undefined;
+  const client={send:vi.fn(async(cmd:{constructor:{name:string};input:Record<string,unknown>})=>{
+   if(cmd.constructor.name==="PutObjectCommand"){
+    events.push("archive:put");expect(cmd.input.IfNoneMatch).toBe("*");
+    if(stored)throw Object.assign(Error("existing"),{$metadata:{httpStatusCode:412}});
+    stored=Buffer.from(cmd.input.Body as Uint8Array);return {};
+   }
+   if(cmd.constructor.name==="GetObjectCommand"){events.push("archive:get");return {ContentLength:stored!.length,ContentType:"application/pdf",Body:(async function*(){yield stored!;})()};}
+   throw Error("Unexpected storage action");
+  })} as unknown as S3Client;
+  try{
+   for(const [k,v] of Object.entries(env))vi.stubEnv(k,v);
+   vi.stubGlobal("fetch",provider);
+   await beginIcpSandboxSession(req,start);
+   const deps={...bindIcpSandboxSession(req,binding),readPreparedPdf:async()=>({bytes:pdf,range}),readMunicipalSandboxConfig:async()=>config,readTrustBundle:async():Promise<CmsTrustBundle>=>({mode:"icp_brasil",environment:"sandbox",rootsPem:root,rootsSha256:sha(root),intermediatesPem:"",crlsPem:crl})};
+   const candidate=await completeIcpSandboxCandidate(deps,{...binding,code:"synthetic-code"});
+   const archive=await archiveIcpSandboxCandidate(candidate,env,client);
+   expect(archive).toMatchObject({archiveVerified:true,issuanceAuthorized:false,pdfPolicyVerified:false});
+   expect(sha(stored!)).toBe(archive.sha256);
+   const storedCovered=Buffer.concat([stored!.subarray(0,first),stored!.subarray(end)]);
+   expect(storedCovered).toEqual(covered);
+   const embedded=Buffer.from(stored!.subarray(first+1,first+1+cms.length*2).toString("ascii"),"hex");
+   expect(embedded).toEqual(cms);
+   expect(verifySandboxIcpPersonCms({mode:"icp_brasil",coveredBytes:storedCovered,expectedByteRangeSha256:byteRangeSha256,cmsDer:embedded,expectedProviderCertificatePem:leaf,trust:await deps.readTrustBundle(),expectedProfileCpf:"52998224725"}).identityVerified).toBe(true);
+   expect(events).toEqual(["neon:begin","neon:consume","neon:reauthorize","iti:token","iti:certificate","iti:cms","neon:reauthorize","archive:put","archive:get"]);
+   const replay=bindIcpSandboxSession(req,binding);
+   await expect(completeIcpSandboxCandidate({...deps,...replay},{...binding,code:"synthetic-code"})).rejects.toThrow("ITI_SESSION_NOT_AUTHORIZED");
+   expect(events.filter(x=>x==="iti:cms")).toHaveLength(1);
+   expect(await archiveIcpSandboxCandidate(candidate,env,client)).toEqual(archive);
+  }finally{vi.unstubAllGlobals();vi.unstubAllEnvs();}
+ },30000);
  it("rejects a revoked leaf even when cryptographic signature still matches",()=>{
   run(["ca","-config","ca.cnf","-revoke","leaf.pem"]);
   run(["ca","-config","ca.cnf","-gencrl","-out","revoked.crl"]);
