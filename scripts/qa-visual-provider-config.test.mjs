@@ -34,3 +34,12 @@ test("reject production, unrelated branch or mismatched Neon API",()=>{
      status:"NOT_VERIFIED_QA_SCOPE"});
  }
 });
+
+test("local-only policy outranks the existence of any external credential",()=>{
+ const r=inspectVisualProviderEnvironment({...qa,ANTHROPIC_API_KEY:"test-only-key-not-a-real-secret",
+  SIGAPRO_AI_PDF_EXTERNAL_POLICY:"local_only",SIGAPRO_AI_PDF_ENABLED:"true"});
+ assert.equal(r.status,"LOCAL_ONLY_POLICY");
+ assert.equal(r.externalVisualConfigured,false);
+ assert.equal(r.localPdfTextAvailable,true);
+ assert.equal(r.visualInferenceProved,false);
+});

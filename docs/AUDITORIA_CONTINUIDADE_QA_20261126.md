@@ -48,3 +48,5 @@ A rotina v2 não registrava provider_charge_saved_at, embora o conciliador exigi
 
 ## Evidência da preview fae54b1 (27/11)
 Quality Gate e migrações aprovados, Vercel READY. Consulta real sandbox do banco confirmou boleto (PASS_BOLETO_GET); PIX não comprovado. Leitura nativa do projeto fictício gerado confirmou três medidas; visual externo NOT_VERIFIED_CONFIG. Não há nova escrita de R2. Novo código ICP: pré-validação de CPF pessoa física em DER, combinada com CMS e CRL, sem ativar emissão e sem pressupor equivalência GOV.BR.
+
+O diagnóstico de configuração agora respeita política local_only e diferencia bloqueio deliberado de credencial ausente. Não altera a política vigente nem envia documento quando a leitura externa está proibida.

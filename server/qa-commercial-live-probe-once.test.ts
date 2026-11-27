@@ -104,7 +104,9 @@ describe("Isolated real commercial integration evidence",()=>{
  },65000);
  (enabled?it:it.skip)("makes one visual inference on artificial architectural plan only",async()=>{
   const resolved=resolveVisualPdfProvider(get);
-  if(!resolved.enabled||!["claude","openai"].includes(resolved.provider.kind)){emit("visual_ai","NOT_VERIFIED_CONFIG");return;}
+  if(get("SIGAPRO_AI_PDF_EXTERNAL_POLICY").toLowerCase()==="local_only"){emit("visual_ai","LOCAL_ONLY_POLICY");return;}
+   if(get("SIGAPRO_AI_PDF_ENABLED").toLowerCase()==="false"){emit("visual_ai","DISABLED");return;}
+   if(!resolved.enabled||!["claude","openai"].includes(resolved.provider.kind)){emit("visual_ai","NOT_VERIFIED_CONFIG");return;}
   try{
    const result=await extractVisualPdf(new Uint8Array(createQa04ArchitecturalPdfBytes()),"SIGAPRO-QA-SYNTHETIC-NO-LEGAL-VALUE.pdf",resolved.provider);
    const comparison=benchmarkQa04ArchitecturalReadings(result.readings);

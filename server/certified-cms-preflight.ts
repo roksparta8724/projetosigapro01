@@ -194,8 +194,8 @@ export function assertIcpPersonCertificateIdentity(certificatePem:string,expecte
     if(name.tag!==160)continue;
     const other=children(name,160);
     // 2.16.76.1.3.3 and .4 belong to legal entities; never substitute these.
-    if(oid(other[0],"6050010303")||oid(other[0],"6050010304"))throw Error("CMS_CERT_PERSON_TYPE_INVALID");
-    if(!oid(other[0],"6050010301"))continue;
+    if(oid(other[0],"604c010303")||oid(other[0],"604c010304"))throw Error("CMS_CERT_PERSON_TYPE_INVALID");
+    if(!oid(other[0],"604c010301"))continue;
     if(other.length!==2)throw Error("CMS_CERT_IDENTITY_INVALID");
     const value=children(other[1],160);
     if(value.length!==1||![4,12,19,22].includes(value[0].tag))throw Error("CMS_CERT_IDENTITY_INVALID");

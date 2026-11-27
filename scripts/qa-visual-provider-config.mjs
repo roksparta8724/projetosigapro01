@@ -17,7 +17,8 @@ export function inspectVisualProviderEnvironment(env=process.env) {
        String(env.VITE_NEON_DATA_API_URL||"")
      ))return {status:"NOT_VERIFIED_QA_SCOPE"};
   const provider=String(env.SIGAPRO_AI_PDF_PROVIDER||"").toLowerCase().trim();
-  const enabled=String(env.SIGAPRO_AI_PDF_ENABLED||"").toLowerCase().trim()!=="false";
+  const localOnly=String(env.SIGAPRO_AI_PDF_EXTERNAL_POLICY||"").toLowerCase().trim()==="local_only";
+  const enabled=!localOnly&&String(env.SIGAPRO_AI_PDF_ENABLED||"").toLowerCase().trim()!=="false";
   const claude=nonblank(env.ANTHROPIC_API_KEY)||nonblank(env.SIGAPRO_ANTHROPIC_API_KEY)||
     nonblank(env.SIGAPRO_CLAUDE_API_KEY)||nonblank(env.CLAUDE_API_KEY);
   const openai=nonblank(env.OPENAI_API_KEY);
@@ -28,7 +29,7 @@ export function inspectVisualProviderEnvironment(env=process.env) {
   const visual=provider==="claude"||provider==="anthropic"?claude:
     provider==="openai"?openai:provider==="gemini"?gemini:false;
   return {
-    status:!enabled?"DISABLED":visual?"CONFIGURED_NOT_PROVEN":"EXTERNAL_VISUAL_NOT_CONFIGURED",
+    status:localOnly?"LOCAL_ONLY_POLICY":!enabled?"DISABLED":visual?"CONFIGURED_NOT_PROVEN":"EXTERNAL_VISUAL_NOT_CONFIGURED",
     configuredProvider:["claude","anthropic","openai","cloudflare","gemini"].includes(provider)
       ?provider:"none",
     externalVisualConfigured:enabled&&visual,
