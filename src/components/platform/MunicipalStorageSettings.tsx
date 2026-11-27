@@ -74,7 +74,7 @@ function providerLabel(connection: StorageConnection | null) {
   return "Armazenamento próprio da Prefeitura";
 }
 
-export function MunicipalStorageSettings({
+function MunicipalStorageSettingsForm({
   municipalityId,
   municipalityName,
 }: {
@@ -84,6 +84,7 @@ export function MunicipalStorageSettings({
   const [connection, setConnection] = useState<StorageConnection | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [messageOk, setMessageOk] = useState(false);
   const [form, setForm] = useState({
     endpointUrl: "",
     region: "us-east-1",
@@ -99,7 +100,18 @@ export function MunicipalStorageSettings({
   const isConfigured =
     connection?.provider === "s3_compatible" &&
     Boolean(connection.endpoint_url && connection.bucket_documents);
-  const hasValidTest = connection?.last_test_status === "ok";
+  const dirty = Boolean(connection && (
+    form.endpointUrl.trim() !== (connection.endpoint_url || "") ||
+    form.region.trim() !== (connection.region || "us-east-1") ||
+    form.bucketDocuments.trim() !== (connection.bucket_documents || "") ||
+    form.basePath.trim().replace(/^\/+|\/+$/g,"") !== (connection.base_path || "") ||
+    form.forcePathStyle !== Boolean(connection.force_path_style) ||
+    form.accessKeyId.trim() || form.secretAccessKey.trim()
+  ));
+  const canSave = Boolean(connection && !isMunicipalActive && form.endpointUrl.trim() && form.bucketDocuments.trim() &&
+    form.accessKeyId.trim() && form.secretAccessKey.trim());
+  const testAge = connection?.last_tested_at ? Date.now() - Date.parse(connection.last_tested_at) : NaN;
+  const hasValidTest = connection?.last_test_status === "ok" && Number.isFinite(testAge) && testAge >= 0 && testAge < 86400000;
 
   const statusLabel = useMemo(() => {
     if (!connection) return "Carregando";
@@ -115,6 +127,7 @@ export function MunicipalStorageSettings({
     if (!municipalityId) return;
     setBusy("load");
     setMessage("");
+    setMessageOk(false);
     try {
       const current = await storageRequest(municipalityId, "get");
       setConnection(current);
@@ -142,10 +155,13 @@ export function MunicipalStorageSettings({
   const save = async () => {
     setBusy("save");
     setMessage("");
+    setMessageOk(false);
     try {
       const next = await storageRequest(municipalityId, "save", form);
+      if(next.status!=="configured" || next.provider!=="s3_compatible" || !next.credentials_configured)throw Error("O servidor não confirmou o cadastro.");
       setConnection(next);
-      setForm((current) => ({ ...current, accessKeyId: "", secretAccessKey: "" }));
+      setForm((current) => ({ ...current, endpointUrl:next.endpoint_url||"",region:next.region||"us-east-1",bucketDocuments:next.bucket_documents||"",basePath:next.base_path||"",forcePathStyle:Boolean(next.force_path_style),accessKeyId: "", secretAccessKey: "" }));
+      setMessageOk(true);
       setMessage(
         "Conexão salva. O repositório permanece inalterado até a validação e ativação.",
       );
@@ -159,13 +175,17 @@ export function MunicipalStorageSettings({
   const test = async () => {
     setBusy("test");
     setMessage("");
+    setMessageOk(false);
     try {
       const next = await storageRequest(municipalityId, "test");
+      if(next.testOk!==true || next.last_test_status!=="ok")throw Error("O servidor não confirmou o teste.");
       setConnection(next);
+      setMessageOk(true);
       setMessage(next.testMessage || "Conexão validada com sucesso.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível validar o armazenamento.");
-      void load();
+      // Keep the error visible and invalidate the local proof; the server rechecks it on activation.
+      setConnection(current=>current?{...current,last_test_status:"error"}:current);
     } finally {
       setBusy("");
     }
@@ -174,9 +194,12 @@ export function MunicipalStorageSettings({
   const activate = async () => {
     setBusy("activate");
     setMessage("");
+    setMessageOk(false);
     try {
       const next = await storageRequest(municipalityId, "activate");
+      if(next.provider!=="s3_compatible" || next.status!=="active")throw Error("Ativação não confirmada pelo servidor.");
       setConnection(next);
+      setMessageOk(true);
       setMessage(
         "Armazenamento da Prefeitura ativado. Novos documentos oficiais serão gravados no repositório municipal.",
       );
@@ -190,9 +213,12 @@ export function MunicipalStorageSettings({
   const activateSigaproR2 = async () => {
     setBusy("sigapro");
     setMessage("");
+    setMessageOk(false);
     try {
       const next = await storageRequest(municipalityId, "use_sigapro");
+      if(next.provider!=="sigapro_r2" || next.status!=="active")throw Error("Retorno ao repositório institucional não confirmado.");
       setConnection(next);
+      setMessageOk(true);
       setMessage("SIGAPRO Nuvem definida como armazenamento ativo.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível alterar o armazenamento.");
@@ -353,7 +379,7 @@ export function MunicipalStorageSettings({
               autoComplete="off"
               value={form.accessKeyId}
               onChange={(event) => setForm((current) => ({ ...current, accessKeyId: event.target.value }))}
-              placeholder={connection?.credentials_configured ? "Deixe vazio para manter a credencial atual" : "Access Key da Prefeitura"}
+              placeholder={connection?.credentials_configured ? "Informe a nova chave para salvar alterações" : "Access Key da Prefeitura"}
             />
           </div>
           <div className="space-y-2">
@@ -363,16 +389,16 @@ export function MunicipalStorageSettings({
               autoComplete="new-password"
               value={form.secretAccessKey}
               onChange={(event) => setForm((current) => ({ ...current, secretAccessKey: event.target.value }))}
-              placeholder={connection?.credentials_configured ? "Deixe vazio para manter a credencial atual" : "Secret Key da Prefeitura"}
+              placeholder={connection?.credentials_configured ? "Informe a nova chave para salvar alterações" : "Secret Key da Prefeitura"}
             />
           </div>
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div>
-            <p className="text-sm font-semibold text-slate-900">Compatibilidade com servidor local</p>
+            <p className="text-sm font-semibold text-slate-900">Formato de acesso ao bucket</p>
             <p className="mt-1 text-xs text-slate-500">
-              Ative para MinIO/Ceph ou gateways que exigem path-style.
+              Use apenas se o endpoint oficial R2 ou AWS S3 exigir path-style.
             </p>
           </div>
           <Switch
@@ -383,7 +409,7 @@ export function MunicipalStorageSettings({
 
         {message ? (
           <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-            /sucesso|validada|ativado|salva|ativo/i.test(message)
+            messageOk
               ? "border-emerald-200 bg-emerald-50 text-emerald-800"
               : "border-amber-200 bg-amber-50 text-amber-900"
           }`}>
@@ -391,12 +417,14 @@ export function MunicipalStorageSettings({
           </div>
         ) : null}
 
+        {dirty&&!isMunicipalActive?<p className="mt-3 text-xs text-slate-600 dark:text-slate-300">Salve os dados e as duas chaves antes de testar ou ativar a nova configuração.</p>:null}
+        {isMunicipalActive?<p className="mt-3 text-xs text-slate-600 dark:text-slate-300">Repositório ativo: alterações exigem migração ou rotação controlada.</p>:null}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button
             type="button"
             variant="outline"
             className="rounded-full"
-            disabled={Boolean(busy)}
+            disabled={Boolean(busy) || !canSave}
             onClick={() => void save()}
           >
             {busy === "save" ? "Salvando..." : "Salvar conexão"}
@@ -405,7 +433,7 @@ export function MunicipalStorageSettings({
             type="button"
             variant="outline"
             className="rounded-full"
-            disabled={Boolean(busy) || !isConfigured}
+            disabled={Boolean(busy) || !isConfigured || dirty}
             onClick={() => void test()}
           >
             {busy === "test" ? "Testando..." : "Testar conexão"}
@@ -413,7 +441,7 @@ export function MunicipalStorageSettings({
           <Button
             type="button"
             className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
-            disabled={Boolean(busy) || !hasValidTest || isMunicipalActive}
+            disabled={Boolean(busy) || !hasValidTest || isMunicipalActive || dirty}
             onClick={() => void activate()}
           >
             {busy === "activate" ? "Ativando..." : "Ativar armazenamento municipal"}
@@ -429,4 +457,10 @@ export function MunicipalStorageSettings({
       </div>
     </div>
   );
+}
+
+/** Remount on tenant change so an asynchronous response from a previous
+ * municipality cannot populate the new municipality's form. */
+export function MunicipalStorageSettings(props:{municipalityId:string;municipalityName?:string|null}){
+ return <MunicipalStorageSettingsForm key={props.municipalityId} {...props}/>;
 }
