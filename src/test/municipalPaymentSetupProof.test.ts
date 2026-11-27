@@ -32,11 +32,11 @@ describe("municipal setup evidence",()=>{
   expect(()=>assertProductionMunicipalSetupRuntime({VERCEL_ENV:"production",VERCEL_GIT_COMMIT_REF:"main"})).not.toThrow();
  });
  it("rejects an invalid response or unavailable payment methods",async()=>{
-  vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify({ok:true}),{status:200})));
+  vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify({ok:true}),{status:200,headers:{"Content-Type":"application/json"}})));
   await expect(testMercadoPagoToken("synthetic")).rejects.toThrow();
-  vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify([{id:"visa"}]),{status:200})));
+  vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify([{id:"visa"}]),{status:200,headers:{"Content-Type":"application/json"}})));
   await expect(testMercadoPagoToken("synthetic")).rejects.toThrow();
-  vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify([{id:"pix"}]),{status:200})));
+  vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify([{id:"pix"}]),{status:200,headers:{"Content-Type":"application/json"}})));
   expect(await testMercadoPagoToken("synthetic")).toMatchObject({pixAvailable:true,boletoAvailable:false});
  });
 });
