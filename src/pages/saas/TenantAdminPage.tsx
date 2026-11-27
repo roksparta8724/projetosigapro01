@@ -1,3 +1,4 @@
+import { municipalAdminSection, MUNICIPAL_ADMIN_SECTIONS } from "@/lib/municipalAdminNavigation";
 import { findMunicipalUnitNameConflict, suggestDistinctMunicipalUnitName } from "@/lib/municipalUnitName";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Clock3, ChevronDown, Network, PencilLine, Plus, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
@@ -361,15 +362,7 @@ export function TenantAdminPage() {
     scopeKey: authorizedAvatarViewerId || "",
     intervalMs: 8000,
   });
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>(() => {
-    // Respect a direct Users link on first paint, without a temporary queue/hero.
-    if (isNestedOverview) return "visao-geral";
-    const selected = new URLSearchParams(location.search).get("secao");
-    return selected === "usuarios" || selected === "organograma" ||
-      selected === "historico" || selected === "visao-geral" || selected === "fila"
-      ? selected
-      : "fila";
-  });
+  const workspaceView:WorkspaceView=municipalAdminSection(location.pathname,location.search)??"fila";
   const [municipalRegistryRefresh, setMunicipalRegistryRefresh] = useState(0);
   const [municipalRegistry, setMunicipalRegistry] = useState<{
     identity: string; municipalityId: string; loaded: boolean;
@@ -470,7 +463,6 @@ export function TenantAdminPage() {
       navigate("/prefeitura", { replace: true });
       return;
     }
-    if (isNestedOverview) setWorkspaceView("visao-geral");
   }, [isNestedOverview, location.pathname, navigate]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | AccountStatus>("todos");
@@ -1155,27 +1147,23 @@ export function TenantAdminPage() {
       title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}
       hideSectionHeader={workspaceView === "usuarios"}>
       <PageShell>
-        <InternalTabs
-          className="border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-          value={workspaceView}
-          onChange={(value) => {
-            const next = value as WorkspaceView;
-            setWorkspaceView(next);
-            if (next === "visao-geral") {
-              navigate("/prefeitura/visao-geral/processos");
-            } else if (isNestedOverview) {
-              navigate(`/prefeitura?secao=${encodeURIComponent(next)}`);
-            }
-          }}
-          persistInUrl={!isNestedOverview}
-          items={[
-            { value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" },
-            { value: "fila", label: "Fila operacional", helper: "Protocolos e prioridades" },
-            { value: "usuarios", label: "Usuários", helper: "Equipe e acessos" },
-            { value: "organograma", label: "Organograma", helper: "Estrutura e lotação" },
-            { value: "historico", label: "Histórico", helper: "Atividades recentes" },
-          ]}
-        />
+        <section data-municipal-admin-nav="true" className="min-w-0 space-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1 text-xs text-muted-foreground">
+            <Building2 className="h-4 w-4 shrink-0" aria-hidden="true"/>
+            <span>Administração municipal</span><span aria-hidden="true">/</span>
+            <span className="font-semibold text-foreground" aria-current="location">{MUNICIPAL_ADMIN_SECTIONS.find(section=>section.value===workspaceView)?.label}</span>
+          </div>
+          <InternalTabs
+            className="border-slate-200/90 shadow-[0_8px_20px_rgba(15,23,42,0.04)]"
+            value={workspaceView}
+            onChange={(value) => {
+              const target=MUNICIPAL_ADMIN_SECTIONS.find(section=>section.value===value);
+              if(target)navigate(target.to,{preventScrollReset:true});
+            }}
+            persistInUrl={false}
+            items={MUNICIPAL_ADMIN_SECTIONS.map(({value,label,helper})=>({value,label,helper}))}
+          />
+        </section>
 
         {workspaceView === "visao-geral" ? (
           <MunicipalOverviewSubnav active={overviewSubpage} counts={{

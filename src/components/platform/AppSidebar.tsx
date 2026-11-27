@@ -2,7 +2,8 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from "@/components/platform/PremiumIcons";
 import { cn } from "@/lib/utils";
-import { isMunicipalOverviewSubpagePath } from "@/lib/municipalOverviewSubpages";
+import { sidebarRouteActive, sidebarParentActive } from "@/lib/municipalAdminNavigation";
+import "./sidebar-navigation-hierarchy.css";
 
 export type AppSidebarItem = {
   to: string;
@@ -18,6 +19,7 @@ export type AppSidebarGroup = {
 
 type SidebarInnerProps = {
   pathname: string;
+  search?: string;
   groups: AppSidebarGroup[];
   activeDepartment?: string;
   expanded?: boolean;
@@ -31,37 +33,17 @@ type SidebarInnerProps = {
   activeItemRef?: (node: HTMLAnchorElement | HTMLButtonElement | null) => void;
 };
 
-function isRouteActive(pathname: string, route: string) {
-  const currentPath = pathname.replace(/\/+$/, "") || "/";
-  // A Visão geral possui URLs próprias. Não tratar todas as rotas /prefeitura/*
-  // como ativas: Organograma, Protocolo e Financeiro têm entradas independentes.
-  if (route === "/prefeitura") {
-    return currentPath === "/prefeitura" || isMunicipalOverviewSubpagePath(currentPath);
-  }
-  if (route === "/dashboard") {
-    return currentPath === "/dashboard" || pathname.startsWith("/dashboard/");
-  }
-  return currentPath === route;
-}
-
-function isParentActive(pathname: string, routeGroup: string) {
-  return pathname === routeGroup || pathname.startsWith(`${routeGroup}/`);
-}
-
-function getInitialExpandedItems(groups: AppSidebarGroup[], pathname: string) {
+function getInitialExpandedItems(groups: AppSidebarGroup[], pathname: string, search: string) {
   const next: Record<string, boolean> = {};
-  groups.forEach((group) => {
-    group.items.forEach((item) => {
-      if (item.children?.length && isParentActive(pathname, item.to)) {
-        next[item.to] = true;
-      }
-    });
-  });
+  groups.forEach(group=>group.items.forEach(item=>{
+    if(item.children?.length&&sidebarParentActive(pathname,search,item))next[item.to]=true;
+  }));
   return next;
 }
 
 function SidebarInner({
   pathname,
+  search = "",
   groups,
   activeDepartment,
   expanded = true,
@@ -115,12 +97,12 @@ function SidebarInner({
             if (group.items.length === 0) return null;
 
             return (
-              <div key={group.title} className="sig-sidebar-group space-y-2">
+              <div key={group.title} className="sig-sidebar-group space-y-1.5">
+                {expanded&&<p className={cn("sig-sidebar-group-title px-2.5 pt-1 text-[10px] font-semibold uppercase",darkSurface?"!text-[#bcd7e8]":"text-slate-600")}>{group.title}</p>}
                 {group.items.map((item) => {
                   const hasChildren = (item.children?.length ?? 0) > 0;
-                  const isChildActive = item.children?.some((child) => isRouteActive(pathname, child.to)) ?? false;
-                  const isExactActive = isRouteActive(pathname, item.to);
-                  const parentActive = hasChildren ? isParentActive(pathname, item.to) || isChildActive : isExactActive;
+                  const isExactActive = sidebarRouteActive(pathname, search, item.to);
+                  const parentActive = hasChildren ? sidebarParentActive(pathname,search,item) : isExactActive;
                   const isExpanded = hasChildren ? (expandedItems[item.to] ?? parentActive) : false;
                   const sectionOpen = hasChildren && isExpanded;
                   const Icon = item.icon;
@@ -142,12 +124,12 @@ function SidebarInner({
 
                   return (
                     <div key={item.to} className="sig-sidebar-item-shell">
-                      {hasChildren ? (
+                      {hasChildren && expanded ? (
                         <button
                           type="button"
                           ref={shouldBindActiveRef ? activeItemRef : undefined}
                           onClick={() => onToggleItem?.(item.to)}
-                          title={!expanded ? item.label : undefined}
+                          title={item.label}
                           aria-expanded={isExpanded}
                           data-sidebar-active={parentActive ? "true" : "false"}
                           data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
@@ -179,7 +161,7 @@ function SidebarInner({
                           >
                             <span
                               className={cn(
-                                "block truncate sig-fit-title text-[14px] leading-5 tracking-[0.002em]",
+                                "block whitespace-normal break-words text-[13px] leading-[1.35] tracking-[0.002em]",
                                 parentActive
                                   ? darkSurface
                                     ? "font-semibold text-[var(--sig-primary-deep)]"
@@ -212,9 +194,9 @@ function SidebarInner({
                       ) : (
                         <Link
                           ref={shouldBindActiveRef ? activeItemRef : undefined}
-                          to={item.to}
+                          to={hasChildren ? item.children![0].to : item.to}
                           onClick={onNavigate}
-                          title={!expanded ? item.label : undefined}
+                          title={item.label}
                           aria-current={parentActive ? "page" : undefined}
                           data-sidebar-active={parentActive ? "true" : "false"}
                           data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
@@ -246,7 +228,7 @@ function SidebarInner({
                           >
                             <span
                               className={cn(
-                                "block truncate sig-fit-title text-[14px] leading-5 tracking-[0.002em]",
+                                "block whitespace-normal break-words text-[13px] leading-[1.35] tracking-[0.002em]",
                                 parentActive
                                   ? darkSurface
                                     ? "font-semibold text-[var(--sig-primary-deep)]"
@@ -265,14 +247,14 @@ function SidebarInner({
                       {hasChildren && expanded ? (
                         <div
                           className={cn(
-                            "sig-sidebar-submenu ml-5 overflow-hidden border-l pl-4 ",
-                            sectionOpen ? "mt-2 max-h-[480px] opacity-100" : "mt-0 max-h-0 opacity-0 pointer-events-none",
+                            "sig-sidebar-submenu ml-3 overflow-hidden border-l pl-2 ",
+                            sectionOpen ? "mt-1 opacity-100" : "hidden",
                             darkSurface ? "border-white/10" : "border-slate-200",
                           )}
                         >
                           <div className="space-y-1.5">
                             {item.children!.map((child) => {
-                              const childActive = isRouteActive(pathname, child.to);
+                              const childActive = sidebarRouteActive(pathname,search,child.to);
                               const ChildIcon = child.icon;
 
                               return (
@@ -280,12 +262,13 @@ function SidebarInner({
                                   key={child.to}
                                   ref={childActive ? activeItemRef : undefined}
                                   to={child.to}
+                                  title={child.label}
                                   onClick={onNavigate}
                                   aria-current={childActive ? "page" : undefined}
                                   data-sidebar-active={childActive ? "true" : "false"}
                                   data-sigapro-nav-icon-contrast={darkSurface ? "light-ink" : "dark-ink"}
                                   className={cn(
-                                    "sig-sidebar-subitem group relative flex w-full min-h-[40px] items-center gap-3 rounded-[14px] px-3.5 py-2.5 text-[13px] font-medium transition-all",
+                                    "sig-sidebar-subitem group relative flex w-full min-h-[36px] items-center gap-2 rounded-[10px] px-2.5 py-2 text-[12px] font-medium transition-colors",
                                     childActive
                                       ? darkSurface
                                         ? "border border-white/85 bg-white text-[var(--sig-primary-deep)] shadow-[0_10px_24px_rgba(2,6,23,0.20)]"
@@ -307,11 +290,11 @@ function SidebarInner({
                                     aria-hidden="true"
                                   />
                                   {ChildIcon ? (
-                                    <ChildIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "!text-[#d7ebf8]" : "text-slate-500")} />
+                                    <ChildIcon className={cn("h-3.5 w-3.5 shrink-0", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "!text-[#d7ebf8]" : "text-slate-500")} />
                                   ) : (
-                                    <ChevronRightIcon className={cn("h-3.5 w-3.5", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "!text-[#d7ebf8]" : "text-slate-500")} />
+                                    <ChevronRightIcon className={cn("h-3.5 w-3.5 shrink-0", childActive ? (darkSurface ? "text-[var(--sig-primary-deep)]" : "text-slate-600") : darkSurface ? "!text-[#d7ebf8]" : "text-slate-500")} />
                                   )}
-                                  <span className="min-w-0 flex-1 truncate">{child.label}</span>
+                                  <span className="min-w-0 flex-1 whitespace-normal break-words leading-[1.35] [overflow-wrap:anywhere]">{child.label}</span>
                                 </Link>
                               );
                             })}
@@ -333,6 +316,7 @@ function SidebarInner({
 
 export function AppSidebar({
   pathname,
+  search = "",
   groups,
   activeDepartment,
   expanded = true,
@@ -343,6 +327,7 @@ export function AppSidebar({
   onMobileClose,
 }: {
   pathname: string;
+  search?: string;
   groups: AppSidebarGroup[];
   activeDepartment?: string;
   expanded?: boolean;
@@ -353,7 +338,7 @@ export function AppSidebar({
   onMobileClose?: () => void;
 }) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(() =>
-    getInitialExpandedItems(groups, pathname),
+    getInitialExpandedItems(groups, pathname,search),
   );
   const desktopScrollRef = useRef<HTMLDivElement | null>(null);
   const mobileScrollRef = useRef<HTMLDivElement | null>(null);
@@ -361,6 +346,12 @@ export function AppSidebar({
   const pendingScrollRestoreRef = useRef<number | null>(null);
   const pendingNearestRevealRef = useRef(false);
   const activeScrollContainerRef = mobileOpen ? mobileScrollRef : desktopScrollRef;
+  const routeBranches=Object.keys(getInitialExpandedItems(groups,pathname,search)).join("|");
+  useLayoutEffect(()=>{
+    const keys=routeBranches.split("|").filter(Boolean);
+    if(keys.length)setExpandedItems(current=>keys.every(key=>current[key]===true)?current:{...current,...Object.fromEntries(keys.map(key=>[key,true]))});
+    pendingNearestRevealRef.current=true;
+  },[pathname,search,routeBranches,mobileOpen,expanded]);
 
   const captureScroll = useCallback(() => {
     const node = activeScrollContainerRef.current;
@@ -410,7 +401,7 @@ export function AppSidebar({
       restoreScroll();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [expandedItems, pathname, restoreScroll]);
+  }, [expandedItems, pathname, search, routeBranches, mobileOpen, expanded, restoreScroll]);
 
   return (
     <>
@@ -428,6 +419,7 @@ export function AppSidebar({
       >
         <SidebarInner
           pathname={pathname}
+            search={search}
           groups={groups}
           activeDepartment={activeDepartment}
           expanded={expanded}
@@ -471,6 +463,7 @@ export function AppSidebar({
         >
           <SidebarInner
             pathname={pathname}
+            search={search}
             groups={groups}
             activeDepartment={activeDepartment}
             expanded

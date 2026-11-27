@@ -1,0 +1,9 @@
+.sig-sidebar-panel .sig-sidebar-group-title{margin:0 0 5px;letter-spacing:.1em;line-height:1.35}
+.sig-sidebar-panel .sig-sidebar-item-shell:has(>button[data-sidebar-active="true"])>.sig-sidebar-item{box-shadow:inset 3px 0 0 #7dd3fc}
+.sig-sidebar-panel .sig-sidebar-subitem[aria-current="page"]{font-weight:700;border-width:1px}
+.sig-sidebar-panel .sig-sidebar-subitem>span:not([aria-hidden]),.sig-sidebar-panel .sig-sidebar-label>span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+.sig-sidebar-panel .sig-sidebar-submenu.hidden{display:none}
+.sig-sidebar-panel .sig-sidebar-item:focus-visible,.sig-sidebar-panel .sig-sidebar-subitem:focus-visible{outline:2px solid #38bdf8;outline-offset:-2px}
+[data-municipal-admin-nav="true"] .sig-section-nav>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:6px;padding-bottom:0}
+[data-municipal-admin-nav="true"] .sig-section-nav .sig-nav-item{min-width:0;min-height:56px;white-space:normal;overflow-wrap:anywhere}
+@media(min-width:1024px){[data-municipal-admin-nav="true"] .sig-section-nav>div{grid-template-columns:repeat(5,minmax(0,1fr))}}

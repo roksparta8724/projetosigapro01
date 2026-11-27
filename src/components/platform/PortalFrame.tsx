@@ -83,6 +83,7 @@ import { buildProcessPath, can, canAccessMunicipalArea,
   getSessionLandingPath, isMunicipalTiDepartmentLabel, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
+import { MUNICIPAL_ADMIN_SECTIONS } from "@/lib/municipalAdminNavigation";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { TopbarBrandMark } from "@/components/platform/TopbarBrandMark";
@@ -686,7 +687,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
 
       const isExternalProfessional = isExternalProfessionalRole(session.role);
       if(item.to==="/prefeitura/comunicacoes"&&(!itScope||!["prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(session.role)||(itPermission.key===itIdentity&&itPermission.allowed)))return null;
-      if(item.to==="/prefeitura"&&session.role==="prefeitura_admin"&&itScope)return null;
+      // Keep municipal administration accessible alongside TI.
       if(activeTiDepartment&&item.to!=="/prefeitura/ti"&&item.to!=="/notificacoes"&&item.to!=="/dashboard")return null;
       if(item.to==="/prefeitura/ti"&&!activeTiDepartment&&!(itScope&&session.role==="prefeitura_admin")&&!(itPermission.key===itIdentity&&itPermission.allowed))return null;
 
@@ -732,6 +733,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
   const visibleNavItemsResolved = visibleNavItems.flatMap((item) => {
     if(activeTiDepartment&&item.to==="/dashboard")return [];
+    if(session.role==="prefeitura_admin"&&item.to==="/prefeitura/organograma")return [];
+    if(session.role==="prefeitura_admin"&&item.to==="/prefeitura")return [{...item,label:"Administração municipal",children:MUNICIPAL_ADMIN_SECTIONS.map(section=>({to:section.to,label:section.label,icon:section.value==="usuarios"?UserRound:section.value==="organograma"?Network:section.value==="historico"?History:section.value==="fila"?ListChecks:LayoutDashboard}))}];
     if ((session.role === "master_admin" || session.role === "master_ops") && item.to === "/master") {
       return [{ ...item, label: "Cadastro e Gestão" }];
     }
@@ -2566,6 +2569,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
         {(!focusMode || focusSidebarOpen) ? (
           <AppSidebar
             pathname={location.pathname}
+            search={location.search}
             groups={sidebarGroups}
             expanded={focusMode ? true : sidebarExpanded}
             mobileOpen={mobileSidebarOpen}
