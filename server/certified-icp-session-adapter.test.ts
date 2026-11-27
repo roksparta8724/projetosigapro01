@@ -1,6 +1,6 @@
 import {describe,it,expect,vi,beforeEach} from "vitest";
 import {createHmac} from "node:crypto";
-import {beginIcpSandboxSession,bindIcpSandboxSession} from "./certified-icp-session-adapter";
+import {beginIcpSandboxSession,bindIcpSandboxSession,recordIcpSandboxArchive} from "./certified-icp-session-adapter";
 import {callDataApiRpc,readBearer,readEnv,type ApiReq} from "./municipal-storage";
 vi.mock("./municipal-storage",()=>({callDataApiRpc:vi.fn(),readBearer:vi.fn(),readEnv:vi.fn()}));
 const municipalityId="11111111-1111-4111-8111-111111111111",profileId="22222222-2222-4222-8222-222222222222";
@@ -28,6 +28,12 @@ describe("ICP sandbox authenticated session adapter",()=>{
   await expect(adapter.reauthorizeSigner({...session,requestId:municipalityId})).rejects.toThrow("ITI_SESSION_BINDING_MISMATCH");
   await expect(adapter.reauthorizeSigner(session)).resolves.toMatchObject({profileId});
   expect(callDataApiRpc).toHaveBeenCalledTimes(2);
+ });
+ it("requires the exact archive manifest confirmation",async()=>{
+  const archive={objectKey:"sandbox-only/test.pdf",sha256:"a".repeat(64),fileSizeBytes:120,byteRangeSha256:binding.byteRangeSha256,cmsSha256:"b".repeat(64),certificateSha256:"c".repeat(64),environment:"sandbox" as const,archiveVerified:true as const,pdfPolicyVerified:false as const,issuanceAuthorized:false as const};
+  vi.mocked(callDataApiRpc).mockResolvedValueOnce(ok({...archive,manifestRecorded:true})).mockResolvedValueOnce(ok({...archive,manifestRecorded:true,sha256:"f".repeat(64)}));
+  await expect(recordIcpSandboxArchive(req,binding,archive)).resolves.toMatchObject({manifestRecorded:true});
+  await expect(recordIcpSandboxArchive(req,binding,archive)).rejects.toThrow("ITI_ARCHIVE_MANIFEST_NOT_CONFIRMED");
  });
  it("fails closed for absent authentication or mismatched returned identity",async()=>{
   vi.mocked(readBearer).mockReturnValueOnce("");

@@ -12,10 +12,11 @@ describe("Browser and route contract for ICP sandbox",()=>{
   for(const v of [{...start,authorizationUrl:start.authorizationUrl.replace("cas.staging.iti.br","cas.staging.iti.br.evil.invalid")},{...start,state:"b".repeat(43)},{...start,expiresAt:now},{...start,issuanceAuthorized:true}])expect(()=>validateSandboxStart(v,now)).toThrow();
  });
  it("requires verified archived bytes and forbids a claim of official issuance",()=>{
-  const proof={archiveVerified:true,issuanceAuthorized:false,pdfPolicyVerified:false,sha256:"b".repeat(64),environment:"sandbox"};
+  const proof={manifestRecorded:true,archiveVerified:true,issuanceAuthorized:false,pdfPolicyVerified:false,sha256:"b".repeat(64),environment:"sandbox"};
   expect(validateSandboxProof(proof)).toEqual(proof);
   expect(()=>validateSandboxProof({...proof,issuanceAuthorized:true})).toThrow();
   expect(()=>validateSandboxProof({...proof,archiveVerified:false})).toThrow();
+  expect(()=>validateSandboxProof({...proof,manifestRecorded:false})).toThrow();
  });
  it("preserves the serverless budget and both permit dialogs",()=>{
   const v=JSON.parse(readFileSync("vercel.json","utf8"));

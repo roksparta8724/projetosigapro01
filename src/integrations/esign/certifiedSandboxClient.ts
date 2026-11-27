@@ -3,7 +3,7 @@ import {getProcessArtifactSignatureRequest} from "./artifactClient";
 
 export type SandboxSelection={processId:string;artifactType:"construction_permit"|"habite_se_permit";signerSlot:"diretoria"|"secretaria"};
 type Start={authorizationUrl:string;ticket:string;state:string;expiresAt:number;environment:"sandbox";issuanceAuthorized:false};
-type Proof={archiveVerified:true;issuanceAuthorized:false;pdfPolicyVerified:false;sha256:string;environment:"sandbox"};
+type Proof={manifestRecorded:true;archiveVerified:true;issuanceAuthorized:false;pdfPolicyVerified:false;sha256:string;environment:"sandbox"};
 const hash=/^[a-f0-9]{64}$/;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export function validateSandboxStart(value:unknown,now=Date.now()):Start{
@@ -16,8 +16,8 @@ export function validateSandboxStart(value:unknown,now=Date.now()):Start{
 }
 export function validateSandboxProof(value:unknown):Proof{
  const v=value as Proof;
- if(!v||v.environment!=="sandbox"||v.archiveVerified!==true||v.issuanceAuthorized!==false||v.pdfPolicyVerified!==false||typeof v.sha256!=="string"||!hash.test(v.sha256))throw Error("O servidor não confirmou o arquivo de homologação.");
- return {archiveVerified:true,issuanceAuthorized:false,pdfPolicyVerified:false,sha256:v.sha256,environment:"sandbox"};
+ if(!v||v.environment!=="sandbox"||v.manifestRecorded!==true||v.archiveVerified!==true||v.issuanceAuthorized!==false||v.pdfPolicyVerified!==false||typeof v.sha256!=="string"||!hash.test(v.sha256))throw Error("O servidor não confirmou o arquivo de homologação.");
+ return {manifestRecorded:true,archiveVerified:true,issuanceAuthorized:false,pdfPolicyVerified:false,sha256:v.sha256,environment:"sandbox"};
 }
 async function post(body:Record<string,unknown>,signal:AbortSignal){
  const s=await backendClient.auth.getSession();

@@ -6,12 +6,13 @@ type StartBinding=SessionBinding&{snapshotSha256:string;nonce:string;processId:s
 type PrepareBinding=Pick<StartBinding,"municipalityId"|"profileId"|"processId"|"requestId"|"artifactType"|"signerSlot">;
 type Session=Awaited<ReturnType<IcpSandboxWorkerDependencies["consumeSession"]>>;
 type Actor=Awaited<ReturnType<IcpSandboxWorkerDependencies["reauthorizeSigner"]>>;
+type ArchiveProof=Awaited<ReturnType<typeof import("./certified-icp-candidate-archive.js").archiveIcpSandboxCandidate>>;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const hash=/^[0-9a-f]{64}$/;
 function checkBinding(binding:SessionBinding){
  if(!uuid.test(binding.municipalityId)||!uuid.test(binding.profileId)||!/^[A-Za-z0-9_-]{43}$/.test(binding.state)||!hash.test(binding.preparedPdfSha256)||!hash.test(binding.byteRangeSha256))throw Error("ITI_SESSION_BINDING_INVALID");
 }
-async function command<T>(req:ApiReq,action:"prepare"|"begin"|"consume"|"reauthorize",binding:SessionBinding|StartBinding|PrepareBinding){
+async function command<T>(req:ApiReq,action:"prepare"|"begin"|"consume"|"reauthorize"|"record",binding:SessionBinding|StartBinding|PrepareBinding|(SessionBinding&{archive:ArchiveProof})){
  if(action!=="prepare")checkBinding(binding as SessionBinding);
  if(!readBearer(req))throw Error("ITI_AUTHENTICATION_REQUIRED");
  const root=readEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET");
@@ -59,4 +60,14 @@ export function bindIcpSandboxSession(req:ApiReq,binding:SessionBinding):Pick<Ic
    return actor;
   }
  };
+}
+
+/** Register only the server-verified bytes, after archive readback. */
+export async function recordIcpSandboxArchive(req:ApiReq,binding:SessionBinding,archive:ArchiveProof){
+ const stored=await command<ArchiveProof&{manifestRecorded:boolean}>(req,"record",{...binding,archive});
+ if(stored.manifestRecorded!==true||stored.archiveVerified!==true||stored.pdfPolicyVerified!==false||stored.issuanceAuthorized!==false||stored.environment!=="sandbox"||
+   stored.sha256!==archive.sha256||stored.objectKey!==archive.objectKey||stored.byteRangeSha256!==binding.byteRangeSha256||
+   stored.fileSizeBytes!==archive.fileSizeBytes||stored.cmsSha256!==archive.cmsSha256||stored.certificateSha256!==archive.certificateSha256)
+   throw Error("ITI_ARCHIVE_MANIFEST_NOT_CONFIRMED");
+ return stored;
 }

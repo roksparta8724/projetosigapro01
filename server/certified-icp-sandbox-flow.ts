@@ -1,7 +1,7 @@
 import {createHash,createHmac,timingSafeEqual} from "node:crypto";
 import {execFileSync} from "node:child_process";
 import {createItiSandboxAuthorization,type ItiSandboxConfig} from "./iti-signature-sandbox.js";
-import {prepareIcpSandboxSnapshot,beginIcpSandboxSession,bindIcpSandboxSession} from "./certified-icp-session-adapter.js";
+import {prepareIcpSandboxSnapshot,beginIcpSandboxSession,bindIcpSandboxSession,recordIcpSandboxArchive} from "./certified-icp-session-adapter.js";
 import {archiveConfig,completeAndArchiveIcpSandboxCandidate} from "./certified-icp-candidate-archive.js";
 import {inspectPreparedPdfSignature,type PreparedSignatureRange} from "./certified-pdf-byte-range.js";
 import type {CmsTrustBundle} from "./certified-cms-preflight.js";
@@ -87,5 +87,6 @@ export async function finishSandboxFlow(req:ApiReq,input:{ticket:string;state:st
  const doc=createSandboxEvidencePdf(t,t.snapshotSha256,t.state);
  if(doc.preparedPdfSha256!==t.preparedPdfSha256||doc.byteRangeSha256!==t.byteRangeSha256)throw Error("ITI_DOCUMENT_BINDING_MISMATCH");
  const binding={state:t.state,municipalityId:t.municipalityId,profileId:t.profileId,preparedPdfSha256:t.preparedPdfSha256,byteRangeSha256:t.byteRangeSha256};
- return completeAndArchiveIcpSandboxCandidate({...bindIcpSandboxSession(req,binding),readPreparedPdf:async()=>({bytes:doc.bytes,range:doc.range}),readMunicipalSandboxConfig:async()=>config,readTrustBundle:async()=>trust},{...binding,code:input.code},env);
+ const archived=await completeAndArchiveIcpSandboxCandidate({...bindIcpSandboxSession(req,binding),readPreparedPdf:async()=>({bytes:doc.bytes,range:doc.range}),readMunicipalSandboxConfig:async()=>config,readTrustBundle:async()=>trust},{...binding,code:input.code},env);
+ return recordIcpSandboxArchive(req,binding,archived);
 }

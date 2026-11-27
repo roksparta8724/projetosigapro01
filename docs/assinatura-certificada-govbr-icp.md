@@ -51,3 +51,5 @@ A rota /api/certified-icp-sandbox conecta start, retorno OAuth em popup e comple
 
 ## Interface e limite Vercel (27/11)
 A rota de homologação é encaminhada ao serviço e-sign-artifact por rewrite, mantendo o limite de 12 funções serverless. Os dois diálogos de alvará têm opção de ensaio ICP somente na QA isolada, com popup, validação de origem e janela, estado, expiração, nova autenticação na conclusão e resposta de arquivo conferido; código/ticket não são persistidos no navegador. O resultado continua prova de homologação e não altera o alvará. As credenciais e bucket exclusivos ainda precisam ser configurados no ambiente; não há emissão oficial PAdES/GOV.BR.
+
+O retorno de homologação somente confirma sucesso após leitura do objeto e registro de manifesto privado no Neon, com competência e snapshot revalidados, metadados permitidos, caminho canônico e idempotência. Se o Neon recusar após o arquivo ter sido escrito, a operação falha e o candidato isolado permanece preservado; recuperação desse caso requer procedimento de conciliação. Não há emissão de alvará nem comprovação de serviço externo com credenciais reais.
