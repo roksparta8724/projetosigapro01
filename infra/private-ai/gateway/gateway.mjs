@@ -88,6 +88,7 @@ export function createGatewayServer({
     if (req.url !== '/v1/chat/completions' && !pdfText) return send(res, 404, { error: 'Not found' });
     if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
     if (!validToken(req.headers.authorization, token)) return send(res, 401, { error: 'Unauthorized' });
+    if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type'] || ''))) return send(res, 415, { error: 'JSON required' });
     const now = Date.now();
     if (now - windowStart >= 60_000) { windowStart = now; requests = 0; }
     if (requests >= maxPerMinute || active >= maxConcurrent)
@@ -103,6 +104,9 @@ export function createGatewayServer({
       }
       if (!validBody(body, model, pdfText)) return send(res, 400, { error: 'Invalid request' });
       const controller = new AbortController();
+      const disconnected=()=>{if(!res.writableEnded)controller.abort();};
+      res.once('close',disconnected);
+      if(res.destroyed)controller.abort();
       const timer = setTimeout(() => controller.abort(), pdfText ? Math.min(42000, Math.max(requestTimeoutMs, 30000)) : requestTimeoutMs);
       try {
         // Never pass arbitrary provider flags, tools or file references.
@@ -127,7 +131,7 @@ export function createGatewayServer({
         });
       } catch {
         return send(res, 504, { error: 'Model timeout or unavailable' });
-      } finally { clearTimeout(timer); }
+      } finally { clearTimeout(timer); res.off('close',disconnected); }
     } finally { active--; }
   });
   server.requestTimeout = 15_000;

@@ -121,3 +121,13 @@ test('private PDF text endpoint is opt-in, authenticates, shares limits and refu
  const truncated=await setup(t,()=>({body:{choices:[{finish_reason:'length',message:{content:'{}'}}]}}),{enablePdfText:true});
  assert.equal((await fetch(truncated.base+'/v1/sigapro/pdf-text',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({...body,temperature:0})})).status,502);
 });
+
+test('rejects non-JSON requests without consuming model capacity', async t => {
+ let count=0;
+ const {base,post}=await setup(t,()=>{count++;return {body:{choices:[{message:{content:'OK'}}]}};},{maxPerMinute:1});
+ const invalid=await fetch(base+'/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'text/plain'},body:JSON.stringify(body)});
+ assert.equal(invalid.status,415);
+ assert.equal(count,0);
+ assert.equal((await post()).status,200);
+ assert.equal(count,1);
+});
