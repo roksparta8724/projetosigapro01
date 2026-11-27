@@ -1,3 +1,4 @@
+import {privateQaDraftRegistry} from "./certified-permit-draft-registry.js";
 import {renderCertifiedPermitDraft,hashCertifiedPermitRenderPayload} from "./certified-permit-draft-renderer.js";
 import {archiveCertifiedPermitDraft,readArchivedCertifiedPermitDraft,type CertifiedDraftArchiveManifest} from "./certified-permit-draft-archive.js";
 type Snapshot=Parameters<typeof renderCertifiedPermitDraft>[0];
@@ -44,4 +45,13 @@ export async function prepareArchivedMunicipalDraft(input:{
  const doc=await storage.read(committed,scope,env);
  if(doc.preparedPdfSha256!==rendered.preparedPdfSha256||doc.byteRangeSha256!==rendered.byteRangeSha256)throw Error("CERTIFIED_DRAFT_REGISTRY_DOCUMENT_MISMATCH");
  return {manifest:committed,document:doc,registryConfirmed:true as const,reused:false,issuanceAuthorized:false as const};
+}
+
+/** Concrete composition with the private database adapter. A trusted caller
+ * supplies a scoped QA database query and the already-authorized snapshot.
+ * No public endpoint or production issuance is provided by this service. */
+export async function preparePersistedMunicipalDraft(input:Omit<Parameters<typeof prepareArchivedMunicipalDraft>[0],"registry">&{
+ query:Parameters<typeof privateQaDraftRegistry>[0];
+}){
+ return prepareArchivedMunicipalDraft({...input,registry:privateQaDraftRegistry(input.query,input.env)});
 }

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import {describe,it,expect,vi} from "vitest";
-import {prepareArchivedMunicipalDraft} from "./certified-permit-draft-service";
+import {prepareArchivedMunicipalDraft,preparePersistedMunicipalDraft} from "./certified-permit-draft-service";
 import {hashCertifiedPermitRenderPayload} from "./certified-permit-draft-renderer";
 import {archiveCertifiedPermitDraft,readArchivedCertifiedPermitDraft,type CertifiedDraftArchiveManifest} from "./certified-permit-draft-archive";
 import {buildConstructionPermitFormData} from "../src/lib/constructionPermit";
@@ -44,6 +44,27 @@ describe("Municipal draft render, immutable archive, and manifest commit",()=>{
   expect(f.events).toEqual(["registry:read","GetObjectCommand","GetObjectCommand"]);
   f.objects.get(first.manifest.preparedKey)![12]^=1;
   await expect(prepareArchivedMunicipalDraft(input)).rejects.toThrow("CERTIFIED_DRAFT_ARCHIVE_HASH_MISMATCH");
+ });
+ it("uses the real registry adapter with parameterized insert and immutable read-back",async()=>{
+  const f=fixture(),expectedRenderPayloadSha256=hashCertifiedPermitRenderPayload(snapshot);
+  let row:Record<string,unknown>|undefined;
+  const columns=["municipality_id","process_id","request_id","artifact_type","snapshot_sha256","render_payload_sha256","original_sha256","original_size","prepared_pdf_sha256","prepared_size","byte_range_sha256"];
+  const query=vi.fn(async(sql:string,values:unknown[])=>{
+   expect(values.slice(0,6)).toEqual([municipalityId,processId,requestId,snapshot.artifactType,snapshot.snapshotSha256,expectedRenderPayloadSha256]);
+   if(sql.startsWith("INSERT")){
+    expect(sql).toContain("ON CONFLICT DO NOTHING");expect(values).toHaveLength(11);
+    row??=Object.fromEntries(columns.map((name,i)=>[name,values[i]]));return {rows:[]};
+   }
+   expect(sql).toMatch(/^SELECT /);return {rows:row?[row]:[]};
+  });
+  const input={snapshot,requestId,expectedRenderPayloadSha256,query,env,storage:f.storage};
+  const first=await preparePersistedMunicipalDraft(input);
+  expect(first.registryConfirmed).toBe(true);
+  expect(row?.prepared_pdf_sha256).toBe(first.document.preparedPdfSha256);
+  expect((await preparePersistedMunicipalDraft(input)).reused).toBe(true);
+  expect(query.mock.calls.filter(([sql])=>sql.startsWith("INSERT"))).toHaveLength(1);
+  row={...row,municipality_id:processId};
+  await expect(preparePersistedMunicipalDraft(input)).rejects.toThrow("CERTIFIED_DRAFT_REGISTRY_SCOPE_INVALID");
  });
  it("fails closed when registry commit returns a different manifest",async()=>{
   const f=fixture();
