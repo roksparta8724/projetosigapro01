@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { appendPermitContinuations, permitSummaryLines, type PermitContinuation } from "./permitPdfContinuation";
 import { createQrCodeDataUrl } from "@/lib/qrCode";
 import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 import type {
@@ -1029,7 +1030,8 @@ export async function buildConstructionPermitPdfBlob({
     conditions.join(" "),
     contentWidth - 6,
   ) as string[];
-  pdf.text(conditionLines.slice(0, 4), margin + 2.8, y + 6.9, {
+  const conditionSummary = permitSummaryLines(conditionLines, 4);
+  pdf.text(conditionSummary.lines, margin + 2.8, y + 6.9, {
     lineHeightFactor: 1.12,
   });
   y += 15;
@@ -1147,6 +1149,8 @@ export async function buildConstructionPermitPdfBlob({
     { align: "center", maxWidth: contentWidth },
   );
 
+  const continuations: PermitContinuation[] = conditionSummary.overflow ? [{title:"Observações e condições — texto integral",body:conditions.join("\n\n")}] : [];
+  appendPermitContinuations(pdf,{municipality:officialMunicipalityName,permitNumber:permit.permitNumber,protocol:process.protocol,documentTitle:permitDocumentTitle,sections:continuations});
   return pdf.output("blob");
 }
 

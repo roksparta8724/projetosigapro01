@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { appendPermitContinuations, permitSummaryLines, type PermitContinuation } from "./permitPdfContinuation";
 import { createQrCodeDataUrl } from "@/lib/qrCode";
 import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 import type { ProcessRecord } from "@/lib/platform";
@@ -196,6 +197,7 @@ function drawParagraphBox(
   height: number,
   title: string,
   body: string,
+  continuations: PermitContinuation[],
 ) {
   fill(pdf, color.white);
   draw(pdf, color.line);
@@ -211,7 +213,9 @@ function drawParagraphBox(
   pdf.setFontSize(5.25);
   textColor(pdf, color.ink);
   const lines = pdf.splitTextToSize(body || "—", width - 6) as string[];
-  pdf.text(lines.slice(0, Math.max(1, Math.floor((height - 7) / 2.55))), x + 3, y + 7.6, {
+  const summary = permitSummaryLines(lines, Math.max(2, Math.floor((height - 7) / 2.55)));
+  if(summary.overflow) continuations.push({title,body});
+  pdf.text(summary.lines, x + 3, y + 7.6, {
     lineHeightFactor: 1.16,
   });
 }
@@ -291,6 +295,7 @@ export async function buildHabiteSePermitPdfBlob({
   const margin = 10;
   const contentWidth = pageWidth - margin * 2;
   const gap = 3;
+  const continuations: PermitContinuation[] = [];
 
   const isCampoLimpo = /campo\s+limpo\s+paulista/i.test(municipalityName);
   const logoUrl =
@@ -478,6 +483,7 @@ export async function buildHabiteSePermitPdfBlob({
     22,
     "Certificação municipal",
     "Após análise documental, vistoria/conferência e confirmação do recolhimento da taxa de Habite-se, fica certificado o atendimento das condições registradas neste processo para ocupação do imóvel acima identificado.",
+    continuations,
   );
   y += 24;
 
@@ -489,6 +495,7 @@ export async function buildHabiteSePermitPdfBlob({
     18,
     "Condições, ressalvas e condicionantes",
     permit.formData.conditions || "Sem ressalvas ou condicionantes pendentes registradas no processo para a emissão deste Alvará de Habite-se.",
+    continuations,
   );
   y += 20;
 
@@ -500,6 +507,7 @@ export async function buildHabiteSePermitPdfBlob({
     18,
     "Parecer técnico conclusivo",
     permit.formData.observations || "Com base na documentação técnica, no projeto aprovado e nos registros de vistoria constantes do processo, a edificação encontra-se concluída e apta à ocupação para o uso declarado, observadas as condições do licenciamento e as normas técnicas aplicáveis.",
+    continuations,
   );
   y += 21;
 
@@ -583,6 +591,7 @@ export async function buildHabiteSePermitPdfBlob({
 
   // A propriedade só é usada para manter o título no Blob/navegador consistente.
   void fileTitle;
+  appendPermitContinuations(pdf,{municipality:officialMunicipalityName,permitNumber:permit.permitNumber,protocol:process.protocol,documentTitle:"Alvará de Habite-se",sections:continuations});
   return pdf.output("blob");
 }
 
