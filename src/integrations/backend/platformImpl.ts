@@ -5202,3 +5202,5 @@ export async function setRemoteMunicipalStaffIdentityPrimary(municipalityId:stri
  if(error)throw Error(error.message||"Falha ao fixar a unidade de identificação.");
  return parseMunicipalIdentityBadges(data,municipalityId,[profileId]);
 }
+
+export async function municipalTiWorkspace<T=unknown>(municipalityId:string,action:string,payload:Record<string,unknown>={}):Promise<T>{if(!db||!isNeonBackend)throw Error("Gestão TI exige o Neon.");const {data,error}=await db.rpc("municipal_ti_workspace_v1",{m:municipalityId,a:action,payload});if(error)throw Error(error.message||"Operação não autorizada.");if(!data||typeof data!=="object")throw Error("Operação não confirmada.");return data as T;}

@@ -137,7 +137,12 @@ function readEffectiveThemeCache(): LayoutThemeOverride | null {
 const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
-  { key: "municipal-ti", to: "/prefeitura/ti", label: "Tecnologia da Informação", icon: MonitorCog, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "municipal-ti", to: "/prefeitura/ti", label: "Tecnologia da Informação", icon: MonitorCog, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined, children: [
+    { to: "/prefeitura/ti", label: "Visão geral", icon: LayoutDashboard },
+    { to: "/prefeitura/ti/memorandos", label: "Memorandos e comunicações", icon: FileText },
+    { to: "/prefeitura/ti/equipe", label: "Equipe e organograma", icon: Network },
+  ] },
+  { key: "municipal-comunicacoes", to: "/prefeitura/comunicacoes", label: "Comunicações oficiais", icon: FileText, permission: "manage_own_profile" as Permission, essential: true, internalOnly: true, module: undefined as PlanModuleName | undefined },
   { key: "municipal-organogram", to: "/prefeitura/organograma", label: "Organograma", icon: Network, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "dashboard-master",
@@ -227,6 +232,7 @@ const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefei
 const operationalNavItems = [
   "/dashboard",
   "/prefeitura/ti",
+  "/prefeitura/comunicacoes",
   "/prefeitura/protocolos",
   "/prefeitura/analise",
   "/prefeitura/financeiro",
@@ -674,6 +680,8 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
 
       const isExternalProfessional = isExternalProfessionalRole(session.role);
+      if(item.to==="/prefeitura/comunicacoes"&&(!itScope||!["prefeitura_supervisor","analista","financeiro","fiscal","setor_intersetorial"].includes(session.role)||(itPermission.key===itIdentity&&itPermission.allowed)))return null;
+      if(item.to==="/prefeitura"&&session.role==="prefeitura_admin"&&itScope)return null;
       if(item.to==="/prefeitura/ti"&&!(itScope&&session.role==="prefeitura_admin")&&!(itPermission.key===itIdentity&&itPermission.allowed))return null;
 
       if (item.to.startsWith("/externo") && !isExternalProfessional) return null;
@@ -713,7 +721,7 @@ function PortalFrameSurface({ title, eyebrow, children, focusMode = false, compa
       const parentAllowed = can(session, item.permission);
       if (!parentAllowed && visibleChildren.length === 0) return null;
       if (item.key && !item.essential && !isItemVisible(item.key as MenuPreferenceKey)) return null;
-      return { ...item, children: visibleChildren };
+      return { ...item, children: item.to==="/prefeitura/ti"&&session.role==="prefeitura_supervisor"?visibleChildren.filter(child=>child.to!=="/prefeitura/ti/equipe"):visibleChildren };
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
   const visibleNavItemsResolved = visibleNavItems.flatMap((item) => {

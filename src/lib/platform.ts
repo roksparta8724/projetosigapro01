@@ -2777,7 +2777,7 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
     case "admin_master":
       return "/master";
     case "prefeitura_admin":
-      return "/prefeitura";
+      return "/prefeitura/ti";
     case "prefeitura_supervisor":
       return "/prefeitura/analise";
     case "analista":
