@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {encryptItiCredentials,decryptItiCredentials,publicItiConfigStatus,registeredItiCallback} from "./municipal-iti-sandbox-config";
+import {encryptItiCredentials,decryptItiCredentials,publicItiConfigStatus,registeredItiCallback,stageItiCredentials,bindRegisteredItiCallback} from "./municipal-iti-sandbox-config";
 const env={SIGAPRO_BANK_CHARGE_SIGNING_SECRET:"a".repeat(64)};
 const config={municipalityId:"11111111-1111-4111-8111-111111111111",clientId:"fixture-id",clientSecret:"fixture-secret",redirectUri:"https://qa.example.invalid/api/certified-icp-sandbox"};
 describe("Municipal ITI credential vault",()=>{
@@ -25,5 +25,25 @@ describe("Registered ITI callback",()=>{
  });
  it.each(["", "http://qa.example.invalid/api/certified-icp-sandbox", "https://qa.example.invalid/wrong", config.redirectUri+"?code=secret", config.redirectUri+"#fragment","https://user:pass@qa.example.invalid/api/certified-icp-sandbox","https://qa.example.invalid:8443/api/certified-icp-sandbox"] )("rejects invalid callback %s",redirect=>{
   expect(registeredItiCallback({...env,SIGAPRO_QA_ICP_REDIRECT_URI:redirect})).toBeNull();
+ });
+});
+
+describe("Provisioning before external integration is available",()=>{
+ const staged={...config,redirectUri:""};
+ const registered={...env,SIGAPRO_QA_ICP_REDIRECT_URI:config.redirectUri};
+ it("accepts and encrypts a draft without callback, but never authorizes OAuth",()=>{
+  const draft=stageItiCredentials(staged,env);
+  expect(decryptItiCredentials(config.municipalityId,encryptItiCredentials(draft,env),env)).toEqual(staged);
+  expect(()=>bindRegisteredItiCallback(draft,env)).toThrow("ITI_REDIRECT_NOT_REGISTERED");
+  expect(publicItiConfigStatus({configured:true},env)).toMatchObject({configured:true,registeredCallback:null,runtimeEnabled:false,issuanceAuthorized:false});
+ });
+ it("uses only the canonical server callback after provisioning",()=>{
+  expect(bindRegisteredItiCallback(staged,registered)).toEqual(config);
+  expect(()=>stageItiCredentials(config,env)).toThrow();
+  expect(()=>stageItiCredentials({...config,redirectUri:"https://other.example.invalid/api/certified-icp-sandbox"},registered)).toThrow();
+  expect(()=>bindRegisteredItiCallback(config,{...env,SIGAPRO_QA_ICP_REDIRECT_URI:"https://other.example.invalid/api/certified-icp-sandbox"})).toThrow();
+ });
+ it("does not label mismatched trust material configured",()=>{
+  expect(publicItiConfigStatus({configured:true},{...registered,SIGAPRO_QA_ICP_ROOTS_PEM:"invalid",SIGAPRO_QA_ICP_ROOTS_SHA256:"a".repeat(64),SIGAPRO_QA_ICP_CRLS_PEM:"-----BEGIN X509 CRL-----"}).trustConfigured).toBe(false);
  });
 });
